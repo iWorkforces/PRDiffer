@@ -7,9 +7,9 @@ from github.Repository import Repository
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from ccpragents.domain.entities.file_patch import FilePatchInfo, EDIT_TYPE
-from ccpragents.domain.services.github_api import GitHubAPIServiceInterface
-from ccpragents.domain.services.pattern_matching import PatternMatchingServiceInterface
-from ccpragents.domain.services.diff import DiffServiceInterface
+from ccpragents.domain.services import GitHubAPIServiceInterface
+from ccpragents.domain.services import PatternMatchingServiceInterface
+from ccpragents.domain.services import DiffServiceInterface
 from ccpragents.infrastructure.logging.console_logger import get_logger
 
 

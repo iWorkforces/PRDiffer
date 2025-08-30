@@ -1,7 +1,7 @@
 """Pattern matching utility for file filtering and validation."""
 import re
 from typing import List, Optional, Tuple, Union
-from ccpragents.domain.services.pattern_matching import PatternMatchingServiceInterface
+from ccpragents.domain.services import PatternMatchingServiceInterface
 
 
 class PatternMatcher(PatternMatchingServiceInterface):

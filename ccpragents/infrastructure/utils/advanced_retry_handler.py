@@ -4,7 +4,7 @@ import random
 from typing import Any, Callable, Optional, Dict
 from enum import StrEnum
 
-from ccpragents.domain.services.retry import RetryServiceInterface
+from ccpragents.domain.services import RetryServiceInterface
 from ccpragents.infrastructure.logging.console_logger import get_logger
 from ccpragents.infrastructure.utils.circuit_breaker import CircuitBreaker, CircuitBreakerOpenException
 from ccpragents.infrastructure.utils.api_health_tracker import APIHealthTracker

@@ -1,6 +1,6 @@
 from typing import Optional, Dict, Any, cast
 from dynaconf import Dynaconf
-from ccpragents.domain.services.settings import SettingsServiceInterface
+from ccpragents.domain.services import SettingsServiceInterface
 
 
 class SettingsService(SettingsServiceInterface):
@@ -26,7 +26,6 @@ class SettingsService(SettingsServiceInterface):
             settings_files=settings_files,
             environments=True,
             env_switcher='ENV_FOR_DYNACONF',
-            envvar_prefix='CCPRAgents',
             load_dotenv=True,
         )
 

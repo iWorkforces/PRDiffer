@@ -2,7 +2,7 @@ import re
 import time
 from fastmcp import FastMCP
 from ccpragents.domain.entities.pr_diff import ExtraPRDiff
-from ccpragents.domain.usecases.pr_diff_usecases import GetPRDiffUseCase
+from ccpragents.domain.usecases import GetPRDiffUseCase
 from ccpragents.infrastructure.github_repository import GitHubPRDiffRepository
 from ccpragents.infrastructure.settings import get_settings_service
 from ccpragents.infrastructure.cache_service import get_cache_service
@@ -87,10 +87,11 @@ The tool returns structured data with complete file change information, making i
 - Code analysis and refactoring
 - Code understanding and documentation
 """,
-            version="0.2.4"
+            version="0.1.1"
         )
 
         self._register_tools()
+        self._register_prompts()
 
     def _parse_pr_url(self, pr_url: str) -> tuple[str, str, int]:
         """Parse GitHub PR URL to extract repository owner, name, and PR number.
@@ -216,6 +217,26 @@ The tool returns structured data with complete file change information, making i
         if self._total_requests == 0:
             return 0.0
         return round((self._successful_requests / self._total_requests) * 100, 2)
+
+    def _register_prompts(self):
+        """Register FastMCP prompts with the server instance.
+
+        This method registers prompts for PR analysis and documentation tasks.
+        """
+        @self.mcp.prompt()
+        def describe(pr_url: str, pr_commit_messages: str, pr_diff: str):
+            """Describe the changes in a pull request."""
+            return "Describe the changes in this pull request, highlighting key modifications and their impact."
+
+        @self.mcp.prompt()
+        def review(pr_url: str, pr_commit_messages: str, pr_diff: str):
+            """Review a pull request for code quality and best practices."""
+            return "Review this pull request for code quality, best practices, and potential issues."
+
+        @self.mcp.prompt()
+        def update_changelog(pr_url: str, pr_commit_messages: str, pr_diff: str):
+            """Generate changelog entries for a pull request."""
+            return "Generate appropriate changelog entries for the changes in this pull request."
 
     def _register_tools(self):
         """Register FastMCP tools with the server instance.

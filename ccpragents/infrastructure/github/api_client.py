@@ -5,7 +5,7 @@ from github.Auth import Token
 from github.Repository import Repository
 from github.PullRequest import PullRequest
 from github.ContentFile import ContentFile
-from ccpragents.domain.services.github_api import GitHubAPIServiceInterface
+from ccpragents.domain.services import GitHubAPIServiceInterface
 from ccpragents.infrastructure.utils.retry_handler import get_retry_handler
 from ccpragents.infrastructure.utils.advanced_retry_handler import get_advanced_retry_handler, OperationContext
 from ccpragents.infrastructure.logging.console_logger import get_logger

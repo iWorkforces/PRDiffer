@@ -1,26 +1,27 @@
 """Repository cache service interface for domain layer.
 
 This module defines the abstract interface for repository caching services
-that cache GitHubPRDiffRepository instances to avoid repeated initialization.
+that cache PRDiffRepositoryInterface instances to avoid repeated initialization.
 """
 from abc import ABC, abstractmethod
 from typing import Optional
-from ccpragents.infrastructure.github_repository import GitHubPRDiffRepository
+
+from ccpragents.domain.repositories import PRDiffRepositoryInterface
 
 
 class RepositoryCacheServiceInterface(ABC):
     """Abstract base class for repository caching services.
 
     This interface defines the contract for services that cache
-    GitHubPRDiffRepository instances to optimize GitHub API usage.
+    PRDiffRepositoryInterface instances to optimize GitHub API usage.
     """
 
     @abstractmethod
-    def insert(self, repository: GitHubPRDiffRepository) -> bool:
+    def insert(self, repository: PRDiffRepositoryInterface) -> bool:
         """Insert a repository instance into the cache.
 
         Args:
-            repository: GitHubPRDiffRepository instance to cache
+            repository: PRDiffRepositoryInterface instance to cache
 
         Returns:
             bool: True if inserted successfully, False otherwise
@@ -28,7 +29,7 @@ class RepositoryCacheServiceInterface(ABC):
         pass
 
     @abstractmethod
-    def retrieve(self, repo_owner: str, repo_name: str, pr_number: int) -> Optional[GitHubPRDiffRepository]:
+    def retrieve(self, repo_owner: str, repo_name: str, pr_number: int) -> Optional[PRDiffRepositoryInterface]:
         """Retrieve a cached repository instance.
 
         Args:
@@ -37,7 +38,7 @@ class RepositoryCacheServiceInterface(ABC):
             pr_number: Pull request number
 
         Returns:
-            GitHubPRDiffRepository instance if found and valid, None otherwise
+            PRDiffRepositoryInterface instance if found and valid, None otherwise
         """
         pass
 

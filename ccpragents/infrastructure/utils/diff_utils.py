@@ -2,7 +2,7 @@
 import difflib
 import re
 from typing import Union
-from ccpragents.domain.services.diff import DiffServiceInterface
+from ccpragents.domain.services import DiffServiceInterface
 from ccpragents.infrastructure.logging.console_logger import get_logger
 
 
