@@ -1,0 +1,313 @@
+# CLAUDE.md - Infrastructure Utilities
+
+This file provides guidance for working with the infrastructure utilities of CCPRAgents.
+
+## Overview
+
+This directory contains general-purpose utility components that support the main GitHub repository implementation. These utilities are designed to be reusable, testable, and follow Clean Architecture principles with proper domain interfaces.
+
+## Utility Components
+
+### Retry Handler (`retry_handler.py`)
+
+**RetryHandler**
+- Implements `RetryServiceInterface` from domain layer
+- Provides configurable retry logic with exponential backoff and jitter
+- Handles rate limit detection and appropriate retry strategies
+- Comprehensive logging for debugging retry attempts
+
+**Key Features:**
+- **Exponential Backoff**: Progressively increasing delays between retries
+- **Jitter**: Random variation to prevent thundering herd problems
+- **Rate Limit Detection**: Special handling for GitHub API rate limits
+- **Configurable Parameters**: Max retries, base delay, and timeout settings
+
+**Usage Pattern:**
+```python
+retry_handler = get_retry_handler(max_retries=3, retry_delay=1.0)
+result = retry_handler.execute_with_retry(some_function, arg1, arg2, keyword=value)
+```
+
+**Retry Strategy:**
+- **Attempt 1**: Immediate execution
+- **Attempt 2**: Base delay (1s) + jitter
+- **Attempt 3**: 2 × base delay (2s) + jitter
+- **Final Attempt**: 4 × base delay (4s) + jitter, then raise exception
+
+### Pattern Matcher (`pattern_matcher.py`)
+
+**PatternMatcher**
+- Implements `PatternMatchingServiceInterface` from domain layer
+- Efficient file filtering using pre-compiled regex patterns
+- Supports wildcards, directory patterns, and exact matches
+- Validates files against ignore patterns and valid extensions
+
+**Pattern Types Supported:**
+- **Exact Matches**: `filename.ext` matches exactly
+- **Wildcard Extensions**: `*.lock` matches all `.lock` files
+- **Directory Patterns**: `node_modules/` matches entire directories
+- **Complex Wildcards**: `temp-*-files` with regex compilation
+- **Valid Extensions**: Whitelist of allowed file types
+
+**Configuration:**
+```python
+matcher = get_pattern_matcher(
+    ignore_patterns=['*.lock', 'node_modules/', 'temp-*'],
+    valid_extensions=['.py', '.js', '.ts', '.md']
+)
+is_valid = matcher.is_valid_file('src/main.py')  # True
+is_valid = matcher.is_valid_file('package.lock')  # False
+```
+
+**Performance Optimizations:**
+- **Pre-compilation**: Regex patterns compiled once during initialization
+- **Pattern Classification**: String patterns vs regex patterns for optimal matching
+- **Early Termination**: Short-circuit evaluation on first match
+
+### Diff Utils (`diff_utils.py`)
+
+**DiffUtils**
+- Implements `DiffServiceInterface` from domain layer
+- Core diff generation using Python's `difflib` module
+- Content encoding detection and conversion utilities
+- Patch extension for full-file context display
+
+**Key Capabilities:**
+- **Full-File Patches**: Generate complete file context diffs
+- **Content Decoding**: Handle various text encodings (UTF-8, ISO-8859-1, Latin-1, ASCII, UTF-16)
+- **Patch Extension**: Convert minimal patches to full-file context
+- **Hunk Header Parsing**: Extract line numbers and change ranges
+- **Content Normalization**: Standardize line endings and whitespace
+
+**Diff Generation Process:**
+1. **Content Preparation**: Decode and normalize file content
+2. **Sequence Matching**: Use `difflib.SequenceMatcher` for line comparison
+3. **Hunk Creation**: Generate unified diff format with proper headers
+4. **Context Addition**: Include full file context for better analysis
+
+**Output Format:**
+```
+@@ -1,10 +1,12 @@
+ line1
+ line2
+-removed_line
++added_line
+ line4
++another_added_line
+ line5
+```
+
+### Circuit Breaker (`circuit_breaker.py`)
+
+**CircuitBreaker**
+- Implements `CircuitBreakerServiceInterface` from domain layer
+- Prevents cascading failures by temporarily disabling failing operations
+- Configurable failure thresholds and reset timeouts
+- State management with open, half-open, and closed states
+
+**Key Features:**
+- **Failure Detection**: Tracks consecutive failures and error rates
+- **Automatic Recovery**: Automatically resets after successful operations
+- **Configurable Thresholds**: Customizable failure count and timeout settings
+- **State Monitoring**: Tracks circuit state transitions for observability
+
+**Usage Pattern:**
+```python
+circuit_breaker = get_circuit_breaker(failure_threshold=5, reset_timeout=60)
+result = circuit_breaker.execute(risky_operation, arg1, arg2)
+```
+
+**Circuit States:**
+- **Closed**: Normal operation, all requests pass through
+- **Open**: Circuit open, all requests fail fast
+- **Half-Open**: Testing if service has recovered
+
+### API Health Tracker (`api_health_tracker.py`)
+
+**APIHealthTracker**
+- Implements `APIHealthServiceInterface` from domain layer
+- Monitors API performance metrics and error rates
+- Tracks response times, success rates, and failure patterns
+- Provides health status and performance insights
+
+**Key Features:**
+- **Performance Metrics**: Response time tracking and statistics
+- **Error Rate Monitoring**: Failure rate calculation and trend analysis
+- **Health Status**: Overall API health assessment
+- **Historical Data**: Performance history for trend analysis
+
+**Metrics Tracked:**
+- **Response Times**: Average, p95, p99 response times
+- **Success Rate**: Percentage of successful operations
+- **Error Rates**: Breakdown by error type and frequency
+- **Throughput**: Operations per minute/second
+
+### Advanced Retry Handler (`advanced_retry_handler.py`)
+
+**AdvancedRetryHandler**
+- Extends basic retry handler with advanced features
+- Implements `AdvancedRetryServiceInterface` from domain layer
+- Context-aware retry strategies with dynamic backoff
+- Integration with circuit breaker and health tracking
+
+**Advanced Features:**
+- **Contextual Retry**: Different strategies based on operation type
+- **Dynamic Backoff**: Adaptive delays based on current system load
+- **Health Integration**: Uses API health data to inform retry decisions
+- **Circuit Integration**: Works with circuit breaker for coordinated failure handling
+
+## Architecture Integration
+
+### Dependency Flow
+```
+GitHubPRDiffRepository
+    ├── RetryHandler ← GitHub API operations
+    ├── PatternMatcher ← File filtering
+    └── DiffUtils ← Patch generation
+```
+
+### Domain Interface Compliance
+All utilities implement domain service interfaces:
+- `RetryHandler` → `RetryServiceInterface`
+- `PatternMatcher` → `PatternMatchingServiceInterface`
+- `DiffUtils` → `DiffServiceInterface`
+- `CircuitBreaker` → `CircuitBreakerServiceInterface`
+- `APIHealthTracker` → `APIHealthServiceInterface`
+- `AdvancedRetryHandler` → `AdvancedRetryServiceInterface`
+
+### Factory Pattern
+Each utility provides a factory function for easy instantiation:
+```python
+# Get configured instances
+retry_handler = get_retry_handler()
+pattern_matcher = get_pattern_matcher(ignore_patterns, valid_extensions)
+diff_utils = get_diff_utils()
+circuit_breaker = get_circuit_breaker()
+health_tracker = get_api_health_tracker()
+advanced_retry = get_advanced_retry_handler()
+```
+
+## Development Guidelines
+
+### Adding New Utilities
+1. **Create Domain Interface**: Define contract in `ccpragents/domain/services/`
+2. **Implement Utility**: Create implementation in this directory
+3. **Add Factory Function**: Provide `get_*` factory for easy instantiation
+4. **Update __init__.py**: Export new utility and factory function
+5. **Write Tests**: Create comprehensive unit tests
+
+### Configuration Patterns
+Utilities should accept configuration through:
+- **Constructor Parameters**: Direct configuration for testing
+- **Settings Service**: Production configuration from settings files
+- **Environment Variables**: Runtime overrides when needed
+
+### Error Handling Standards
+- **Graceful Degradation**: Return sensible defaults instead of crashing
+- **Comprehensive Logging**: Log errors with context for debugging
+- **Exception Propagation**: Let critical errors bubble up appropriately
+- **Input Validation**: Validate inputs and provide clear error messages
+
+### Performance Considerations
+- **Lazy Initialization**: Create expensive resources only when needed
+- **Caching**: Cache compiled patterns and expensive computations
+- **Memory Management**: Clear caches and resources appropriately
+- **Algorithmic Efficiency**: Choose optimal algorithms for the use case
+
+## Testing Strategies
+
+### Unit Testing
+Each utility should have comprehensive unit tests covering:
+- **Normal Operation**: Basic functionality with valid inputs
+- **Edge Cases**: Empty inputs, boundary conditions, unusual patterns
+- **Error Conditions**: Invalid inputs, network failures, encoding issues
+- **Performance**: Verify acceptable performance with large datasets
+
+### Integration Testing
+Test utilities working together:
+- **Retry + API Calls**: Test retry behavior with actual GitHub API
+- **Pattern + File Lists**: Test filtering with real file structures
+- **Diff + File Content**: Test patch generation with actual file changes
+
+### Mock Testing
+Use mocks for external dependencies:
+- **Network Calls**: Mock API responses for retry testing
+- **File System**: Mock file operations for pattern testing
+- **Heavy Operations**: Mock expensive computations for faster tests
+
+## File Organization
+
+```
+ccpragents/infrastructure/utils/
+├── __init__.py              # Public API exports
+├── retry_handler.py         # Exponential backoff retry logic
+├── pattern_matcher.py       # File pattern matching utilities
+├── diff_utils.py           # Diff generation and content utilities
+├── circuit_breaker.py      # Circuit breaker pattern implementation
+├── api_health_tracker.py   # API performance monitoring
+└── advanced_retry_handler.py # Advanced retry strategies
+```
+
+## Common Use Cases
+
+### GitHub API Reliability
+```python
+retry_handler = get_retry_handler(max_retries=5, retry_delay=2.0)
+def fetch_with_retry():
+    return retry_handler.execute_with_retry(api_client.get_repository, "owner/repo")
+```
+
+### File Filtering
+```python
+pattern_matcher = get_pattern_matcher(
+    ignore_patterns=['*.log', 'tmp/', '*.cache'],
+    valid_extensions=['.py', '.md', '.yml']
+)
+valid_files = [f for f in all_files if pattern_matcher.is_valid_file(f)]
+```
+
+### Patch Generation
+```python
+diff_utils = get_diff_utils()
+patch = diff_utils.build_full_file_patch(original_content, modified_content)
+extended_patch = diff_utils.extend_patch(original_content, minimal_patch, modified_content)
+```
+
+### Circuit Breaker Protection
+```python
+circuit_breaker = get_circuit_breaker(failure_threshold=3, reset_timeout=30)
+health_tracker = get_api_health_tracker()
+
+# Protected operation
+result = circuit_breaker.execute(
+    lambda: api_client.make_request(),
+    context={"operation": "github_api_call"}
+)
+
+# Monitor health
+health_status = health_tracker.get_health_status()
+```
+
+### Advanced Retry with Health Awareness
+```python
+advanced_retry = get_advanced_retry_handler(
+    max_retries=5,
+    health_tracker=health_tracker,
+    circuit_breaker=circuit_breaker
+)
+
+result = advanced_retry.execute_with_context_aware_retry(
+    operation=api_client.fetch_data,
+    context={"critical": True, "time_sensitive": False}
+)
+```
+
+## Migration Notes
+
+These utilities were extracted from the original monolithic `GitHubPRDiffRepository` class to:
+- **Improve Testability**: Each utility can be tested in isolation
+- **Enable Reusability**: Utilities can be used by other components
+- **Reduce Complexity**: Main repository class focuses on orchestration
+- **Follow SOLID Principles**: Single responsibility for each utility
+
+The extraction maintained 100% backward compatibility while dramatically improving code organization and maintainability.
