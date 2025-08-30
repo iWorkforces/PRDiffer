@@ -1,0 +1,107 @@
+[default]
+# Application settings
+app.debug = false
+app.log_level = "INFO"
+app.max_files_allowed = 50
+app.incremental_mode = false
+
+# Logging settings
+app.logging_enabled = true
+app.log_format = "simple"
+
+# GitHub API settings
+github.rate_limit = 5000
+github.timeout = 30
+github.max_retries = 3
+github.retry_delay = 1
+
+# Smart retry settings
+github.retry_on_404 = false  # Don't retry 404 errors (file not found)
+github.retry_on_403 = true   # Retry 403 errors (might be rate limiting)
+github.retry_on_500 = true   # Retry 5xx server errors
+github.retry_log_level = "DEBUG"  # Log retry attempts at DEBUG level instead of WARNING
+github.permanent_failure_log_level = "INFO"  # Log permanent failures at INFO level
+
+# Phase 3: Advanced error handling and context-aware strategies
+github.circuit_breaker_enabled = true  # Enable circuit breaker pattern
+github.circuit_breaker_failure_threshold = 5  # Failures before opening circuit
+github.circuit_breaker_timeout = 60  # Seconds to keep circuit open
+github.adaptive_retry_enabled = true  # Enable adaptive retry delays
+github.max_adaptive_delay = 30  # Maximum adaptive delay in seconds
+github.api_health_tracking = true  # Track API health metrics
+github.context_aware_retry = true  # Enable context-aware retry strategies
+
+# File filtering patterns
+github.ignore_patterns = [
+    "*.lock",
+    "*.log",
+    "*.tmp",
+    "*.bak",
+    "*.swp",
+    "*.swo",
+    "node_modules/",
+    "dist/",
+    "build/",
+    ".git/",
+    ".venv/",
+    "__pycache__/",
+    ".idea/",
+    ".vscode/",
+    "coverage/",
+    ".pytest_cache/"
+]
+
+github.valid_extensions = [
+    ".py", ".js", ".ts", ".jsx", ".tsx", ".vue", ".svelte",
+    ".java", ".kt", ".scala",
+    ".cpp", ".c", ".h", ".hpp", ".cc", ".cxx",
+    ".go", ".rs", ".rb", ".php", ".swift",
+    ".html", ".css", ".scss", ".less", ".sass",
+    ".md", ".txt", ".rst",
+    ".json", ".yml", ".yaml", ".toml", ".xml",
+    ".sql", ".sh", ".bash", ".zsh", ".fish", ".ps1",
+    ".dockerfile", ".tf", ".tfvars"
+]
+
+# Cache settings
+cache.ttl = 300  # 5 minutes
+cache.max_size = 1000
+cache.enabled = true
+
+# MCP Server settings
+mcp.transport = "http" # it coul be one of ["stdio", "http", "sse", "streamable-http"]
+mcp.port = 9102
+mcp.host = "127.0.0.1"
+mcp.path = "/mcp"
+
+# File processing settings
+file_processing.max_file_size_mb = 5
+file_processing.chunk_size_kb = 64
+file_processing.concurrent_downloads = 3
+
+[development]
+app.debug = true
+app.log_level = "DEBUG"
+github.rate_limit = 1000  # Lower limit for development
+cache.ttl = 60  # 1 minute for faster development
+# Development uses more verbose retry logging for debugging
+github.retry_log_level = "INFO"
+github.permanent_failure_log_level = "WARNING"
+
+[production]
+app.debug = false
+app.log_level = "WARNING"
+github.rate_limit = 5000
+cache.ttl = 600  # 10 minutes for production
+# Production uses minimal retry logging to reduce noise
+github.retry_log_level = "DEBUG"
+github.permanent_failure_log_level = "INFO"
+
+[testing]
+app.debug = true
+app.log_level = "DEBUG"
+github.rate_limit = 500  # Very low limit for testing
+cache.enabled = false  # Disable cache for testing
+# Testing uses detailed logging for debugging
+github.retry_log_level = "DEBUG"
+github.permanent_failure_log_level = "DEBUG"

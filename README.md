@@ -1,2 +1,3 @@
-# CCPRAgentsMCP
-🌾 🥳 🌋 🏰 🌅 🌕 MCP Server For Claude Code Github PR Agents 🌖 🌔 🌈 🏆 👑
+# CCPRAgents
+
+🌾 🥳 🌋 🏰 🌅 🌕 Claude Code Github PR Diff MCP 🌖 🌔 🌈 🏆 👑
