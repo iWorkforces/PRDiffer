@@ -91,6 +91,27 @@ The tool returns structured data with complete file change information, making i
         )
 
         self._register_tools()
+        self._register_prompts()
+
+    def _register_prompts(self):
+        """Register FastMCP prompts with the server instance.
+
+        This method registers prompts for PR analysis and documentation tasks.
+        """
+        @self.mcp.prompt()
+        def describe(pr_url: str, pr_commit_messages: str, pr_diff: str):
+            """Describe the changes in a pull request."""
+            return "Describe the changes in this pull request, highlighting key modifications and their impact."
+
+        @self.mcp.prompt()
+        def review(pr_url: str, pr_commit_messages: str, pr_diff: str):
+            """Review a pull request for code quality and best practices."""
+            return "Review this pull request for code quality, best practices, and potential issues."
+
+        @self.mcp.prompt()
+        def update_changelog(pr_url: str, pr_commit_messages: str, pr_diff: str):
+            """Generate changelog entries for a pull request."""
+            return "Generate appropriate changelog entries for the changes in this pull request."
 
     def _parse_pr_url(self, pr_url: str) -> tuple[str, str, int]:
         """Parse GitHub PR URL to extract repository owner, name, and PR number.
