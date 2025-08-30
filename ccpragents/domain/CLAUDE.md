@@ -26,12 +26,15 @@ The domain layer contains the core business logic and entities, following Domain
 - `ExtraPRDiff`: Extended model with additional metadata (commit messages, reviewers, labels, milestone)
 - Both models use Pydantic for validation and serialization
 
-### Use Cases (`usecases/`)
+### Repository Interfaces (`repositories/`)
 
-**PRDiffRepository** (Abstract Interface)
-- Defines the contract for PR diff data retrieval
-- Single method: `async def get_pr_diff() -> ExtraPRDiff`
+**PRDiffRepositoryInterface** (`pr_diff_repository.py`)
+- Abstract interface defining the contract for PR diff data retrieval
+- Properties: `repo_owner`, `repo_name`, `pr_number`
+- Methods: `async get_pr_diff()`, `get_latest_commit_sha()`
 - Implemented by infrastructure layer (GitHubPRDiffRepository)
+
+### Use Cases (`usecases/`)
 
 **GetPRDiffUseCase**
 - Simple orchestrator that delegates to repository and cache service

@@ -1,6 +1,6 @@
 # CLAUDE.md - Domain Use Cases
 
-This file provides guidance for working with the domain use cases of CCPRDiff.
+This file provides guidance for working with the domain use cases of CCPRAgents.
 
 ## Overview
 
@@ -262,7 +262,7 @@ async def test_get_pr_diff_repository_failure():
 ## File Organization
 
 ```
-ccprdiff/domain/usecases/
+ccpragents/domain/usecases/
 ├── __init__.py              # Public API exports
 └── pr_diff_usecases.py     # PR diff use case and repository interface
 ```
