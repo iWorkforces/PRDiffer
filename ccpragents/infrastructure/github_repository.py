@@ -5,7 +5,7 @@ This is the refactored version using composition with extracted components.
 import os
 from typing import Optional
 from ccpragents.domain.entities.pr_diff import ExtraPRDiff
-from ccpragents.domain.usecases.pr_diff_usecases import PRDiffRepositoryInterface
+from ccpragents.domain.repositories import PRDiffRepositoryInterface
 from ccpragents.infrastructure.settings import SettingsService, get_settings_service
 from ccpragents.infrastructure.logging.console_logger import get_logger
 

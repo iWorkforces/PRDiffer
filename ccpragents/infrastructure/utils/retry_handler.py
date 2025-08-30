@@ -2,7 +2,7 @@
 import time
 import random
 from typing import Any, Callable
-from ccpragents.domain.services.retry import RetryServiceInterface
+from ccpragents.domain.services import RetryServiceInterface
 from ccpragents.infrastructure.logging.console_logger import get_logger
 
 

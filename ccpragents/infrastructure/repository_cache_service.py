@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from functools import wraps
 from typing import Optional, Dict, Tuple, Callable
 from threading import RLock
-from ccpragents.domain.services.repository_cache import RepositoryCacheServiceInterface
+from ccpragents.domain.services import RepositoryCacheServiceInterface
 from ccpragents.infrastructure.github_repository import GitHubPRDiffRepository
 from ccpragents.infrastructure.logging.console_logger import get_logger
 

@@ -1,51 +1,7 @@
 from abc import ABC, abstractmethod
 from ccpragents.domain.entities.pr_diff import ExtraPRDiff
-from ccpragents.domain.services.cache import CacheServiceInterface
-
-
-class PRDiffRepositoryInterface(ABC):
-    @property
-    @abstractmethod
-    def repo_owner(self) -> str:
-        """Repository owner/organization name.
-
-        Returns:
-            str: The repository owner/organization name
-        """
-        pass
-
-    @property
-    @abstractmethod
-    def repo_name(self) -> str:
-        """Repository name.
-
-        Returns:
-            str: The repository name
-        """
-        pass
-
-    @property
-    @abstractmethod
-    def pr_number(self) -> int:
-        """Pull request number.
-
-        Returns:
-            int: The pull request number
-        """
-        pass
-
-    @abstractmethod
-    async def get_pr_diff(self) -> ExtraPRDiff:
-        pass
-
-    @abstractmethod
-    def get_latest_commit_sha(self) -> str:
-        """Get the latest head commit SHA for the pull request.
-
-        Returns:
-            str: The latest head commit SHA
-        """
-        pass
+from ccpragents.domain.services import CacheServiceInterface
+from ccpragents.domain.repositories import PRDiffRepositoryInterface
 
 
 class GetPRDiffUseCase:

@@ -1,6 +1,6 @@
 # CLAUDE.md - Infrastructure Layer
 
-This file provides guidance for working with the Infrastructure Layer of CCPRAgents.
+This file provides guidance for working with the Infrastructure Layer of CCPRDiff.
 
 ## Infrastructure Layer Overview
 

@@ -238,7 +238,7 @@ Use mocks for external dependencies:
 ## File Organization
 
 ```
-ccpragents/infrastructure/utils/
+ccpragentsts/infrastructure/utils/
 ├── __init__.py              # Public API exports
 ├── retry_handler.py         # Exponential backoff retry logic
 ├── pattern_matcher.py       # File pattern matching utilities

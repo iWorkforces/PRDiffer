@@ -1,7 +1,7 @@
 import time
 from typing import Optional, Dict, Any
 from ccpragents.domain.entities.pr_diff import ExtraPRDiff
-from ccpragents.domain.services.cache import CacheServiceInterface
+from ccpragents.domain.services import CacheServiceInterface
 from .logging.console_logger import get_logger
 
 

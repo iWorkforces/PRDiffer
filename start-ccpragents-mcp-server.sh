@@ -5,6 +5,39 @@
 
 set -e
 
+# Global variable to track server PID
+SERVER_PID=""
+
+# Graceful shutdown function
+shutdown_server() {
+    echo ""
+    echo -e "${YELLOW}🛑 Shutting down CCPRAgents MCP Server gracefully...${NC}"
+
+    if [ ! -z "$SERVER_PID" ] && kill -0 "$SERVER_PID" 2>/dev/null; then
+        # Send SIGTERM first for graceful shutdown
+        kill -TERM "$SERVER_PID" 2>/dev/null
+
+        # Wait up to 10 seconds for graceful shutdown
+        local count=0
+        while [ $count -lt 10 ] && kill -0 "$SERVER_PID" 2>/dev/null; do
+            sleep 1
+            count=$((count + 1))
+        done
+
+        # If still running, force kill
+        if kill -0 "$SERVER_PID" 2>/dev/null; then
+            echo -e "${RED}⚠️  Force stopping server...${NC}"
+            kill -KILL "$SERVER_PID" 2>/dev/null
+        fi
+    fi
+
+    echo -e "${GREEN}✅ Server stopped successfully${NC}"
+    exit 0
+}
+
+# Set up signal handlers
+trap shutdown_server SIGINT SIGTERM
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -49,8 +82,14 @@ fi
 echo -e "${BLUE}Starting CCPRAgents MCP Server...${NC}"
 echo -e "${CYAN}Command: uv run python ccpragents/server.py --link-mode=copy${NC}"
 echo ""
-echo -e "${YELLOW}Press Ctrl+C or Enter to stop the server${NC}"
-echo ""
 
 # Start the server
-uv run python ccpragents/server.py --link-mode=copy
+echo -e "${YELLOW}Press Ctrl+C to stop the server gracefully${NC}"
+echo ""
+
+# Start the server in the background and capture its PID
+uv run python ccpragents/server.py --link-mode=copy &
+SERVER_PID=$!
+
+# Wait for the server process to complete
+wait $SERVER_PID

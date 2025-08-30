@@ -3,7 +3,7 @@ import sys
 from datetime import datetime
 from typing import Optional, Dict, Any
 from ccpragents.infrastructure.settings import get_settings_service
-from ccpragents.domain.services.logger import LoggerServiceInterface, LogLevel
+from ccpragents.domain.services import LoggerServiceInterface, LogLevel
 
 
 class ConsoleLogger(LoggerServiceInterface):

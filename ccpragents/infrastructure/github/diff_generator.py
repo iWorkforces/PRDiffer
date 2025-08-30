@@ -2,7 +2,7 @@
 import re
 from typing import List
 from ccpragents.domain.entities.file_patch import FilePatchInfo, EDIT_TYPE
-from ccpragents.domain.services.diff import DiffServiceInterface
+from ccpragents.domain.services import DiffServiceInterface
 from ccpragents.infrastructure.logging.console_logger import get_logger
 
 
