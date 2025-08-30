@@ -26,7 +26,6 @@ class SettingsService(SettingsServiceInterface):
             settings_files=settings_files,
             environments=True,
             env_switcher='ENV_FOR_DYNACONF',
-            envvar_prefix='CCPRDIFF',
             load_dotenv=True,
         )
 
