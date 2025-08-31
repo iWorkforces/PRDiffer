@@ -25,7 +25,7 @@ class DescribePRUseCase:
             pr_commit_messages=pr_commit_messages,
             pr_diff=pr_diff
         )
-        return await self._prompt_repository.describe_pr(request)
+        return await self._prompt_repository.describe_pr_user_prompt(request)
 
 
 class ReviewPRUseCase:
@@ -50,7 +50,7 @@ class ReviewPRUseCase:
             pr_commit_messages=pr_commit_messages,
             pr_diff=pr_diff
         )
-        return await self._prompt_repository.review_pr(request)
+        return await self._prompt_repository.review_pr_user_prompt(request)
 
 
 class UpdateChangelogUseCase:
@@ -81,7 +81,7 @@ class UpdateChangelogUseCase:
             pr_commit_messages=pr_commit_messages,
             pr_diff=pr_diff
         )
-        return await self._prompt_repository.update_changelog(request)
+        return await self._prompt_repository.update_changelog_user_prompt(request)
 
     def _extract_pr_details(self, pr_url: str) -> PRDetails:
         """Extract PR details from GitHub PR URL.

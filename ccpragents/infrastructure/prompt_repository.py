@@ -19,7 +19,7 @@ class PromptRepository(PromptRepositoryInterface):
         self._logger = get_logger()
         self._logger.info("Initializing PromptRepository", component="prompt_repository")
 
-    async def describe_pr(self, request: PromptRequest) -> PromptMessage:
+    async def describe_pr_user_prompt(self, request: PromptRequest) -> PromptMessage:
         """Generate a description prompt for pull request changes.
 
         Args:
@@ -45,7 +45,7 @@ class PromptRepository(PromptRepositoryInterface):
                         pr_details=str(request.pr_details))
         return PromptMessage(role='user', content=TextContent(type='text', text=prompt))
 
-    async def review_pr(self, request: PromptRequest) -> PromptMessage:
+    async def review_pr_user_prompt(self, request: PromptRequest) -> PromptMessage:
         """Generate a review prompt for code quality and best practices.
 
         Args:
@@ -82,7 +82,7 @@ class PromptRepository(PromptRepositoryInterface):
                         pr_details=str(request.pr_details))
         return PromptMessage(role='user', content=TextContent(type='text', text=prompt))
 
-    async def update_changelog(self, request: PromptRequest) -> PromptMessage:
+    async def update_changelog_user_prompt(self, request: PromptRequest) -> PromptMessage:
         """Generate a changelog prompt for a pull request.
 
         Args:
