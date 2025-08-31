@@ -150,27 +150,27 @@ class PromptRepository(PromptRepositoryInterface):
                     - The current implementation doesn't track the total number of deleted records across all tables.
                 6. Proper Use of Backticks and Apostrophes: Be careful not to confuse backticks (`) with apostrophes ('). Use backticks only for enclosing code elements, and use apostrophes for contractions and possessives. This distinction helps maintain clarity in the text.
             - The output must be a YAML object equivalent to type PRDescription, according to the following Pydantic definitions:
-            =====
-            class PRType(str, Enum):
-            bug_fix = "Bug fix"
-            tests = "Tests"
-            enhancement = "Enhancement"
-            documentation = "Documentation"
-            refactoring = "Refactoring"
-            performance = "Performance"
-            security = "Security"
-            configuration = "Configuration"
-            dependencies = "Dependencies"
-            formatting = "Formatting"
-            feature = "Feature"
-            ci_cd = "CI/CD"
-            miscellaneous = "Miscellaneous"
-            other = "Other"
+                =====
+                class PRType(str, Enum):
+                    bug_fix = "Bug fix"
+                    tests = "Tests"
+                    enhancement = "Enhancement"
+                    documentation = "Documentation"
+                    refactoring = "Refactoring"
+                    performance = "Performance"
+                    security = "Security"
+                    configuration = "Configuration"
+                    dependencies = "Dependencies"
+                    formatting = "Formatting"
+                    feature = "Feature"
+                    ci_cd = "CI/CD"
+                    miscellaneous = "Miscellaneous"
+                    other = "Other"
 
-            class PRDescription(BaseModel):
-            type: List[PRType] = Field(description="One or more categories that describe the PR content. Return the label member value (e.g., "Bug fix", not "bug_fix").")
-            description: str = Field(description="Summarize the PR changes in up to four bullet points, each up to 8 words. Add sub-bullets if needed. Order bullets by importance, with each bullet highlighting a key change group.")
-            =====
+                class PRDescription(BaseModel):
+                    type: List[PRType] = Field(description="One or more categories that describe the PR content. Return the label member value (e.g., "Bug fix", not "bug_fix").")
+                    description: str = Field(description="Summarize the PR changes in up to four bullet points, each up to 8 words. Add sub-bullets if needed. Order bullets by importance, with each bullet highlighting a key change group.")
+                =====
 
 
         Example output:
