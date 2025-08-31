@@ -1,5 +1,7 @@
 """Repository interface for prompt processing operations."""
 from abc import ABC, abstractmethod
+
+from fastmcp.prompts import PromptMessage
 from ccpragents.domain.entities.prompt import PromptRequest
 
 
@@ -11,7 +13,7 @@ class PromptRepositoryInterface(ABC):
     """
 
     @abstractmethod
-    async def describe_pr(self, request: PromptRequest) -> str:
+    async def describe_pr(self, request: PromptRequest) -> PromptMessage:
         """Generate a description of pull request changes.
 
         Args:
@@ -23,7 +25,7 @@ class PromptRepositoryInterface(ABC):
         pass
 
     @abstractmethod
-    async def review_pr(self, request: PromptRequest) -> str:
+    async def review_pr(self, request: PromptRequest) -> PromptMessage:
         """Review a pull request for quality and best practices.
 
         Args:
@@ -35,7 +37,7 @@ class PromptRepositoryInterface(ABC):
         pass
 
     @abstractmethod
-    async def update_changelog(self, request: PromptRequest) -> str:
+    async def update_changelog(self, request: PromptRequest) -> PromptMessage:
         """Generate changelog entries for a pull request.
 
         Args:

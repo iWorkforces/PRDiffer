@@ -2,6 +2,7 @@ import re
 import time
 from typing import Optional, Callable
 from fastmcp import FastMCP
+from fastmcp.prompts import PromptMessage
 from ccpragents.domain.entities.pr_diff import ExtraPRDiff
 from ccpragents.domain.entities.prompt import PRDetails
 from ccpragents.domain.usecases import GetPRDiffUseCase
@@ -239,7 +240,7 @@ The tool returns structured data with complete file change information, making i
         using the new use case architecture with dependency injection.
         """
         @self.mcp.prompt()
-        async def describe(pr_url: str, pr_commit_messages: str, pr_diff: str):
+        async def describe(pr_url: str, pr_commit_messages: str, pr_diff: str) -> PromptMessage:
             """Describe the changes in a pull request.
 
             Args:
@@ -253,14 +254,14 @@ The tool returns structured data with complete file change information, making i
             try:
                 repo_owner, repo_name, pr_number = self._parse_pr_url(pr_url)
                 pr_details = PRDetails(repo_owner=repo_owner, repo_name=repo_name, pr_number=pr_number)
-                
+
                 return await self._describe_use_case.execute(pr_details, pr_commit_messages, pr_diff)
             except Exception as e:
                 self._logger.error("Failed to generate describe prompt", pr_url=pr_url, error=str(e))
-                return f"Describe the changes in this pull request: {pr_url}. Error: {e}"
+                raise e
 
         @self.mcp.prompt()
-        async def review(pr_url: str, pr_commit_messages: str, pr_diff: str):
+        async def review(pr_url: str, pr_commit_messages: str, pr_diff: str) -> PromptMessage:
             """Review a pull request for code quality and best practices.
 
             Args:
@@ -274,14 +275,14 @@ The tool returns structured data with complete file change information, making i
             try:
                 repo_owner, repo_name, pr_number = self._parse_pr_url(pr_url)
                 pr_details = PRDetails(repo_owner=repo_owner, repo_name=repo_name, pr_number=pr_number)
-                
+
                 return await self._review_use_case.execute(pr_details, pr_commit_messages, pr_diff)
             except Exception as e:
                 self._logger.error("Failed to generate review prompt", pr_url=pr_url, error=str(e))
-                return f"Review this pull request for code quality and best practices: {pr_url}. Error: {e}"
+                raise e
 
         @self.mcp.prompt()
-        async def update_changelog(pr_url: str, pr_commit_messages: str, pr_diff: str):
+        async def update_changelog(pr_url: str, pr_commit_messages: str, pr_diff: str) -> PromptMessage:
             """Generate changelog entries for a pull request.
 
             Args:
@@ -296,7 +297,7 @@ The tool returns structured data with complete file change information, making i
                 return await self._update_changelog_use_case.execute(pr_url, pr_commit_messages, pr_diff)
             except Exception as e:
                 self._logger.error("Failed to generate changelog prompt", pr_url=pr_url, error=str(e))
-                return f"Generate appropriate changelog entries for this pull request: {pr_url}. Error: {e}"
+                raise e
 
     def _register_tools(self):
         """Register FastMCP tools with the server instance.

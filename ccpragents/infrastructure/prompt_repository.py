@@ -1,6 +1,9 @@
 """Prompt repository implementation."""
 from typing import Optional
-from ccpragents.domain.entities.prompt import PRDetails, PromptRequest
+
+from fastmcp.prompts import PromptMessage
+from mcp.types import TextContent
+from ccpragents.domain.entities.prompt import PromptRequest
 from ccpragents.domain.repositories.prompt_repository import PromptRepositoryInterface
 from ccpragents.infrastructure.logging.console_logger import get_logger
 
@@ -16,7 +19,7 @@ class PromptRepository(PromptRepositoryInterface):
         self._logger = get_logger()
         self._logger.info("Initializing PromptRepository", component="prompt_repository")
 
-    async def describe_pr(self, request: PromptRequest) -> str:
+    async def describe_pr(self, request: PromptRequest) -> PromptMessage:
         """Generate a description prompt for pull request changes.
 
         Args:
@@ -26,27 +29,23 @@ class PromptRepository(PromptRepositoryInterface):
             str: Prompt for describing PR changes
         """
         # Generate prompt in XML format
-        prompt = f"""<prompt type="describe_pr">
-  <instruction>Describe the changes in this pull request:</instruction>
-  <pr_details>
-{request.get_context_string()}
-  </pr_details>
-  <requirements>
-    <requirement>Focus on what the PR does overall</requirement>
-    <requirement>Highlight key changes made</requirement>
-    <requirement>Explain what problems it solves</requirement>
-    <requirement>Note any notable improvements or breaking changes</requirement>
-    <requirement>Be specific and actionable</requirement>
-    <requirement>Avoid generic descriptions</requirement>
-  </requirements>
-</prompt>"""
+        prompt = f"""
+        <instruction>You are given a Pull Request (PR) details with commit messages, code diff and so on. Describe the changes in this PR with professional and formal tone.</instruction>
+        <pr_details>
+            {request.get_context_string()}
+        </pr_details>
+        <response>
+            ```yaml
+            [Your response must be in valid YAML format here]
+            ```
+        </response>"""
 
         self._logger.info("Generated PR description prompt",
                         component="prompt_repository",
                         pr_details=str(request.pr_details))
-        return prompt
+        return PromptMessage(role='user', content=TextContent(type='text', text=prompt))
 
-    async def review_pr(self, request: PromptRequest) -> str:
+    async def review_pr(self, request: PromptRequest) -> PromptMessage:
         """Generate a review prompt for code quality and best practices.
 
         Args:
@@ -81,9 +80,9 @@ class PromptRepository(PromptRepositoryInterface):
         self._logger.info("Generated PR review prompt",
                         component="prompt_repository",
                         pr_details=str(request.pr_details))
-        return prompt
+        return PromptMessage(role='user', content=TextContent(type='text', text=prompt))
 
-    async def update_changelog(self, request: PromptRequest) -> str:
+    async def update_changelog(self, request: PromptRequest) -> PromptMessage:
         """Generate a changelog prompt for a pull request.
 
         Args:
@@ -116,7 +115,7 @@ class PromptRepository(PromptRepositoryInterface):
         self._logger.info("Generated changelog prompt",
                         component="prompt_repository",
                         pr_details=str(request.pr_details))
-        return prompt
+        return PromptMessage(role='user', content=TextContent(type='text', text=prompt))
 
 
 # Global instance for singleton pattern

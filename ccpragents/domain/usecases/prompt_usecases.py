@@ -1,3 +1,4 @@
+from fastmcp.prompts import PromptMessage
 from ccpragents.domain.entities.prompt import PromptRequest, PRDetails
 from ccpragents.domain.repositories.prompt_repository import PromptRepositoryInterface
 
@@ -8,7 +9,7 @@ class DescribePRUseCase:
     def __init__(self, prompt_repository: PromptRepositoryInterface):
         self._prompt_repository: PromptRepositoryInterface = prompt_repository
 
-    async def execute(self, pr_details: PRDetails, pr_commit_messages: str, pr_diff: str) -> str:
+    async def execute(self, pr_details: PRDetails, pr_commit_messages: str, pr_diff: str) -> PromptMessage:
         """Execute the PR description use case.
 
         Args:
@@ -33,7 +34,7 @@ class ReviewPRUseCase:
     def __init__(self, prompt_repository: PromptRepositoryInterface):
         self._prompt_repository: PromptRepositoryInterface = prompt_repository
 
-    async def execute(self, pr_details: PRDetails, pr_commit_messages: str, pr_diff: str) -> str:
+    async def execute(self, pr_details: PRDetails, pr_commit_messages: str, pr_diff: str) -> PromptMessage:
         """Execute the PR review use case.
 
         Args:
@@ -58,7 +59,7 @@ class UpdateChangelogUseCase:
     def __init__(self, prompt_repository: PromptRepositoryInterface):
         self._prompt_repository: PromptRepositoryInterface = prompt_repository
 
-    async def execute(self, pr_url: str, pr_commit_messages: str, pr_diff: str) -> str:
+    async def execute(self, pr_url: str, pr_commit_messages: str, pr_diff: str) -> PromptMessage:
         """Execute the changelog update use case.
 
         Args:
