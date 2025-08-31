@@ -22,8 +22,8 @@ class PromptRequest(BaseModel):
     including PR details and relevant content.
     '''
     pr_details: PRDetails
-    pr_commit_messages: str
-    pr_diff: str
+    commit_messages: str
+    diff_content: str
 
     def get_context_string(self) -> str:
         '''Generate a unified context string combining all relevant information in XML format.'''
@@ -35,10 +35,10 @@ class PromptRequest(BaseModel):
             <pr_number>{self.pr_details.pr_number}</pr_number>
           </repository>
           <commit_messages>
-            {self._format_xml_content(self.pr_commit_messages)}
+            {self._format_xml_content(self.commit_messages)}
           </commit_messages>
           <diff_content>
-            {self._format_xml_content(self.pr_diff)}
+            {self._format_xml_content(self.diff_content)}
           </diff_content>
         </pull_request>
       '''

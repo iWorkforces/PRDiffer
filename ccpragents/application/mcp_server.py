@@ -239,13 +239,13 @@ The tool returns structured data with complete file change information, making i
         using the new use case architecture with dependency injection.
         '''
         @self.mcp.prompt()
-        async def describe(pr_url: str, pr_commit_messages: str, pr_diff: str):
+        async def describe(pr_url: str, commit_messages: str, diff_content: str):
             '''Describe the changes in a pull request.
 
             Args:
                 pr_url: The GitHub PR URL (e.g., https://github.com/owner/repo/pull/123)
-                pr_commit_messages: Commit messages from the PR
-                pr_diff: Diff content from the PR
+                commit_messages: Commit messages from the PR
+                diff_content: Diff content from the PR
 
             Returns:
                 str: Prompt for describing PR changes
@@ -254,19 +254,19 @@ The tool returns structured data with complete file change information, making i
                 repo_owner, repo_name, pr_number = self._parse_pr_url(pr_url)
                 pr_details = PRDetails(repo_owner=repo_owner, repo_name=repo_name, pr_number=pr_number)
 
-                return await self._describe_use_case.execute(pr_details, pr_commit_messages, pr_diff)
+                return await self._describe_use_case.execute(pr_details, commit_messages, diff_content)
             except Exception as e:
                 self._logger.error("Failed to generate describe prompt", pr_url=pr_url, error=str(e))
                 raise e
 
         @self.mcp.prompt()
-        async def review(pr_url: str, pr_commit_messages: str, pr_diff: str):
+        async def review(pr_url: str, commit_messages: str, diff_content: str):
             '''Review a pull request for code quality and best practices.
 
             Args:
                 pr_url: The GitHub PR URL (e.g., https://github.com/owner/repo/pull/123)
-                pr_commit_messages: Commit messages from the PR
-                pr_diff: Diff content from the PR
+                commit_messages: Commit messages from the PR
+                diff_content: Diff content from the PR
 
             Returns:
                 str: Prompt for reviewing PR quality
@@ -275,19 +275,19 @@ The tool returns structured data with complete file change information, making i
                 repo_owner, repo_name, pr_number = self._parse_pr_url(pr_url)
                 pr_details = PRDetails(repo_owner=repo_owner, repo_name=repo_name, pr_number=pr_number)
 
-                return await self._review_use_case.execute(pr_details, pr_commit_messages, pr_diff)
+                return await self._review_use_case.execute(pr_details, commit_messages, diff_content)
             except Exception as e:
                 self._logger.error("Failed to generate review prompt", pr_url=pr_url, error=str(e))
                 raise e
 
         @self.mcp.prompt()
-        async def update_changelog(pr_url: str, pr_commit_messages: str, pr_diff: str):
+        async def update_changelog(pr_url: str, commit_messages: str, diff_content: str):
             '''Generate changelog entries for a pull request.
 
             Args:
                 pr_url: The GitHub PR URL (e.g., https://github.com/owner/repo/pull/123)
-                pr_commit_messages: Commit messages from the PR
-                pr_diff: Diff content from the PR
+                commit_messages: Commit messages from the PR
+                diff_content: Diff content from the PR
 
             Returns:
                 str: Prompt for generating changelog entries
@@ -295,7 +295,7 @@ The tool returns structured data with complete file change information, making i
             try:
                 repo_owner, repo_name, pr_number = self._parse_pr_url(pr_url)
                 pr_details = PRDetails(repo_owner=repo_owner, repo_name=repo_name, pr_number=pr_number)
-                return await self._update_changelog_use_case.execute(pr_details, pr_commit_messages, pr_diff)
+                return await self._update_changelog_use_case.execute(pr_details, commit_messages, diff_content)
             except Exception as e:
                 self._logger.error("Failed to generate changelog prompt", pr_url=pr_url, error=str(e))
                 raise e
