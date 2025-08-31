@@ -1,6 +1,6 @@
 """Repository interface for prompt processing operations."""
 from abc import ABC, abstractmethod
-from ccpragents.domain.entities.prompt import PromptRequest, PRDetails
+from ccpragents.domain.entities.prompt import PromptRequest
 
 
 class PromptRepositoryInterface(ABC):

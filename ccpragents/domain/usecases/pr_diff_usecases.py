@@ -1,4 +1,3 @@
-from abc import ABC, abstractmethod
 from ccpragents.domain.entities.pr_diff import ExtraPRDiff
 from ccpragents.domain.services import CacheServiceInterface
 from ccpragents.domain.repositories import PRDiffRepositoryInterface

@@ -1,6 +1,6 @@
 import re
 import time
-from typing import Type, Optional, Callable
+from typing import Optional, Callable
 from fastmcp import FastMCP
 from ccpragents.domain.entities.pr_diff import ExtraPRDiff
 from ccpragents.domain.entities.prompt import PRDetails
@@ -11,12 +11,6 @@ from ccpragents.domain.services.cache import CacheServiceInterface
 from ccpragents.domain.services.repository_cache import RepositoryCacheServiceInterface
 from ccpragents.domain.services.logger import LoggerServiceInterface
 from ccpragents.domain.repositories.pr_diff_repository import PRDiffRepositoryInterface
-from ccpragents.infrastructure.github_repository import GitHubPRDiffRepository
-from ccpragents.infrastructure.settings import get_settings_service
-from ccpragents.infrastructure.cache_service import get_cache_service
-from ccpragents.infrastructure.repository_cache_service import get_repository_cache_service
-from ccpragents.infrastructure.logging.console_logger import get_logger
-from ccpragents.infrastructure.prompt_repository import get_prompt_repository
 
 
 class FastMCPServer:
