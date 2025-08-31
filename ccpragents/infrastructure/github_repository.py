@@ -9,7 +9,6 @@ from ccpragents.domain.repositories import PRDiffRepositoryInterface
 from ccpragents.infrastructure.settings import SettingsService, get_settings_service
 from ccpragents.infrastructure.logging.console_logger import get_logger
 
-# Import extracted components
 from ccpragents.infrastructure.github.api_client import get_github_api_client
 from ccpragents.infrastructure.github.file_processor import get_file_processor
 from ccpragents.infrastructure.github.diff_generator import get_diff_generator
