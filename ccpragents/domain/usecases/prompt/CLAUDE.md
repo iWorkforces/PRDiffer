@@ -51,6 +51,14 @@ Generates user prompts for AI-powered changelog updates.
 - Formats change information for release notes
 - Delegates to `PromptRepositoryInterface.update_changelog_user_prompt()`
 
+#### ApprovePRUserPromptUseCase (`approve_pr_user_prompt.py`)
+Generates user prompts for AI-powered PR approval decisions.
+
+**Responsibilities:**
+- Creates prompt requests for PR approval tasks
+- Formats approval criteria and evaluation framework
+- Delegates to `PromptRepositoryInterface.approve_pr_user_prompt()`
+
 #### DescribePRSystemPromptUseCase (`describe_pr_system_prompt.py`)
 Generates system prompts for PR description tasks.
 
@@ -58,6 +66,30 @@ Generates system prompts for PR description tasks.
 - Creates system-level prompts for AI context
 - Defines role and behavior for the AI assistant
 - Delegates to `PromptRepositoryInterface.describe_pr_system_prompt()`
+
+#### ReviewPRSystemPromptUseCase (`review_pr_system_prompt.py`)
+Generates system prompts for PR code review tasks.
+
+**Responsibilities:**
+- Creates system-level prompts for code review context
+- Defines code review guidelines and quality standards
+- Delegates to `PromptRepositoryInterface.review_pr_system_prompt()`
+
+#### UpdateChangelogSystemPromptUseCase (`update_changelog_system_prompt.py`)
+Generates system prompts for changelog generation tasks.
+
+**Responsibilities:**
+- Creates system-level prompts for changelog context
+- Defines changelog conventions and formatting rules
+- Delegates to `PromptRepositoryInterface.update_changelog_system_prompt()`
+
+#### ApprovePRSystemPromptUseCase (`approve_pr_system_prompt.py`)
+Generates system prompts for PR approval tasks.
+
+**Responsibilities:**
+- Creates system-level prompts for approval context
+- Defines approval criteria and decision framework
+- Delegates to `PromptRepositoryInterface.approve_pr_system_prompt()`
 
 ## Architecture Patterns
 
@@ -172,7 +204,11 @@ ccpragents/domain/usecases/prompt/
 ├── describe_pr_user_prompt.py  # PR description prompts
 ├── review_pr_user_prompt.py    # Code review prompts
 ├── update_changelog_user_prompt.py  # Changelog prompts
-└── describe_pr_system_prompt.py # System role prompts
+├── approve_pr_user_prompt.py   # PR approval prompts
+├── describe_pr_system_prompt.py # System role prompts
+├── review_pr_system_prompt.py  # Code review system prompts
+├── update_changelog_system_prompt.py  # Changelog system prompts
+└── approve_pr_system_prompt.py  # PR approval system prompts
 ```
 
 ## Best Practices

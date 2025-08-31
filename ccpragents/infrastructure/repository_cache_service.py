@@ -250,7 +250,7 @@ class RepositoryCacheService(RepositoryCacheServiceInterface):
 
         if cache_key in self._cache:
             del self._cache[cache_key]
-            self._logger.debug("Repository removed from cache", 
+            self._logger.debug("Repository removed from cache",
                              repo_owner=repo_owner, repo_name=repo_name, pr_number=pr_number)
             return True
         return False

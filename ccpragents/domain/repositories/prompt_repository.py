@@ -55,3 +55,42 @@ class PromptRepositoryInterface(ABC):
             str: System prompt for PR description
         """
         pass
+
+    @abstractmethod
+    async def review_pr_system_prompt(self) -> str:
+        """Generate a system prompt for PR review tasks.
+
+        Returns:
+            str: System prompt for PR code review
+        """
+        pass
+
+    @abstractmethod
+    async def update_changelog_system_prompt(self) -> str:
+        """Generate a system prompt for changelog generation tasks.
+
+        Returns:
+            str: System prompt for changelog updates
+        """
+        pass
+
+    @abstractmethod
+    async def approve_pr_user_prompt(self, request: PromptRequest) -> str:
+        """Generate a prompt for PR approval decisions.
+
+        Args:
+            request: PromptRequest containing PR details and content
+
+        Returns:
+            str: Prompt for PR approval decision making
+        """
+        pass
+
+    @abstractmethod
+    async def approve_pr_system_prompt(self) -> str:
+        """Generate a system prompt for PR approval tasks.
+
+        Returns:
+            str: System prompt for PR approval
+        """
+        pass

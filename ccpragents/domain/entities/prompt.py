@@ -27,19 +27,21 @@ class PromptRequest(BaseModel):
 
     def get_context_string(self) -> str:
         """Generate a unified context string combining all relevant information in XML format."""
-        return f"""<pull_request>
-  <repository>
-    <owner>{self.pr_details.repo_owner}</owner>
-    <name>{self.pr_details.repo_name}</name>
-    <pr_number>{self.pr_details.pr_number}</pr_number>
-  </repository>
-  <commit_messages>
-{self._format_xml_content(self.pr_commit_messages)}
-  </commit_messages>
-  <diff_content>
-{self._format_xml_content(self.pr_diff)}
-  </diff_content>
-</pull_request>"""
+        return f"""
+        <pull_request>
+          <repository>
+            <owner>{self.pr_details.repo_owner}</owner>
+            <name>{self.pr_details.repo_name}</name>
+            <pr_number>{self.pr_details.pr_number}</pr_number>
+          </repository>
+          <commit_messages>
+            {self._format_xml_content(self.pr_commit_messages)}
+          </commit_messages>
+          <diff_content>
+            {self._format_xml_content(self.pr_diff)}
+          </diff_content>
+        </pull_request>
+      """
 
     def _format_xml_content(self, content: str) -> str:
         """Format content for XML by escaping special characters and indenting."""
