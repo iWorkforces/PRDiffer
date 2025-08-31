@@ -30,9 +30,9 @@ class FastMCPServer:
                  repository_cache_service: RepositoryCacheServiceInterface,
                  logger: LoggerServiceInterface,
                  github_repository_class: Callable[[str, str, int], PRDiffRepositoryInterface],
-                 describe_use_case: DescribePRUserPromptUseCase,
-                 review_use_case: ReviewPRUserPromptUseCase,
-                 update_changelog_use_case: UpdateChangelogUserPromptUseCase):
+                 describe_pr_user_prompt_use_case: DescribePRUserPromptUseCase,
+                 review_pr_user_prompt_use_case: ReviewPRUserPromptUseCase,
+                 update_changelog_user_prompt_use_case: UpdateChangelogUserPromptUseCase):
         '''Initialize the FastMCP server with dependency injection.
 
         Args:
@@ -52,9 +52,9 @@ class FastMCPServer:
         self._github_repository_class = github_repository_class
 
         # Initialize prompt use cases
-        self._describe_use_case = describe_use_case
-        self._review_use_case = review_use_case
-        self._update_changelog_use_case = update_changelog_use_case
+        self._describe_pr_user_prompt_use_case = describe_pr_user_prompt_use_case
+        self._review_pr_user_prompt_use_case = review_pr_user_prompt_use_case
+        self._update_changelog_user_prompt_use_case = update_changelog_user_prompt_use_case
 
         # Rate limiting configuration
         self._rate_limit_requests = 100  # Max requests per minute
@@ -254,7 +254,7 @@ The tool returns structured data with complete file change information, making i
                 repo_owner, repo_name, pr_number = self._parse_pr_url(pr_url)
                 pr_details = PRDetails(repo_owner=repo_owner, repo_name=repo_name, pr_number=pr_number)
 
-                return await self._describe_use_case.execute(pr_details, commit_messages, diff_content)
+                return await self._describe_pr_user_prompt_use_case.execute(pr_details, commit_messages, diff_content)
             except Exception as e:
                 self._logger.error("Failed to generate describe prompt", pr_url=pr_url, error=str(e))
                 raise e
@@ -275,7 +275,7 @@ The tool returns structured data with complete file change information, making i
                 repo_owner, repo_name, pr_number = self._parse_pr_url(pr_url)
                 pr_details = PRDetails(repo_owner=repo_owner, repo_name=repo_name, pr_number=pr_number)
 
-                return await self._review_use_case.execute(pr_details, commit_messages, diff_content)
+                return await self._review_pr_user_prompt_use_case.execute(pr_details, commit_messages, diff_content)
             except Exception as e:
                 self._logger.error("Failed to generate review prompt", pr_url=pr_url, error=str(e))
                 raise e
@@ -295,7 +295,7 @@ The tool returns structured data with complete file change information, making i
             try:
                 repo_owner, repo_name, pr_number = self._parse_pr_url(pr_url)
                 pr_details = PRDetails(repo_owner=repo_owner, repo_name=repo_name, pr_number=pr_number)
-                return await self._update_changelog_use_case.execute(pr_details, commit_messages, diff_content)
+                return await self._update_changelog_user_prompt_use_case.execute(pr_details, commit_messages, diff_content)
             except Exception as e:
                 self._logger.error("Failed to generate changelog prompt", pr_url=pr_url, error=str(e))
                 raise e

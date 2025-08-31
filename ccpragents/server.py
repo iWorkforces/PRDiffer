@@ -27,8 +27,8 @@ def main():
     # Initialize prompt repository and use cases
     prompt_repository = get_prompt_repository()
     describe_pr_user_prompt_use_case = DescribePRUserPromptUseCase(prompt_repository)
-    review_use_case = ReviewPRUserPromptUseCase(prompt_repository)
-    update_changelog_use_case = UpdateChangelogUserPromptUseCase(prompt_repository)
+    review_pr_user_prompt_use_case = ReviewPRUserPromptUseCase(prompt_repository)
+    update_changelog_user_prompt_use_case = UpdateChangelogUserPromptUseCase(prompt_repository)
 
     # Create server with dependency injection
     server: FastMCPServer = FastMCPServer(
@@ -38,8 +38,8 @@ def main():
         logger=logger,
         github_repository_class=GitHubPRDiffRepository,
         describe_pr_user_prompt_use_case=describe_pr_user_prompt_use_case,
-        review_use_case=review_use_case,
-        update_changelog_use_case=update_changelog_use_case
+        review_pr_user_prompt_use_case=review_pr_user_prompt_use_case,
+        update_changelog_user_prompt_use_case=update_changelog_user_prompt_use_case
     )
     server.run()
 
