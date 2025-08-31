@@ -1,7 +1,7 @@
 import re
 import time
 from typing import Optional, Callable
-from fastmcp import FastMCP
+from fastmcp import FastMCP, Context
 from ccpragents.domain.entities.pr_diff import ExtraPRDiff
 from ccpragents.domain.entities.prompt import PRDetails
 from ccpragents.domain.usecases import GetPRDiffUseCase
@@ -387,6 +387,66 @@ The tool returns structured data with complete file change information, making i
                 raise RuntimeError(f"Failed to fetch PR diff: {e}")
 
 
+
+        @self.mcp.tool()
+        async def describe_pr(pr_url: str, commit_messages: str, diff_content: str, ctx: Context):
+            """Describe the changes in a pull request.
+
+            Args:
+                pr_url: The GitHub PR URL (e.g., https://github.com/owner/repo/pull/123)
+                commit_messages: Commit messages from the PR
+                diff_content: Diff content from the PR
+
+            Returns:
+                str: Description of the PR changes
+            """
+            # TODO: Implement PR description logic
+            pass
+
+        @self.mcp.tool()
+        async def approve_pr(pr_url: str, commit_messages: str, diff_content: str, ctx: Context):
+            """Approve a pull request.
+
+            Args:
+                pr_url: The GitHub PR URL (e.g., https://github.com/owner/repo/pull/123)
+                commit_messages: Commit messages from the PR
+                diff_content: Diff content from the PR
+
+            Returns:
+                str: PR approval result
+            """
+            # TODO: Implement PR approval logic
+            pass
+
+        @self.mcp.tool()
+        async def review_pr(pr_url: str, commit_messages: str, diff_content: str, ctx: Context):
+            """Review a pull request for code quality and best practices.
+
+            Args:
+                pr_url: The GitHub PR URL (e.g., https://github.com/owner/repo/pull/123)
+                commit_messages: Commit messages from the PR
+                diff_content: Diff content from the PR
+
+            Returns:
+                str: PR review result
+            """
+            # TODO: Implement PR review logic
+            pass
+
+        @self.mcp.tool()
+        async def update_pr_changelog(pr_url: str, commit_messages: str, diff_content: str, ctx: Context):
+            """Update changelog entries for a pull request.
+
+            Args:
+                pr_url: The GitHub PR URL (e.g., https://github.com/owner/repo/pull/123)
+                commit_messages: Commit messages from the PR
+                diff_content: Diff content from the PR
+
+            Returns:
+                str: Changelog entries
+            """
+            # TODO: Implement changelog update logic
+            pass
 
     def run(self):
         '''Start the FastMCP server with configured transport and port.
