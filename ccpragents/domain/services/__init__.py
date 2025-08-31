@@ -1,4 +1,4 @@
-"""Domain service interfaces for the CCPRAgents application."""
+'''Domain service interfaces for the CCPRAgents application.'''
 
 from .cache import CacheServiceInterface
 from .diff import DiffServiceInterface

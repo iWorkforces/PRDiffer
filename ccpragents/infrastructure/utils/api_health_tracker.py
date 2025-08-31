@@ -1,4 +1,4 @@
-"""API health tracking for adaptive retry strategies."""
+'''API health tracking for adaptive retry strategies.'''
 import time
 from typing import Dict, List, Optional
 from dataclasses import dataclass
@@ -8,7 +8,7 @@ from ccpragents.infrastructure.logging.console_logger import get_logger
 
 @dataclass
 class APICall:
-    """Represents an API call for health tracking."""
+    '''Represents an API call for health tracking.'''
     timestamp: float
     duration: float
     success: bool
@@ -16,23 +16,23 @@ class APICall:
 
 
 class APIHealthTracker:
-    """Tracks API health metrics for adaptive retry strategies.
+    '''Tracks API health metrics for adaptive retry strategies.
 
     Monitors API response times, success rates, and error patterns to inform
     intelligent retry decisions and adaptive delays.
-    """
+    '''
 
     def __init__(self,
                  window_size: int = 100,
                  time_window: float = 300.0,  # 5 minutes
                  logger=None):
-        """Initialize the API health tracker.
+        '''Initialize the API health tracker.
 
         Args:
             window_size: Maximum number of calls to track
             time_window: Time window in seconds for health calculations
             logger: Logger instance for health events
-        """
+        '''
         self.window_size = window_size
         self.time_window = time_window
         self._logger = logger or get_logger()
@@ -45,13 +45,13 @@ class APIHealthTracker:
         self._cached_health_score: Optional[float] = None
 
     def record_call(self, duration: float, success: bool, error_type: Optional[str] = None):
-        """Record an API call for health tracking.
+        '''Record an API call for health tracking.
 
         Args:
             duration: Call duration in seconds
             success: Whether the call was successful
             error_type: Type of error if call failed
-        """
+        '''
         call = APICall(
             timestamp=time.time(),
             duration=duration,
@@ -64,11 +64,11 @@ class APIHealthTracker:
         self._cached_health_score = None
 
     def get_health_score(self) -> float:
-        """Calculate current API health score (0.0 to 1.0).
+        '''Calculate current API health score (0.0 to 1.0).
 
         Returns:
             float: Health score where 1.0 is perfect health, 0.0 is completely unhealthy
-        """
+        '''
         current_time = time.time()
 
         # Use cached score if recent
@@ -100,7 +100,7 @@ class APIHealthTracker:
         return self._cached_health_score
 
     def get_recommended_delay(self, base_delay: float, max_delay: float = 30.0) -> float:
-        """Get recommended retry delay based on API health.
+        '''Get recommended retry delay based on API health.
 
         Args:
             base_delay: Base retry delay
@@ -108,7 +108,7 @@ class APIHealthTracker:
 
         Returns:
             float: Recommended delay in seconds
-        """
+        '''
         health_score = self.get_health_score()
 
         # Poor health = longer delays
@@ -120,11 +120,11 @@ class APIHealthTracker:
         return min(recommended_delay, max_delay)
 
     def should_use_circuit_breaker(self) -> bool:
-        """Determine if circuit breaker should be triggered based on health.
+        '''Determine if circuit breaker should be triggered based on health.
 
         Returns:
             bool: True if circuit breaker should be used
-        """
+        '''
         health_score = self.get_health_score()
         recent_calls = self._get_recent_calls(time.time())
 
@@ -136,11 +136,11 @@ class APIHealthTracker:
         return False
 
     def get_error_pattern(self) -> Dict[str, int]:
-        """Get recent error patterns.
+        '''Get recent error patterns.
 
         Returns:
             dict: Error types and their counts
-        """
+        '''
         recent_calls = self._get_recent_calls(time.time())
         error_counts = {}
 
@@ -151,23 +151,23 @@ class APIHealthTracker:
         return error_counts
 
     def _get_recent_calls(self, current_time: float) -> List[APICall]:
-        """Get calls within the time window.
+        '''Get calls within the time window.
 
         Args:
             current_time: Current timestamp
 
         Returns:
             list: Recent API calls within time window
-        """
+        '''
         cutoff_time = current_time - self.time_window
         return [call for call in self._calls if call.timestamp >= cutoff_time]
 
     def get_stats(self) -> dict:
-        """Get comprehensive health statistics.
+        '''Get comprehensive health statistics.
 
         Returns:
             dict: Health statistics
-        """
+        '''
         current_time = time.time()
         recent_calls = self._get_recent_calls(current_time)
 
@@ -194,7 +194,7 @@ class APIHealthTracker:
 
 
 def get_api_health_tracker(window_size: int = 100, time_window: float = 300.0) -> APIHealthTracker:
-    """Get a configured API health tracker instance.
+    '''Get a configured API health tracker instance.
 
     Args:
         window_size: Maximum number of calls to track
@@ -202,5 +202,5 @@ def get_api_health_tracker(window_size: int = 100, time_window: float = 300.0) -
 
     Returns:
         APIHealthTracker: Configured health tracker instance
-    """
+    '''
     return APIHealthTracker(window_size=window_size, time_window=time_window)

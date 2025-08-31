@@ -1,4 +1,4 @@
-"""File processing service for GitHub repositories."""
+'''File processing service for GitHub repositories.'''
 import time
 from typing import List, Optional
 from github.File import File
@@ -14,11 +14,11 @@ from ccpragents.infrastructure.logging.console_logger import get_logger
 
 
 class FileProcessor:
-    """Service for processing files in GitHub pull requests.
+    '''Service for processing files in GitHub pull requests.
 
     This class handles file filtering, content loading, and parallel processing
     of files for diff generation.
-    """
+    '''
 
     STATUS_TO_EDIT_TYPE: dict[str, EDIT_TYPE] = {
         'added': EDIT_TYPE.ADDED,
@@ -33,7 +33,7 @@ class FileProcessor:
                  diff_utils: DiffServiceInterface,
                  max_files_allowed: int = 50,
                  logger=None):
-        """Initialize the file processor.
+        '''Initialize the file processor.
 
         Args:
             github_api_service: Service for GitHub API operations
@@ -41,7 +41,7 @@ class FileProcessor:
             diff_utils: Service for diff utilities
             max_files_allowed: Maximum number of files to load content for
             logger: Logger instance for logging operations
-        """
+        '''
         self._github_api_service = github_api_service
         self._pattern_matcher = pattern_matcher
         self._diff_utils = diff_utils
@@ -53,14 +53,14 @@ class FileProcessor:
         self._pr_cache_timestamp = 0
 
     def get_pr_files(self, pull_request) -> PaginatedList[File]:
-        """Get all files from the pull request with caching.
+        '''Get all files from the pull request with caching.
 
         Args:
             pull_request: GitHub pull request object
 
         Returns:
             PaginatedList of File objects from the PR
-        """
+        '''
         # Cache PR files to avoid repeated API calls
         if self._pr_files_cache is None:
             self._pr_files_cache = pull_request.get_files()
@@ -74,14 +74,14 @@ class FileProcessor:
         return self._pr_files_cache
 
     def filter_files(self, files: PaginatedList[File]) -> List[File]:
-        """Filter files based on pattern matching configuration.
+        '''Filter files based on pattern matching configuration.
 
         Args:
             files: PaginatedList of file objects to filter
 
         Returns:
             Filtered list of files
-        """
+        '''
         return [file for file in files if self._pattern_matcher.is_valid_file(file.filename)]
 
     def process_files_to_patches(self,
@@ -89,7 +89,7 @@ class FileProcessor:
                                 repository: Repository,
                                 head_sha: str,
                                 base_sha: str) -> List[FilePatchInfo]:
-        """Process files into FilePatchInfo objects with content loading.
+        '''Process files into FilePatchInfo objects with content loading.
 
         Args:
             files: List of filtered files to process
@@ -99,7 +99,7 @@ class FileProcessor:
 
         Returns:
             List of FilePatchInfo objects with loaded content
-        """
+        '''
         diff_files: List[FilePatchInfo] = []
         invalid_files_names: List[str] = []
 
@@ -148,7 +148,7 @@ class FileProcessor:
                               head_sha: str,
                               base_sha: str,
                               max_workers: int = 4) -> List[FilePatchInfo]:
-        """Process files in parallel for better performance.
+        '''Process files in parallel for better performance.
 
         Args:
             files: List of filtered files to process
@@ -159,7 +159,7 @@ class FileProcessor:
 
         Returns:
             List of FilePatchInfo objects
-        """
+        '''
         diff_files = []
         files_processed_count = 0
 
@@ -196,7 +196,7 @@ class FileProcessor:
                                    repository: Repository,
                                    head_sha: str,
                                    base_sha: str) -> List[FilePatchInfo]:
-        """Process files with content loading (batch mode).
+        '''Process files with content loading (batch mode).
 
         Args:
             files: List of files to process
@@ -206,7 +206,7 @@ class FileProcessor:
 
         Returns:
             List of FilePatchInfo objects with content loaded
-        """
+        '''
         diff_files = []
 
         # Separate files by status to optimize API calls
@@ -260,10 +260,10 @@ class FileProcessor:
                             head_sha: str,
                             base_sha: str,
                             files_processed_count: int) -> Optional[FilePatchInfo]:
-        """Process a single file and return FilePatchInfo.
+        '''Process a single file and return FilePatchInfo.
 
         This is a helper method for parallel processing.
-        """
+        '''
         if not self._pattern_matcher.is_valid_file(file.filename):
             return None
 
@@ -309,14 +309,14 @@ class FileProcessor:
             )
 
     def _create_file_patch_without_content(self, file: File) -> FilePatchInfo:
-        """Create FilePatchInfo without loading file content.
+        '''Create FilePatchInfo without loading file content.
 
         Args:
             file: GitHub file object
 
         Returns:
             FilePatchInfo with empty content strings
-        """
+        '''
         edit_type = self.STATUS_TO_EDIT_TYPE.get(file.status, EDIT_TYPE.UNKNOWN)
         if edit_type == EDIT_TYPE.UNKNOWN:
             self._logger.error(f"Unknown edit type: {file.status}")
@@ -340,7 +340,7 @@ class FileProcessor:
                                        original_content: str,
                                        new_content: str,
                                        patch: str) -> FilePatchInfo:
-        """Create FilePatchInfo with loaded file content.
+        '''Create FilePatchInfo with loaded file content.
 
         Args:
             file: GitHub file object
@@ -350,7 +350,7 @@ class FileProcessor:
 
         Returns:
             FilePatchInfo with loaded content
-        """
+        '''
         edit_type: EDIT_TYPE = self.STATUS_TO_EDIT_TYPE.get(file.status, EDIT_TYPE.UNKNOWN)
         if edit_type == EDIT_TYPE.UNKNOWN:
             self._logger.error(f"Unknown edit type: {file.status}")
@@ -368,7 +368,7 @@ class FileProcessor:
         )
 
     def _count_patch_lines(self, file: File, patch: str) -> tuple[int, int]:
-        """Count added and removed lines from file or patch.
+        '''Count added and removed lines from file or patch.
 
         Args:
             file: GitHub file object
@@ -376,7 +376,7 @@ class FileProcessor:
 
         Returns:
             Tuple of (num_plus_lines, num_minus_lines)
-        """
+        '''
         # Use GitHub API data if available
         if hasattr(file, 'additions') and hasattr(file, 'deletions'):
             return file.additions, file.deletions
@@ -394,7 +394,7 @@ class FileProcessor:
                                     filename: str,
                                     new_content: str,
                                     original_content: str) -> str:
-        """Generate a patch for a file by comparing content.
+        '''Generate a patch for a file by comparing content.
 
         Args:
             filename: Name of the file
@@ -403,7 +403,7 @@ class FileProcessor:
 
         Returns:
             Generated patch string
-        """
+        '''
         if not original_content and not new_content:
             return ""
 
@@ -427,7 +427,7 @@ def get_file_processor(github_api_service: GitHubAPIServiceInterface,
                       pattern_matcher: PatternMatchingServiceInterface,
                       diff_utils: DiffServiceInterface,
                       max_files_allowed: int = 50) -> FileProcessor:
-    """Get a configured file processor instance.
+    '''Get a configured file processor instance.
 
     Args:
         github_api_service: Service for GitHub API operations
@@ -437,7 +437,7 @@ def get_file_processor(github_api_service: GitHubAPIServiceInterface,
 
     Returns:
         FileProcessor: Configured file processor instance
-    """
+    '''
     return FileProcessor(
         github_api_service=github_api_service,
         pattern_matcher=pattern_matcher,

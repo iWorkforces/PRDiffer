@@ -1,17 +1,20 @@
 import re
 import time
+from typing import Optional, Callable
 from fastmcp import FastMCP
 from ccpragents.domain.entities.pr_diff import ExtraPRDiff
+from ccpragents.domain.entities.prompt import PRDetails
 from ccpragents.domain.usecases import GetPRDiffUseCase
-from ccpragents.infrastructure.github_repository import GitHubPRDiffRepository
-from ccpragents.infrastructure.settings import get_settings_service
-from ccpragents.infrastructure.cache_service import get_cache_service
-from ccpragents.infrastructure.repository_cache_service import get_repository_cache_service
-from ccpragents.infrastructure.logging.console_logger import get_logger
+from ccpragents.domain.usecases.prompt import DescribePRUserPromptUseCase, ReviewPRUserPromptUseCase, UpdateChangelogUserPromptUseCase
+from ccpragents.domain.services.settings import SettingsServiceInterface
+from ccpragents.domain.services.cache import CacheServiceInterface
+from ccpragents.domain.services.repository_cache import RepositoryCacheServiceInterface
+from ccpragents.domain.services.logger import LoggerServiceInterface
+from ccpragents.domain.repositories.pr_diff_repository import PRDiffRepositoryInterface
 
 
 class FastMCPServer:
-    """FastMCP server for fetching GitHub PR diffs with detailed file change information.
+    '''FastMCP server for fetching GitHub PR diffs with detailed file change information.
 
     This server provides a tool for retrieving pull request information:
     - get_pr_diff: Fetches PR diff information including file statistics
@@ -20,27 +23,38 @@ class FastMCPServer:
         mcp: The FastMCP instance for tool registration and server management
         settings_service: Settings service for configuration
         logger: Logger for logging messages
-    """
+    '''
     def __init__(self,
-                 settings_service=None,
-                 cache_service=None,
-                 repository_cache_service=None,
-                 logger=None,
-                 github_repository_class=None):
-        """Initialize the FastMCP server with optional dependency injection.
+                 settings_service: SettingsServiceInterface,
+                 cache_service: CacheServiceInterface,
+                 repository_cache_service: RepositoryCacheServiceInterface,
+                 logger: LoggerServiceInterface,
+                 github_repository_class: Callable[[str, str, int], PRDiffRepositoryInterface],
+                 describe_use_case: DescribePRUserPromptUseCase,
+                 review_use_case: ReviewPRUserPromptUseCase,
+                 update_changelog_use_case: UpdateChangelogUserPromptUseCase):
+        '''Initialize the FastMCP server with dependency injection.
 
         Args:
-            settings_service: Settings service instance (default: get_settings_service())
-            cache_service: Cache service instance (default: get_cache_service())
-            repository_cache_service: Repository cache service instance (default: get_repository_cache_service())
-            logger: Logger instance (default: get_logger())
-            github_repository_class: GitHub repository class for testing (default: GitHubPRDiffRepository)
-        """
-        self._settings_service = settings_service or get_settings_service()
-        self._cache_service = cache_service or get_cache_service()
-        self._repository_cache_service = repository_cache_service or get_repository_cache_service()
-        self._logger = logger or get_logger()
-        self._github_repository_class = github_repository_class or GitHubPRDiffRepository
+            settings_service: Settings service instance implementing SettingsServiceInterface
+            cache_service: Cache service instance implementing CacheServiceInterface
+            repository_cache_service: Repository cache service instance implementing RepositoryCacheServiceInterface
+            logger: Logger instance implementing LoggerServiceInterface
+            github_repository_class: GitHub repository class callable that creates PRDiffRepositoryInterface instances
+            describe_use_case: Use case for PR description implementing DescribePRUseCase
+            review_use_case: Use case for PR review implementing ReviewPRUseCase
+            update_changelog_use_case: Use case for changelog updates implementing UpdateChangelogUseCase
+        '''
+        self._settings_service = settings_service
+        self._cache_service = cache_service
+        self._repository_cache_service = repository_cache_service
+        self._logger = logger
+        self._github_repository_class = github_repository_class
+
+        # Initialize prompt use cases
+        self._describe_use_case = describe_use_case
+        self._review_use_case = review_use_case
+        self._update_changelog_use_case = update_changelog_use_case
 
         # Rate limiting configuration
         self._rate_limit_requests = 100  # Max requests per minute
@@ -60,7 +74,7 @@ class FastMCPServer:
 
         self.mcp = FastMCP(
             name="ccpragents",
-            instructions="""
+            instructions='''
 GitHub PR Diff Fetcher MCP - A powerful tool for retrieving detailed pull request information from GitHub.
 
 This MCP provides a tool for fetching PR diff information:
@@ -86,7 +100,7 @@ The tool returns structured data with complete file change information, making i
 - Change tracking and audit logging
 - Code analysis and refactoring
 - Code understanding and documentation
-""",
+''',
             version="0.1.1"
         )
 
@@ -94,7 +108,7 @@ The tool returns structured data with complete file change information, making i
         self._register_prompts()
 
     def _parse_pr_url(self, pr_url: str) -> tuple[str, str, int]:
-        """Parse GitHub PR URL to extract repository owner, name, and PR number.
+        '''Parse GitHub PR URL to extract repository owner, name, and PR number.
 
         Args:
             pr_url: The GitHub pull request URL to parse
@@ -104,7 +118,7 @@ The tool returns structured data with complete file change information, making i
 
         Raises:
             ValueError: If the URL format is invalid or contains invalid characters
-        """
+        '''
         if not pr_url:
             raise ValueError("PR URL cannot be empty")
 
@@ -139,11 +153,11 @@ The tool returns structured data with complete file change information, making i
         return repo_owner, repo_name, pr_number
 
     def _check_rate_limit(self):
-        """Check if the current request exceeds rate limits.
+        '''Check if the current request exceeds rate limits.
 
         Raises:
             RuntimeError: If rate limit is exceeded
-        """
+        '''
         import time
 
         current_time = time.time()
@@ -166,20 +180,20 @@ The tool returns structured data with complete file change information, making i
 
 
     def _generate_request_id(self) -> str:
-        """Generate a unique request ID for tracking purposes.
+        '''Generate a unique request ID for tracking purposes.
 
         Returns:
             str: Unique request ID in format REQ-{timestamp}-{counter}
-        """
+        '''
         self._request_counter += 1
         return f"REQ-{int(time.time() * 1000)}-{self._request_counter}"
 
     def _get_health_status(self) -> dict:
-        """Get health status and metrics for the MCP server.
+        '''Get health status and metrics for the MCP server.
 
         Returns:
             dict: Health status and metrics information
-        """
+        '''
         current_time = time.time()
         uptime_seconds = current_time - self._start_time
 
@@ -197,7 +211,7 @@ The tool returns structured data with complete file change information, making i
         }
 
     def _format_uptime(self, seconds: float) -> str:
-        """Format uptime in human-readable format."""
+        '''Format uptime in human-readable format.'''
         days = seconds // 86400
         hours = (seconds % 86400) // 3600
         minutes = (seconds % 3600) // 60
@@ -213,44 +227,92 @@ The tool returns structured data with complete file change information, making i
             return f"{int(secs)}s"
 
     def _calculate_success_rate(self) -> float:
-        """Calculate success rate percentage."""
+        '''Calculate success rate percentage.'''
         if self._total_requests == 0:
             return 0.0
         return round((self._successful_requests / self._total_requests) * 100, 2)
 
     def _register_prompts(self):
-        """Register FastMCP prompts with the server instance.
+        '''Register FastMCP prompts with the server instance.
 
-        This method registers prompts for PR analysis and documentation tasks.
-        """
+        This method registers prompts for PR analysis and documentation tasks,
+        using the new use case architecture with dependency injection.
+        '''
         @self.mcp.prompt()
-        def describe(pr_url: str, pr_commit_messages: str, pr_diff: str):
-            """Describe the changes in a pull request."""
-            return "Describe the changes in this pull request, highlighting key modifications and their impact."
+        async def describe(pr_url: str, pr_commit_messages: str, pr_diff: str):
+            '''Describe the changes in a pull request.
+
+            Args:
+                pr_url: The GitHub PR URL (e.g., https://github.com/owner/repo/pull/123)
+                pr_commit_messages: Commit messages from the PR
+                pr_diff: Diff content from the PR
+
+            Returns:
+                str: Prompt for describing PR changes
+            '''
+            try:
+                repo_owner, repo_name, pr_number = self._parse_pr_url(pr_url)
+                pr_details = PRDetails(repo_owner=repo_owner, repo_name=repo_name, pr_number=pr_number)
+
+                return await self._describe_use_case.execute(pr_details, pr_commit_messages, pr_diff)
+            except Exception as e:
+                self._logger.error("Failed to generate describe prompt", pr_url=pr_url, error=str(e))
+                raise e
 
         @self.mcp.prompt()
-        def review(pr_url: str, pr_commit_messages: str, pr_diff: str):
-            """Review a pull request for code quality and best practices."""
-            return "Review this pull request for code quality, best practices, and potential issues."
+        async def review(pr_url: str, pr_commit_messages: str, pr_diff: str):
+            '''Review a pull request for code quality and best practices.
+
+            Args:
+                pr_url: The GitHub PR URL (e.g., https://github.com/owner/repo/pull/123)
+                pr_commit_messages: Commit messages from the PR
+                pr_diff: Diff content from the PR
+
+            Returns:
+                str: Prompt for reviewing PR quality
+            '''
+            try:
+                repo_owner, repo_name, pr_number = self._parse_pr_url(pr_url)
+                pr_details = PRDetails(repo_owner=repo_owner, repo_name=repo_name, pr_number=pr_number)
+
+                return await self._review_use_case.execute(pr_details, pr_commit_messages, pr_diff)
+            except Exception as e:
+                self._logger.error("Failed to generate review prompt", pr_url=pr_url, error=str(e))
+                raise e
 
         @self.mcp.prompt()
-        def update_changelog(pr_url: str, pr_commit_messages: str, pr_diff: str):
-            """Generate changelog entries for a pull request."""
-            return "Generate appropriate changelog entries for the changes in this pull request."
+        async def update_changelog(pr_url: str, pr_commit_messages: str, pr_diff: str):
+            '''Generate changelog entries for a pull request.
+
+            Args:
+                pr_url: The GitHub PR URL (e.g., https://github.com/owner/repo/pull/123)
+                pr_commit_messages: Commit messages from the PR
+                pr_diff: Diff content from the PR
+
+            Returns:
+                str: Prompt for generating changelog entries
+            '''
+            try:
+                repo_owner, repo_name, pr_number = self._parse_pr_url(pr_url)
+                pr_details = PRDetails(repo_owner=repo_owner, repo_name=repo_name, pr_number=pr_number)
+                return await self._update_changelog_use_case.execute(pr_details, pr_commit_messages, pr_diff)
+            except Exception as e:
+                self._logger.error("Failed to generate changelog prompt", pr_url=pr_url, error=str(e))
+                raise e
 
     def _register_tools(self):
-        """Register FastMCP tools with the server instance.
+        '''Register FastMCP tools with the server instance.
 
         This method registers the get_pr_diff tool for PR diff information.
-        """
+        '''
         @self.mcp.tool()
         async def get_pr_diff(pr_url: str, use_cache: bool = True):
-            """Get the diff content for a specific GitHub pull request.
+            '''Get the diff content for a specific GitHub pull request.
 
             Args:
                 pr_url: The full GitHub PR URL (e.g., https://github.com/owner/repo/pull/123)
                 use_cache: Whether to use caching (default: True)
-            """
+            '''
             # Generate request ID for tracing
             request_id = self._generate_request_id()
 
@@ -274,11 +336,11 @@ The tool returns structured data with complete file change information, making i
                 repo_owner, repo_name, pr_number = self._parse_pr_url(pr_url)
 
                 # Try to get repository from cache first
-                repository = self._repository_cache_service.retrieve(repo_owner, repo_name, pr_number)
+                repository: Optional[PRDiffRepositoryInterface] = self._repository_cache_service.retrieve(repo_owner, repo_name, pr_number)
 
                 if repository is None:
                     # Create new repository instance
-                    repository: GitHubPRDiffRepository = self._github_repository_class(repo_owner, repo_name, pr_number)
+                    repository = self._github_repository_class(repo_owner, repo_name, pr_number)
                     self._logger.debug("Created new repository instance",
                                      request_id=request_id, repo_owner=repo_owner, repo_name=repo_name, pr_number=pr_number)
                 else:
@@ -289,7 +351,7 @@ The tool returns structured data with complete file change information, making i
                 result: ExtraPRDiff = await use_case.execute(use_cache=use_cache)
 
                 # Cache the repository after it's been used (now it should be initialized)
-                if repository._initialized:
+                if hasattr(repository, '_initialized') and getattr(repository, '_initialized', False):
                     cache_success = self._repository_cache_service.insert(repository)
                     if cache_success:
                         self._logger.debug("Cached repository instance after initialization",
@@ -327,7 +389,7 @@ The tool returns structured data with complete file change information, making i
 
 
     def run(self):
-        """Start the FastMCP server with configured transport and port.
+        '''Start the FastMCP server with configured transport and port.
 
         The server reads configuration from the settings service:
         - mcp.transport: The transport protocol (default: "stdio")
@@ -336,7 +398,7 @@ The tool returns structured data with complete file change information, making i
         - mcp.path: The path for non-stdio transports (default: "/mcp")
 
         Supported transports include "stdio", "sse", and other FastMCP transport options.
-        """
+        '''
         # Get MCP settings from configuration
         transport = self._settings_service.get("mcp.transport", "stdio")
         port = self._settings_service.get("mcp.port", 9101)

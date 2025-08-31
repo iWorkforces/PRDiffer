@@ -156,6 +156,44 @@ run_fix() {
     fi
 }
 
+# Function to replace triple double quotes with triple single quotes
+replace_triple_quotes() {
+    echo -e "${BLUE}🔄 Replacing triple double quotes with single quotes...${NC}"
+    echo ""
+
+    # Find all Python files
+    find_python_files
+    
+    local count=0
+    echo "${PYTHON_FILES}" | while read -r file; do
+        if [ -n "${file}" ]; then
+            # Check if file contains triple double quotes
+            if grep -q '"""' "${file}"; then
+                echo -e "${CYAN}Processing: ${file}${NC}"
+                
+                # Replace triple double quotes with triple single quotes
+                if [[ "${OSTYPE}" == "darwin"* ]]; then
+                    # macOS sed syntax
+                    sed -i '' 's/"""'/"'''"/g "${file}"
+                else
+                    # Linux sed syntax
+                    sed -i 's/"""'/"'''"/g "${file}"
+                fi
+                
+                ((count++))
+                echo -e "${GREEN}✅ Updated quotes in: ${file}${NC}"
+            fi
+        fi
+    done
+
+    echo ""
+    if [ "$count" -gt 0 ]; then
+        echo -e "${GREEN}✅ Replaced triple quotes in $count files${NC}"
+    else
+        echo -e "${YELLOW}ℹ️  No triple double quotes found to replace${NC}"
+    fi
+}
+
 # Function to format code
 run_format() {
     echo -e "${BLUE}🎨 Running ruff format...${NC}"
@@ -189,6 +227,7 @@ show_help() {
     echo "  --check       Run linting check only (default)"
     echo "  --fix         Run linting check and apply automatic fixes"
     echo "  --format      Run code formatting (ruff format)"
+    echo "  --quotes      Replace triple double quotes with single quotes"
     echo "  --all         Run check, fix, and format"
     echo "  --stats       Show detailed linting statistics"
     echo "  --config      Show ruff configuration"
@@ -200,6 +239,7 @@ show_help() {
     echo "  $0                    # Check for issues"
     echo "  $0 --fix             # Fix issues automatically"
     echo "  $0 --format          # Format code"
+    echo "  $0 --quotes          # Replace triple double quotes"
     echo "  $0 --all             # Check, fix, and format"
     echo "  $0 --stats           # Show statistics"
     echo ""
@@ -276,6 +316,10 @@ main() {
                 ACTION="format"
                 shift
                 ;;
+            --quotes)
+                ACTION="quotes"
+                shift
+                ;;
             --all)
                 ACTION="all"
                 shift
@@ -340,6 +384,10 @@ main() {
         "format")
             run_format
             echo -e "${GREEN}🎉 Code formatting completed${NC}"
+            ;;
+        "quotes")
+            replace_triple_quotes
+            echo -e "${GREEN}🎉 Triple quote replacement completed${NC}"
             ;;
         "all")
             echo -e "${PURPLE}🚀 Running complete linting workflow...${NC}"

@@ -1,8 +1,8 @@
-"""Utility components for CCPRAgents infrastructure.
+'''Utility components for CCPRAgents infrastructure.
 
 This module contains utility components including retry handling, pattern matching,
 and diff utilities that support the main GitHub repository implementation.
-"""
+'''
 
 from .retry_handler import RetryHandler, get_retry_handler
 from .pattern_matcher import PatternMatcher, get_pattern_matcher  

@@ -1,4 +1,4 @@
-"""Retry handler utility for GitHub API operations with exponential backoff."""
+'''Retry handler utility for GitHub API operations with exponential backoff.'''
 import time
 import random
 from typing import Any, Callable
@@ -7,11 +7,11 @@ from ccpragents.infrastructure.logging.console_logger import get_logger
 
 
 class RetryHandler(RetryServiceInterface):
-    """Handler for retrying operations with exponential backoff and jitter.
+    '''Handler for retrying operations with exponential backoff and jitter.
 
     This utility provides configurable retry logic for GitHub API operations
     with smart error classification and context-aware retry strategies.
-    """
+    '''
 
     def __init__(self,
                  max_retries: int = 3,
@@ -22,7 +22,7 @@ class RetryHandler(RetryServiceInterface):
                  retry_log_level: str = "DEBUG",
                  permanent_failure_log_level: str = "INFO",
                  logger=None):
-        """Initialize the retry handler.
+        '''Initialize the retry handler.
 
         Args:
             max_retries: Maximum number of retry attempts
@@ -33,7 +33,7 @@ class RetryHandler(RetryServiceInterface):
             retry_log_level: Log level for retry attempts (DEBUG, INFO, WARNING)
             permanent_failure_log_level: Log level for permanent failures
             logger: Logger instance for logging retry attempts
-        """
+        '''
         self.max_retries = max_retries
         self.retry_delay = retry_delay
         self.retry_on_404 = retry_on_404
@@ -47,7 +47,7 @@ class RetryHandler(RetryServiceInterface):
                           func: Callable,
                           *args,
                           **kwargs) -> Any:
-        """Execute a function with retry logic and exponential backoff.
+        '''Execute a function with retry logic and exponential backoff.
 
         Args:
             func: Function to execute with retry logic
@@ -59,7 +59,7 @@ class RetryHandler(RetryServiceInterface):
 
         Raises:
             Exception: If all retry attempts fail or error is not retryable
-        """
+        '''
         last_exception = None
 
         for attempt in range(self.max_retries):
@@ -90,14 +90,14 @@ class RetryHandler(RetryServiceInterface):
             raise last_exception
 
     def _should_retry_error(self, error: Exception) -> bool:
-        """Determine if an error should be retried based on configuration.
+        '''Determine if an error should be retried based on configuration.
 
         Args:
             error: Exception to check
 
         Returns:
             bool: True if this error should be retried, False otherwise
-        """
+        '''
         error_str = str(error).lower()
 
         # Check for 404 errors
@@ -124,14 +124,14 @@ class RetryHandler(RetryServiceInterface):
         )
 
     def _is_rate_limit_error(self, error: Exception) -> bool:
-        """Check if an exception indicates a rate limit error.
+        '''Check if an exception indicates a rate limit error.
 
         Args:
             error: Exception to check
 
         Returns:
             bool: True if this is a rate limit error, False otherwise
-        """
+        '''
         error_str = str(error).lower()
         return (
             "rate limit" in error_str or
@@ -139,7 +139,7 @@ class RetryHandler(RetryServiceInterface):
         )
 
     def _calculate_backoff(self, attempt: int, is_rate_limit: bool) -> float:
-        """Calculate backoff delay with exponential growth and jitter.
+        '''Calculate backoff delay with exponential growth and jitter.
 
         Args:
             attempt: Current attempt number (0-based)
@@ -147,7 +147,7 @@ class RetryHandler(RetryServiceInterface):
 
         Returns:
             float: Delay in seconds before next retry
-        """
+        '''
         base_delay = self.retry_delay * (2 ** attempt)
         jitter = random.uniform(0, base_delay * 0.1)  # 10% jitter
         return base_delay + jitter
@@ -156,13 +156,13 @@ class RetryHandler(RetryServiceInterface):
                           attempt: int,
                           delay: float,
                           error: Exception):
-        """Log retry attempt information at configured level.
+        '''Log retry attempt information at configured level.
 
         Args:
             attempt: Current attempt number (0-based)
             delay: Delay before next retry in seconds
             error: Exception that caused the retry
-        """
+        '''
         is_rate_limit = self._is_rate_limit_error(error)
 
         if is_rate_limit:
@@ -184,13 +184,13 @@ class RetryHandler(RetryServiceInterface):
         self._log_at_level(message, self.retry_log_level)
 
     def _log_permanent_failure(self, error: Exception, should_retry: bool, is_last_attempt: bool):
-        """Log permanent failure or final attempt information.
+        '''Log permanent failure or final attempt information.
 
         Args:
             error: Exception that caused the failure
             should_retry: Whether this error type is configured for retry
             is_last_attempt: Whether this was the last retry attempt
-        """
+        '''
         if not should_retry:
             # Permanent failure due to error type
             error_msg = str(error)
@@ -204,12 +204,12 @@ class RetryHandler(RetryServiceInterface):
             self._log_at_level(message, "ERROR")
 
     def _log_at_level(self, message: str, level: str):
-        """Log message at specified level.
+        '''Log message at specified level.
 
         Args:
             message: Message to log
             level: Log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
-        """
+        '''
         level = level.upper()
         if level == "DEBUG":
             self._logger.debug(message)
@@ -233,7 +233,7 @@ def get_retry_handler(max_retries: int = 3,
                      retry_on_500: bool = True,
                      retry_log_level: str = "DEBUG",
                      permanent_failure_log_level: str = "INFO") -> RetryHandler:
-    """Get a configured retry handler instance.
+    '''Get a configured retry handler instance.
 
     Args:
         max_retries: Maximum number of retry attempts
@@ -246,7 +246,7 @@ def get_retry_handler(max_retries: int = 3,
 
     Returns:
         RetryHandler: Configured retry handler instance
-    """
+    '''
     return RetryHandler(
         max_retries=max_retries,
         retry_delay=retry_delay,

@@ -1,4 +1,4 @@
-"""Diff generation and patch processing service."""
+'''Diff generation and patch processing service.'''
 import re
 from typing import List
 from ccpragents.domain.entities.file_patch import FilePatchInfo, EDIT_TYPE
@@ -7,28 +7,28 @@ from ccpragents.infrastructure.logging.console_logger import get_logger
 
 
 class DiffGenerator:
-    """Service for generating extended diffs and processing patches.
+    '''Service for generating extended diffs and processing patches.
 
     This class handles the creation of extended diff output with full file context,
     hunk processing, and formatting for pull request diff analysis.
-    """
+    '''
 
     RE_HUNK_HEADER = re.compile(r"^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@[ ]?(.*)")
 
     def __init__(self, diff_utils: DiffServiceInterface, logger=None):
-        """Initialize the diff generator.
+        '''Initialize the diff generator.
 
         Args:
             diff_utils: Service for diff utilities
             logger: Logger instance for logging operations
-        """
+        '''
         self._diff_utils = diff_utils
         self._logger = logger or get_logger()
 
     def generate_extended_diff(self,
                               diff_files: List[FilePatchInfo],
                               add_line_numbers_to_hunks: bool = False) -> List[str]:
-        """Generate an extended diff for a pull request.
+        '''Generate an extended diff for a pull request.
 
         Args:
             diff_files: List of FilePatchInfo objects to process
@@ -36,7 +36,7 @@ class DiffGenerator:
 
         Returns:
             List of extended diff strings, one per file
-        """
+        '''
         extended_diffs = []
         for file in diff_files:
             original_file_content_str = file.base_file
@@ -63,7 +63,7 @@ class DiffGenerator:
         return extended_diffs
 
     def _decouple_and_convert_to_hunks_with_lines_numbers(self, patch: str, file: FilePatchInfo) -> str:
-        """Convert a given patch string into a string with line numbers for each hunk.
+        '''Convert a given patch string into a string with line numbers for each hunk.
 
         This method processes patch hunks to display new and old content sections
         with line numbers, making it easier to understand the changes.
@@ -94,7 +94,7 @@ class DiffGenerator:
                     line5
                     line6
                     ...
-        """
+        '''
 
         # Add a header for the file
         if file:
@@ -177,7 +177,7 @@ class DiffGenerator:
         return patch_with_lines_str.rstrip()
 
     def _extract_hunk_headers(self, match: re.Match) -> tuple:
-        """Extract and parse hunk header information from regex match.
+        '''Extract and parse hunk header information from regex match.
 
         Args:
             match: Regex match object from hunk header pattern
@@ -192,7 +192,7 @@ class DiffGenerator:
 
         Note:
             Handles edge cases like '@@ -0,0 +1 @@' for new files
-        """
+        '''
         res = list(match.groups())
         for i in range(len(res)):
             if res[i] is None:
@@ -206,7 +206,7 @@ class DiffGenerator:
         return section_header, size1, size2, start1, start2
 
     def get_commit_messages(self, pull_request) -> str:
-        """Retrieve and format all commit messages from the pull request.
+        '''Retrieve and format all commit messages from the pull request.
 
         Args:
             pull_request: GitHub pull request object
@@ -216,7 +216,7 @@ class DiffGenerator:
 
         Note:
             Each commit message is prefixed with its sequence number (1-based)
-        """
+        '''
         try:
             commit_list = pull_request.get_commits()
             commit_messages = [commit.commit.message for commit in commit_list]
@@ -227,12 +227,12 @@ class DiffGenerator:
 
 
 def get_diff_generator(diff_utils: DiffServiceInterface) -> DiffGenerator:
-    """Get a configured diff generator instance.
+    '''Get a configured diff generator instance.
 
     Args:
         diff_utils: Service for diff utilities
 
     Returns:
         DiffGenerator: Configured diff generator instance
-    """
+    '''
     return DiffGenerator(diff_utils=diff_utils)

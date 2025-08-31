@@ -21,6 +21,16 @@ The main repository interface for pull request diff operations:
 - `async get_pr_diff() -> ExtraPRDiff`: Get complete PR diff data with extended metadata
 - `get_latest_commit_sha() -> str`: Get latest head commit SHA for cache invalidation
 
+### PromptRepositoryInterface (`prompt_repository.py`)
+
+The prompt repository interface for AI-powered prompt generation operations:
+
+**Methods:**
+- `async describe_pr_user_prompt(request: PromptRequest) -> str`: Generate PR description prompts
+- `async review_pr_user_prompt(request: PromptRequest) -> str`: Generate code review prompts
+- `async update_changelog_user_prompt(request: PromptRequest) -> str`: Generate changelog prompts
+- `async describe_pr_system_prompt() -> str`: Generate system role prompts
+
 ## Architecture Role
 
 ### Interface Definition

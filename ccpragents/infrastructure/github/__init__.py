@@ -1,8 +1,8 @@
-"""GitHub infrastructure components for CCPRAgents.
+'''GitHub infrastructure components for CCPRAgents.
 
 This module contains all GitHub-related infrastructure components including
 API client, file processing, diff generation, and parallel execution utilities.
-"""
+'''
 
 from .api_client import GitHubAPIService, get_github_api_client
 from .file_processor import FileProcessor, get_file_processor
