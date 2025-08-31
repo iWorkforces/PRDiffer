@@ -1,7 +1,7 @@
-"""GitHub repository implementation for PR diff data retrieval (Refactored).
+'''GitHub repository implementation for PR diff data retrieval (Refactored).
 
 This is the refactored version using composition with extracted components.
-"""
+'''
 import os
 from typing import Optional
 from ccpragents.domain.entities.pr_diff import ExtraPRDiff
@@ -17,7 +17,7 @@ from ccpragents.infrastructure.utils.diff_utils import get_diff_utils
 
 
 class GitHubPRDiffRepository(PRDiffRepositoryInterface):
-    """GitHub repository implementation for PR diff data retrieval.
+    '''GitHub repository implementation for PR diff data retrieval.
 
     This refactored class uses composition with extracted components for
     better separation of concerns and maintainability.
@@ -26,10 +26,10 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
         repo_owner: Repository owner/organization name
         repo_name: Repository name
         pr_number: Pull request number
-    """
+    '''
 
     def __init__(self, repo_owner: str, repo_name: str, pr_number: int, github_token: Optional[str] = None):
-        """Initialize the GitHub repository with repository details and optional authentication.
+        '''Initialize the GitHub repository with repository details and optional authentication.
 
         Args:
             repo_owner: The owner/organization of the repository
@@ -37,7 +37,7 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
             pr_number: The pull request number
             github_token: GitHub personal access token. If not provided,
                          uses GITHUB_TOKEN environment variable or anonymous access.
-        """
+        '''
         self._repo_owner = repo_owner
         self._repo_name = repo_name
         self._pr_number = pr_number
@@ -129,21 +129,21 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
 
     @property
     def repo_owner(self) -> str:
-        """Repository owner/organization name."""
+        '''Repository owner/organization name.'''
         return self._repo_owner
 
     @property
     def repo_name(self) -> str:
-        """Repository name."""
+        '''Repository name.'''
         return self._repo_name
 
     @property
     def pr_number(self) -> int:
-        """Pull request number."""
+        '''Pull request number.'''
         return self._pr_number
 
     def _initialize_github_objects(self):
-        """Lazy initialization of GitHub client, repository, and PR objects."""
+        '''Lazy initialization of GitHub client, repository, and PR objects.'''
         if self._initialized:
             return
 
@@ -171,11 +171,11 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
         self._initialized = True
 
     def get_latest_commit_sha(self) -> str:
-        """Get the latest head commit SHA for the pull request.
+        '''Get the latest head commit SHA for the pull request.
 
         Returns:
             str: The latest head commit SHA
-        """
+        '''
         self._initialize_github_objects()
 
         # Type assertion: self._repository and self._pull_request should not be None after initialization
@@ -193,7 +193,7 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
         return self._pull_request.head.sha
 
     async def get_pr_diff(self) -> ExtraPRDiff:
-        """Fetch PR diff information from GitHub.
+        '''Fetch PR diff information from GitHub.
 
         Returns:
             ExtraPRDiff: A ExtraPRDiff object containing complete PR information including:
@@ -202,7 +202,7 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
                 - Base and head commit SHAs
                 - File change statistics (changed files, additions, deletions)
                 - Commit messages
-        """
+        '''
         self._initialize_github_objects()
 
         # Type assertion: objects should not be None after initialization
@@ -252,11 +252,11 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
         )
 
     def _get_merge_base_commits(self) -> tuple[str, str]:
-        """Get base and head commit SHAs, using merge base for accurate comparison.
+        '''Get base and head commit SHAs, using merge base for accurate comparison.
 
         Returns:
             tuple: (base_sha, head_sha) where base_sha is the merge base commit
-        """
+        '''
         try:
             # Type assertion: self._repository should not be None after _initialize_github_objects()
             assert self._repository is not None, "Repository should be initialized"
@@ -282,7 +282,7 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
         return base_sha, head_sha
 
     def _log_filtered_files(self, original_files, filtered_files):
-        """Log information about filtered files."""
+        '''Log information about filtered files.'''
         try:
             original_names = [file.filename for file in original_files]
             filtered_names = [file.filename for file in filtered_files]
@@ -302,7 +302,7 @@ _repository_cache: dict = {}
 
 
 def get_github_repository(repo_owner: str, repo_name: str, pr_number: int, github_token: Optional[str] = None) -> GitHubPRDiffRepository:
-    """Get a GitHub repository instance (singleton pattern per repository/PR).
+    '''Get a GitHub repository instance (singleton pattern per repository/PR).
 
     This function provides a singleton pattern for GitHubPRDiffRepository instances
     to avoid creating multiple instances for the same repository and PR.
@@ -315,7 +315,7 @@ def get_github_repository(repo_owner: str, repo_name: str, pr_number: int, githu
 
     Returns:
         GitHubPRDiffRepository: The repository instance
-    """
+    '''
     global _repository_cache
 
     # Create a unique cache key for this repository and PR

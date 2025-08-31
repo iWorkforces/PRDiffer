@@ -4,21 +4,21 @@ from ccpragents.domain.services import SettingsServiceInterface
 
 
 class SettingsService(SettingsServiceInterface):
-    """Settings service for reading TOML configuration files with Dynaconf and caching.
+    '''Settings service for reading TOML configuration files with Dynaconf and caching.
 
     This service provides a centralized way to access application settings with
     built-in caching for maximum performance.
 
     Attributes:
         settings: The Dynaconf instance for configuration management
-    """
+    '''
 
     def __init__(self, settings_files: Optional[list] = None):
-        """Initialize the settings service with configuration files.
+        '''Initialize the settings service with configuration files.
 
         Args:
             settings_files: List of TOML files to load. Defaults to ['settings.toml', '.secrets.toml']
-        """
+        '''
         if settings_files is None:
             settings_files = ['settings.toml', '.secrets.toml']
 
@@ -36,7 +36,7 @@ class SettingsService(SettingsServiceInterface):
         self._app_settings_cache = None
 
     def get(self, key: str, default: Any = None) -> Any:
-        """Get a configuration value with caching.
+        '''Get a configuration value with caching.
 
         Args:
             key: The configuration key to retrieve
@@ -44,7 +44,7 @@ class SettingsService(SettingsServiceInterface):
 
         Returns:
             Any: The configuration value or default
-        """
+        '''
         # Make cache key hashable by converting lists to tuples
         hashable_default = tuple(default) if isinstance(default, list) else default
         cache_key = (key, hashable_default)
@@ -54,11 +54,11 @@ class SettingsService(SettingsServiceInterface):
         return self._cache[cache_key]
 
     def get_github_settings(self) -> Dict[str, Any]:
-        """Get GitHub-related settings with caching.
+        '''Get GitHub-related settings with caching.
 
         Returns:
             Dict[str, Any]: GitHub configuration including token, rate limits, etc.
-        """
+        '''
         if self._github_settings_cache is None:
             # Get settings from current environment, fall back to default environment if not found
             def get_with_fallback(key, default=None):
@@ -81,11 +81,11 @@ class SettingsService(SettingsServiceInterface):
         return self._github_settings_cache
 
     def get_cache_settings(self) -> Dict[str, Any]:
-        """Get cache-related settings with caching.
+        '''Get cache-related settings with caching.
 
         Returns:
             Dict[str, Any]: Cache configuration including TTL and size limits
-        """
+        '''
         if self._cache_settings_cache is None:
             self._cache_settings_cache = {
                 'ttl': self.get('cache.ttl', 300),  # 5 minutes default
@@ -95,11 +95,11 @@ class SettingsService(SettingsServiceInterface):
         return self._cache_settings_cache
 
     def get_app_settings(self) -> Dict[str, Any]:
-        """Get general application settings with caching.
+        '''Get general application settings with caching.
 
         Returns:
             Dict[str, Any]: Application configuration
-        """
+        '''
         if self._app_settings_cache is None:
             self._app_settings_cache = {
                 'debug': self.get('app.debug', False),
@@ -112,7 +112,7 @@ class SettingsService(SettingsServiceInterface):
         return self._app_settings_cache
 
     def clear_cache(self):
-        """Clear all cached settings."""
+        '''Clear all cached settings.'''
         self._cache.clear()
         self._github_settings_cache = None
         self._cache_settings_cache = None
@@ -124,11 +124,11 @@ _settings_service: Optional[SettingsService] = None
 
 
 def get_settings_service() -> SettingsService:
-    """Get or create the global settings service instance.
+    '''Get or create the global settings service instance.
 
     Returns:
         SettingsService: The global settings service instance
-    """
+    '''
     global _settings_service
     if _settings_service is None:
         _settings_service = SettingsService()

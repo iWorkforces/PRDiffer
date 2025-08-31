@@ -1,4 +1,4 @@
-"""Infrastructure layer module for external integrations and implementations."""
+'''Infrastructure layer module for external integrations and implementations.'''
 
 from ccpragents.infrastructure.cache_service import get_cache_service
 from ccpragents.infrastructure.github_repository import GitHubPRDiffRepository, get_github_repository

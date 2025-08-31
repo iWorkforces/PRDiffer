@@ -14,7 +14,7 @@ from ccpragents.domain.repositories.pr_diff_repository import PRDiffRepositoryIn
 
 
 class FastMCPServer:
-    """FastMCP server for fetching GitHub PR diffs with detailed file change information.
+    '''FastMCP server for fetching GitHub PR diffs with detailed file change information.
 
     This server provides a tool for retrieving pull request information:
     - get_pr_diff: Fetches PR diff information including file statistics
@@ -23,7 +23,7 @@ class FastMCPServer:
         mcp: The FastMCP instance for tool registration and server management
         settings_service: Settings service for configuration
         logger: Logger for logging messages
-    """
+    '''
     def __init__(self,
                  settings_service: SettingsServiceInterface,
                  cache_service: CacheServiceInterface,
@@ -33,7 +33,7 @@ class FastMCPServer:
                  describe_use_case: DescribePRUserPromptUseCase,
                  review_use_case: ReviewPRUserPromptUseCase,
                  update_changelog_use_case: UpdateChangelogUserPromptUseCase):
-        """Initialize the FastMCP server with dependency injection.
+        '''Initialize the FastMCP server with dependency injection.
 
         Args:
             settings_service: Settings service instance implementing SettingsServiceInterface
@@ -44,7 +44,7 @@ class FastMCPServer:
             describe_use_case: Use case for PR description implementing DescribePRUseCase
             review_use_case: Use case for PR review implementing ReviewPRUseCase
             update_changelog_use_case: Use case for changelog updates implementing UpdateChangelogUseCase
-        """
+        '''
         self._settings_service = settings_service
         self._cache_service = cache_service
         self._repository_cache_service = repository_cache_service
@@ -74,7 +74,7 @@ class FastMCPServer:
 
         self.mcp = FastMCP(
             name="ccpragents",
-            instructions="""
+            instructions='''
 GitHub PR Diff Fetcher MCP - A powerful tool for retrieving detailed pull request information from GitHub.
 
 This MCP provides a tool for fetching PR diff information:
@@ -100,7 +100,7 @@ The tool returns structured data with complete file change information, making i
 - Change tracking and audit logging
 - Code analysis and refactoring
 - Code understanding and documentation
-""",
+''',
             version="0.1.1"
         )
 
@@ -108,7 +108,7 @@ The tool returns structured data with complete file change information, making i
         self._register_prompts()
 
     def _parse_pr_url(self, pr_url: str) -> tuple[str, str, int]:
-        """Parse GitHub PR URL to extract repository owner, name, and PR number.
+        '''Parse GitHub PR URL to extract repository owner, name, and PR number.
 
         Args:
             pr_url: The GitHub pull request URL to parse
@@ -118,7 +118,7 @@ The tool returns structured data with complete file change information, making i
 
         Raises:
             ValueError: If the URL format is invalid or contains invalid characters
-        """
+        '''
         if not pr_url:
             raise ValueError("PR URL cannot be empty")
 
@@ -153,11 +153,11 @@ The tool returns structured data with complete file change information, making i
         return repo_owner, repo_name, pr_number
 
     def _check_rate_limit(self):
-        """Check if the current request exceeds rate limits.
+        '''Check if the current request exceeds rate limits.
 
         Raises:
             RuntimeError: If rate limit is exceeded
-        """
+        '''
         import time
 
         current_time = time.time()
@@ -180,20 +180,20 @@ The tool returns structured data with complete file change information, making i
 
 
     def _generate_request_id(self) -> str:
-        """Generate a unique request ID for tracking purposes.
+        '''Generate a unique request ID for tracking purposes.
 
         Returns:
             str: Unique request ID in format REQ-{timestamp}-{counter}
-        """
+        '''
         self._request_counter += 1
         return f"REQ-{int(time.time() * 1000)}-{self._request_counter}"
 
     def _get_health_status(self) -> dict:
-        """Get health status and metrics for the MCP server.
+        '''Get health status and metrics for the MCP server.
 
         Returns:
             dict: Health status and metrics information
-        """
+        '''
         current_time = time.time()
         uptime_seconds = current_time - self._start_time
 
@@ -211,7 +211,7 @@ The tool returns structured data with complete file change information, making i
         }
 
     def _format_uptime(self, seconds: float) -> str:
-        """Format uptime in human-readable format."""
+        '''Format uptime in human-readable format.'''
         days = seconds // 86400
         hours = (seconds % 86400) // 3600
         minutes = (seconds % 3600) // 60
@@ -227,20 +227,20 @@ The tool returns structured data with complete file change information, making i
             return f"{int(secs)}s"
 
     def _calculate_success_rate(self) -> float:
-        """Calculate success rate percentage."""
+        '''Calculate success rate percentage.'''
         if self._total_requests == 0:
             return 0.0
         return round((self._successful_requests / self._total_requests) * 100, 2)
 
     def _register_prompts(self):
-        """Register FastMCP prompts with the server instance.
+        '''Register FastMCP prompts with the server instance.
 
         This method registers prompts for PR analysis and documentation tasks,
         using the new use case architecture with dependency injection.
-        """
+        '''
         @self.mcp.prompt()
         async def describe(pr_url: str, pr_commit_messages: str, pr_diff: str):
-            """Describe the changes in a pull request.
+            '''Describe the changes in a pull request.
 
             Args:
                 pr_url: The GitHub PR URL (e.g., https://github.com/owner/repo/pull/123)
@@ -249,7 +249,7 @@ The tool returns structured data with complete file change information, making i
 
             Returns:
                 str: Prompt for describing PR changes
-            """
+            '''
             try:
                 repo_owner, repo_name, pr_number = self._parse_pr_url(pr_url)
                 pr_details = PRDetails(repo_owner=repo_owner, repo_name=repo_name, pr_number=pr_number)
@@ -261,7 +261,7 @@ The tool returns structured data with complete file change information, making i
 
         @self.mcp.prompt()
         async def review(pr_url: str, pr_commit_messages: str, pr_diff: str):
-            """Review a pull request for code quality and best practices.
+            '''Review a pull request for code quality and best practices.
 
             Args:
                 pr_url: The GitHub PR URL (e.g., https://github.com/owner/repo/pull/123)
@@ -270,7 +270,7 @@ The tool returns structured data with complete file change information, making i
 
             Returns:
                 str: Prompt for reviewing PR quality
-            """
+            '''
             try:
                 repo_owner, repo_name, pr_number = self._parse_pr_url(pr_url)
                 pr_details = PRDetails(repo_owner=repo_owner, repo_name=repo_name, pr_number=pr_number)
@@ -282,7 +282,7 @@ The tool returns structured data with complete file change information, making i
 
         @self.mcp.prompt()
         async def update_changelog(pr_url: str, pr_commit_messages: str, pr_diff: str):
-            """Generate changelog entries for a pull request.
+            '''Generate changelog entries for a pull request.
 
             Args:
                 pr_url: The GitHub PR URL (e.g., https://github.com/owner/repo/pull/123)
@@ -291,7 +291,7 @@ The tool returns structured data with complete file change information, making i
 
             Returns:
                 str: Prompt for generating changelog entries
-            """
+            '''
             try:
                 repo_owner, repo_name, pr_number = self._parse_pr_url(pr_url)
                 pr_details = PRDetails(repo_owner=repo_owner, repo_name=repo_name, pr_number=pr_number)
@@ -301,18 +301,18 @@ The tool returns structured data with complete file change information, making i
                 raise e
 
     def _register_tools(self):
-        """Register FastMCP tools with the server instance.
+        '''Register FastMCP tools with the server instance.
 
         This method registers the get_pr_diff tool for PR diff information.
-        """
+        '''
         @self.mcp.tool()
         async def get_pr_diff(pr_url: str, use_cache: bool = True):
-            """Get the diff content for a specific GitHub pull request.
+            '''Get the diff content for a specific GitHub pull request.
 
             Args:
                 pr_url: The full GitHub PR URL (e.g., https://github.com/owner/repo/pull/123)
                 use_cache: Whether to use caching (default: True)
-            """
+            '''
             # Generate request ID for tracing
             request_id = self._generate_request_id()
 
@@ -389,7 +389,7 @@ The tool returns structured data with complete file change information, making i
 
 
     def run(self):
-        """Start the FastMCP server with configured transport and port.
+        '''Start the FastMCP server with configured transport and port.
 
         The server reads configuration from the settings service:
         - mcp.transport: The transport protocol (default: "stdio")
@@ -398,7 +398,7 @@ The tool returns structured data with complete file change information, making i
         - mcp.path: The path for non-stdio transports (default: "/mcp")
 
         Supported transports include "stdio", "sse", and other FastMCP transport options.
-        """
+        '''
         # Get MCP settings from configuration
         transport = self._settings_service.get("mcp.transport", "stdio")
         port = self._settings_service.get("mcp.port", 9101)

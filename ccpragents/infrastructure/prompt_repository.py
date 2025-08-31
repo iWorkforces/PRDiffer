@@ -1,4 +1,4 @@
-"""Prompt repository implementation."""
+'''Prompt repository implementation.'''
 from typing import Optional
 
 from ccpragents.domain.entities.prompt import PromptRequest
@@ -7,27 +7,27 @@ from ccpragents.infrastructure.logging.console_logger import get_logger
 
 
 class PromptRepository(PromptRepositoryInterface):
-    """Repository for prompt processing.
+    '''Repository for prompt processing.
 
     This repository provides prompt generation for PR analysis tasks.
-    """
+    '''
 
     def __init__(self):
-        """Initialize the prompt repository."""
+        '''Initialize the prompt repository.'''
         self._logger = get_logger()
         self._logger.info("Initializing PromptRepository", component="prompt_repository")
 
     async def describe_pr_user_prompt(self, request: PromptRequest) -> str:
-        """Generate a description prompt for pull request changes.
+        '''Generate a description prompt for pull request changes.
 
         Args:
             request: PromptRequest containing PR details and content
 
         Returns:
             str: Prompt for describing PR changes
-        """
+        '''
         # Generate prompt in XML format
-        prompt = f"""
+        prompt = f'''
         <instruction>You are given a Pull Request (PR) details with commit messages, code diff and so on. Describe the changes in this PR with professional and formal tone.</instruction>
         <pr_details>
             {request.get_context_string()}
@@ -36,7 +36,7 @@ class PromptRepository(PromptRepositoryInterface):
             ```yaml
             [Your response must be in valid YAML format here]
             ```
-        </response>"""
+        </response>'''
 
         self._logger.info("Generated PR description prompt",
                         component="prompt_repository",
@@ -44,16 +44,16 @@ class PromptRepository(PromptRepositoryInterface):
         return prompt
 
     async def review_pr_user_prompt(self, request: PromptRequest) -> str:
-        """Generate a review prompt for code quality and best practices.
+        '''Generate a review prompt for code quality and best practices.
 
         Args:
             request: PromptRequest containing PR details and content
 
         Returns:
             str: Prompt for reviewing PR quality
-        """
+        '''
         # Generate prompt in XML format
-        prompt = f"""<prompt type="review_pr">
+        prompt = f'''<prompt type="review_pr">
   <instruction>Review this pull request for code quality and best practices:</instruction>
   <pr_details>
 {request.get_context_string()}
@@ -73,7 +73,7 @@ class PromptRepository(PromptRepositoryInterface):
     <requirement>Prioritize most important issues first</requirement>
     <requirement>Be constructive and provide specific suggestions</requirement>
   </requirements>
-</prompt>"""
+</prompt>'''
 
         self._logger.info("Generated PR review prompt",
                         component="prompt_repository",
@@ -81,16 +81,16 @@ class PromptRepository(PromptRepositoryInterface):
         return prompt
 
     async def update_changelog_user_prompt(self, request: PromptRequest) -> str:
-        """Generate a changelog prompt for a pull request.
+        '''Generate a changelog prompt for a pull request.
 
         Args:
             request: PromptRequest containing PR details and content
 
         Returns:
             str: Prompt for generating changelog entries
-        """
+        '''
         # Generate prompt in XML format
-        prompt = f"""<prompt type="update_changelog">
+        prompt = f'''<prompt type="update_changelog">
   <instruction>Generate changelog entries for this pull request:</instruction>
   <pr_details>
 {request.get_context_string()}
@@ -108,7 +108,7 @@ class PromptRepository(PromptRepositoryInterface):
     <requirement>Keep entries concise but informative</requirement>
     <requirement>Group related changes when appropriate</requirement>
   </requirements>
-</prompt>"""
+</prompt>'''
 
         self._logger.info("Generated changelog prompt",
                         component="prompt_repository",
@@ -116,13 +116,13 @@ class PromptRepository(PromptRepositoryInterface):
         return prompt
 
     async def describe_pr_system_prompt(self) -> str:
-        """Generate a system prompt for PR description tasks.
+        '''Generate a system prompt for PR description tasks.
 
         Returns:
             str: System prompt for PR description
-        """
+        '''
         # Generate system prompt in XML format
-        prompt = """
+        prompt = '''
         You are GitHub PR-Reviewer, a language model that generates comprehensive descriptions for GitHub Pull Request (PR). You will be given the PR commit messages, and a unified diff. Your task is to output a complete PR type(s), detailed description, and labels.
         Specific guidelines for generating PR description:
             - Ignore diff metadata lines (---/+++, @@ headers); focus only on lines prefixed with '+', '-', or space.
@@ -189,19 +189,19 @@ class PromptRepository(PromptRepositoryInterface):
             - You must follow the quoting rules that are defined above.
 
         Your response must be a valid YAML object and nothing else. Use the block scalar indicator ("|") for all multi-line string values.
-        """
+        '''
 
         self._logger.info("Generated PR description system prompt", component="prompt_repository")
         return prompt
 
     async def review_pr_system_prompt(self) -> str:
-        """Generate a system prompt for PR review tasks.
+        '''Generate a system prompt for PR review tasks.
 
         Returns:
             str: System prompt for PR code review
-        """
+        '''
         # Generate system prompt in XML format
-        prompt = """
+        prompt = '''
         You are GitHub Code-Reviewer, a language model that performs comprehensive code reviews for GitHub Pull Requests (PR). You will be given PR commit messages and a unified diff. Your task is to provide thorough, constructive code review feedback.
         
         Specific guidelines for code review:
@@ -230,19 +230,19 @@ class PromptRepository(PromptRepositoryInterface):
             - Use markdown formatting for readability
             
         Remember: The goal is to help improve the code, not just criticize.
-        """
+        '''
 
         self._logger.info("Generated PR review system prompt", component="prompt_repository")
         return prompt
 
     async def update_changelog_system_prompt(self) -> str:
-        """Generate a system prompt for changelog generation tasks.
+        '''Generate a system prompt for changelog generation tasks.
 
         Returns:
             str: System prompt for changelog updates
-        """
+        '''
         # Generate system prompt in XML format
-        prompt = """
+        prompt = '''
         You are Changelog-Generator, a language model that creates professional changelog entries from GitHub Pull Requests. You will be given PR details including commit messages and code changes. Your task is to generate clear, concise changelog entries following conventional commit standards.
         
         Changelog categories and prefixes:
@@ -282,22 +282,22 @@ class PromptRepository(PromptRepositoryInterface):
             - Fix(ui): Correct mobile responsive layout
             
         Your output should be ready-to-use changelog content.
-        """
+        '''
 
         self._logger.info("Generated changelog system prompt", component="prompt_repository")
         return prompt
 
     async def approve_pr_user_prompt(self, request: PromptRequest) -> str:
-        """Generate a prompt for PR approval decisions.
+        '''Generate a prompt for PR approval decisions.
 
         Args:
             request: PromptRequest containing PR details and content
 
         Returns:
             str: Prompt for PR approval decision making
-        """
+        '''
         # Generate prompt in XML format
-        prompt = f"""<prompt type="approve_pr">
+        prompt = f'''<prompt type="approve_pr">
   <instruction>Evaluate this pull request for approval readiness:</instruction>
   <pr_details>
 {request.get_context_string()}
@@ -327,7 +327,7 @@ class PromptRepository(PromptRepositoryInterface):
     <requirement>Suggest concrete improvements when needed</requirement>
     <requirement>Maintain professional and constructive tone</requirement>
   </output_requirements>
-</prompt>"""
+</prompt>'''
 
         self._logger.info("Generated PR approval prompt",
                         component="prompt_repository",
@@ -335,13 +335,13 @@ class PromptRepository(PromptRepositoryInterface):
         return prompt
 
     async def approve_pr_system_prompt(self) -> str:
-        """Generate a system prompt for PR approval tasks.
+        '''Generate a system prompt for PR approval tasks.
 
         Returns:
             str: System prompt for PR approval
-        """
+        '''
         # Generate system prompt in XML format
-        prompt = """
+        prompt = '''
         You are PR-Approver, a language model that evaluates GitHub Pull Requests for approval readiness. Your role is to provide thorough, objective assessments of PR quality and readiness for merging.
         
         Approval Evaluation Framework:
@@ -401,7 +401,7 @@ class PromptRepository(PromptRepositoryInterface):
         5. Risk assessment summary
         
         Remember: Your goal is to ensure code quality and maintainability while being fair and constructive.
-        """
+        '''
 
         self._logger.info("Generated PR approval system prompt", component="prompt_repository")
         return prompt
@@ -412,11 +412,11 @@ _prompt_repository: Optional[PromptRepository] = None
 
 
 def get_prompt_repository() -> PromptRepository:
-    """Get the global prompt repository instance (singleton pattern).
+    '''Get the global prompt repository instance (singleton pattern).
 
     Returns:
         PromptRepository: The global prompt repository instance
-    """
+    '''
     global _prompt_repository
     if _prompt_repository is None:
         _prompt_repository = PromptRepository()

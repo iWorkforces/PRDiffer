@@ -1,4 +1,4 @@
-"""GitHub API client for repository and pull request operations."""
+'''GitHub API client for repository and pull request operations.'''
 from typing import Optional, Dict, List
 from github import Github
 from github.Auth import Token
@@ -12,11 +12,11 @@ from ccpragents.infrastructure.logging.console_logger import get_logger
 
 
 class GitHubAPIService(GitHubAPIServiceInterface):
-    """GitHub API client implementation for repository operations.
+    '''GitHub API client implementation for repository operations.
 
     This class provides GitHub API interactions with proper error handling,
     retry logic, and caching for repository and pull request operations.
-    """
+    '''
 
     def __init__(self,
                  max_retries: int = 3,
@@ -37,7 +37,7 @@ class GitHubAPIService(GitHubAPIServiceInterface):
                  context_aware_retry: bool = True,
                  use_advanced_retry: bool = True,
                  logger=None):
-        """Initialize the GitHub API client.
+        '''Initialize the GitHub API client.
 
         Args:
             max_retries: Maximum number of retry attempts
@@ -57,7 +57,7 @@ class GitHubAPIService(GitHubAPIServiceInterface):
             context_aware_retry: Enable context-aware retry strategies
             use_advanced_retry: Use advanced retry handler (Phase 3)
             logger: Logger instance for logging operations
-        """
+        '''
         self._github_client: Optional[Github] = None
         self._max_retries = max_retries
         self._retry_delay = retry_delay
@@ -96,12 +96,12 @@ class GitHubAPIService(GitHubAPIServiceInterface):
         self._file_content_cache: Dict[tuple, str] = {}
 
     def initialize_client(self, github_token: Optional[str] = None, timeout: int = 30) -> None:
-        """Initialize the GitHub client with authentication.
+        '''Initialize the GitHub client with authentication.
 
         Args:
             github_token: GitHub personal access token for authentication
             timeout: API timeout in seconds
-        """
+        '''
         if github_token:
             auth = Token(github_token)
             self._github_client = Github(auth=auth, timeout=timeout)
@@ -109,14 +109,14 @@ class GitHubAPIService(GitHubAPIServiceInterface):
             self._github_client = Github(timeout=timeout)
 
     def get_repository(self, repo_full_name: str) -> Optional[Repository]:
-        """Get a GitHub repository instance with retry logic.
+        '''Get a GitHub repository instance with retry logic.
 
         Args:
             repo_full_name: Repository full name in format "owner/repo"
 
         Returns:
             Repository instance if found, None otherwise
-        """
+        '''
         if not self._github_client:
             self._logger.error("GitHub client not initialized")
             return None
@@ -132,7 +132,7 @@ class GitHubAPIService(GitHubAPIServiceInterface):
             return None
 
     def get_pull_request(self, repository: Repository, pr_number: int) -> Optional[PullRequest]:
-        """Get a pull request instance with retry logic.
+        '''Get a pull request instance with retry logic.
 
         Args:
             repository: GitHub repository instance
@@ -140,7 +140,7 @@ class GitHubAPIService(GitHubAPIServiceInterface):
 
         Returns:
             PullRequest instance if found, None otherwise
-        """
+        '''
         try:
             return self._retry_handler.execute_with_retry(
                 repository.get_pull,
@@ -152,7 +152,7 @@ class GitHubAPIService(GitHubAPIServiceInterface):
             return None
 
     def get_file_content(self, repository: Repository, file_path: str, branch: str) -> str:
-        """Get file content from a specific branch with caching.
+        '''Get file content from a specific branch with caching.
 
         Args:
             repository: GitHub repository instance
@@ -161,7 +161,7 @@ class GitHubAPIService(GitHubAPIServiceInterface):
 
         Returns:
             str: File content as string, empty string on error
-        """
+        '''
         # Check cache first
         cache_key = (file_path, branch)
         if cache_key in self._file_content_cache:
@@ -199,7 +199,7 @@ class GitHubAPIService(GitHubAPIServiceInterface):
             return file_content
 
     def get_files_content_batch(self, repository: Repository, file_paths: List[str], branch: str) -> Dict[str, str]:
-        """Batch retrieve file contents from a specific branch.
+        '''Batch retrieve file contents from a specific branch.
 
         Args:
             repository: GitHub repository instance
@@ -208,7 +208,7 @@ class GitHubAPIService(GitHubAPIServiceInterface):
 
         Returns:
             Dict mapping file paths to their content (empty string on error)
-        """
+        '''
         results = {}
         files_to_fetch = []
 
@@ -228,28 +228,28 @@ class GitHubAPIService(GitHubAPIServiceInterface):
         return results
 
     def _extract_file_content(self, content: ContentFile) -> str:
-        """Extract file content from ContentFile object.
+        '''Extract file content from ContentFile object.
 
         Args:
             content: ContentFile object from GitHub API
 
         Returns:
             str: Decoded file content, empty string if unavailable
-        """
+        '''
         if content and hasattr(content, 'decoded_content') and content.decoded_content:
             return str(content.decoded_content.decode())
         return ""
 
     def clear_cache(self):
-        """Clear the file content cache."""
+        '''Clear the file content cache.'''
         self._file_content_cache.clear()
 
     def get_cache_stats(self) -> Dict:
-        """Get cache statistics.
+        '''Get cache statistics.
 
         Returns:
             Dict containing cache statistics
-        """
+        '''
         return {
             'cache_size': len(self._file_content_cache),
             'cache_keys': list(self._file_content_cache.keys())
@@ -273,7 +273,7 @@ def get_github_api_client(max_retries: int = 3,
                          api_health_tracking: bool = True,
                          context_aware_retry: bool = True,
                          use_advanced_retry: bool = True) -> GitHubAPIService:
-    """Get a configured GitHub API client instance.
+    '''Get a configured GitHub API client instance.
 
     Args:
         max_retries: Maximum number of retry attempts
@@ -295,7 +295,7 @@ def get_github_api_client(max_retries: int = 3,
 
         Returns:
             GitHubAPIClient: Configured GitHub API client instance
-    """
+    '''
     return GitHubAPIService(
         max_retries=max_retries,
         retry_delay=retry_delay,

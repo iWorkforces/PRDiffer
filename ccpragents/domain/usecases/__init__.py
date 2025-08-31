@@ -1,4 +1,4 @@
-"""Domain use cases for the CCPRAgents application."""
+'''Domain use cases for the CCPRAgents application.'''
 
 from .pr_diff_usecases import GetPRDiffUseCase
 from .prompt import DescribePRUserPromptUseCase, ReviewPRUserPromptUseCase, UpdateChangelogUserPromptUseCase, DescribePRSystemPromptUseCase

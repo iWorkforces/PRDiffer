@@ -1,8 +1,8 @@
-"""Repository cache service interface for domain layer.
+'''Repository cache service interface for domain layer.
 
 This module defines the abstract interface for repository caching services
 that cache PRDiffRepositoryInterface instances to avoid repeated initialization.
-"""
+'''
 from abc import ABC, abstractmethod
 from typing import Optional
 
@@ -10,27 +10,27 @@ from ccpragents.domain.repositories import PRDiffRepositoryInterface
 
 
 class RepositoryCacheServiceInterface(ABC):
-    """Abstract base class for repository caching services.
+    '''Abstract base class for repository caching services.
 
     This interface defines the contract for services that cache
     PRDiffRepositoryInterface instances to optimize GitHub API usage.
-    """
+    '''
 
     @abstractmethod
     def insert(self, repository: PRDiffRepositoryInterface) -> bool:
-        """Insert a repository instance into the cache.
+        '''Insert a repository instance into the cache.
 
         Args:
             repository: PRDiffRepositoryInterface instance to cache
 
         Returns:
             bool: True if inserted successfully, False otherwise
-        """
+        '''
         pass
 
     @abstractmethod
     def retrieve(self, repo_owner: str, repo_name: str, pr_number: int) -> Optional[PRDiffRepositoryInterface]:
-        """Retrieve a cached repository instance.
+        '''Retrieve a cached repository instance.
 
         Args:
             repo_owner: Repository owner/organization
@@ -39,12 +39,12 @@ class RepositoryCacheServiceInterface(ABC):
 
         Returns:
             PRDiffRepositoryInterface instance if found and valid, None otherwise
-        """
+        '''
         pass
 
     @abstractmethod
     def validate(self, repo_owner: str, repo_name: str, pr_number: int) -> bool:
-        """Validate if a repository instance exists and is valid in the cache.
+        '''Validate if a repository instance exists and is valid in the cache.
 
         Args:
             repo_owner: Repository owner/organization
@@ -53,12 +53,12 @@ class RepositoryCacheServiceInterface(ABC):
 
         Returns:
             bool: True if valid cached instance exists, False otherwise
-        """
+        '''
         pass
 
     @abstractmethod
     def remove(self, repo_owner: str, repo_name: str, pr_number: int) -> bool:
-        """Remove a repository instance from the cache.
+        '''Remove a repository instance from the cache.
 
         Args:
             repo_owner: Repository owner/organization
@@ -67,28 +67,28 @@ class RepositoryCacheServiceInterface(ABC):
 
         Returns:
             bool: True if removed successfully, False if not found
-        """
+        '''
         pass
 
     @abstractmethod
     def clear(self) -> None:
-        """Clear all entries from the cache."""
+        '''Clear all entries from the cache.'''
         pass
 
     @abstractmethod
     def size(self) -> int:
-        """Get the current number of entries in the cache.
+        '''Get the current number of entries in the cache.
 
         Returns:
             int: Number of cached repository instances
-        """
+        '''
         pass
 
     @abstractmethod
     def stats(self) -> dict:
-        """Get cache statistics.
+        '''Get cache statistics.
 
         Returns:
             Dict containing cache statistics
-        """
+        '''
         pass

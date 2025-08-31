@@ -9,14 +9,14 @@ class GetPRDiffUseCase:
         self._cache_service: CacheServiceInterface = cache_service
 
     async def execute(self, use_cache: bool = True) -> ExtraPRDiff:
-        """Execute the use case with optional caching.
+        '''Execute the use case with optional caching.
 
         Args:
             use_cache: Whether to use caching (default: True)
 
         Returns:
             ExtraPRDiff: The PR diff data
-        """
+        '''
         if use_cache:
             cache_key = self._cache_service.get_cache_key(
                 self._repository.repo_owner,

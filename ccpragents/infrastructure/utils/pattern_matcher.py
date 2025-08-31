@@ -1,30 +1,30 @@
-"""Pattern matching utility for file filtering and validation."""
+'''Pattern matching utility for file filtering and validation.'''
 import re
 from typing import List, Optional, Tuple, Union
 from ccpragents.domain.services import PatternMatchingServiceInterface
 
 
 class PatternMatcher(PatternMatchingServiceInterface):
-    """Utility for matching filenames against patterns with wildcard support.
+    '''Utility for matching filenames against patterns with wildcard support.
 
     This class provides efficient pattern matching for file filtering operations,
     supporting various pattern types including exact matches, wildcards, and
     directory patterns.
-    """
+    '''
 
     def __init__(self, ignore_patterns: List[str], valid_extensions: Optional[List[str]] = None):
-        """Initialize the pattern matcher with configuration.
+        '''Initialize the pattern matcher with configuration.
 
         Args:
             ignore_patterns: List of patterns to ignore (wildcards supported)
             valid_extensions: List of valid file extensions (optional)
-        """
+        '''
         self.ignore_patterns = ignore_patterns
         self.valid_extensions = valid_extensions or []
         self._compiled_patterns = self._compile_patterns(ignore_patterns)
 
     def _compile_patterns(self, patterns: List[str]) -> List[Tuple[str, Union[str, re.Pattern]]]:
-        """Pre-compile regex patterns for efficient matching.
+        '''Pre-compile regex patterns for efficient matching.
 
         Args:
             patterns: List of pattern strings to compile
@@ -33,7 +33,7 @@ class PatternMatcher(PatternMatchingServiceInterface):
             List of tuples containing (pattern_type, pattern) where:
             - pattern_type: 'regex' for compiled regex, 'string' for string patterns
             - pattern: The compiled regex or original string pattern
-        """
+        '''
         compiled = []
         for pattern in patterns:
             if '*' in pattern and not pattern.startswith('*.'):
@@ -51,14 +51,14 @@ class PatternMatcher(PatternMatchingServiceInterface):
         return compiled
 
     def is_valid_file(self, filename: str) -> bool:
-        """Check if a file should be processed based on configured patterns.
+        '''Check if a file should be processed based on configured patterns.
 
         Args:
             filename: The filename to check
 
         Returns:
             bool: True if the file should be processed, False otherwise
-        """
+        '''
         # Check ignore patterns first
         if self._matches_any_ignore_pattern(filename):
             return False
@@ -72,14 +72,14 @@ class PatternMatcher(PatternMatchingServiceInterface):
         return True
 
     def _matches_any_ignore_pattern(self, filename: str) -> bool:
-        """Check if filename matches any ignore pattern.
+        '''Check if filename matches any ignore pattern.
 
         Args:
             filename: The filename to check
 
         Returns:
             bool: True if filename matches any ignore pattern, False otherwise
-        """
+        '''
         for pattern_type, pattern in self._compiled_patterns:
             if pattern_type == 'regex':
                 # Use pre-compiled regex pattern
@@ -92,7 +92,7 @@ class PatternMatcher(PatternMatchingServiceInterface):
         return False
 
     def _matches_string_pattern(self, filename: str, pattern: str) -> bool:
-        """Check if filename matches a string pattern.
+        '''Check if filename matches a string pattern.
 
         Args:
             filename: The filename to check
@@ -100,7 +100,7 @@ class PatternMatcher(PatternMatchingServiceInterface):
 
         Returns:
             bool: True if filename matches pattern, False otherwise
-        """
+        '''
         if pattern.endswith('/'):
             # Directory pattern
             return filename.startswith(pattern[:-1])
@@ -109,7 +109,7 @@ class PatternMatcher(PatternMatchingServiceInterface):
             return self._matches_pattern(filename, pattern)
 
     def _matches_pattern(self, filename: str, pattern: str) -> bool:
-        """Check if filename matches a pattern, supporting wildcards.
+        '''Check if filename matches a pattern, supporting wildcards.
 
         Args:
             filename: The filename to check
@@ -117,7 +117,7 @@ class PatternMatcher(PatternMatchingServiceInterface):
 
         Returns:
             bool: True if filename matches pattern, False otherwise
-        """
+        '''
         # Handle exact matches
         if filename == pattern:
             return True
@@ -138,19 +138,19 @@ class PatternMatcher(PatternMatchingServiceInterface):
         return filename.endswith(pattern)
 
     def filter_files(self, filenames: List[str]) -> List[str]:
-        """Filter a list of filenames based on configured patterns.
+        '''Filter a list of filenames based on configured patterns.
 
         Args:
             filenames: List of filenames to filter
 
         Returns:
             List of filenames that pass the pattern validation
-        """
+        '''
         return [filename for filename in filenames if self.is_valid_file(filename)]
 
 
 def get_pattern_matcher(ignore_patterns: List[str], valid_extensions: Optional[List[str]] = None) -> PatternMatcher:
-    """Get a configured pattern matcher instance.
+    '''Get a configured pattern matcher instance.
 
     Args:
         ignore_patterns: List of patterns to ignore
@@ -158,5 +158,5 @@ def get_pattern_matcher(ignore_patterns: List[str], valid_extensions: Optional[L
 
     Returns:
         PatternMatcher: Configured pattern matcher instance
-    """
+    '''
     return PatternMatcher(ignore_patterns, valid_extensions)
