@@ -2,6 +2,7 @@ import re
 import time
 from typing import Optional, Callable
 from fastmcp import FastMCP, Context
+from mcp.types import ContentBlock, TextContent
 from ccpragents.domain.entities.pr_diff import ExtraPRDiff
 from ccpragents.domain.entities.prompt import PRDetails
 from ccpragents.domain.usecases import GetPRDiffUseCase
@@ -427,8 +428,13 @@ The tool returns structured data with complete file change information, making i
             try:
                 repo_owner, repo_name, pr_number = self._parse_pr_url(pr_url)
                 pr_details = PRDetails(repo_owner=repo_owner, repo_name=repo_name, pr_number=pr_number)
-                
-                return await self._describe_pr_user_prompt_use_case.execute(pr_details, commit_messages, diff_content)
+
+                user_prompt = await self._describe_pr_user_prompt_use_case.execute(pr_details, commit_messages, diff_content)
+                system_prompt = await self._describe_pr_system_prompt_use_case.execute()
+
+                result: ContentBlock = await ctx.sample(messages=user_prompt, system_prompt=system_prompt)
+                self._logger.info(f'Result: {result}')
+                return result.text if isinstance(result, TextContent) else str(result)
             except Exception as e:
                 self._logger.error("Failed to generate PR description", pr_url=pr_url, error=str(e))
                 raise RuntimeError(f"Failed to generate PR description: {e}")
@@ -448,7 +454,7 @@ The tool returns structured data with complete file change information, making i
             try:
                 repo_owner, repo_name, pr_number = self._parse_pr_url(pr_url)
                 pr_details = PRDetails(repo_owner=repo_owner, repo_name=repo_name, pr_number=pr_number)
-                
+
                 return await self._approve_pr_user_prompt_use_case.execute(pr_details, commit_messages, diff_content)
             except Exception as e:
                 self._logger.error("Failed to generate PR approval", pr_url=pr_url, error=str(e))
@@ -469,7 +475,7 @@ The tool returns structured data with complete file change information, making i
             try:
                 repo_owner, repo_name, pr_number = self._parse_pr_url(pr_url)
                 pr_details = PRDetails(repo_owner=repo_owner, repo_name=repo_name, pr_number=pr_number)
-                
+
                 return await self._review_pr_user_prompt_use_case.execute(pr_details, commit_messages, diff_content)
             except Exception as e:
                 self._logger.error("Failed to generate PR review", pr_url=pr_url, error=str(e))
@@ -490,7 +496,7 @@ The tool returns structured data with complete file change information, making i
             try:
                 repo_owner, repo_name, pr_number = self._parse_pr_url(pr_url)
                 pr_details = PRDetails(repo_owner=repo_owner, repo_name=repo_name, pr_number=pr_number)
-                
+
                 return await self._update_changelog_user_prompt_use_case.execute(pr_details, commit_messages, diff_content)
             except Exception as e:
                 self._logger.error("Failed to generate changelog entries", pr_url=pr_url, error=str(e))
