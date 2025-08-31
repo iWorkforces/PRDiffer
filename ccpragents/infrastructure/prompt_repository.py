@@ -1,8 +1,6 @@
 """Prompt repository implementation."""
 from typing import Optional
 
-from fastmcp.prompts import PromptMessage
-from mcp.types import TextContent
 from ccpragents.domain.entities.prompt import PromptRequest
 from ccpragents.domain.repositories import PromptRepositoryInterface
 from ccpragents.infrastructure.logging.console_logger import get_logger
@@ -19,7 +17,7 @@ class PromptRepository(PromptRepositoryInterface):
         self._logger = get_logger()
         self._logger.info("Initializing PromptRepository", component="prompt_repository")
 
-    async def describe_pr_user_prompt(self, request: PromptRequest) -> PromptMessage:
+    async def describe_pr_user_prompt(self, request: PromptRequest) -> str:
         """Generate a description prompt for pull request changes.
 
         Args:
@@ -43,9 +41,9 @@ class PromptRepository(PromptRepositoryInterface):
         self._logger.info("Generated PR description prompt",
                         component="prompt_repository",
                         pr_details=str(request.pr_details))
-        return PromptMessage(role='user', content=TextContent(type='text', text=prompt))
+        return prompt
 
-    async def review_pr_user_prompt(self, request: PromptRequest) -> PromptMessage:
+    async def review_pr_user_prompt(self, request: PromptRequest) -> str:
         """Generate a review prompt for code quality and best practices.
 
         Args:
@@ -80,9 +78,9 @@ class PromptRepository(PromptRepositoryInterface):
         self._logger.info("Generated PR review prompt",
                         component="prompt_repository",
                         pr_details=str(request.pr_details))
-        return PromptMessage(role='user', content=TextContent(type='text', text=prompt))
+        return prompt
 
-    async def update_changelog_user_prompt(self, request: PromptRequest) -> PromptMessage:
+    async def update_changelog_user_prompt(self, request: PromptRequest) -> str:
         """Generate a changelog prompt for a pull request.
 
         Args:
@@ -115,43 +113,86 @@ class PromptRepository(PromptRepositoryInterface):
         self._logger.info("Generated changelog prompt",
                         component="prompt_repository",
                         pr_details=str(request.pr_details))
-        return PromptMessage(role='user', content=TextContent(type='text', text=prompt))
+        return prompt
 
-    async def describe_pr_system_prompt(self) -> PromptMessage:
+    async def describe_pr_system_prompt(self) -> str:
         """Generate a system prompt for PR description tasks.
 
         Returns:
-            PromptMessage: System prompt for PR description
+            str: System prompt for PR description
         """
         # Generate system prompt in XML format
-        system_prompt = """<system_prompt type="describe_pr">
-  <role>You are an expert software engineer and technical writer specializing in analyzing GitHub pull requests.</role>
-  <capabilities>
-    <capability>Analyze code changes and understand their impact</capability>
-    <capability>Identify key modifications and their purpose</capability>
-    <capability>Explain technical changes in clear, concise language</capability>
-    <capability>Recognize patterns and architectural implications</capability>
-    <capability>Assess the scope and significance of changes</capability>
-  </capabilities>
-  <instructions>
-    <instruction>Focus on providing comprehensive but concise descriptions</instruction>
-    <instruction>Highlight what the PR accomplishes overall</instruction>
-    <instruction>Explain key changes and their purpose</instruction>
-    <instruction>Note any problems solved or improvements made</instruction>
-    <instruction>Identify breaking changes or notable modifications</instruction>
-    <instruction>Be specific and avoid generic descriptions</instruction>
-    <instruction>Maintain a professional and formal tone</instruction>
-  </instructions>
-  <response_format>
-    <format>Provide a clear, structured description</format>
-    <format>Use appropriate technical terminology</format>
-    <format>Focus on the most important changes first</format>
-    <format>Include context about why changes were made</format>
-  </response_format>
-</system_prompt>"""
+        prompt = """
+        You are GitHub PR-Reviewer, a language model that generates comprehensive descriptions for GitHub Pull Request (PR). You will be given the PR commit messages, and a unified diff. Your task is to output a complete PR type(s), detailed description, and labels.
+        Specific guidelines for generating PR description:
+            - Ignore diff metadata lines (---/+++, @@ headers); focus only on lines prefixed with '+', '-', or space.
+            - Use the block scalar indicator ("|") for all multi-line YAML values.
+            - Every sentence should end with the period (".")
+            - With the provided code diff, focusing only on new code (lines prefixed with "+").
+            - Quoting Rules:
+                1. Code References:
+                    - Enclose in backticks:
+                    * Code identifiers (variables, classes, functions, variable's value, numbers)
+                    * File paths/names
+                    * Package/library names with versions (`package@1.2.3`)
+                    * CLI commands/flags (`--debug-mode`)
+                    * Error codes/messages (`404 Not Found`)
+                    * HTTP status codes/methods (`HTTP 500`, `POST`)
+                2. Version Comparisons: Format dependency updates as "Updated `package` from `old version` to `new version`" (e.g., "Updated `litellm` from `1.67.0` to `1.67.1`")
+                3. Numbers/Values: Backtick-wrapped numbers when specific values matter (`max_retries` from `3` to `5`)
+                4. Multi-component Updates: Group related dependencies using bullet points:
+                    - Updated dependencies:
+                    * Updated `anthropic` from `0.49.0` to `0.50.0`.
+                    * Updated `litellm` from `1.67.0` to `1.67.1`.
+                    * Updated `boto3` from `1.37.38` to `1.38.0`.
+                5. Contractions and Possessives: Use apostrophes (') for contractions (like "it's" or "doesn't") and possessive forms. Avoid using backticks in these cases. For examples:
+                    - It is important to check the user's input.
+                    - The current implementation doesn't track the total number of deleted records across all tables.
+                6. Proper Use of Backticks and Apostrophes: Be careful not to confuse backticks (`) with apostrophes ('). Use backticks only for enclosing code elements, and use apostrophes for contractions and possessives. This distinction helps maintain clarity in the text.
+            - The output must be a YAML object equivalent to type PRDescription, according to the following Pydantic definitions:
+            =====
+            class PRType(str, Enum):
+            bug_fix = "Bug fix"
+            tests = "Tests"
+            enhancement = "Enhancement"
+            documentation = "Documentation"
+            refactoring = "Refactoring"
+            performance = "Performance"
+            security = "Security"
+            configuration = "Configuration"
+            dependencies = "Dependencies"
+            formatting = "Formatting"
+            feature = "Feature"
+            ci_cd = "CI/CD"
+            miscellaneous = "Miscellaneous"
+            other = "Other"
+
+            class PRDescription(BaseModel):
+            type: List[PRType] = Field(description="One or more categories that describe the PR content. Return the label member value (e.g., "Bug fix", not "bug_fix").")
+            description: str = Field(description="Summarize the PR changes in up to four bullet points, each up to 8 words. Add sub-bullets if needed. Order bullets by importance, with each bullet highlighting a key change group.")
+            =====
+
+
+        Example output:
+        ```yaml
+        type: |
+            - PR Type 1
+            - PR Type 2
+            - ...
+        description: |
+        [Informative and concise PR description with bullet points]
+        ```
+
+        Ensure that:
+            - The "description" is informative and concise, using bullet points to list the most significant changes first.
+            - If custom labels are enabled, include relevant labels from the provided Label class.
+            - You must follow the quoting rules that are defined above.
+
+        Your response must be a valid YAML object and nothing else. Use the block scalar indicator ("|") for all multi-line string values.
+        """
 
         self._logger.info("Generated PR description system prompt", component="prompt_repository")
-        return PromptMessage(role='system', content=TextContent(type='text', text=system_prompt))
+        return prompt
 
 
 # Global instance for singleton pattern

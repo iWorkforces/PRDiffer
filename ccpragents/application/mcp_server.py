@@ -2,7 +2,6 @@ import re
 import time
 from typing import Optional, Callable
 from fastmcp import FastMCP
-from fastmcp.prompts import PromptMessage
 from ccpragents.domain.entities.pr_diff import ExtraPRDiff
 from ccpragents.domain.entities.prompt import PRDetails
 from ccpragents.domain.usecases import GetPRDiffUseCase
@@ -240,7 +239,7 @@ The tool returns structured data with complete file change information, making i
         using the new use case architecture with dependency injection.
         """
         @self.mcp.prompt()
-        async def describe(pr_url: str, pr_commit_messages: str, pr_diff: str) -> PromptMessage:
+        async def describe(pr_url: str, pr_commit_messages: str, pr_diff: str):
             """Describe the changes in a pull request.
 
             Args:
@@ -261,7 +260,7 @@ The tool returns structured data with complete file change information, making i
                 raise e
 
         @self.mcp.prompt()
-        async def review(pr_url: str, pr_commit_messages: str, pr_diff: str) -> PromptMessage:
+        async def review(pr_url: str, pr_commit_messages: str, pr_diff: str):
             """Review a pull request for code quality and best practices.
 
             Args:
@@ -282,7 +281,7 @@ The tool returns structured data with complete file change information, making i
                 raise e
 
         @self.mcp.prompt()
-        async def update_changelog(pr_url: str, pr_commit_messages: str, pr_diff: str) -> PromptMessage:
+        async def update_changelog(pr_url: str, pr_commit_messages: str, pr_diff: str):
             """Generate changelog entries for a pull request.
 
             Args:
