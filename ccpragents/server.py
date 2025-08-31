@@ -12,7 +12,16 @@ from infrastructure.repository_cache_service import get_repository_cache_service
 from infrastructure.logging.console_logger import get_logger
 from infrastructure import get_prompt_repository
 from infrastructure import GitHubPRDiffRepository
-from domain.usecases import DescribePRUserPromptUseCase, ReviewPRUserPromptUseCase, UpdateChangelogUserPromptUseCase
+from domain.usecases.prompt import (
+    DescribePRUserPromptUseCase,
+    ReviewPRUserPromptUseCase,
+    UpdateChangelogUserPromptUseCase,
+    DescribePRSystemPromptUseCase,
+    ReviewPRSystemPromptUseCase,
+    UpdateChangelogSystemPromptUseCase,
+    ApprovePRUserPromptUseCase,
+    ApprovePRSystemPromptUseCase
+)
 
 def main():
     print("🚀 Starting MCP Server For Fetching GitHub PR's Diff...")
@@ -29,6 +38,11 @@ def main():
     describe_pr_user_prompt_use_case = DescribePRUserPromptUseCase(prompt_repository)
     review_pr_user_prompt_use_case = ReviewPRUserPromptUseCase(prompt_repository)
     update_changelog_user_prompt_use_case = UpdateChangelogUserPromptUseCase(prompt_repository)
+    describe_pr_system_prompt_use_case = DescribePRSystemPromptUseCase(prompt_repository)
+    review_pr_system_prompt_use_case = ReviewPRSystemPromptUseCase(prompt_repository)
+    update_changelog_system_prompt_use_case = UpdateChangelogSystemPromptUseCase(prompt_repository)
+    approve_pr_user_prompt_use_case = ApprovePRUserPromptUseCase(prompt_repository)
+    approve_pr_system_prompt_use_case = ApprovePRSystemPromptUseCase(prompt_repository)
 
     # Create server with dependency injection
     server: FastMCPServer = FastMCPServer(
@@ -39,7 +53,12 @@ def main():
         github_repository_class=GitHubPRDiffRepository,
         describe_pr_user_prompt_use_case=describe_pr_user_prompt_use_case,
         review_pr_user_prompt_use_case=review_pr_user_prompt_use_case,
-        update_changelog_user_prompt_use_case=update_changelog_user_prompt_use_case
+        update_changelog_user_prompt_use_case=update_changelog_user_prompt_use_case,
+        describe_pr_system_prompt_use_case=describe_pr_system_prompt_use_case,
+        review_pr_system_prompt_use_case=review_pr_system_prompt_use_case,
+        update_changelog_system_prompt_use_case=update_changelog_system_prompt_use_case,
+        approve_pr_user_prompt_use_case=approve_pr_user_prompt_use_case,
+        approve_pr_system_prompt_use_case=approve_pr_system_prompt_use_case
     )
     server.run()
 

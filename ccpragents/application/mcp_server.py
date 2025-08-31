@@ -5,7 +5,16 @@ from fastmcp import FastMCP, Context
 from ccpragents.domain.entities.pr_diff import ExtraPRDiff
 from ccpragents.domain.entities.prompt import PRDetails
 from ccpragents.domain.usecases import GetPRDiffUseCase
-from ccpragents.domain.usecases.prompt import DescribePRUserPromptUseCase, ReviewPRUserPromptUseCase, UpdateChangelogUserPromptUseCase
+from ccpragents.domain.usecases.prompt import (
+    DescribePRUserPromptUseCase,
+    ReviewPRUserPromptUseCase,
+    UpdateChangelogUserPromptUseCase,
+    DescribePRSystemPromptUseCase,
+    ReviewPRSystemPromptUseCase,
+    UpdateChangelogSystemPromptUseCase,
+    ApprovePRUserPromptUseCase,
+    ApprovePRSystemPromptUseCase
+)
 from ccpragents.domain.services.settings import SettingsServiceInterface
 from ccpragents.domain.services.cache import CacheServiceInterface
 from ccpragents.domain.services.repository_cache import RepositoryCacheServiceInterface
@@ -32,7 +41,12 @@ class FastMCPServer:
                  github_repository_class: Callable[[str, str, int], PRDiffRepositoryInterface],
                  describe_pr_user_prompt_use_case: DescribePRUserPromptUseCase,
                  review_pr_user_prompt_use_case: ReviewPRUserPromptUseCase,
-                 update_changelog_user_prompt_use_case: UpdateChangelogUserPromptUseCase):
+                 update_changelog_user_prompt_use_case: UpdateChangelogUserPromptUseCase,
+                 describe_pr_system_prompt_use_case: DescribePRSystemPromptUseCase,
+                 review_pr_system_prompt_use_case: ReviewPRSystemPromptUseCase,
+                 update_changelog_system_prompt_use_case: UpdateChangelogSystemPromptUseCase,
+                 approve_pr_user_prompt_use_case: ApprovePRUserPromptUseCase,
+                 approve_pr_system_prompt_use_case: ApprovePRSystemPromptUseCase):
         '''Initialize the FastMCP server with dependency injection.
 
         Args:
@@ -41,9 +55,14 @@ class FastMCPServer:
             repository_cache_service: Repository cache service instance implementing RepositoryCacheServiceInterface
             logger: Logger instance implementing LoggerServiceInterface
             github_repository_class: GitHub repository class callable that creates PRDiffRepositoryInterface instances
-            describe_use_case: Use case for PR description implementing DescribePRUseCase
-            review_use_case: Use case for PR review implementing ReviewPRUseCase
-            update_changelog_use_case: Use case for changelog updates implementing UpdateChangelogUseCase
+            describe_pr_user_prompt_use_case: Use case for PR description user prompts
+            review_pr_user_prompt_use_case: Use case for PR review user prompts
+            update_changelog_user_prompt_use_case: Use case for changelog updates user prompts
+            describe_pr_system_prompt_use_case: Use case for PR description system prompts
+            review_pr_system_prompt_use_case: Use case for PR review system prompts
+            update_changelog_system_prompt_use_case: Use case for changelog updates system prompts
+            approve_pr_user_prompt_use_case: Use case for PR approval user prompts
+            approve_pr_system_prompt_use_case: Use case for PR approval system prompts
         '''
         self._settings_service = settings_service
         self._cache_service = cache_service
@@ -55,6 +74,11 @@ class FastMCPServer:
         self._describe_pr_user_prompt_use_case = describe_pr_user_prompt_use_case
         self._review_pr_user_prompt_use_case = review_pr_user_prompt_use_case
         self._update_changelog_user_prompt_use_case = update_changelog_user_prompt_use_case
+        self._describe_pr_system_prompt_use_case = describe_pr_system_prompt_use_case
+        self._review_pr_system_prompt_use_case = review_pr_system_prompt_use_case
+        self._update_changelog_system_prompt_use_case = update_changelog_system_prompt_use_case
+        self._approve_pr_user_prompt_use_case = approve_pr_user_prompt_use_case
+        self._approve_pr_system_prompt_use_case = approve_pr_system_prompt_use_case
 
         # Rate limiting configuration
         self._rate_limit_requests = 100  # Max requests per minute
@@ -400,8 +424,14 @@ The tool returns structured data with complete file change information, making i
             Returns:
                 str: Description of the PR changes
             """
-            # TODO: Implement PR description logic
-            pass
+            try:
+                repo_owner, repo_name, pr_number = self._parse_pr_url(pr_url)
+                pr_details = PRDetails(repo_owner=repo_owner, repo_name=repo_name, pr_number=pr_number)
+                
+                return await self._describe_pr_user_prompt_use_case.execute(pr_details, commit_messages, diff_content)
+            except Exception as e:
+                self._logger.error("Failed to generate PR description", pr_url=pr_url, error=str(e))
+                raise RuntimeError(f"Failed to generate PR description: {e}")
 
         @self.mcp.tool()
         async def approve_pr(pr_url: str, commit_messages: str, diff_content: str, ctx: Context):
@@ -415,8 +445,14 @@ The tool returns structured data with complete file change information, making i
             Returns:
                 str: PR approval result
             """
-            # TODO: Implement PR approval logic
-            pass
+            try:
+                repo_owner, repo_name, pr_number = self._parse_pr_url(pr_url)
+                pr_details = PRDetails(repo_owner=repo_owner, repo_name=repo_name, pr_number=pr_number)
+                
+                return await self._approve_pr_user_prompt_use_case.execute(pr_details, commit_messages, diff_content)
+            except Exception as e:
+                self._logger.error("Failed to generate PR approval", pr_url=pr_url, error=str(e))
+                raise RuntimeError(f"Failed to generate PR approval: {e}")
 
         @self.mcp.tool()
         async def review_pr(pr_url: str, commit_messages: str, diff_content: str, ctx: Context):
@@ -430,8 +466,14 @@ The tool returns structured data with complete file change information, making i
             Returns:
                 str: PR review result
             """
-            # TODO: Implement PR review logic
-            pass
+            try:
+                repo_owner, repo_name, pr_number = self._parse_pr_url(pr_url)
+                pr_details = PRDetails(repo_owner=repo_owner, repo_name=repo_name, pr_number=pr_number)
+                
+                return await self._review_pr_user_prompt_use_case.execute(pr_details, commit_messages, diff_content)
+            except Exception as e:
+                self._logger.error("Failed to generate PR review", pr_url=pr_url, error=str(e))
+                raise RuntimeError(f"Failed to generate PR review: {e}")
 
         @self.mcp.tool()
         async def update_pr_changelog(pr_url: str, commit_messages: str, diff_content: str, ctx: Context):
@@ -445,8 +487,14 @@ The tool returns structured data with complete file change information, making i
             Returns:
                 str: Changelog entries
             """
-            # TODO: Implement changelog update logic
-            pass
+            try:
+                repo_owner, repo_name, pr_number = self._parse_pr_url(pr_url)
+                pr_details = PRDetails(repo_owner=repo_owner, repo_name=repo_name, pr_number=pr_number)
+                
+                return await self._update_changelog_user_prompt_use_case.execute(pr_details, commit_messages, diff_content)
+            except Exception as e:
+                self._logger.error("Failed to generate changelog entries", pr_url=pr_url, error=str(e))
+                raise RuntimeError(f"Failed to generate changelog entries: {e}")
 
     def run(self):
         '''Start the FastMCP server with configured transport and port.
