@@ -1,6 +1,6 @@
 from fastmcp.prompts import PromptMessage
 from ccpragents.domain.entities.prompt import PromptRequest, PRDetails
-from ccpragents.domain.repositories.prompt_repository import PromptRepositoryInterface
+from ccpragents.domain.repositories import PromptRepositoryInterface
 
 
 class DescribePRUseCase:

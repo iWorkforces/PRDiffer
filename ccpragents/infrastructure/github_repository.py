@@ -295,3 +295,37 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
             )
         except Exception:
             pass
+
+
+# Global instance cache for singleton pattern
+_repository_cache: dict = {}
+
+
+def get_github_repository(repo_owner: str, repo_name: str, pr_number: int, github_token: Optional[str] = None) -> GitHubPRDiffRepository:
+    """Get a GitHub repository instance (singleton pattern per repository/PR).
+
+    This function provides a singleton pattern for GitHubPRDiffRepository instances
+    to avoid creating multiple instances for the same repository and PR.
+
+    Args:
+        repo_owner: Repository owner/organization
+        repo_name: Repository name
+        pr_number: Pull request number
+        github_token: GitHub personal access token (optional)
+
+    Returns:
+        GitHubPRDiffRepository: The repository instance
+    """
+    global _repository_cache
+
+    # Create a unique cache key for this repository and PR
+    cache_key = f"{repo_owner}/{repo_name}/pr/{pr_number}"
+    if github_token:
+        cache_key = f"{cache_key}/token"
+
+    if cache_key not in _repository_cache:
+        _repository_cache[cache_key] = GitHubPRDiffRepository(
+            repo_owner, repo_name, pr_number, github_token
+        )
+
+    return _repository_cache[cache_key]

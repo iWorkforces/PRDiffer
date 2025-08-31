@@ -10,8 +10,8 @@ from infrastructure.settings import get_settings_service
 from infrastructure.cache_service import get_cache_service
 from infrastructure.repository_cache_service import get_repository_cache_service
 from infrastructure.logging.console_logger import get_logger
-from infrastructure.prompt_repository import get_prompt_repository
-from infrastructure.github_repository import GitHubPRDiffRepository
+from infrastructure import get_prompt_repository
+from infrastructure import GitHubPRDiffRepository
 from domain.usecases.prompt_usecases import DescribePRUseCase, ReviewPRUseCase, UpdateChangelogUseCase
 
 def main():

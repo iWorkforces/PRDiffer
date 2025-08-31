@@ -4,7 +4,7 @@ from typing import Optional
 from fastmcp.prompts import PromptMessage
 from mcp.types import TextContent
 from ccpragents.domain.entities.prompt import PromptRequest
-from ccpragents.domain.repositories.prompt_repository import PromptRepositoryInterface
+from ccpragents.domain.repositories import PromptRepositoryInterface
 from ccpragents.infrastructure.logging.console_logger import get_logger
 
 
