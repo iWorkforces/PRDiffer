@@ -12,7 +12,7 @@ from infrastructure.repository_cache_service import get_repository_cache_service
 from infrastructure.logging.console_logger import get_logger
 from infrastructure import get_prompt_repository
 from infrastructure import GitHubPRDiffRepository
-from domain.usecases.prompt_usecases import DescribePRUseCase, ReviewPRUseCase, UpdateChangelogUseCase
+from domain.usecases import DescribePRUserPromptUseCase, ReviewPRUserPromptUseCase, UpdateChangelogUserPromptUseCase
 
 def main():
     print("🚀 Starting MCP Server For Fetching GitHub PR's Diff...")
@@ -26,9 +26,9 @@ def main():
 
     # Initialize prompt repository and use cases
     prompt_repository = get_prompt_repository()
-    describe_use_case = DescribePRUseCase(prompt_repository)
-    review_use_case = ReviewPRUseCase(prompt_repository)
-    update_changelog_use_case = UpdateChangelogUseCase(prompt_repository)
+    describe_use_case = DescribePRUserPromptUseCase(prompt_repository)
+    review_use_case = ReviewPRUserPromptUseCase(prompt_repository)
+    update_changelog_use_case = UpdateChangelogUserPromptUseCase(prompt_repository)
 
     # Create server with dependency injection
     server: FastMCPServer = FastMCPServer(

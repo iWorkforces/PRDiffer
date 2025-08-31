@@ -47,3 +47,12 @@ class PromptRepositoryInterface(ABC):
             str: AI-generated changelog entries
         """
         pass
+
+    @abstractmethod
+    async def describe_pr_system_prompt(self) -> PromptMessage:
+        """Generate a system prompt for PR description tasks.
+
+        Returns:
+            PromptMessage: System prompt for PR description
+        """
+        pass

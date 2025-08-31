@@ -6,7 +6,7 @@ from fastmcp.prompts import PromptMessage
 from ccpragents.domain.entities.pr_diff import ExtraPRDiff
 from ccpragents.domain.entities.prompt import PRDetails
 from ccpragents.domain.usecases import GetPRDiffUseCase
-from ccpragents.domain.usecases.prompt_usecases import DescribePRUseCase, ReviewPRUseCase, UpdateChangelogUseCase
+from ccpragents.domain.usecases.prompt import DescribePRUserPromptUseCase, ReviewPRUserPromptUseCase, UpdateChangelogUserPromptUseCase
 from ccpragents.domain.services.settings import SettingsServiceInterface
 from ccpragents.domain.services.cache import CacheServiceInterface
 from ccpragents.domain.services.repository_cache import RepositoryCacheServiceInterface
@@ -31,9 +31,9 @@ class FastMCPServer:
                  repository_cache_service: RepositoryCacheServiceInterface,
                  logger: LoggerServiceInterface,
                  github_repository_class: Callable[[str, str, int], PRDiffRepositoryInterface],
-                 describe_use_case: DescribePRUseCase,
-                 review_use_case: ReviewPRUseCase,
-                 update_changelog_use_case: UpdateChangelogUseCase):
+                 describe_use_case: DescribePRUserPromptUseCase,
+                 review_use_case: ReviewPRUserPromptUseCase,
+                 update_changelog_use_case: UpdateChangelogUserPromptUseCase):
         """Initialize the FastMCP server with dependency injection.
 
         Args:
@@ -294,7 +294,9 @@ The tool returns structured data with complete file change information, making i
                 str: Prompt for generating changelog entries
             """
             try:
-                return await self._update_changelog_use_case.execute(pr_url, pr_commit_messages, pr_diff)
+                repo_owner, repo_name, pr_number = self._parse_pr_url(pr_url)
+                pr_details = PRDetails(repo_owner=repo_owner, repo_name=repo_name, pr_number=pr_number)
+                return await self._update_changelog_use_case.execute(pr_details, pr_commit_messages, pr_diff)
             except Exception as e:
                 self._logger.error("Failed to generate changelog prompt", pr_url=pr_url, error=str(e))
                 raise e
