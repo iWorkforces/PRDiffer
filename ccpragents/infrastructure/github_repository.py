@@ -153,20 +153,31 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
             timeout=self.timeout
         )
 
-        # Get repository and pull request
+        # Define repository full name for error messages
         repo_full_name = f"{self._repo_owner}/{self._repo_name}"
-        self._repository = self._github_api_client.get_repository(repo_full_name)
+
+        try:
+            self._repository = self._github_api_client.get_repository(repo_full_name)
+        except Exception as e:
+            self.logger.error(f"Failed to access repository {repo_full_name}: {e}")
+            self.logger.info(f"Repository {repo_full_name} might not exist or you may not have access to it")
+            self._repository = None
 
         if self._repository is not None:
-            self._pull_request = self._github_api_client.get_pull_request(
-                self._repository, self._pr_number
-            )
+            try:
+                self._pull_request = self._github_api_client.get_pull_request(
+                    self._repository, self._pr_number
+                )
+            except Exception as e:
+                self.logger.error(f"Failed to get pull request #{self._pr_number} from repository {repo_full_name}: {e}")
+                self.logger.info(f"Pull request #{self._pr_number} might not exist or be inaccessible")
+                self._pull_request = None
 
         if self._repository is None:
-            raise RuntimeError(f"Failed to initialize repository {repo_full_name}")
+            raise RuntimeError(f"Failed to initialize repository {repo_full_name} - repository may not exist or access may be denied")
 
         if self._pull_request is None:
-            raise RuntimeError(f"Failed to initialize pull request #{self._pr_number} for repository {repo_full_name}")
+            raise RuntimeError(f"Failed to initialize pull request #{self._pr_number} for repository {repo_full_name} - pull request may not exist or be inaccessible")
 
         self._initialized = True
 
@@ -188,7 +199,7 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
         )
 
         if self._pull_request is None:
-            raise RuntimeError(f"Failed to refresh pull request #{self._pr_number}")
+            raise ValueError(f"Failed to refresh pull request #{self._pr_number} - it may have been deleted or become inaccessible")
 
         return self._pull_request.head.sha
 
@@ -233,21 +244,12 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
         diff_content = "\n".join(extended_diffs)
 
         self.logger.info(f"Generated diff content for {len(diff_files)} files")
-        self.logger.debug(f"Diff content:\n{diff_content}")
 
         # Get commit messages
         commit_messages = self._diff_generator.get_commit_messages(self._pull_request)
 
         return ExtraPRDiff(
-            pr_number=self._pr_number,
-            repo_owner=self._repo_owner,
-            repo_name=self._repo_name,
             diff_content=diff_content,
-            base_commit=self._pull_request.base.sha,
-            head_commit=self._pull_request.head.sha,
-            changed_files=self._pull_request.changed_files,
-            additions=self._pull_request.additions,
-            deletions=self._pull_request.deletions,
             commit_messages=commit_messages
         )
 

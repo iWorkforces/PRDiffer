@@ -1,11 +1,21 @@
 import re
 import time
 from typing import Optional, Callable
-from fastmcp import FastMCP
+from fastmcp import FastMCP, Context
+from mcp.types import ContentBlock, TextContent
 from ccpragents.domain.entities.pr_diff import ExtraPRDiff
 from ccpragents.domain.entities.prompt import PRDetails
 from ccpragents.domain.usecases import GetPRDiffUseCase
-from ccpragents.domain.usecases.prompt import DescribePRUserPromptUseCase, ReviewPRUserPromptUseCase, UpdateChangelogUserPromptUseCase
+from ccpragents.domain.usecases.prompt import (
+    DescribePRUserPromptUseCase,
+    ReviewPRUserPromptUseCase,
+    UpdateChangelogUserPromptUseCase,
+    DescribePRSystemPromptUseCase,
+    ReviewPRSystemPromptUseCase,
+    UpdateChangelogSystemPromptUseCase,
+    ApprovePRUserPromptUseCase,
+    ApprovePRSystemPromptUseCase
+)
 from ccpragents.domain.services.settings import SettingsServiceInterface
 from ccpragents.domain.services.cache import CacheServiceInterface
 from ccpragents.domain.services.repository_cache import RepositoryCacheServiceInterface
@@ -30,9 +40,14 @@ class FastMCPServer:
                  repository_cache_service: RepositoryCacheServiceInterface,
                  logger: LoggerServiceInterface,
                  github_repository_class: Callable[[str, str, int], PRDiffRepositoryInterface],
-                 describe_use_case: DescribePRUserPromptUseCase,
-                 review_use_case: ReviewPRUserPromptUseCase,
-                 update_changelog_use_case: UpdateChangelogUserPromptUseCase):
+                 describe_pr_user_prompt_use_case: DescribePRUserPromptUseCase,
+                 review_pr_user_prompt_use_case: ReviewPRUserPromptUseCase,
+                 update_changelog_user_prompt_use_case: UpdateChangelogUserPromptUseCase,
+                 describe_pr_system_prompt_use_case: DescribePRSystemPromptUseCase,
+                 review_pr_system_prompt_use_case: ReviewPRSystemPromptUseCase,
+                 update_changelog_system_prompt_use_case: UpdateChangelogSystemPromptUseCase,
+                 approve_pr_user_prompt_use_case: ApprovePRUserPromptUseCase,
+                 approve_pr_system_prompt_use_case: ApprovePRSystemPromptUseCase):
         '''Initialize the FastMCP server with dependency injection.
 
         Args:
@@ -41,9 +56,14 @@ class FastMCPServer:
             repository_cache_service: Repository cache service instance implementing RepositoryCacheServiceInterface
             logger: Logger instance implementing LoggerServiceInterface
             github_repository_class: GitHub repository class callable that creates PRDiffRepositoryInterface instances
-            describe_use_case: Use case for PR description implementing DescribePRUseCase
-            review_use_case: Use case for PR review implementing ReviewPRUseCase
-            update_changelog_use_case: Use case for changelog updates implementing UpdateChangelogUseCase
+            describe_pr_user_prompt_use_case: Use case for PR description user prompts
+            review_pr_user_prompt_use_case: Use case for PR review user prompts
+            update_changelog_user_prompt_use_case: Use case for changelog updates user prompts
+            describe_pr_system_prompt_use_case: Use case for PR description system prompts
+            review_pr_system_prompt_use_case: Use case for PR review system prompts
+            update_changelog_system_prompt_use_case: Use case for changelog updates system prompts
+            approve_pr_user_prompt_use_case: Use case for PR approval user prompts
+            approve_pr_system_prompt_use_case: Use case for PR approval system prompts
         '''
         self._settings_service = settings_service
         self._cache_service = cache_service
@@ -52,9 +72,14 @@ class FastMCPServer:
         self._github_repository_class = github_repository_class
 
         # Initialize prompt use cases
-        self._describe_use_case = describe_use_case
-        self._review_use_case = review_use_case
-        self._update_changelog_use_case = update_changelog_use_case
+        self._describe_pr_user_prompt_use_case = describe_pr_user_prompt_use_case
+        self._review_pr_user_prompt_use_case = review_pr_user_prompt_use_case
+        self._update_changelog_user_prompt_use_case = update_changelog_user_prompt_use_case
+        self._describe_pr_system_prompt_use_case = describe_pr_system_prompt_use_case
+        self._review_pr_system_prompt_use_case = review_pr_system_prompt_use_case
+        self._update_changelog_system_prompt_use_case = update_changelog_system_prompt_use_case
+        self._approve_pr_user_prompt_use_case = approve_pr_user_prompt_use_case
+        self._approve_pr_system_prompt_use_case = approve_pr_system_prompt_use_case
 
         # Rate limiting configuration
         self._rate_limit_requests = 100  # Max requests per minute
@@ -239,13 +264,13 @@ The tool returns structured data with complete file change information, making i
         using the new use case architecture with dependency injection.
         '''
         @self.mcp.prompt()
-        async def describe(pr_url: str, pr_commit_messages: str, pr_diff: str):
+        async def describe(pr_url: str, commit_messages: str, diff_content: str):
             '''Describe the changes in a pull request.
 
             Args:
                 pr_url: The GitHub PR URL (e.g., https://github.com/owner/repo/pull/123)
-                pr_commit_messages: Commit messages from the PR
-                pr_diff: Diff content from the PR
+                commit_messages: Commit messages from the PR
+                diff_content: Diff content from the PR
 
             Returns:
                 str: Prompt for describing PR changes
@@ -254,19 +279,19 @@ The tool returns structured data with complete file change information, making i
                 repo_owner, repo_name, pr_number = self._parse_pr_url(pr_url)
                 pr_details = PRDetails(repo_owner=repo_owner, repo_name=repo_name, pr_number=pr_number)
 
-                return await self._describe_use_case.execute(pr_details, pr_commit_messages, pr_diff)
+                return await self._describe_pr_user_prompt_use_case.execute(pr_details, commit_messages, diff_content)
             except Exception as e:
                 self._logger.error("Failed to generate describe prompt", pr_url=pr_url, error=str(e))
                 raise e
 
         @self.mcp.prompt()
-        async def review(pr_url: str, pr_commit_messages: str, pr_diff: str):
+        async def review(pr_url: str, commit_messages: str, diff_content: str):
             '''Review a pull request for code quality and best practices.
 
             Args:
                 pr_url: The GitHub PR URL (e.g., https://github.com/owner/repo/pull/123)
-                pr_commit_messages: Commit messages from the PR
-                pr_diff: Diff content from the PR
+                commit_messages: Commit messages from the PR
+                diff_content: Diff content from the PR
 
             Returns:
                 str: Prompt for reviewing PR quality
@@ -275,19 +300,19 @@ The tool returns structured data with complete file change information, making i
                 repo_owner, repo_name, pr_number = self._parse_pr_url(pr_url)
                 pr_details = PRDetails(repo_owner=repo_owner, repo_name=repo_name, pr_number=pr_number)
 
-                return await self._review_use_case.execute(pr_details, pr_commit_messages, pr_diff)
+                return await self._review_pr_user_prompt_use_case.execute(pr_details, commit_messages, diff_content)
             except Exception as e:
                 self._logger.error("Failed to generate review prompt", pr_url=pr_url, error=str(e))
                 raise e
 
         @self.mcp.prompt()
-        async def update_changelog(pr_url: str, pr_commit_messages: str, pr_diff: str):
+        async def update_changelog(pr_url: str, commit_messages: str, diff_content: str):
             '''Generate changelog entries for a pull request.
 
             Args:
                 pr_url: The GitHub PR URL (e.g., https://github.com/owner/repo/pull/123)
-                pr_commit_messages: Commit messages from the PR
-                pr_diff: Diff content from the PR
+                commit_messages: Commit messages from the PR
+                diff_content: Diff content from the PR
 
             Returns:
                 str: Prompt for generating changelog entries
@@ -295,7 +320,7 @@ The tool returns structured data with complete file change information, making i
             try:
                 repo_owner, repo_name, pr_number = self._parse_pr_url(pr_url)
                 pr_details = PRDetails(repo_owner=repo_owner, repo_name=repo_name, pr_number=pr_number)
-                return await self._update_changelog_use_case.execute(pr_details, pr_commit_messages, pr_diff)
+                return await self._update_changelog_user_prompt_use_case.execute(pr_details, commit_messages, diff_content)
             except Exception as e:
                 self._logger.error("Failed to generate changelog prompt", pr_url=pr_url, error=str(e))
                 raise e
@@ -362,9 +387,7 @@ The tool returns structured data with complete file change information, making i
                 # Track successful request
                 self._successful_requests += 1
 
-                self._logger.info("Successfully fetched PR diff",
-                               request_id=request_id, repo_owner=repo_owner, repo_name=repo_name,
-                               pr_number=pr_number, cached=use_cache, changed_files=result.changed_files)
+                self._logger.info("Successfully fetched PR diff")
                 return response
 
             except ValueError as e:
@@ -387,6 +410,96 @@ The tool returns structured data with complete file change information, making i
                 raise RuntimeError(f"Failed to fetch PR diff: {e}")
 
 
+
+        @self.mcp.tool()
+        async def describe_pr(pr_url: str, commit_messages: str, diff_content: str, ctx: Context):
+            """Describe the changes in a pull request.
+
+            Args:
+                pr_url: The GitHub PR URL (e.g., https://github.com/owner/repo/pull/123)
+                commit_messages: Commit messages from the PR
+                diff_content: Diff content from the PR
+
+            Returns:
+                str: Description of the PR changes
+            """
+            try:
+                repo_owner, repo_name, pr_number = self._parse_pr_url(pr_url)
+                pr_details = PRDetails(repo_owner=repo_owner, repo_name=repo_name, pr_number=pr_number)
+
+                user_prompt = await self._describe_pr_user_prompt_use_case.execute(pr_details, commit_messages, diff_content)
+                system_prompt = await self._describe_pr_system_prompt_use_case.execute()
+
+                result: ContentBlock = await ctx.sample(messages=user_prompt, system_prompt=system_prompt)
+                await ctx.info(f'Successfully predict the PR description: {result}')
+                self._logger.info("Successfully predict the PR description")
+                return result.text if isinstance(result, TextContent) else str(result)
+            except Exception as e:
+                self._logger.error("Failed to generate PR description", pr_url=pr_url, error=str(e))
+                raise RuntimeError(f"Failed to generate PR description: {e}")
+
+        @self.mcp.tool()
+        async def approve_pr(pr_url: str, commit_messages: str, diff_content: str, ctx: Context):
+            """Approve a pull request.
+
+            Args:
+                pr_url: The GitHub PR URL (e.g., https://github.com/owner/repo/pull/123)
+                commit_messages: Commit messages from the PR
+                diff_content: Diff content from the PR
+
+            Returns:
+                str: PR approval result
+            """
+            try:
+                repo_owner, repo_name, pr_number = self._parse_pr_url(pr_url)
+                pr_details = PRDetails(repo_owner=repo_owner, repo_name=repo_name, pr_number=pr_number)
+
+                return await self._approve_pr_user_prompt_use_case.execute(pr_details, commit_messages, diff_content)
+            except Exception as e:
+                self._logger.error("Failed to generate PR approval", pr_url=pr_url, error=str(e))
+                raise RuntimeError(f"Failed to generate PR approval: {e}")
+
+        @self.mcp.tool()
+        async def review_pr(pr_url: str, commit_messages: str, diff_content: str, ctx: Context):
+            """Review a pull request for code quality and best practices.
+
+            Args:
+                pr_url: The GitHub PR URL (e.g., https://github.com/owner/repo/pull/123)
+                commit_messages: Commit messages from the PR
+                diff_content: Diff content from the PR
+
+            Returns:
+                str: PR review result
+            """
+            try:
+                repo_owner, repo_name, pr_number = self._parse_pr_url(pr_url)
+                pr_details = PRDetails(repo_owner=repo_owner, repo_name=repo_name, pr_number=pr_number)
+
+                return await self._review_pr_user_prompt_use_case.execute(pr_details, commit_messages, diff_content)
+            except Exception as e:
+                self._logger.error("Failed to generate PR review", pr_url=pr_url, error=str(e))
+                raise RuntimeError(f"Failed to generate PR review: {e}")
+
+        @self.mcp.tool()
+        async def update_pr_changelog(pr_url: str, commit_messages: str, diff_content: str, ctx: Context):
+            """Update changelog entries for a pull request.
+
+            Args:
+                pr_url: The GitHub PR URL (e.g., https://github.com/owner/repo/pull/123)
+                commit_messages: Commit messages from the PR
+                diff_content: Diff content from the PR
+
+            Returns:
+                str: Changelog entries
+            """
+            try:
+                repo_owner, repo_name, pr_number = self._parse_pr_url(pr_url)
+                pr_details = PRDetails(repo_owner=repo_owner, repo_name=repo_name, pr_number=pr_number)
+
+                return await self._update_changelog_user_prompt_use_case.execute(pr_details, commit_messages, diff_content)
+            except Exception as e:
+                self._logger.error("Failed to generate changelog entries", pr_url=pr_url, error=str(e))
+                raise RuntimeError(f"Failed to generate changelog entries: {e}")
 
     def run(self):
         '''Start the FastMCP server with configured transport and port.

@@ -38,9 +38,7 @@ class PromptRepository(PromptRepositoryInterface):
             ```
         </response>'''
 
-        self._logger.info("Generated PR description prompt",
-                        component="prompt_repository",
-                        pr_details=str(request.pr_details))
+        self._logger.info("Generated PR description user prompt", component="prompt_repository")
         return prompt
 
     async def review_pr_user_prompt(self, request: PromptRequest) -> str:

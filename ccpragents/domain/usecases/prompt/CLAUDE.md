@@ -15,12 +15,12 @@ All prompt use cases follow a consistent pattern:
 class PromptUseCase:
     def __init__(self, prompt_repository: PromptRepositoryInterface):
         self._prompt_repository = prompt_repository
-    
-    async def execute(self, pr_details: PRDetails, pr_commit_messages: str, pr_diff: str) -> str:
+
+    async def execute(self, pr_details: PRDetails, pr_commit_messages: str, diff_content: str) -> str:
         request = PromptRequest(
             pr_details=pr_details,
-            pr_commit_messages=pr_commit_messages,
-            pr_diff=pr_diff
+            commit_messages=commit_messages,
+            diff_content=diff_content
         )
         return await self._prompt_repository.method_name(request)
 ```
