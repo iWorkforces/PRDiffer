@@ -387,9 +387,7 @@ The tool returns structured data with complete file change information, making i
                 # Track successful request
                 self._successful_requests += 1
 
-                self._logger.info("Successfully fetched PR diff",
-                               request_id=request_id, repo_owner=repo_owner, repo_name=repo_name,
-                               pr_number=pr_number, cached=use_cache, changed_files=result.changed_files)
+                self._logger.info("Successfully fetched PR diff")
                 return response
 
             except ValueError as e:
@@ -433,7 +431,8 @@ The tool returns structured data with complete file change information, making i
                 system_prompt = await self._describe_pr_system_prompt_use_case.execute()
 
                 result: ContentBlock = await ctx.sample(messages=user_prompt, system_prompt=system_prompt)
-                self._logger.info(f'Result: {result}')
+                await ctx.info(f'Successfully predict the PR description: {result}')
+                self._logger.info("Successfully predict the PR description")
                 return result.text if isinstance(result, TextContent) else str(result)
             except Exception as e:
                 self._logger.error("Failed to generate PR description", pr_url=pr_url, error=str(e))

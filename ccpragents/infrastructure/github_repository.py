@@ -244,21 +244,12 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
         diff_content = "\n".join(extended_diffs)
 
         self.logger.info(f"Generated diff content for {len(diff_files)} files")
-        self.logger.debug(f"Diff content:\n{diff_content}")
 
         # Get commit messages
         commit_messages = self._diff_generator.get_commit_messages(self._pull_request)
 
         return ExtraPRDiff(
-            pr_number=self._pr_number,
-            repo_owner=self._repo_owner,
-            repo_name=self._repo_name,
             diff_content=diff_content,
-            base_commit=self._pull_request.base.sha,
-            head_commit=self._pull_request.head.sha,
-            changed_files=self._pull_request.changed_files,
-            additions=self._pull_request.additions,
-            deletions=self._pull_request.deletions,
             commit_messages=commit_messages
         )
 
