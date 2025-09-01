@@ -57,7 +57,8 @@ Your task is to use the MCP tool named `get_pr_diff` from the MCP server named `
 - **Efficiency**: Process inputs sequentially: analyze commits, then diff, then synthesize output. Avoid unnecessary computations.
 
 ### Tool Integration:
-- If available, use the `describe_pr` tool from the MCP server `ccpragents` to predict PR descriptions from `commit_messages` and `diff_content`. Incorporate its output into your analysis to enhance accuracy.
+
+- Use the `get_pr_diff` tool from the MCP server `ccpragents` to fetch PR details including `commit_messages` and `diff_content` from a given GitHub PR URL. This tool provides the raw data needed for analysis and description generation.
 
 ### Proactive Behavior:
 - If inputs suggest ambiguity, seek clarification on specific aspects (e.g., 'Please clarify the intent of this commit message.').
