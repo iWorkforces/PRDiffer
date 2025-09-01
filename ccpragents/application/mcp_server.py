@@ -1,9 +1,7 @@
 import time
 from typing import Optional, Callable
-from fastmcp import FastMCP, Context
-from mcp.types import ContentBlock, TextContent
+from fastmcp import FastMCP
 from ccpragents.domain.entities.pr_diff import PRDiff
-from ccpragents.domain.entities.prompt import PRDetails
 from ccpragents.domain.usecases import GetPRDiffUseCase
 from ccpragents.domain.usecases.prompt import (
     DescribePRUserPromptUseCase,
@@ -312,99 +310,6 @@ class FastMCPServer:
                                 request_id=request_id, pr_url=pr_url, error=str(e), use_cache=use_cache)
                 # Re-raise with consistent error format
                 raise RuntimeError(f"Failed to fetch PR diff: {e}")
-
-
-
-        @self.mcp.tool()
-        async def describe_pr(pr_url: str, commit_messages: str, diff_content: str, ctx: Context):
-            """Describe the changes in a pull request by using commit messages and diff content to generate an accurate description.
-
-            Args:
-                pr_url: The GitHub PR URL (e.g., https://github.com/owner/repo/pull/123)
-                commit_messages: Commit messages from the PR
-                diff_content: Diff content from the PR
-                ctx: FastMCP context
-
-            Returns:
-                str: Generate structured user and system prompts for PR description generation that can be used with AI systems, then predict the PR description by leveraging the MCP client LLM power
-            """
-            try:
-                repo_owner, repo_name, pr_number = self._parse_pr_url(pr_url)
-                pr_details = PRDetails(repo_owner=repo_owner, repo_name=repo_name, pr_number=pr_number)
-
-                user_prompt = await self._describe_pr_user_prompt_use_case.execute(pr_details, commit_messages, diff_content)
-                system_prompt = await self._describe_pr_system_prompt_use_case.execute()
-
-                result: ContentBlock = await ctx.sample(messages=user_prompt, system_prompt=system_prompt)
-                await ctx.info(f'Successfully predict the PR description: {result}')
-                self._logger.info("Successfully predict the PR description")
-                return result.text if isinstance(result, TextContent) else str(result)
-            except Exception as e:
-                self._logger.error("Failed to generate PR description", pr_url=pr_url, error=str(e))
-                raise RuntimeError(f"Failed to generate PR description: {e}")
-
-        @self.mcp.tool()
-        async def approve_pr(pr_url: str, commit_messages: str, diff_content: str, ctx: Context):
-            """Approve a pull request.
-
-            Args:
-                pr_url: The GitHub PR URL (e.g., https://github.com/owner/repo/pull/123)
-                commit_messages: Commit messages from the PR
-                diff_content: Diff content from the PR
-
-            Returns:
-                str: PR approval result
-            """
-            try:
-                repo_owner, repo_name, pr_number = self._parse_pr_url(pr_url)
-                pr_details = PRDetails(repo_owner=repo_owner, repo_name=repo_name, pr_number=pr_number)
-
-                return await self._approve_pr_user_prompt_use_case.execute(pr_details, commit_messages, diff_content)
-            except Exception as e:
-                self._logger.error("Failed to generate PR approval", pr_url=pr_url, error=str(e))
-                raise RuntimeError(f"Failed to generate PR approval: {e}")
-
-        @self.mcp.tool()
-        async def review_pr(pr_url: str, commit_messages: str, diff_content: str, ctx: Context):
-            """Review a pull request for code quality and best practices.
-
-            Args:
-                pr_url: The GitHub PR URL (e.g., https://github.com/owner/repo/pull/123)
-                commit_messages: Commit messages from the PR
-                diff_content: Diff content from the PR
-
-            Returns:
-                str: PR review result
-            """
-            try:
-                repo_owner, repo_name, pr_number = self._parse_pr_url(pr_url)
-                pr_details = PRDetails(repo_owner=repo_owner, repo_name=repo_name, pr_number=pr_number)
-
-                return await self._review_pr_user_prompt_use_case.execute(pr_details, commit_messages, diff_content)
-            except Exception as e:
-                self._logger.error("Failed to generate PR review", pr_url=pr_url, error=str(e))
-                raise RuntimeError(f"Failed to generate PR review: {e}")
-
-        @self.mcp.tool()
-        async def update_pr_changelog(pr_url: str, commit_messages: str, diff_content: str, ctx: Context):
-            """Update changelog entries for a pull request.
-
-            Args:
-                pr_url: The GitHub PR URL (e.g., https://github.com/owner/repo/pull/123)
-                commit_messages: Commit messages from the PR
-                diff_content: Diff content from the PR
-
-            Returns:
-                str: Changelog entries
-            """
-            try:
-                repo_owner, repo_name, pr_number = self._parse_pr_url(pr_url)
-                pr_details = PRDetails(repo_owner=repo_owner, repo_name=repo_name, pr_number=pr_number)
-
-                return await self._update_changelog_user_prompt_use_case.execute(pr_details, commit_messages, diff_content)
-            except Exception as e:
-                self._logger.error("Failed to generate changelog entries", pr_url=pr_url, error=str(e))
-                raise RuntimeError(f"Failed to generate changelog entries: {e}")
 
         @self.mcp.tool()
         async def health():
