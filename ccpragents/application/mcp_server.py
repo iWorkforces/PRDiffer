@@ -26,8 +26,12 @@ from ccpragents.domain.repositories.pr_diff_repository import PRDiffRepositoryIn
 class FastMCPServer:
     '''FastMCP server for fetching GitHub PR diffs with detailed file change information.
 
-    This server provides a tool for retrieving pull request information:
+    This server provides tools for retrieving pull request information:
     - get_pr_diff: Fetches PR diff information including file statistics
+    - describe_pr: AI-powered PR description generation with optimized single-step workflow
+
+    The describe_pr tool automatically fetches PR data when provided with only a URL,
+    eliminating the need for separate get_pr_diff calls and reducing API overhead.
 
     Attributes:
         mcp: The FastMCP instance for tool registration and server management
@@ -102,7 +106,7 @@ class FastMCPServer:
             instructions='''
 GitHub PR Diff Fetcher MCP - A powerful tool for retrieving detailed pull request information from GitHub.
 
-This MCP provides a tool for fetching PR diff information:
+This MCP provides tools for PR analysis:
 
 get_pr_diff - Fetches PR diff information including:
 - PR number, repository owner, and repository name
@@ -115,10 +119,16 @@ get_pr_diff - Fetches PR diff information including:
 - Labels
 - Milestone
 
-Usage example:
-- Fetch PR diff: get_pr_diff("https://github.com/owner/repo/pull/123")
+describe_pr - AI-powered PR description generation:
+- Single-step tool that automatically fetches PR data and generates descriptions
+- Only requires a PR URL - no manual data provision needed
+- Optimized for efficiency and simplicity
 
-The tool returns structured data with complete file change information, making it ideal for:
+Usage examples:
+- Fetch PR diff: get_pr_diff("https://github.com/owner/repo/pull/123")
+- Generate PR description (optimized): describe_pr("https://github.com/owner/repo/pull/123")
+
+The tools return structured data with complete file change information, making them ideal for:
 - Code review automation
 - PR analysis and reporting
 - Integration with CI/CD pipelines
@@ -126,7 +136,7 @@ The tool returns structured data with complete file change information, making i
 - Code analysis and refactoring
 - Code understanding and documentation
 ''',
-            version="0.1.1"
+            version="0.1.3"
         )
 
         self._register_tools()
@@ -412,30 +422,96 @@ The tool returns structured data with complete file change information, making i
 
 
         @self.mcp.tool()
-        async def describe_pr(pr_url: str, commit_messages: str, diff_content: str, ctx: Context):
+        async def describe_pr(pr_url: str, ctx: Context):
             """Describe the changes in a pull request.
+
+            This tool automatically fetches commit messages and diff content from the GitHub PR
+            and generates an AI-powered description in a single step.
 
             Args:
                 pr_url: The GitHub PR URL (e.g., https://github.com/owner/repo/pull/123)
-                commit_messages: Commit messages from the PR
-                diff_content: Diff content from the PR
+                ctx: FastMCP context for sampling
 
             Returns:
                 str: Description of the PR changes
             """
+            # Generate request ID for tracing
+            request_id = self._generate_request_id()
+
+            self._logger.info("Processing describe_pr request",
+                           request_id=request_id, pr_url=pr_url)
+
             try:
+                # Track total requests
+                self._total_requests += 1
+
+                # Check rate limit
+                self._check_rate_limit()
+
+                # Validate input parameters
+                if not pr_url:
+                    raise ValueError("PR URL parameter is required")
+
                 repo_owner, repo_name, pr_number = self._parse_pr_url(pr_url)
                 pr_details = PRDetails(repo_owner=repo_owner, repo_name=repo_name, pr_number=pr_number)
 
+                # Automatically fetch PR diff data
+                self._logger.debug("Fetching PR diff data automatically", request_id=request_id)
+
+                # Try to get repository from cache first
+                repository: Optional[PRDiffRepositoryInterface] = self._repository_cache_service.retrieve(repo_owner, repo_name, pr_number)
+
+                if repository is None:
+                    # Create new repository instance
+                    repository = self._github_repository_class(repo_owner, repo_name, pr_number)
+                    self._logger.debug("Created new repository instance for describe_pr",
+                                     request_id=request_id, repo_owner=repo_owner, repo_name=repo_name, pr_number=pr_number)
+                else:
+                    self._logger.debug("Reusing cached repository instance for describe_pr",
+                                     request_id=request_id, repo_owner=repo_owner, repo_name=repo_name, pr_number=pr_number)
+
+                use_case: GetPRDiffUseCase = GetPRDiffUseCase(repository, cache_service=self._cache_service)
+                pr_diff: PRDiff = await use_case.execute(use_cache=True)
+
+                # Extract commit messages and diff content from PR diff
+                commit_messages = pr_diff.commit_messages or ""
+                diff_content = pr_diff.diff_content
+
+                # Cache the repository after it's been used (now it should be initialized)
+                if hasattr(repository, '_initialized') and getattr(repository, '_initialized', False):
+                    cache_success = self._repository_cache_service.insert(repository)
+                    if cache_success:
+                        self._logger.debug("Cached repository instance after initialization in describe_pr",
+                                         request_id=request_id, repo_owner=repo_owner, repo_name=repo_name, pr_number=pr_number)
+
+                # Generate prompts and get AI response
                 user_prompt = await self._describe_pr_user_prompt_use_case.execute(pr_details, commit_messages, diff_content)
                 system_prompt = await self._describe_pr_system_prompt_use_case.execute()
 
                 result: ContentBlock = await ctx.sample(messages=user_prompt, system_prompt=system_prompt)
-                await ctx.info(f'Successfully predict the PR description: {result}')
-                self._logger.info("Successfully predict the PR description")
+                await ctx.info(f'Successfully predicted the PR description: {result}')
+
+                # Track successful request
+                self._successful_requests += 1
+
+                self._logger.info("Successfully predicted the PR description", request_id=request_id)
                 return result.text if isinstance(result, TextContent) else str(result)
+
+            except ValueError as e:
+                # Track failed request
+                self._failed_requests += 1
+
+                # Validation errors - provide clear error messages
+                self._logger.warning("Validation error in describe_pr request",
+                                  request_id=request_id, pr_url=pr_url, error=str(e))
+                raise ValueError(f"Invalid request: {e}")
+
             except Exception as e:
-                self._logger.error("Failed to generate PR description", pr_url=pr_url, error=str(e))
+                # Track failed request
+                self._failed_requests += 1
+
+                self._logger.error("Failed to generate PR description", 
+                                request_id=request_id, pr_url=pr_url, error=str(e))
                 raise RuntimeError(f"Failed to generate PR description: {e}")
 
         @self.mcp.tool()
