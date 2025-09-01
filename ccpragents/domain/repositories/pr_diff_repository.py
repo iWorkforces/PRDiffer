@@ -1,7 +1,7 @@
 '''Repository interface for PR diff operations.'''
 
 from abc import ABC, abstractmethod
-from ccpragents.domain.entities.pr_diff import ExtraPRDiff
+from ccpragents.domain.entities.pr_diff import PRDiff
 
 
 class PRDiffRepositoryInterface(ABC):
@@ -38,7 +38,7 @@ class PRDiffRepositoryInterface(ABC):
         pass
 
     @abstractmethod
-    async def get_pr_diff(self) -> ExtraPRDiff:
+    async def get_pr_diff(self) -> PRDiff:
         '''Get the PR diff data.
 
         Returns:

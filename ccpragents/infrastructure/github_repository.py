@@ -4,7 +4,7 @@ This is the refactored version using composition with extracted components.
 '''
 import os
 from typing import Optional
-from ccpragents.domain.entities.pr_diff import ExtraPRDiff
+from ccpragents.domain.entities.pr_diff import PRDiff
 from ccpragents.domain.repositories import PRDiffRepositoryInterface
 from ccpragents.infrastructure.settings import SettingsService, get_settings_service
 from ccpragents.infrastructure.logging.console_logger import get_logger
@@ -203,7 +203,7 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
 
         return self._pull_request.head.sha
 
-    async def get_pr_diff(self) -> ExtraPRDiff:
+    async def get_pr_diff(self) -> PRDiff:
         '''Fetch PR diff information from GitHub.
 
         Returns:
@@ -248,7 +248,7 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
         # Get commit messages
         commit_messages = self._diff_generator.get_commit_messages(self._pull_request)
 
-        return ExtraPRDiff(
+        return PRDiff(
             diff_content=diff_content,
             commit_messages=commit_messages
         )

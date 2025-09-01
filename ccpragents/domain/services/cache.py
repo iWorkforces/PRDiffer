@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from typing import Optional, Dict, Any
-from ccpragents.domain.entities.pr_diff import ExtraPRDiff
+from ccpragents.domain.entities.pr_diff import PRDiff
 
 
 class CacheServiceInterface(ABC):
@@ -25,7 +25,7 @@ class CacheServiceInterface(ABC):
         pass
 
     @abstractmethod
-    def get(self, cache_key: str, current_commit_sha: str) -> Optional[ExtraPRDiff]:
+    def get(self, cache_key: str, current_commit_sha: str) -> Optional[PRDiff]:
         '''Get cached PR diff data if it exists and commit SHA matches.
 
         Args:
@@ -38,7 +38,7 @@ class CacheServiceInterface(ABC):
         pass
 
     @abstractmethod
-    def set(self, cache_key: str, commit_sha: str, data: ExtraPRDiff) -> None:
+    def set(self, cache_key: str, commit_sha: str, data: PRDiff) -> None:
         '''Cache PR diff data with associated commit SHA.
 
         Args:

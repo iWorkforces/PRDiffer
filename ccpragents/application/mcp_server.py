@@ -3,7 +3,7 @@ import time
 from typing import Optional, Callable
 from fastmcp import FastMCP, Context
 from mcp.types import ContentBlock, TextContent
-from ccpragents.domain.entities.pr_diff import ExtraPRDiff
+from ccpragents.domain.entities.pr_diff import PRDiff
 from ccpragents.domain.entities.prompt import PRDetails
 from ccpragents.domain.usecases import GetPRDiffUseCase
 from ccpragents.domain.usecases.prompt import (
@@ -373,7 +373,7 @@ The tool returns structured data with complete file change information, making i
                                      request_id=request_id, repo_owner=repo_owner, repo_name=repo_name, pr_number=pr_number)
 
                 use_case: GetPRDiffUseCase = GetPRDiffUseCase(repository, cache_service=self._cache_service)
-                result: ExtraPRDiff = await use_case.execute(use_cache=use_cache)
+                pr_diff: PRDiff = await use_case.execute(use_cache=use_cache)
 
                 # Cache the repository after it's been used (now it should be initialized)
                 if hasattr(repository, '_initialized') and getattr(repository, '_initialized', False):
@@ -382,7 +382,7 @@ The tool returns structured data with complete file change information, making i
                         self._logger.debug("Cached repository instance after initialization",
                                          request_id=request_id, repo_owner=repo_owner, repo_name=repo_name, pr_number=pr_number)
 
-                response = result.model_dump_json()
+                response = pr_diff.model_dump_json()
 
                 # Track successful request
                 self._successful_requests += 1
