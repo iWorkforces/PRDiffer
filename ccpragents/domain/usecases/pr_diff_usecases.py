@@ -1,4 +1,4 @@
-from ccpragents.domain.entities.pr_diff import ExtraPRDiff
+from ccpragents.domain.entities.pr_diff import PRDiff
 from ccpragents.domain.services import CacheServiceInterface
 from ccpragents.domain.repositories import PRDiffRepositoryInterface
 
@@ -8,7 +8,7 @@ class GetPRDiffUseCase:
         self._repository: PRDiffRepositoryInterface = repository
         self._cache_service: CacheServiceInterface = cache_service
 
-    async def execute(self, use_cache: bool = True) -> ExtraPRDiff:
+    async def execute(self, use_cache: bool = True) -> PRDiff:
         '''Execute the use case with optional caching.
 
         Args:

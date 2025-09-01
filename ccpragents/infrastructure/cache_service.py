@@ -1,6 +1,6 @@
 import time
 from typing import Optional, Dict, Any
-from ccpragents.domain.entities.pr_diff import ExtraPRDiff
+from ccpragents.domain.entities.pr_diff import PRDiff
 from ccpragents.domain.services import CacheServiceInterface
 from .logging.console_logger import get_logger
 
@@ -30,7 +30,7 @@ class CacheService(CacheServiceInterface):
         '''
         return f"{repo_owner}/{repo_name}/pr/{pr_number}"
 
-    def get(self, cache_key: str, current_commit_sha: str) -> Optional[ExtraPRDiff]:
+    def get(self, cache_key: str, current_commit_sha: str) -> Optional[PRDiff]:
         '''Get cached PR diff data if it exists and commit SHA matches.
 
         Args:
@@ -57,7 +57,7 @@ class CacheService(CacheServiceInterface):
                            current_sha=current_commit_sha)
             return None
 
-    def set(self, cache_key: str, commit_sha: str, data: ExtraPRDiff) -> None:
+    def set(self, cache_key: str, commit_sha: str, data: PRDiff) -> None:
         '''Cache PR diff data with associated commit SHA.
 
         Args:
