@@ -83,37 +83,17 @@ class ServerConfiguration(ServerConfigurationProtocol):
             String containing MCP server instructions
         """
         return '''
-GitHub PR Diff Fetcher MCP - A powerful tool for retrieving detailed pull request information from GitHub.
+CCPRAgents MCP - GitHub Pull Request Analysis Tools
 
-This MCP provides tools for PR analysis:
+Available Tools:
+• get_pr_diff(pr_url, use_cache=True) - Fetch complete PR diff data
+• describe_pr(pr_url, commit_messages, diff_content) - Generate PR descriptions
+• approve_pr(pr_url, commit_messages, diff_content) - Generate PR approvals
+• review_pr(pr_url, commit_messages, diff_content) - Review PRs for quality
+• update_pr_changelog(pr_url, commit_messages, diff_content) - Generate changelog entries
+• health() - Get server health and metrics
 
-get_pr_diff - Fetches PR diff information including:
-- PR number, repository owner, and repository name
-- Diff content for the complete changeset
-- Base and head commit SHAs
-- Statistics: changed files count, additions, deletions
-- File change details with patch content and line numbers
-- Commit messages
-- Reviewers
-- Labels
-- Milestone
-
-describe_pr - AI-powered PR description generation:
-- Single-step tool that automatically fetches PR data and generates descriptions
-- Only requires a PR URL - no manual data provision needed
-- Optimized for efficiency and simplicity
-
-Usage examples:
-- Fetch PR diff: get_pr_diff("https://github.com/owner/repo/pull/123")
-- Generate PR description (optimized): describe_pr("https://github.com/owner/repo/pull/123")
-
-The tools return structured data with complete file change information, making them ideal for:
-- Code review automation
-- PR analysis and reporting
-- Integration with CI/CD pipelines
-- Change tracking and audit logging
-- Code analysis and refactoring
-- Code understanding and documentation
+Usage: Call tools with GitHub PR URLs (e.g., "https://github.com/owner/repo/pull/123")
 '''
 
     def validate_configuration(self) -> Dict[str, Any]:
