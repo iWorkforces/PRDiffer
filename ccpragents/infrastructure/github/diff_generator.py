@@ -38,7 +38,7 @@ class DiffGenerator:
             List of extended diff strings, one per file
         '''
         extended_diffs = []
-        for file in diff_files:
+        for i, file in enumerate(diff_files):
             original_file_content_str = file.base_file
             new_file_content_str = file.head_file
             patch = file.patch
@@ -55,14 +55,18 @@ class DiffGenerator:
 
             if add_line_numbers_to_hunks:
                 full_extended_patch = self._decouple_and_convert_to_hunks_with_lines_numbers(
-                    extended_patch, file
+                    extended_patch, file, is_first_file=(i == 0)
                 )
             else:
-                full_extended_patch = f"\n\n## File: '{file.filename.strip()}'\n\n{extended_patch.rstrip()}\n"
+                # Add separator and file header, only add \n\n prefix for non-first files
+                separator = "" if i == 0 else "\n\n===="
+                full_extended_patch = f"{separator}\n## File: '{file.filename.strip()}'\n\n{extended_patch.rstrip()}\n"
+                if i == 0:
+                    full_extended_patch = f"====\n{full_extended_patch}"
             extended_diffs.append(full_extended_patch)
         return extended_diffs
 
-    def _decouple_and_convert_to_hunks_with_lines_numbers(self, patch: str, file: FilePatchInfo) -> str:
+    def _decouple_and_convert_to_hunks_with_lines_numbers(self, patch: str, file: FilePatchInfo, is_first_file: bool = False) -> str:
         '''Convert a given patch string into a string with line numbers for each hunk.
 
         This method processes patch hunks to display new and old content sections
@@ -100,9 +104,11 @@ class DiffGenerator:
         if file:
             # if the file was deleted, return a message indicating that the file was deleted
             if hasattr(file, 'edit_type') and file.edit_type == EDIT_TYPE.DELETED:
-                return f"\n\n## File '{file.filename.strip()}' was deleted\n"
+                separator = "====" if is_first_file else "\n\n===="
+                return f"{separator}\n## File '{file.filename.strip()}' was deleted\n"
 
-            patch_with_lines_str = f"\n\n## File: '{file.filename.strip()}'\n"
+            separator = "====" if is_first_file else "\n\n===="
+            patch_with_lines_str = f"{separator}\n## File: '{file.filename.strip()}'\n"
         else:
             patch_with_lines_str = ""
 
