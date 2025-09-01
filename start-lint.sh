@@ -163,14 +163,14 @@ replace_triple_quotes() {
 
     # Find all Python files
     find_python_files
-    
+
     local count=0
     echo "${PYTHON_FILES}" | while read -r file; do
         if [ -n "${file}" ]; then
             # Check if file contains triple double quotes
             if grep -q '"""' "${file}"; then
                 echo -e "${CYAN}Processing: ${file}${NC}"
-                
+
                 # Replace triple double quotes with triple single quotes
                 if [[ "${OSTYPE}" == "darwin"* ]]; then
                     # macOS sed syntax
@@ -179,7 +179,7 @@ replace_triple_quotes() {
                     # Linux sed syntax
                     sed -i 's/"""'/"'''"/g "${file}"
                 fi
-                
+
                 ((count++))
                 echo -e "${GREEN}✅ Updated quotes in: ${file}${NC}"
             fi
