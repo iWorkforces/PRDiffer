@@ -423,15 +423,16 @@ The tools return structured data with complete file change information, making t
 
         @self.mcp.tool()
         async def describe_pr(pr_url: str, commit_messages: str, diff_content: str, ctx: Context):
-            """Describe the changes in a pull request.
+            """Describe the changes in a pull request by using commit messages and diff content to generate an accurate description.
 
             Args:
                 pr_url: The GitHub PR URL (e.g., https://github.com/owner/repo/pull/123)
                 commit_messages: Commit messages from the PR
                 diff_content: Diff content from the PR
+                ctx: FastMCP context
 
             Returns:
-                str: Description of the PR changes
+                str: Generate structured user and system prompts for PR description generation that can be used with AI systems, then predict the PR description by leveraging the MCP client LLM power
             """
             try:
                 repo_owner, repo_name, pr_number = self._parse_pr_url(pr_url)
