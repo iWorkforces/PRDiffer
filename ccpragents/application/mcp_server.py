@@ -275,8 +275,6 @@ class FastMCPServer:
                         self._logger.debug("Cached repository instance after initialization",
                                          request_id=request_id, repo_owner=repo_owner, repo_name=repo_name, pr_number=pr_number)
 
-                response = pr_diff.model_dump_json()
-
                 # Track successful request
                 execution_time = time.time() - start_time
                 self._metrics_tracker.track_request("get_pr_diff", True, execution_time)
@@ -284,7 +282,7 @@ class FastMCPServer:
                 self._successful_requests += 1
 
                 self._logger.info("Successfully fetched PR diff")
-                return response
+                return pr_diff
 
             except ValueError as e:
                 # Track failed request
