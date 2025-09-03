@@ -96,11 +96,11 @@ Leverage `tavily-search` from `tavily-mcp` server for informed analysis:
 #### **Integrated Analysis Workflow**
 
 ```
-Complex PR Detected → 
-  Use sequential-thinking to break down analysis → 
-    For each component: research with tavily-search if needed → 
-      Apply domain expertise → 
-        Generate targeted suggestions → 
+Complex PR Detected →
+  Use sequential-thinking to break down analysis →
+    For each component: research with tavily-search if needed →
+      Apply domain expertise →
+        Generate targeted suggestions →
           Synthesize comprehensive review
 ```
 
