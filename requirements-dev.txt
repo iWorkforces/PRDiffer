@@ -1,9 +1,9 @@
-fastmcp>=2.12.0
+fastmcp>=2.12.2
 pydantic>=2.11.7
 fastapi[standard]>=0.116.1
 uvicorn>=0.35.0
 gunicorn==23.0.0
-pygithub>=2.7.0
+pygithub>=2.8.1
 ruff>=0.12.11
 asyncio>=4.0.0
 python-dotenv>=1.1.1
