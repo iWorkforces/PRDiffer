@@ -8,3 +8,4 @@ asyncio>=4.0.0
 python-dotenv>=1.1.1
 dynaconf>=3.2.11
 mcp==1.13.1
+standard>=1.0.3
