@@ -23,13 +23,58 @@ echo -e "${BLUE}🔍 CCPRAgents - Code Linting${NC}"
 echo -e "${BLUE}=====================================${NC}"
 echo ""
 
+# Function to check if uv is installed
+check_uv() {
+    if ! command -v uv &> /dev/null; then
+        echo -e "${YELLOW}📦 uv not found, installing...${NC}"
+        
+        # Install uv using the official installer
+        if command -v curl &> /dev/null; then
+            echo -e "${CYAN}Installing uv via curl...${NC}"
+            curl -LsSf https://astral.sh/uv/install.sh | sh
+        elif command -v wget &> /dev/null; then
+            echo -e "${CYAN}Installing uv via wget...${NC}"
+            wget -qO- https://astral.sh/uv/install.sh | sh
+        else
+            echo -e "${RED}❌ Neither curl nor wget found. Please install uv manually${NC}"
+            echo -e "${YELLOW}Visit: https://docs.astral.sh/uv/getting-started/installation/${NC}"
+            exit 1
+        fi
+        
+        # Source the shell profile to make uv available
+        if [ -f "$HOME/.bashrc" ]; then
+            source "$HOME/.bashrc"
+        elif [ -f "$HOME/.zshrc" ]; then
+            source "$HOME/.zshrc"
+        fi
+        
+        # Add uv to PATH for this session if not already available
+        if ! command -v uv &> /dev/null && [ -f "$HOME/.cargo/bin/uv" ]; then
+            export PATH="$HOME/.cargo/bin:$PATH"
+        fi
+        
+        # Verify installation
+        if ! command -v uv &> /dev/null; then
+            echo -e "${RED}❌ Failed to install uv${NC}"
+            echo -e "${YELLOW}Please install uv manually: https://docs.astral.sh/uv/getting-started/installation/${NC}"
+            exit 1
+        fi
+    fi
+
+    echo -e "${GREEN}✅ uv is available${NC}"
+    echo -e "${CYAN}Version: $(uv --version)${NC}"
+}
+
 # Function to check if ruff is installed
 check_ruff() {
     if ! command -v ruff &> /dev/null; then
         echo -e "${YELLOW}📦 ruff not found, installing...${NC}"
 
-        # Check if we're in a virtual environment
-        if [[ "$VIRTUAL_ENV" != "" ]]; then
+        # Use uv to install ruff if available, otherwise fall back to pip
+        if command -v uv &> /dev/null; then
+            echo -e "${CYAN}Installing ruff via uv...${NC}"
+            uv pip install ruff
+        elif [[ "$VIRTUAL_ENV" != "" ]]; then
             echo -e "${GREEN}✅ Using active virtual environment${NC}"
             pip install ruff
         elif [ -d "$VENV_DIR" ]; then
@@ -263,7 +308,11 @@ show_help() {
 install_ruff() {
     echo -e "${BLUE}📦 Installing/upgrading ruff...${NC}"
 
-    if [[ "$VIRTUAL_ENV" != "" ]]; then
+    # Use uv if available, otherwise fall back to pip
+    if command -v uv &> /dev/null; then
+        echo -e "${CYAN}Installing ruff via uv...${NC}"
+        uv pip install --upgrade ruff
+    elif [[ "$VIRTUAL_ENV" != "" ]]; then
         echo -e "${GREEN}✅ Using active virtual environment${NC}"
         pip install --upgrade ruff
     elif [ -d "$VENV_DIR" ]; then
@@ -329,6 +378,7 @@ main() {
                 shift
                 ;;
             --config)
+                check_uv
                 check_ruff
                 show_config
                 exit 0
@@ -338,6 +388,7 @@ main() {
                 exit 0
                 ;;
             --install)
+                check_uv
                 install_ruff
                 exit 0
                 ;;
@@ -354,6 +405,7 @@ main() {
     done
 
     # Execute main workflow
+    check_uv
     check_ruff
     find_python_files
     show_config
