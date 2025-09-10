@@ -98,6 +98,31 @@ check_ruff() {
     echo -e "${CYAN}Version: $(ruff --version)${NC}"
 }
 
+# Function to upgrade ruff to latest version
+upgrade_ruff() {
+    echo -e "${BLUE}🔄 Upgrading ruff to latest version...${NC}"
+
+    # Use uv to upgrade ruff if available, otherwise fall back to pip
+    if command -v uv &> /dev/null; then
+        echo -e "${CYAN}Upgrading ruff via uv...${NC}"
+        uv pip install --upgrade ruff
+    elif [[ "$VIRTUAL_ENV" != "" ]]; then
+        echo -e "${GREEN}✅ Using active virtual environment${NC}"
+        pip install --upgrade ruff
+    elif [ -d "$VENV_DIR" ]; then
+        echo -e "${YELLOW}🔧 Activating virtual environment...${NC}"
+        source "$VENV_DIR/bin/activate"
+        pip install --upgrade ruff
+    else
+        echo -e "${YELLOW}🔧 Upgrading ruff globally...${NC}"
+        pip install --user --upgrade ruff
+    fi
+
+    echo -e "${GREEN}✅ ruff upgraded to latest version${NC}"
+    echo -e "${CYAN}Version: $(ruff --version)${NC}"
+    echo ""
+}
+
 # Function to find Python files
 find_python_files() {
     echo -e "${BLUE}🔍 Finding Python files...${NC}"
@@ -407,6 +432,7 @@ main() {
     # Execute main workflow
     check_uv
     check_ruff
+    upgrade_ruff
     find_python_files
     show_config
 
