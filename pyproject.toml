@@ -8,8 +8,8 @@ authors = [
 ]
 requires-python = ">=3.13"
 dependencies = [
-    "fastmcp>=2.12.2",
-    "pydantic>=2.11.7",
+    "fastmcp>=2.12.3",
+    "pydantic>=2.11.9",
     "fastapi[standard]>=0.116.1",
     "uvicorn>=0.35.0",
     "gunicorn==23.0.0",
@@ -17,7 +17,7 @@ dependencies = [
     "asyncio>=4.0.0",
     "python-dotenv>=1.1.1",
     "dynaconf>=3.2.11",
-    "mcp==1.13.1",
+    "mcp==1.14.0",
     "standard>=1.0.3",
 ]
 
@@ -30,5 +30,5 @@ packages = ["ccpragents"]
 
 [tool.uv]
 dev-dependencies = [
-    "ruff>=0.12.12",
+    "ruff>=0.13.0",
 ]
