@@ -2,6 +2,7 @@
 
 import difflib
 import re
+import threading
 from typing import Union
 from ccpragents.domain.services import DiffServiceInterface
 
@@ -23,14 +24,23 @@ class DiffUtils(DiffServiceInterface):
         """
         self._logger = logger
         self._logger_fetched = logger is not None
+        self._logger_lock = threading.Lock()
 
     def _get_logger(self):
-        """Get logger instance, lazily loading if needed to avoid circular imports."""
-        if not self._logger_fetched:
-            from ccpragents.infrastructure.logging.console_logger import get_logger
+        """Get logger instance, lazily loading if needed to avoid circular imports.
 
-            self._logger = get_logger()
-            self._logger_fetched = True
+        Uses double-checked locking pattern for thread safety.
+        """
+        if not self._logger_fetched:
+            with self._logger_lock:
+                # Double-check pattern to avoid race conditions
+                if not self._logger_fetched:
+                    from ccpragents.infrastructure.logging.console_logger import (
+                        get_logger,
+                    )
+
+                    self._logger = get_logger()
+                    self._logger_fetched = True
         return self._logger
 
     def build_full_file_patch(self, original_file_str: str, new_file_str: str) -> str:

@@ -7,6 +7,7 @@ It replaces both the basic RetryHandler and AdvancedRetryHandler with a single c
 
 import time
 import random
+import threading
 from typing import Any, Callable, Optional, Dict
 from enum import StrEnum
 from ccpragents.domain.services import RetryServiceInterface
@@ -88,6 +89,7 @@ class UnifiedRetryHandler(RetryServiceInterface):
         # Logger is optional - if not provided, we'll get it lazily to avoid circular imports
         self._logger = logger
         self._logger_fetched = logger is not None
+        self._logger_lock = threading.Lock()
 
         # Advanced features configuration
         self.use_advanced_features = use_advanced_features
@@ -425,12 +427,20 @@ class UnifiedRetryHandler(RetryServiceInterface):
             return "unknown"
 
     def _get_logger(self):
-        """Get logger instance, lazily loading if needed to avoid circular imports."""
-        if not self._logger_fetched:
-            from ccpragents.infrastructure.logging.console_logger import get_logger
+        """Get logger instance, lazily loading if needed to avoid circular imports.
 
-            self._logger = get_logger()
-            self._logger_fetched = True
+        Uses double-checked locking pattern for thread safety.
+        """
+        if not self._logger_fetched:
+            with self._logger_lock:
+                # Double-check pattern to avoid race conditions
+                if not self._logger_fetched:
+                    from ccpragents.infrastructure.logging.console_logger import (
+                        get_logger,
+                    )
+
+                    self._logger = get_logger()
+                    self._logger_fetched = True
         return self._logger
 
     def _log_retry_attempt(

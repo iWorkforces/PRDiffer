@@ -14,13 +14,21 @@ class SettingsService(SettingsServiceInterface, CachingMixin):
         settings: The Dynaconf instance for configuration management
     """
 
-    def __init__(self, settings_files: Optional[list] = None):
+    def __init__(
+        self,
+        settings_files: Optional[list] = None,
+        max_cache_size: int = 1000,
+        cache_ttl: int = 300,
+    ):
         """Initialize the settings service with configuration files.
 
         Args:
             settings_files: List of TOML files to load. Defaults to ['settings.toml', '.secrets.toml']
+            max_cache_size: Maximum number of cache entries (default: 1000)
+            cache_ttl: Default TTL for cached settings in seconds (default: 300 = 5 minutes)
         """
-        super().__init__()  # Initialize CachingMixin
+        # Initialize CachingMixin with configurable parameters
+        super().__init__(max_cache_size=max_cache_size, default_ttl=cache_ttl)
 
         if settings_files is None:
             settings_files = ["settings.toml", ".secrets.toml"]
