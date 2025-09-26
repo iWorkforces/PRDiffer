@@ -18,18 +18,8 @@ The main repository interface for pull request diff operations:
 - `pr_number`: Pull request number
 
 **Methods:**
-- `async get_pr_diff() -> ExtraPRDiff`: Get complete PR diff data with extended metadata
+- `async get_pr_diff() -> PRDiff`: Get complete PR diff data
 - `get_latest_commit_sha() -> str`: Get latest head commit SHA for cache invalidation
-
-### PromptRepositoryInterface (`prompt_repository.py`)
-
-The prompt repository interface for AI-powered prompt generation operations:
-
-**Methods:**
-- `async describe_pr_user_prompt(request: PromptRequest) -> str`: Generate PR description prompts
-- `async review_pr_user_prompt(request: PromptRequest) -> str`: Generate code review prompts
-- `async update_changelog_user_prompt(request: PromptRequest) -> str`: Generate changelog prompts
-- `async describe_pr_system_prompt() -> str`: Generate system role prompts
 
 ## Architecture Role
 
@@ -66,7 +56,7 @@ class GetPRDiffUseCase:
     def __init__(self, repository: PRDiffRepositoryInterface):
         self.repository = repository
     
-    async def execute(self) -> ExtraPRDiff:
+    async def execute(self) -> PRDiff:
         return await self.repository.get_pr_diff()
 
 # Infrastructure implements interface
@@ -88,7 +78,7 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
     def pr_number(self) -> int:
         return self._pr_number
     
-    async def get_pr_diff(self) -> ExtraPRDiff:
+    async def get_pr_diff(self) -> PRDiff:
         # Implementation using GitHub API
         pass
     

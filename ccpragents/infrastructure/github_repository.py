@@ -230,7 +230,7 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
         """Fetch PR diff information from GitHub.
 
         Returns:
-            ExtraPRDiff: A ExtraPRDiff object containing complete PR information including:
+            PRDiff: A PRDiff object containing complete PR information including:
                 - PR number, repository details
                 - Diff content with full file context
                 - Base and head commit SHAs

@@ -52,30 +52,12 @@ file_patch = FilePatchInfo(
 
 ### PRDiff Models (`pr_diff.py`)
 
-**PRDiff** (Base Model)
-A Pydantic model representing basic pull request information.
+**PRDiff**
+A Pydantic model representing pull request information.
 
 **Core Attributes:**
-- `pr_number: int` - Pull request number
-- `repo_owner: str` - Repository owner/organization
-- `repo_name: str` - Repository name
+- `commit_messages: Optional[str]` - Formatted commit messages from the PR
 - `diff_content: str` - Combined diff content for all files
-- `base_commit: str` - Base commit SHA
-- `head_commit: str` - Head commit SHA
-- `changed_files: int` - Number of files changed
-- `additions: int` - Total lines added
-- `deletions: int` - Total lines deleted
-
-**ExtraPRDiff** (Extended Model)
-Extends PRDiff with additional metadata and analysis.
-
-**Additional Attributes:**
-- `commit_messages: str` - Formatted commit messages from the PR
-- `reviewers: List[str]` - List of PR reviewers (optional)
-- `labels: List[str]` - PR labels (optional)
-- `milestone: Optional[str]` - Associated milestone (optional)
-- `created_at: Optional[str]` - PR creation timestamp (optional)
-- `updated_at: Optional[str]` - Last update timestamp (optional)
 
 **Pydantic Features:**
 - **Validation**: Automatic field validation and type checking
@@ -85,19 +67,9 @@ Extends PRDiff with additional metadata and analysis.
 
 **Usage Pattern:**
 ```python
-pr_diff = ExtraPRDiff(
-    pr_number=123,
-    repo_owner="owner",
-    repo_name="repository",
-    diff_content="file diffs...",
-    base_commit="abc123",
-    head_commit="def456",
-    changed_files=5,
-    additions=150,
-    deletions=75,
+pr_diff = PRDiff(
     commit_messages="1. Initial implementation\n2. Bug fixes",
-    reviewers=["reviewer1", "reviewer2"],
-    labels=["feature", "backend"]
+    diff_content="file diffs..."
 )
 ```
 
@@ -125,10 +97,9 @@ pr_diff = ExtraPRDiff(
 
 ### Composition Relationship
 ```
-ExtraPRDiff (Aggregate Root)
-    ├── Contains multiple FilePatchInfo objects
-    ├── Provides PR-level metadata
-    └── Coordinates file-level changes
+PRDiff (Aggregate Root)
+    ├── Contains diff content
+    └── Contains commit messages
 ```
 
 ### Data Flow
@@ -166,19 +137,19 @@ def validate_filename(cls, v):
 ### JSON Serialization
 ```python
 # Serialize to JSON
-pr_diff = ExtraPRDiff(...)
+pr_diff = PRDiff(...)
 json_data = pr_diff.model_dump()
 json_string = pr_diff.model_dump_json()
 
 # Deserialize from JSON
-pr_diff = ExtraPRDiff.model_validate(json_data)
-pr_diff = ExtraPRDiff.model_validate_json(json_string)
+pr_diff = PRDiff.model_validate(json_data)
+pr_diff = PRDiff.model_validate_json(json_string)
 ```
 
 ### Schema Generation
 ```python
 # Generate JSON schema
-schema = ExtraPRDiff.model_json_schema()
+schema = PRDiff.model_json_schema()
 ```
 
 ## Testing Strategies
@@ -213,9 +184,9 @@ def test_pr_diff_validation():
 ### Serialization Testing
 ```python
 def test_pr_diff_serialization():
-    original = ExtraPRDiff(...)
+    original = PRDiff(...)
     json_data = original.model_dump()
-    deserialized = ExtraPRDiff.model_validate(json_data)
+    deserialized = PRDiff.model_validate(json_data)
     assert original == deserialized
 ```
 
@@ -246,7 +217,7 @@ When modifying entities:
 ccpragents/domain/entities/
 ├── __init__.py              # Public API exports
 ├── file_patch.py           # FilePatchInfo and EDIT_TYPE
-└── pr_diff.py             # PRDiff and ExtraPRDiff models
+└── pr_diff.py             # PRDiff model
 ```
 
 ## Performance Considerations

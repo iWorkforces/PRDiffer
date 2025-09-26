@@ -18,14 +18,13 @@ ccpragents/
 │   ├── repositories/           # Repository interfaces
 │   ├── services/               # Domain service interfaces
 │   └── usecases/               # Business use cases
-│       └── prompt/            # AI prompt generation use cases
 ├── application/                # Application layer - orchestration
 │   └── mcp_server.py          # FastMCP server implementation
 └── infrastructure/            # Infrastructure layer - external integrations
     ├── github_repository.py   # GitHub API repository implementation
-    ├── prompt_repository.py   # AI prompt repository implementation
     ├── settings.py            # Configuration management
     ├── cache_service.py       # Caching infrastructure
+    ├── repository_cache_service.py  # Repository instance caching
     ├── github/               # GitHub-specific components
     ├── utils/                # Utility components
     └── logging/              # Logging infrastructure
@@ -35,10 +34,18 @@ ccpragents/
 
 ### Domain Layer (`domain/`)
 The innermost layer containing:
-- **Entities**: `FilePatchInfo`, `PRDiff`, `ExtraPRDiff`, `PromptRequest`, `PRDetails` - core business objects
-- **Repository Interfaces**: `PRDiffRepositoryInterface`, `PromptRepositoryInterface` - data access contracts
+- **Entities**: `FilePatchInfo`, `PRDiff` - core business objects
+- **Repository Interfaces**: `PRDiffRepositoryInterface` - data access contracts
 - **Service Interfaces**: Abstract contracts for external services
-- **Use Cases**: `GetPRDiffUseCase` and prompt use cases - business logic orchestration
+  - `CacheServiceInterface` - Caching abstraction
+  - `SettingsServiceInterface` - Configuration abstraction
+  - `LoggerServiceInterface` - Logging abstraction
+  - `RepositoryCacheServiceInterface` - Repository instance caching
+  - `DiffServiceInterface` - Diff operations abstraction
+  - `GitHubAPIServiceInterface` - GitHub API abstraction
+  - `PatternMatchingServiceInterface` - Pattern matching abstraction
+  - `RetryServiceInterface` - Retry logic abstraction
+- **Use Cases**: `GetPRDiffUseCase` - business logic orchestration
 - **No External Dependencies**: Pure business logic with no framework coupling
 
 ### Application Layer (`application/`)
@@ -50,10 +57,10 @@ The orchestration layer containing:
 
 ### Infrastructure Layer (`infrastructure/`)
 The outermost layer containing:
-- **External Integrations**: GitHub API, AI services, file system, network
+- **External Integrations**: GitHub API, file system, network
 - **Framework Dependencies**: FastMCP, PyGithub, Dynaconf
 - **Configuration**: Settings management and environment handling
-- **Cross-Cutting Concerns**: Logging, caching, retry logic, prompt engineering
+- **Cross-Cutting Concerns**: Logging, caching, retry logic
 
 ## Dependency Flow
 
@@ -109,8 +116,6 @@ Configuration is managed through `settings.toml` with environment overrides:
 ### Environment Variables
 - `ENV_FOR_DYNACONF`: Environment selection (development, production, testing)
 - `GITHUB_TOKEN`: GitHub personal access token
-- `AI_SERVICE_TOKEN`: AI service API token (if required)
-- `AI_SERVICE_URL`: AI service endpoint URL (if custom)
 - `TRANSPORT`: MCP transport mode (stdio, http, sse)
 - `PORT`: Server port for HTTP/SSE transports
 
@@ -122,11 +127,6 @@ Configuration is managed through `settings.toml` with environment overrides:
 - **Caching**: Commit-based caching with automatic invalidation
 - **File Filtering**: Configurable ignore patterns and valid extensions
 
-### AI-Powered Prompt Generation
-- **PR Description**: AI-generated pull request descriptions
-- **Code Review**: AI-powered code review and suggestions
-- **Changelog Updates**: Automated changelog entry generation
-- **System Prompts**: Context-aware system prompt engineering
 
 ### MCP Protocol Support
 - **Tool Exposure**: `get_pr_diff` tool for PR analysis
@@ -170,18 +170,16 @@ The `__init__.py` file provides:
 
 Example usage:
 ```python
-from ccpragents import GitHubPRDiffRepository, PromptRepository, get_settings_service
-from ccpragents.domain.usecases.prompt import DescribePRUserPromptUseCase
+from ccpragents.infrastructure import (
+    GitHubPRDiffRepository,
+    get_settings_service,
+    get_cache_service
+)
 from ccpragents.server import main
 
 # Use repository directly
 repo = GitHubPRDiffRepository("owner", "repo", 123)
 diff = await repo.get_pr_diff()
-
-# Use prompt use cases
-prompt_repo = PromptRepository()
-describer = DescribePRUserPromptUseCase(prompt_repo)
-prompt = await describer.execute(pr_details, commit_messages, diff_content)
 
 # Or run the MCP server
 if __name__ == "__main__":
@@ -195,19 +193,16 @@ if __name__ == "__main__":
 - **Dependencies**: Install via `uv install` or `pip install -r requirements.txt`
 - **Configuration**: Set up `settings.toml` and environment variables
 - **GitHub Token**: Configure authentication for private repositories
-- **AI Service**: Configure AI service credentials if using prompt features
 
 ### Production Configuration
 - **Logging**: Set appropriate log levels for production
 - **Rate Limits**: Configure GitHub API rate limits based on token type
-- **AI Rate Limits**: Configure AI service rate limits and quotas
 - **Caching**: Tune cache settings for optimal performance
 - **Resource Limits**: Set file processing limits based on available resources
 
 ### Monitoring and Maintenance
 - **Log Analysis**: Monitor logs for errors and performance issues
 - **API Usage**: Track GitHub API usage to avoid rate limits
-- **AI Service Usage**: Monitor AI API usage and costs
 - **Performance Metrics**: Monitor response times and resource usage
 - **Updates**: Keep dependencies updated for security and performance
 

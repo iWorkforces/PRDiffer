@@ -17,11 +17,11 @@ Abstract base class defining the contract for PR diff data retrieval. This inter
 ```python
 class PRDiffRepository(ABC):
     @abstractmethod
-    async def get_pr_diff(self) -> ExtraPRDiff:
+    async def get_pr_diff(self) -> PRDiff:
         """Fetch PR diff information from the source.
-        
+
         Returns:
-            ExtraPRDiff: Complete PR information with diff content
+            PRDiff: Complete PR information with diff content
         """
         pass
 ```
@@ -57,7 +57,7 @@ def __init__(self,
 3. **Repository Call**: Fetch fresh data if cache miss or invalid
 4. **Data Processing**: Apply business rules and transformations
 5. **Cache Update**: Store fresh data for future requests
-6. **Result Return**: Return processed ExtraPRDiff entity
+6. **Result Return**: Return processed PRDiff entity
 
 ## Architecture Patterns
 
@@ -95,7 +95,7 @@ use_case = GetPRDiffUseCase(mock_repository, mock_cache)
 The use case implements intelligent caching based on commit SHAs:
 
 ```python
-async def execute(self, use_cache: bool = True) -> ExtraPRDiff:
+async def execute(self, use_cache: bool = True) -> PRDiff:
     if not use_cache or not self.cache_service:
         return await self.repository.get_pr_diff()
     
@@ -167,7 +167,7 @@ async def test_get_pr_diff_cache_hit():
     mock_repo = Mock(spec=PRDiffRepository)
     mock_cache = Mock(spec=CacheServiceInterface)
     
-    expected_pr_diff = ExtraPRDiff(pr_number=123, ...)
+    expected_pr_diff = PRDiff(...)
     mock_cache.get.return_value = {
         'commit_sha': 'abc123',
         'pr_diff': expected_pr_diff
@@ -195,7 +195,7 @@ async def test_get_pr_diff_integration():
     use_case = GetPRDiffUseCase(repository, cache_service)
     result = await use_case.execute()
     
-    assert isinstance(result, ExtraPRDiff)
+    assert isinstance(result, PRDiff)
     assert result.pr_number == 1
     assert result.repo_owner == "test-owner"
     assert result.repo_name == "test-repo"
