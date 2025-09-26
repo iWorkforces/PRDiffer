@@ -55,30 +55,62 @@ uv run python tests/test_mcp_server.py
 The codebase follows Clean Architecture with these layers:
 
 ### Domain Layer (`ccpragents/domain/`)
-- **Entities**: Core business objects (`FilePatchInfo`, `ExtraPRDiff`)
-- **Use Cases**: Business logic (`GetPRDiffUseCase`)
+- **Entities**: Core business objects
+  - `FilePatchInfo`: File change representation with diff and metadata
+  - `PRDiff`: PR model with commit messages and diff content
+- **Use Cases**: Business logic orchestration
+  - `GetPRDiffUseCase`: Fetches and caches PR diff data
 - **Repository Interfaces**: Abstract data access contracts
-- **Service Interfaces**: Abstract service contracts (`CacheService`, `SettingsService`, `LoggerService`)
+  - `PRDiffRepositoryInterface`: Contract for PR diff retrieval
+- **Service Interfaces**: Abstract service contracts
+  - `CacheServiceInterface`: Caching abstraction
+  - `SettingsServiceInterface`: Configuration abstraction
+  - `LoggerServiceInterface`: Logging abstraction
+  - `RepositoryCacheServiceInterface`: Repository instance caching
 
 ### Infrastructure Layer (`ccpragents/infrastructure/`)
 
-- **GitHub Repository**: PyGithub integration for PR data retrieval (implements `PRDiffRepository`)
-- **GitHub Components**: Modular GitHub API components (`api_client`, `file_processor`, `diff_generator`, `parallel_executor`)
-- **Utility Components**: General-purpose utilities (`retry_handler`, `pattern_matcher`, `diff_utils`, `circuit_breaker`, `api_health_tracker`)
-- **Settings Service**: Configuration management using Dynaconf with manual caching (implements `SettingsServiceInterface`)
-- **Cache Service**: Commit-based caching with automatic invalidation (implements `CacheServiceInterface`)
-- **Logging**: Structured console logging (implements `LoggerServiceInterface`)
+- **GitHub Integration**:
+  - `GitHubPRDiffRepository`: PyGithub implementation of `PRDiffRepositoryInterface`
+  - **GitHub Components** (`github/`):
+    - `api_client`: GitHub API client wrapper
+    - `file_processor`: File filtering and validation
+    - `diff_generator`: Unified diff generation
+    - `parallel_executor`: Concurrent file processing
+- **Utility Components** (`utils/`):
+  - `retry_handler`: Exponential backoff with jitter
+  - `pattern_matcher`: File pattern matching with regex
+  - `diff_utils`: Core diff operations
+  - `circuit_breaker`: Failure prevention pattern
+  - `api_health_tracker`: API performance monitoring
+- **Services**:
+  - `SettingsService`: Dynaconf-based configuration with manual caching
+  - `CacheService`: In-memory commit-based caching
+  - `RepositoryCacheService`: Repository instance caching
+- **Logging** (`logging/`):
+  - `ConsoleLogger`: Structured console output with ANSI colors
 
 ### Application Layer (`ccpragents/application/`)
 
-- **MCP Server**: FastMCP server implementation exposing `get_pr_diff` tool
-  - Acts as composition root for dependency injection
-  - Manages service initialization (Settings, Cache, Logging)
-  - Injects dependencies into use cases
+- **MCP Server** (`mcp_server.py`):
+  - FastMCP server exposing `get_pr_diff` tool
+  - Tool registration and request handling
+  - Dependency injection orchestration
+- **Components** (`components/`):
+  - `URLValidator`: GitHub URL parsing and validation
+  - `RateLimiter`: Request rate limiting
+  - `MetricsTracker`: Performance metrics collection
+  - `PROperationHandler`: PR operations coordination
+  - `HealthMonitor`: Server health checks
+  - `ServerConfiguration`: Runtime configuration
+- **Factory** (`factory.py`):
+  - `create_mcp_server`: Component wiring and injection
+- **Interfaces** (`interfaces/`):
+  - Protocol definitions for component contracts
 
 ### Interface Layer
 
-- **Server Entry Point**: `ccpragents/server.py` - main server launcher
+- **Server Entry Point**: `ccpragents/server.py` - main server launcher with dependency initialization
 
 ## Key Technical Details
 
@@ -114,7 +146,7 @@ The codebase follows Clean Architecture with these layers:
 The MCP server supports multiple transport modes configured in `settings.toml`:
 
 - `stdio`: Standard input/output (default for MCP clients)
-- `http`: HTTP server mode  
+- `http`: HTTP server mode
 - `sse`: Server-sent events
 - `streamable-http`: FastMCP streamable HTTP
 
@@ -135,7 +167,7 @@ The MCP server supports multiple transport modes configured in `settings.toml`:
 - **Cache Service**: Singleton `CacheService` with commit-based invalidation logic
 
 **Cache Key Structure**: `"owner/repo/pr/number"`
-**Cache Data**: `{"commit_sha": str, "data": ExtraPRDiff, "timestamp": float}`
+**Cache Data**: `{"commit_sha": str, "data": PRDiff, "timestamp": float}`
 
 **Cache Flow**:
 

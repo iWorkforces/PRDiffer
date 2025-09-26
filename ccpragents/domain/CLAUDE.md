@@ -22,9 +22,8 @@ The domain layer contains the core business logic and entities, following Domain
   - `ai_file_summary`: Optional AI-generated summary
 
 **PRDiff Models** (`pr_diff.py`)
-- `PRDiff`: Base Pydantic model for PR information
-- `ExtraPRDiff`: Extended model with additional metadata (commit messages, reviewers, labels, milestone)
-- Both models use Pydantic for validation and serialization
+- `PRDiff`: Pydantic model for PR information with commit messages and diff content
+- Uses Pydantic for validation and serialization
 
 ### Repository Interfaces (`repositories/`)
 
@@ -48,7 +47,7 @@ The domain layer contains the core business logic and entities, following Domain
 ### When Modifying Entities
 - Keep entities pure - no external dependencies
 - Use dataclasses for simple data structures (FilePatchInfo)
-- Use Pydantic models for validation/serialization (PRDiff, ExtraPRDiff)
+- Use Pydantic models for validation/serialization (PRDiff)
 - Add new EDIT_TYPE values as needed for different change types
 
 ### When Adding Use Cases

@@ -33,7 +33,7 @@ class CacheServiceInterface(ABC):
             current_commit_sha: The current head commit SHA from GitHub
 
         Returns:
-            Optional[ExtraPRDiff]: Cached data if valid, None otherwise
+            Optional[PRDiff]: Cached data if valid, None otherwise
         """
         pass
 
@@ -44,7 +44,7 @@ class CacheServiceInterface(ABC):
         Args:
             cache_key: The cache key to store under
             commit_sha: The head commit SHA when this data was fetched
-            data: The ExtraPRDiff data to cache
+            data: The PRDiff data to cache
         """
         pass
 

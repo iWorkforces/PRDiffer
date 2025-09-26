@@ -29,13 +29,13 @@ The application layer orchestrates the use cases and provides the external inter
 - `pr_url`: Full GitHub PR URL (e.g., "https://github.com/owner/repo/pull/123")
 
 **Output:**
-- JSON string containing complete `ExtraPRDiff` data via `model_dump_json()`
+- JSON string containing complete `PRDiff` data via `model_dump_json()`
 
 **Processing Flow:**
 1. Parse and validate GitHub PR URL
 2. Create GitHubPRDiffRepository instance
 3. Execute GetPRDiffUseCase with repository
-4. Return serialized ExtraPRDiff result
+4. Return serialized PRDiff result
 
 ## Configuration Integration
 

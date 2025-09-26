@@ -42,7 +42,7 @@ class PRDiffRepositoryInterface(ABC):
         """Get the PR diff data.
 
         Returns:
-            ExtraPRDiff: The PR diff data
+            PRDiff: The PR diff data
         """
         pass
 

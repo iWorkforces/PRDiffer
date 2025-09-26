@@ -19,7 +19,7 @@ class GetPRDiffUseCase:
             use_cache: Whether to use caching (default: True)
 
         Returns:
-            ExtraPRDiff: The PR diff data
+            PRDiff: The PR diff data
         """
         if use_cache:
             cache_key = self._cache_service.get_cache_key(
