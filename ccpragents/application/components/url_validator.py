@@ -25,11 +25,15 @@ class URLValidator(URLValidatorProtocol):
 
         # Trim whitespace and validate basic URL structure
         pr_url = pr_url.strip()
-        if not pr_url.startswith('https://github.com/'):
-            raise ValueError("PR URL must be a GitHub URL starting with https://github.com/")
+        if not pr_url.startswith("https://github.com/"):
+            raise ValueError(
+                "PR URL must be a GitHub URL starting with https://github.com/"
+            )
 
         # Pattern to match GitHub PR URLs with validation
-        pattern = r"^https://github\.com/([a-zA-Z0-9_.-]+)/([a-zA-Z0-9_.-]+)/pull/(\d+)/?$"
+        pattern = (
+            r"^https://github\.com/([a-zA-Z0-9_.-]+)/([a-zA-Z0-9_.-]+)/pull/(\d+)/?$"
+        )
         match = re.match(pattern, pr_url)
 
         if not match:

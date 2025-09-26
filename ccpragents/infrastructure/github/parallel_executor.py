@@ -1,37 +1,35 @@
-'''Parallel execution service for batch processing operations.'''
+"""Parallel execution service for batch processing operations."""
+
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import List, Callable, Any, Optional, Dict
 from ccpragents.infrastructure.logging.console_logger import get_logger
 
 
 class ParallelExecutor:
-    '''Service for executing operations in parallel using thread pools.
+    """Service for executing operations in parallel using thread pools.
 
     This class provides utilities for parallel execution of file processing,
     API calls, and other operations that can benefit from concurrent execution.
-    '''
+    """
 
-    def __init__(self,
-                 max_workers: int = 4,
-                 timeout: Optional[float] = None,
-                 logger=None):
-        '''Initialize the parallel executor.
+    def __init__(
+        self, max_workers: int = 4, timeout: Optional[float] = None, logger=None
+    ):
+        """Initialize the parallel executor.
 
         Args:
             max_workers: Maximum number of worker threads
             timeout: Timeout for individual operations (optional)
             logger: Logger instance for logging operations
-        '''
+        """
         self.max_workers = max_workers
         self.timeout = timeout
         self._logger = logger or get_logger()
 
-    def execute_batch(self,
-                     func: Callable,
-                     items: List[Any],
-                     *args,
-                     **kwargs) -> List[Any]:
-        '''Execute a function on a list of items in parallel.
+    def execute_batch(
+        self, func: Callable, items: List[Any], *args, **kwargs
+    ) -> List[Any]:
+        """Execute a function on a list of items in parallel.
 
         Args:
             func: Function to execute for each item
@@ -41,7 +39,7 @@ class ParallelExecutor:
 
         Returns:
             List of results from the function calls
-        '''
+        """
         if not items:
             return []
 
@@ -67,15 +65,16 @@ class ParallelExecutor:
                     self._logger.error(f"Error processing item {item}: {e}")
 
         if failed_items:
-            self._logger.warning(f"Failed to process {len(failed_items)} items out of {len(items)}")
+            self._logger.warning(
+                f"Failed to process {len(failed_items)} items out of {len(items)}"
+            )
 
         return results
 
-    def execute_batch_with_context(self,
-                                  func: Callable,
-                                  items: List[Any],
-                                  context: Dict[str, Any]) -> List[Any]:
-        '''Execute a function on items with shared context in parallel.
+    def execute_batch_with_context(
+        self, func: Callable, items: List[Any], context: Dict[str, Any]
+    ) -> List[Any]:
+        """Execute a function on items with shared context in parallel.
 
         Args:
             func: Function to execute for each item (should accept item and context)
@@ -84,7 +83,7 @@ class ParallelExecutor:
 
         Returns:
             List of results from the function calls
-        '''
+        """
         if not items:
             return []
 
@@ -110,16 +109,20 @@ class ParallelExecutor:
                     self._logger.error(f"Error processing item {item}: {e}")
 
         if failed_items:
-            self._logger.warning(f"Failed to process {len(failed_items)} items out of {len(items)}")
+            self._logger.warning(
+                f"Failed to process {len(failed_items)} items out of {len(items)}"
+            )
 
         return results
 
-    def execute_mapped_batch(self,
-                            func_map: Dict[Any, Callable],
-                            items: List[Any],
-                            default_func: Optional[Callable] = None,
-                            **kwargs) -> List[Any]:
-        '''Execute different functions based on item type/key in parallel.
+    def execute_mapped_batch(
+        self,
+        func_map: Dict[Any, Callable],
+        items: List[Any],
+        default_func: Optional[Callable] = None,
+        **kwargs,
+    ) -> List[Any]:
+        """Execute different functions based on item type/key in parallel.
 
         Args:
             func_map: Dictionary mapping item keys/types to functions
@@ -129,7 +132,7 @@ class ParallelExecutor:
 
         Returns:
             List of results from the function calls
-        '''
+        """
         if not items:
             return []
 
@@ -142,7 +145,7 @@ class ParallelExecutor:
             for item in items:
                 # Determine which function to use
                 func = None
-                if hasattr(item, '__class__'):
+                if hasattr(item, "__class__"):
                     func = func_map.get(type(item))
                 if func is None:
                     func = func_map.get(item)
@@ -167,25 +170,28 @@ class ParallelExecutor:
                     self._logger.error(f"Error processing item {item}: {e}")
 
         if failed_items:
-            self._logger.warning(f"Failed to process {len(failed_items)} items out of {len(items)}")
+            self._logger.warning(
+                f"Failed to process {len(failed_items)} items out of {len(items)}"
+            )
 
         return results
 
     def get_stats(self) -> Dict[str, Any]:
-        '''Get executor statistics.
+        """Get executor statistics.
 
         Returns:
             Dictionary containing executor statistics
-        '''
+        """
         return {
-            'max_workers': self.max_workers,
-            'timeout': self.timeout,
+            "max_workers": self.max_workers,
+            "timeout": self.timeout,
         }
 
 
-def get_parallel_executor(max_workers: int = 4,
-                         timeout: Optional[float] = None) -> ParallelExecutor:
-    '''Get a configured parallel executor instance.
+def get_parallel_executor(
+    max_workers: int = 4, timeout: Optional[float] = None
+) -> ParallelExecutor:
+    """Get a configured parallel executor instance.
 
     Args:
         max_workers: Maximum number of worker threads
@@ -193,5 +199,5 @@ def get_parallel_executor(max_workers: int = 4,
 
     Returns:
         ParallelExecutor: Configured parallel executor instance
-    '''
+    """
     return ParallelExecutor(max_workers=max_workers, timeout=timeout)

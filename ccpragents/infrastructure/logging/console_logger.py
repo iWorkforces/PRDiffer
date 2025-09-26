@@ -7,52 +7,52 @@ from ccpragents.domain.services import LoggerServiceInterface, LogLevel
 
 
 class ConsoleLogger(LoggerServiceInterface):
-    '''Console-based logging service implementation.
+    """Console-based logging service implementation.
 
     This logger outputs messages to the console (stdout/stderr) with
     colored formatting and follows the application's logging configuration.
-    '''
+    """
 
     # ANSI color codes for console output
     COLORS = {
-        LogLevel.DEBUG: "\033[36m",     # Cyan
-        LogLevel.INFO: "\033[32m",      # Green
-        LogLevel.WARNING: "\033[33m",   # Yellow
-        LogLevel.ERROR: "\033[31m",     # Red
+        LogLevel.DEBUG: "\033[36m",  # Cyan
+        LogLevel.INFO: "\033[32m",  # Green
+        LogLevel.WARNING: "\033[33m",  # Yellow
+        LogLevel.ERROR: "\033[31m",  # Red
         LogLevel.CRITICAL: "\033[35m",  # Magenta
     }
     RESET = "\033[0m"
 
     def __init__(self):
-        '''Initialize the console logger with settings from configuration.'''
+        """Initialize the console logger with settings from configuration."""
         self.settings_service = get_settings_service()
         self._configure_logger()
 
     def _configure_logger(self) -> None:
-        '''Configure the logger based on application settings.'''
+        """Configure the logger based on application settings."""
         app_settings = self.settings_service.get_app_settings()
-        self.enabled = app_settings.get('logging_enabled', True)
+        self.enabled = app_settings.get("logging_enabled", True)
 
         # Map string log level to LogLevel enum
-        log_level_str = app_settings.get('log_level', 'INFO').upper()
+        log_level_str = app_settings.get("log_level", "INFO").upper()
         self.log_level = getattr(LogLevel, log_level_str, LogLevel.INFO)
 
         # Set up Python logging if needed
         logging.basicConfig(
             level=logging.INFO,
-            format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-            stream=sys.stdout
+            format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+            stream=sys.stdout,
         )
 
     def should_log(self, level: LogLevel) -> bool:
-        '''Check if a message of the given level should be logged.
+        """Check if a message of the given level should be logged.
 
         Args:
             level: The log level to check
 
         Returns:
             bool: True if the level should be logged, False otherwise
-        '''
+        """
         if not self.enabled:
             return False
 
@@ -71,63 +71,63 @@ class ConsoleLogger(LoggerServiceInterface):
         return message_level_value >= current_level_value
 
     def debug(self, message: str, **kwargs) -> None:
-        '''Log a debug level message.
+        """Log a debug level message.
 
         Args:
             message: The message to log
             **kwargs: Additional context data
-        '''
+        """
         if self.should_log(LogLevel.DEBUG):
             self._log(LogLevel.DEBUG, message, kwargs)
 
     def info(self, message: str, **kwargs) -> None:
-        '''Log an info level message.
+        """Log an info level message.
 
         Args:
             message: The message to log
             **kwargs: Additional context data
-        '''
+        """
         if self.should_log(LogLevel.INFO):
             self._log(LogLevel.INFO, message, kwargs)
 
     def warning(self, message: str, **kwargs) -> None:
-        '''Log a warning level message.
+        """Log a warning level message.
 
         Args:
             message: The message to log
             **kwargs: Additional context data
-        '''
+        """
         if self.should_log(LogLevel.WARNING):
             self._log(LogLevel.WARNING, message, kwargs)
 
     def error(self, message: str, **kwargs) -> None:
-        '''Log an error level message.
+        """Log an error level message.
 
         Args:
             message: The message to log
             **kwargs: Additional context data
-        '''
+        """
         if self.should_log(LogLevel.ERROR):
             self._log(LogLevel.ERROR, message, kwargs)
 
     def critical(self, message: str, **kwargs) -> None:
-        '''Log a critical level message.
+        """Log a critical level message.
 
         Args:
             message: The message to log
             **kwargs: Additional context data
-        '''
+        """
         if self.should_log(LogLevel.CRITICAL):
             self._log(LogLevel.CRITICAL, message, kwargs)
 
     def _log(self, level: LogLevel, message: str, context: Dict[str, Any]) -> None:
-        '''Internal method to format and output log messages.
+        """Internal method to format and output log messages.
 
         Args:
             level: The log level
             message: The message to log
             context: Additional context data
-        '''
+        """
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         color = self.COLORS.get(level, self.RESET)
 
@@ -139,7 +139,9 @@ class ConsoleLogger(LoggerServiceInterface):
             formatted_message = message
 
         # Output to console with color and timestamp
-        log_line = f"{color}{timestamp} - {level.value} - {formatted_message}{self.RESET}"
+        log_line = (
+            f"{color}{timestamp} - {level.value} - {formatted_message}{self.RESET}"
+        )
 
         # Use stderr for errors and critical messages
         if level in [LogLevel.ERROR, LogLevel.CRITICAL]:
@@ -153,11 +155,11 @@ _logger_instance: Optional[ConsoleLogger] = None
 
 
 def get_logger() -> ConsoleLogger:
-    '''Get or create the global logger instance.
+    """Get or create the global logger instance.
 
     Returns:
         ConsoleLogger: The global logger instance
-    '''
+    """
     global _logger_instance
     if _logger_instance is None:
         _logger_instance = ConsoleLogger()

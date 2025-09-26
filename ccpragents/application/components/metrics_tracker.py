@@ -29,7 +29,9 @@ class MetricsTracker(MetricsTrackerProtocol):
         # Operation-specific metrics
         self._operation_metrics: Dict[str, Dict[str, Any]] = {}
 
-    def track_request(self, operation: str, success: bool, execution_time: float) -> None:
+    def track_request(
+        self, operation: str, success: bool, execution_time: float
+    ) -> None:
         """Track a request for metrics collection.
 
         Args:
@@ -51,8 +53,8 @@ class MetricsTracker(MetricsTrackerProtocol):
                 "successful_requests": 0,
                 "failed_requests": 0,
                 "total_execution_time": 0.0,
-                "min_execution_time": float('inf'),
-                "max_execution_time": 0.0
+                "min_execution_time": float("inf"),
+                "max_execution_time": 0.0,
             }
 
         op_metrics = self._operation_metrics[operation]
@@ -64,8 +66,12 @@ class MetricsTracker(MetricsTrackerProtocol):
             op_metrics["failed_requests"] += 1
 
         op_metrics["total_execution_time"] += execution_time
-        op_metrics["min_execution_time"] = min(op_metrics["min_execution_time"], execution_time)
-        op_metrics["max_execution_time"] = max(op_metrics["max_execution_time"], execution_time)
+        op_metrics["min_execution_time"] = min(
+            op_metrics["min_execution_time"], execution_time
+        )
+        op_metrics["max_execution_time"] = max(
+            op_metrics["max_execution_time"], execution_time
+        )
 
         self._logger.debug(
             f"Request tracked - operation: {operation}, success: {success}, execution_time: {execution_time:.3f}s, total_requests: {self._total_requests}"
@@ -96,18 +102,22 @@ class MetricsTracker(MetricsTrackerProtocol):
             "successful_requests": self._successful_requests,
             "failed_requests": self._failed_requests,
             "success_rate": self._calculate_success_rate(),
-            "operations": {}
+            "operations": {},
         }
 
         # Add operation-specific metrics with calculated averages
         for operation, op_metrics in self._operation_metrics.items():
             avg_execution_time = 0.0
             if op_metrics["total_requests"] > 0:
-                avg_execution_time = op_metrics["total_execution_time"] / op_metrics["total_requests"]
+                avg_execution_time = (
+                    op_metrics["total_execution_time"] / op_metrics["total_requests"]
+                )
 
             success_rate = 0.0
             if op_metrics["total_requests"] > 0:
-                success_rate = (op_metrics["successful_requests"] / op_metrics["total_requests"]) * 100
+                success_rate = (
+                    op_metrics["successful_requests"] / op_metrics["total_requests"]
+                ) * 100
 
             metrics["operations"][operation] = {
                 "total_requests": op_metrics["total_requests"],
@@ -115,8 +125,10 @@ class MetricsTracker(MetricsTrackerProtocol):
                 "failed_requests": op_metrics["failed_requests"],
                 "success_rate": round(success_rate, 2),
                 "avg_execution_time": round(avg_execution_time, 3),
-                "min_execution_time": round(op_metrics["min_execution_time"], 3) if op_metrics["min_execution_time"] != float('inf') else 0.0,
-                "max_execution_time": round(op_metrics["max_execution_time"], 3)
+                "min_execution_time": round(op_metrics["min_execution_time"], 3)
+                if op_metrics["min_execution_time"] != float("inf")
+                else 0.0,
+                "max_execution_time": round(op_metrics["max_execution_time"], 3),
             }
 
         return metrics

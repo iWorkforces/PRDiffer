@@ -20,7 +20,9 @@ class RateLimiter(RateLimiterProtocol):
         # Rate limiting configuration
         self._rate_limit_requests = 100  # Max requests per minute
         self._rate_limit_window = 60  # 60 second window
-        self._request_timestamps: List[float] = []  # Track request timestamps for rate limiting
+        self._request_timestamps: List[
+            float
+        ] = []  # Track request timestamps for rate limiting
 
     def check_rate_limit(self, identifier: str) -> bool:
         """Check if the current request exceeds rate limits.
@@ -35,7 +37,8 @@ class RateLimiter(RateLimiterProtocol):
 
         # Remove timestamps outside the rate limit window
         self._request_timestamps = [
-            ts for ts in self._request_timestamps
+            ts
+            for ts in self._request_timestamps
             if current_time - ts < self._rate_limit_window
         ]
 
@@ -72,7 +75,8 @@ class RateLimiter(RateLimiterProtocol):
 
         # Clean up old timestamps
         self._request_timestamps = [
-            ts for ts in self._request_timestamps
+            ts
+            for ts in self._request_timestamps
             if current_time - ts < self._rate_limit_window
         ]
 
@@ -88,5 +92,7 @@ class RateLimiter(RateLimiterProtocol):
             "max_requests": self._rate_limit_requests,
             "window_seconds": self._rate_limit_window,
             "current_requests": self.get_current_rate(),
-            "remaining_requests": max(0, self._rate_limit_requests - self.get_current_rate())
+            "remaining_requests": max(
+                0, self._rate_limit_requests - self.get_current_rate()
+            ),
         }
