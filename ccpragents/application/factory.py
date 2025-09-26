@@ -12,16 +12,6 @@ from .components.pr_operation_handler import PROperationHandler
 from .components.health_monitor import HealthMonitor
 from .components.server_configuration import ServerConfiguration
 
-from ccpragents.domain.usecases.prompt import (
-    DescribePRUserPromptUseCase,
-    ReviewPRUserPromptUseCase,
-    UpdateChangelogUserPromptUseCase,
-    DescribePRSystemPromptUseCase,
-    ReviewPRSystemPromptUseCase,
-    UpdateChangelogSystemPromptUseCase,
-    ApprovePRUserPromptUseCase,
-    ApprovePRSystemPromptUseCase,
-)
 from ccpragents.domain.services.settings import SettingsServiceInterface
 from ccpragents.domain.services.cache import CacheServiceInterface
 from ccpragents.domain.services.repository_cache import RepositoryCacheServiceInterface
@@ -33,14 +23,6 @@ def create_mcp_server(
     settings_service: SettingsServiceInterface,
     cache_service: CacheServiceInterface,
     repository_cache_service: RepositoryCacheServiceInterface,
-    describe_pr_user_prompt_use_case: DescribePRUserPromptUseCase,
-    describe_pr_system_prompt_use_case: DescribePRSystemPromptUseCase,
-    review_pr_user_prompt_use_case: ReviewPRUserPromptUseCase,
-    review_pr_system_prompt_use_case: ReviewPRSystemPromptUseCase,
-    update_changelog_user_prompt_use_case: UpdateChangelogUserPromptUseCase,
-    update_changelog_system_prompt_use_case: UpdateChangelogSystemPromptUseCase,
-    approve_pr_user_prompt_use_case: ApprovePRUserPromptUseCase,
-    approve_pr_system_prompt_use_case: ApprovePRSystemPromptUseCase,
     logger: Optional[LoggerServiceInterface] = None,
 ) -> FastMCPServer:
     """Create FastMCPServer with all dependencies properly injected.
@@ -54,14 +36,6 @@ def create_mcp_server(
         settings_service: Settings service for configuration
         cache_service: Cache service for storing PR data
         repository_cache_service: Repository cache service
-        describe_pr_user_prompt_use_case: Use case for generating describe prompts
-        describe_pr_system_prompt_use_case: Use case for system prompts
-        review_pr_user_prompt_use_case: Use case for generating review prompts
-        review_pr_system_prompt_use_case: Use case for review system prompts
-        update_changelog_user_prompt_use_case: Use case for changelog prompts
-        update_changelog_system_prompt_use_case: Use case for changelog system prompts
-        approve_pr_user_prompt_use_case: Use case for approval prompts
-        approve_pr_system_prompt_use_case: Use case for approval system prompts
         logger: Optional LoggerServiceInterface instance
 
     Returns:
@@ -81,14 +55,6 @@ def create_mcp_server(
         github_repository_class=github_repository_class,
         cache_service=cache_service,
         repository_cache_service=repository_cache_service,
-        describe_pr_user_prompt_use_case=describe_pr_user_prompt_use_case,
-        describe_pr_system_prompt_use_case=describe_pr_system_prompt_use_case,
-        review_pr_user_prompt_use_case=review_pr_user_prompt_use_case,
-        review_pr_system_prompt_use_case=review_pr_system_prompt_use_case,
-        update_changelog_user_prompt_use_case=update_changelog_user_prompt_use_case,
-        update_changelog_system_prompt_use_case=update_changelog_system_prompt_use_case,
-        approve_pr_user_prompt_use_case=approve_pr_user_prompt_use_case,
-        approve_pr_system_prompt_use_case=approve_pr_system_prompt_use_case,
         logger=logger,
     )
 
@@ -103,14 +69,6 @@ def create_mcp_server(
         cache_service=cache_service,
         repository_cache_service=repository_cache_service,
         github_repository_class=github_repository_class,
-        describe_pr_user_prompt_use_case=describe_pr_user_prompt_use_case,
-        describe_pr_system_prompt_use_case=describe_pr_system_prompt_use_case,
-        review_pr_user_prompt_use_case=review_pr_user_prompt_use_case,
-        review_pr_system_prompt_use_case=review_pr_system_prompt_use_case,
-        update_changelog_user_prompt_use_case=update_changelog_user_prompt_use_case,
-        update_changelog_system_prompt_use_case=update_changelog_system_prompt_use_case,
-        approve_pr_user_prompt_use_case=approve_pr_user_prompt_use_case,
-        approve_pr_system_prompt_use_case=approve_pr_system_prompt_use_case,
         logger=logger,
         # Injected components
         url_validator=url_validator,
@@ -127,14 +85,6 @@ def create_mcp_server_legacy(
     settings_service: SettingsServiceInterface,
     cache_service: CacheServiceInterface,
     repository_cache_service: RepositoryCacheServiceInterface,
-    describe_pr_user_prompt_use_case: DescribePRUserPromptUseCase,
-    describe_pr_system_prompt_use_case: DescribePRSystemPromptUseCase,
-    review_pr_user_prompt_use_case: ReviewPRUserPromptUseCase,
-    review_pr_system_prompt_use_case: ReviewPRSystemPromptUseCase,
-    update_changelog_user_prompt_use_case: UpdateChangelogUserPromptUseCase,
-    update_changelog_system_prompt_use_case: UpdateChangelogSystemPromptUseCase,
-    approve_pr_user_prompt_use_case: ApprovePRUserPromptUseCase,
-    approve_pr_system_prompt_use_case: ApprovePRSystemPromptUseCase,
     logger: Optional[logging.Logger] = None,
 ) -> FastMCPServer:
     """Create FastMCPServer using the legacy constructor (for backward compatibility).
@@ -161,13 +111,5 @@ def create_mcp_server_legacy(
         cache_service=cache_service,
         repository_cache_service=repository_cache_service,
         github_repository_class=github_repository_class,
-        describe_pr_user_prompt_use_case=describe_pr_user_prompt_use_case,
-        describe_pr_system_prompt_use_case=describe_pr_system_prompt_use_case,
-        review_pr_user_prompt_use_case=review_pr_user_prompt_use_case,
-        review_pr_system_prompt_use_case=review_pr_system_prompt_use_case,
-        update_changelog_user_prompt_use_case=update_changelog_user_prompt_use_case,
-        update_changelog_system_prompt_use_case=update_changelog_system_prompt_use_case,
-        approve_pr_user_prompt_use_case=approve_pr_user_prompt_use_case,
-        approve_pr_system_prompt_use_case=approve_pr_system_prompt_use_case,
         logger=logger_service,
     )

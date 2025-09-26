@@ -3,16 +3,6 @@ from typing import Optional, Callable
 from fastmcp import FastMCP
 from ccpragents.domain.entities.pr_diff import PRDiff
 from ccpragents.domain.usecases import GetPRDiffUseCase
-from ccpragents.domain.usecases.prompt import (
-    DescribePRUserPromptUseCase,
-    ReviewPRUserPromptUseCase,
-    UpdateChangelogUserPromptUseCase,
-    DescribePRSystemPromptUseCase,
-    ReviewPRSystemPromptUseCase,
-    UpdateChangelogSystemPromptUseCase,
-    ApprovePRUserPromptUseCase,
-    ApprovePRSystemPromptUseCase,
-)
 from ccpragents.domain.services.settings import SettingsServiceInterface
 from ccpragents.domain.services.cache import CacheServiceInterface
 from ccpragents.domain.services.repository_cache import RepositoryCacheServiceInterface
@@ -43,10 +33,6 @@ class FastMCPServer:
 
     This server provides tools for retrieving pull request information:
     - get_pr_diff: Fetches PR diff information including file statistics
-    - describe_pr: AI-powered PR description generation with optimized single-step workflow
-
-    The describe_pr tool automatically fetches PR data when provided with only a URL,
-    eliminating the need for separate get_pr_diff calls and reducing API overhead.
 
     Attributes:
         mcp: The FastMCP instance for tool registration and server management
@@ -61,14 +47,6 @@ class FastMCPServer:
         repository_cache_service: RepositoryCacheServiceInterface,
         logger: LoggerServiceInterface,
         github_repository_class: Callable[[str, str, int], PRDiffRepositoryInterface],
-        describe_pr_user_prompt_use_case: DescribePRUserPromptUseCase,
-        review_pr_user_prompt_use_case: ReviewPRUserPromptUseCase,
-        update_changelog_user_prompt_use_case: UpdateChangelogUserPromptUseCase,
-        describe_pr_system_prompt_use_case: DescribePRSystemPromptUseCase,
-        review_pr_system_prompt_use_case: ReviewPRSystemPromptUseCase,
-        update_changelog_system_prompt_use_case: UpdateChangelogSystemPromptUseCase,
-        approve_pr_user_prompt_use_case: ApprovePRUserPromptUseCase,
-        approve_pr_system_prompt_use_case: ApprovePRSystemPromptUseCase,
         # New component dependencies (optional for backward compatibility)
         url_validator: Optional[URLValidatorProtocol] = None,
         rate_limiter: Optional[RateLimiterProtocol] = None,
@@ -85,34 +63,12 @@ class FastMCPServer:
             repository_cache_service: Repository cache service instance implementing RepositoryCacheServiceInterface
             logger: Logger instance implementing LoggerServiceInterface
             github_repository_class: GitHub repository class callable that creates PRDiffRepositoryInterface instances
-            describe_pr_user_prompt_use_case: Use case for PR description user prompts
-            review_pr_user_prompt_use_case: Use case for PR review user prompts
-            update_changelog_user_prompt_use_case: Use case for changelog updates user prompts
-            describe_pr_system_prompt_use_case: Use case for PR description system prompts
-            review_pr_system_prompt_use_case: Use case for PR review system prompts
-            update_changelog_system_prompt_use_case: Use case for changelog updates system prompts
-            approve_pr_user_prompt_use_case: Use case for PR approval user prompts
-            approve_pr_system_prompt_use_case: Use case for PR approval system prompts
         """
         self._settings_service = settings_service
         self._cache_service = cache_service
         self._repository_cache_service = repository_cache_service
         self._logger = logger
         self._github_repository_class = github_repository_class
-
-        # Initialize prompt use cases
-        self._describe_pr_user_prompt_use_case = describe_pr_user_prompt_use_case
-        self._review_pr_user_prompt_use_case = review_pr_user_prompt_use_case
-        self._update_changelog_user_prompt_use_case = (
-            update_changelog_user_prompt_use_case
-        )
-        self._describe_pr_system_prompt_use_case = describe_pr_system_prompt_use_case
-        self._review_pr_system_prompt_use_case = review_pr_system_prompt_use_case
-        self._update_changelog_system_prompt_use_case = (
-            update_changelog_system_prompt_use_case
-        )
-        self._approve_pr_user_prompt_use_case = approve_pr_user_prompt_use_case
-        self._approve_pr_system_prompt_use_case = approve_pr_system_prompt_use_case
 
         # Initialize components (use injected ones or create defaults for backward compatibility)
         # Cast logger to standard logging.Logger for component compatibility
@@ -130,14 +86,6 @@ class FastMCPServer:
             github_repository_class=github_repository_class,
             cache_service=cache_service,
             repository_cache_service=repository_cache_service,
-            describe_pr_user_prompt_use_case=describe_pr_user_prompt_use_case,
-            describe_pr_system_prompt_use_case=describe_pr_system_prompt_use_case,
-            review_pr_user_prompt_use_case=review_pr_user_prompt_use_case,
-            review_pr_system_prompt_use_case=review_pr_system_prompt_use_case,
-            update_changelog_user_prompt_use_case=update_changelog_user_prompt_use_case,
-            update_changelog_system_prompt_use_case=update_changelog_system_prompt_use_case,
-            approve_pr_user_prompt_use_case=approve_pr_user_prompt_use_case,
-            approve_pr_system_prompt_use_case=approve_pr_system_prompt_use_case,
             logger=logger_impl,
         )
 
