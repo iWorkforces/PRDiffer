@@ -28,7 +28,7 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 packages = ["ccpragents"]
 
-[tool.uv]
-dev-dependencies = [
+[dependency-groups]
+dev = [
     "ruff>=0.13.2",
 ]
