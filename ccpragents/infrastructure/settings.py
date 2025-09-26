@@ -1,24 +1,35 @@
 from typing import Optional, Dict, Any, cast
 from dynaconf import Dynaconf
 from ccpragents.domain.services import SettingsServiceInterface
+from ccpragents.infrastructure.utils.cache_decorator import CachingMixin, cached_method
 
 
-class SettingsService(SettingsServiceInterface):
+class SettingsService(SettingsServiceInterface, CachingMixin):
     """Settings service for reading TOML configuration files with Dynaconf and caching.
 
     This service provides a centralized way to access application settings with
-    built-in caching for maximum performance.
+    built-in caching for maximum performance using the CachingMixin decorator pattern.
 
     Attributes:
         settings: The Dynaconf instance for configuration management
     """
 
-    def __init__(self, settings_files: Optional[list] = None):
+    def __init__(
+        self,
+        settings_files: Optional[list] = None,
+        max_cache_size: int = 1000,
+        cache_ttl: int = 300,
+    ):
         """Initialize the settings service with configuration files.
 
         Args:
             settings_files: List of TOML files to load. Defaults to ['settings.toml', '.secrets.toml']
+            max_cache_size: Maximum number of cache entries (default: 1000)
+            cache_ttl: Default TTL for cached settings in seconds (default: 300 = 5 minutes)
         """
+        # Initialize CachingMixin with configurable parameters
+        super().__init__(max_cache_size=max_cache_size, default_ttl=cache_ttl)
+
         if settings_files is None:
             settings_files = ["settings.toml", ".secrets.toml"]
 
@@ -29,12 +40,7 @@ class SettingsService(SettingsServiceInterface):
             load_dotenv=True,
         )
 
-        # Manual caching to avoid @lru_cache issues with unhashable instance
-        self._cache = {}
-        self._github_settings_cache = None
-        self._cache_settings_cache = None
-        self._app_settings_cache = None
-
+    @cached_method()
     def get(self, key: str, default: Any = None) -> Any:
         """Get a configuration value with caching.
 
@@ -45,82 +51,74 @@ class SettingsService(SettingsServiceInterface):
         Returns:
             Any: The configuration value or default
         """
-        # Make cache key hashable by converting lists to tuples
-        hashable_default = tuple(default) if isinstance(default, list) else default
-        cache_key = (key, hashable_default)
-        if cache_key not in self._cache:
-            # Use cast to tell type checker that settings.get returns the expected type
-            self._cache[cache_key] = cast(Any, self.settings.get(key, default))  # type: ignore[misc]
-        return self._cache[cache_key]
+        # Use cast to tell type checker that settings.get returns the expected type
+        return cast(Any, self.settings.get(key, default))  # type: ignore[misc]
 
+    @cached_method()
     def get_github_settings(self) -> Dict[str, Any]:
         """Get GitHub-related settings with caching.
 
         Returns:
             Dict[str, Any]: GitHub configuration including token, rate limits, etc.
         """
-        if self._github_settings_cache is None:
-            # Get settings from current environment, fall back to default environment if not found
-            def get_with_fallback(key, default=None):
-                value = self.get(key)
-                if value is None and hasattr(self.settings, "from_env"):
-                    # Fall back to default environment
-                    default_settings = cast(Dynaconf, self.settings.from_env("default"))  # type: ignore[misc]
-                    value = cast(Any, default_settings.get(key, default))  # type: ignore[misc]
-                return value or default
 
-            self._github_settings_cache = {
-                "token": self.get("github_token") or self.get("github.token"),
-                "rate_limit": get_with_fallback("github.rate_limit", 5000),
-                "timeout": get_with_fallback("github.timeout", 30),
-                "max_retries": get_with_fallback("github.max_retries", 3),
-                "retry_delay": get_with_fallback("github.retry_delay", 1),
-                "ignore_patterns": tuple(
-                    get_with_fallback("github.ignore_patterns", [])
-                ),
-                "valid_extensions": tuple(
-                    get_with_fallback("github.valid_extensions", [])
-                ),
-            }
-        return self._github_settings_cache
+        # Get settings from current environment, fall back to default environment if not found
+        def get_with_fallback(key, default=None):
+            value = self.get(key)
+            if value is None and hasattr(self.settings, "from_env"):
+                # Fall back to default environment
+                default_settings = cast(Dynaconf, self.settings.from_env("default"))  # type: ignore[misc]
+                value = cast(Any, default_settings.get(key, default))  # type: ignore[misc]
+            return value or default
 
+        return {
+            "token": self.get("github_token") or self.get("github.token"),
+            "rate_limit": get_with_fallback("github.rate_limit", 5000),
+            "timeout": get_with_fallback("github.timeout", 30),
+            "max_retries": get_with_fallback("github.max_retries", 3),
+            "retry_delay": get_with_fallback("github.retry_delay", 1),
+            "ignore_patterns": tuple(get_with_fallback("github.ignore_patterns", [])),
+            "valid_extensions": tuple(get_with_fallback("github.valid_extensions", [])),
+        }
+
+    @cached_method()
     def get_cache_settings(self) -> Dict[str, Any]:
         """Get cache-related settings with caching.
 
         Returns:
             Dict[str, Any]: Cache configuration including TTL and size limits
         """
-        if self._cache_settings_cache is None:
-            self._cache_settings_cache = {
-                "ttl": self.get("cache.ttl", 300),  # 5 minutes default
-                "max_size": self.get("cache.max_size", 1000),
-                "enabled": self.get("cache.enabled", True),
-            }
-        return self._cache_settings_cache
+        return {
+            "ttl": self.get("cache.ttl", 300),  # 5 minutes default
+            "max_size": self.get("cache.max_size", 1000),
+            "enabled": self.get("cache.enabled", True),
+        }
 
+    @cached_method()
     def get_app_settings(self) -> Dict[str, Any]:
         """Get general application settings with caching.
 
         Returns:
             Dict[str, Any]: Application configuration
         """
-        if self._app_settings_cache is None:
-            self._app_settings_cache = {
-                "debug": self.get("app.debug", False),
-                "log_level": self.get("app.log_level", "INFO"),
-                "max_files_allowed": self.get("app.max_files_allowed", 50),
-                "incremental_mode": self.get("app.incremental_mode", False),
-                "logging_enabled": self.get("app.logging_enabled", True),
-                "log_format": self.get("app.log_format", "simple"),
-            }
-        return self._app_settings_cache
+        return {
+            "debug": self.get("app.debug", False),
+            "log_level": self.get("app.log_level", "INFO"),
+            "max_files_allowed": self.get("app.max_files_allowed", 50),
+            "incremental_mode": self.get("app.incremental_mode", False),
+            "logging_enabled": self.get("app.logging_enabled", True),
+            "log_format": self.get("app.log_format", "simple"),
+        }
 
-    def clear_cache(self):
-        """Clear all cached settings."""
-        self._cache.clear()
-        self._github_settings_cache = None
-        self._cache_settings_cache = None
-        self._app_settings_cache = None
+    # Explicitly override clear_cache to satisfy the abstract method requirement
+    # Even though CachingMixin provides this, we need to make it explicit for ABC
+    def clear_cache(self) -> None:
+        """Clear all cached settings.
+
+        This method is provided by CachingMixin but we need to explicitly
+        override it here to satisfy the SettingsServiceInterface abstract requirement.
+        """
+        super().clear_cache()  # Call the CachingMixin implementation
 
 
 # Global settings service instance
