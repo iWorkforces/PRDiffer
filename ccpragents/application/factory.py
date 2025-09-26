@@ -20,7 +20,7 @@ from ccpragents.domain.usecases.prompt import (
     ReviewPRSystemPromptUseCase,
     UpdateChangelogSystemPromptUseCase,
     ApprovePRUserPromptUseCase,
-    ApprovePRSystemPromptUseCase
+    ApprovePRSystemPromptUseCase,
 )
 from ccpragents.domain.services.settings import SettingsServiceInterface
 from ccpragents.domain.services.cache import CacheServiceInterface
@@ -89,14 +89,12 @@ def create_mcp_server(
         update_changelog_system_prompt_use_case=update_changelog_system_prompt_use_case,
         approve_pr_user_prompt_use_case=approve_pr_user_prompt_use_case,
         approve_pr_system_prompt_use_case=approve_pr_system_prompt_use_case,
-        logger=logger
+        logger=logger,
     )
 
     # Create health monitor with dependencies
     health_monitor = HealthMonitor(
-        metrics_tracker=metrics_tracker,
-        rate_limiter=rate_limiter,
-        logger=logger
+        metrics_tracker=metrics_tracker, rate_limiter=rate_limiter, logger=logger
     )
 
     # Create and return the main server with all components injected

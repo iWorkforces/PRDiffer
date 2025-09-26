@@ -20,8 +20,9 @@ from domain.usecases.prompt import (
     ReviewPRSystemPromptUseCase,
     UpdateChangelogSystemPromptUseCase,
     ApprovePRUserPromptUseCase,
-    ApprovePRSystemPromptUseCase
+    ApprovePRSystemPromptUseCase,
 )
+
 
 def main():
     print("🚀 Starting MCP Server For Fetching GitHub PR's Diff...")
@@ -37,10 +38,16 @@ def main():
     prompt_repository = get_prompt_repository()
     describe_pr_user_prompt_use_case = DescribePRUserPromptUseCase(prompt_repository)
     review_pr_user_prompt_use_case = ReviewPRUserPromptUseCase(prompt_repository)
-    update_changelog_user_prompt_use_case = UpdateChangelogUserPromptUseCase(prompt_repository)
-    describe_pr_system_prompt_use_case = DescribePRSystemPromptUseCase(prompt_repository)
+    update_changelog_user_prompt_use_case = UpdateChangelogUserPromptUseCase(
+        prompt_repository
+    )
+    describe_pr_system_prompt_use_case = DescribePRSystemPromptUseCase(
+        prompt_repository
+    )
     review_pr_system_prompt_use_case = ReviewPRSystemPromptUseCase(prompt_repository)
-    update_changelog_system_prompt_use_case = UpdateChangelogSystemPromptUseCase(prompt_repository)
+    update_changelog_system_prompt_use_case = UpdateChangelogSystemPromptUseCase(
+        prompt_repository
+    )
     approve_pr_user_prompt_use_case = ApprovePRUserPromptUseCase(prompt_repository)
     approve_pr_system_prompt_use_case = ApprovePRSystemPromptUseCase(prompt_repository)
 
@@ -58,9 +65,10 @@ def main():
         review_pr_system_prompt_use_case=review_pr_system_prompt_use_case,
         update_changelog_system_prompt_use_case=update_changelog_system_prompt_use_case,
         approve_pr_user_prompt_use_case=approve_pr_user_prompt_use_case,
-        approve_pr_system_prompt_use_case=approve_pr_system_prompt_use_case
+        approve_pr_system_prompt_use_case=approve_pr_system_prompt_use_case,
     )
     server.run()
+
 
 if __name__ == "__main__":
     main()

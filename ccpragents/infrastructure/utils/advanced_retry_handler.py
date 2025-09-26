@@ -1,4 +1,5 @@
-'''Advanced retry handler with circuit breaker, health tracking, and context-aware strategies.'''
+"""Advanced retry handler with circuit breaker, health tracking, and context-aware strategies."""
+
 import time
 import random
 from typing import Any, Callable, Optional, Dict
@@ -6,12 +7,16 @@ from enum import StrEnum
 
 from ccpragents.domain.services import RetryServiceInterface
 from ccpragents.infrastructure.logging.console_logger import get_logger
-from ccpragents.infrastructure.utils.circuit_breaker import CircuitBreaker, CircuitBreakerOpenException
+from ccpragents.infrastructure.utils.circuit_breaker import (
+    CircuitBreaker,
+    CircuitBreakerOpenException,
+)
 from ccpragents.infrastructure.utils.api_health_tracker import APIHealthTracker
 
 
 class OperationContext(StrEnum):
-    '''Context types for different operations.'''
+    """Context types for different operations."""
+
     REPOSITORY_ACCESS = "repository_access"
     FILE_CONTENT = "file_content"
     PULL_REQUEST = "pull_request"
@@ -19,33 +24,35 @@ class OperationContext(StrEnum):
 
 
 class AdvancedRetryHandler(RetryServiceInterface):
-    '''Advanced retry handler with circuit breaker, health tracking, and context-aware strategies.
+    """Advanced retry handler with circuit breaker, health tracking, and context-aware strategies.
 
     Provides enterprise-grade resilience with:
     - Circuit breaker pattern for cascading failure prevention
     - API health tracking for adaptive retry delays
     - Context-aware retry strategies
     - Comprehensive error categorization
-    '''
+    """
 
-    def __init__(self,
-                 max_retries: int = 3,
-                 retry_delay: float = 1.0,
-                 retry_on_404: bool = False,
-                 retry_on_403: bool = True,
-                 retry_on_500: bool = True,
-                 retry_log_level: str = "DEBUG",
-                 permanent_failure_log_level: str = "INFO",
-                 # Phase 3 parameters
-                 circuit_breaker_enabled: bool = True,
-                 circuit_breaker_failure_threshold: int = 5,
-                 circuit_breaker_timeout: float = 60.0,
-                 adaptive_retry_enabled: bool = True,
-                 max_adaptive_delay: float = 30.0,
-                 api_health_tracking: bool = True,
-                 context_aware_retry: bool = True,
-                 logger=None):
-        '''Initialize the advanced retry handler.
+    def __init__(
+        self,
+        max_retries: int = 3,
+        retry_delay: float = 1.0,
+        retry_on_404: bool = False,
+        retry_on_403: bool = True,
+        retry_on_500: bool = True,
+        retry_log_level: str = "DEBUG",
+        permanent_failure_log_level: str = "INFO",
+        # Phase 3 parameters
+        circuit_breaker_enabled: bool = True,
+        circuit_breaker_failure_threshold: int = 5,
+        circuit_breaker_timeout: float = 60.0,
+        adaptive_retry_enabled: bool = True,
+        max_adaptive_delay: float = 30.0,
+        api_health_tracking: bool = True,
+        context_aware_retry: bool = True,
+        logger=None,
+    ):
+        """Initialize the advanced retry handler.
 
         Args:
             max_retries: Maximum number of retry attempts
@@ -63,7 +70,7 @@ class AdvancedRetryHandler(RetryServiceInterface):
             api_health_tracking: Enable API health tracking
             context_aware_retry: Enable context-aware retry strategies
             logger: Logger instance for retry events
-        '''
+        """
         # Basic retry configuration
         self.max_retries = max_retries
         self.retry_delay = retry_delay
@@ -88,7 +95,7 @@ class AdvancedRetryHandler(RetryServiceInterface):
             self._circuit_breaker = CircuitBreaker(
                 failure_threshold=circuit_breaker_failure_threshold,
                 timeout=circuit_breaker_timeout,
-                logger=self._logger
+                logger=self._logger,
             )
 
         self._health_tracker: Optional[APIHealthTracker] = None
@@ -100,31 +107,33 @@ class AdvancedRetryHandler(RetryServiceInterface):
             OperationContext.REPOSITORY_ACCESS: {
                 "max_retries": max_retries,
                 "retry_delay": retry_delay * 2,  # Longer delays for repo access
-                "backoff_multiplier": 2.0
+                "backoff_multiplier": 2.0,
             },
             OperationContext.FILE_CONTENT: {
                 "max_retries": max_retries - 1,  # Fewer retries for file content
                 "retry_delay": retry_delay,
-                "backoff_multiplier": 1.5
+                "backoff_multiplier": 1.5,
             },
             OperationContext.PULL_REQUEST: {
                 "max_retries": max_retries + 1,  # More retries for PR data
                 "retry_delay": retry_delay,
-                "backoff_multiplier": 2.0
+                "backoff_multiplier": 2.0,
             },
             OperationContext.BATCH_OPERATION: {
                 "max_retries": max_retries - 1,  # Fewer retries for batch ops
                 "retry_delay": retry_delay * 0.5,  # Shorter delays
-                "backoff_multiplier": 1.5
-            }
+                "backoff_multiplier": 1.5,
+            },
         }
 
-    def execute_with_retry(self,
-                          func: Callable,
-                          *args,
-                          context: Optional[OperationContext] = None,
-                          **kwargs) -> Any:
-        '''Execute a function with advanced retry logic.
+    def execute_with_retry(
+        self,
+        func: Callable,
+        *args,
+        context: Optional[OperationContext] = None,
+        **kwargs,
+    ) -> Any:
+        """Execute a function with advanced retry logic.
 
         Args:
             func: Function to execute with retry logic
@@ -137,7 +146,7 @@ class AdvancedRetryHandler(RetryServiceInterface):
 
         Raises:
             Exception: If all retry attempts fail or circuit breaker is open
-        '''
+        """
         # Check circuit breaker
         if self._circuit_breaker and self.circuit_breaker_enabled:
             if not self._circuit_breaker.can_execute():
@@ -177,7 +186,9 @@ class AdvancedRetryHandler(RetryServiceInterface):
                     raise
 
                 # Calculate adaptive delay
-                delay = self._calculate_adaptive_delay(attempt, e, base_delay, backoff_multiplier)
+                delay = self._calculate_adaptive_delay(
+                    attempt, e, base_delay, backoff_multiplier
+                )
 
                 # Log retry attempt
                 self._log_retry_attempt(attempt, delay, e, context)
@@ -189,14 +200,14 @@ class AdvancedRetryHandler(RetryServiceInterface):
             raise last_exception
 
     def _get_context_config(self, context: Optional[OperationContext]) -> Dict:
-        '''Get configuration for specific operation context.
+        """Get configuration for specific operation context.
 
         Args:
             context: Operation context
 
         Returns:
             dict: Context-specific configuration
-        '''
+        """
         if context and self.context_aware_retry and context in self._context_configs:
             return self._context_configs[context]
 
@@ -204,11 +215,13 @@ class AdvancedRetryHandler(RetryServiceInterface):
         return {
             "max_retries": self.max_retries,
             "retry_delay": self.retry_delay,
-            "backoff_multiplier": 2.0
+            "backoff_multiplier": 2.0,
         }
 
-    def _should_retry_error(self, error: Exception, context: Optional[OperationContext] = None) -> bool:
-        '''Determine if an error should be retried with context awareness.
+    def _should_retry_error(
+        self, error: Exception, context: Optional[OperationContext] = None
+    ) -> bool:
+        """Determine if an error should be retried with context awareness.
 
         Args:
             error: Exception to check
@@ -216,7 +229,7 @@ class AdvancedRetryHandler(RetryServiceInterface):
 
         Returns:
             bool: True if this error should be retried
-        '''
+        """
         error_str = str(error).lower()
 
         # Basic error classification (from Phase 2)
@@ -224,7 +237,10 @@ class AdvancedRetryHandler(RetryServiceInterface):
             return False
         if "403" in error_str and not self.retry_on_403:
             return False
-        if any(f"{code}" in error_str for code in [500, 501, 502, 503, 504]) and not self.retry_on_500:
+        if (
+            any(f"{code}" in error_str for code in [500, 501, 502, 503, 504])
+            and not self.retry_on_500
+        ):
             return False
 
         # Context-aware retry logic
@@ -241,18 +257,23 @@ class AdvancedRetryHandler(RetryServiceInterface):
 
         # Standard transient error detection
         return (
-            self._is_rate_limit_error(error) or
-            "timeout" in error_str or
-            "connection" in error_str or
-            "network" in error_str or
-            "503" in error_str or
-            "502" in error_str or
-            "504" in error_str
+            self._is_rate_limit_error(error)
+            or "timeout" in error_str
+            or "connection" in error_str
+            or "network" in error_str
+            or "503" in error_str
+            or "502" in error_str
+            or "504" in error_str
         )
 
-    def _calculate_adaptive_delay(self, attempt: int, error: Exception, 
-                                base_delay: float, backoff_multiplier: float) -> float:
-        '''Calculate adaptive retry delay based on API health and error type.
+    def _calculate_adaptive_delay(
+        self,
+        attempt: int,
+        error: Exception,
+        base_delay: float,
+        backoff_multiplier: float,
+    ) -> float:
+        """Calculate adaptive retry delay based on API health and error type.
 
         Args:
             attempt: Current attempt number (0-based)
@@ -262,9 +283,9 @@ class AdvancedRetryHandler(RetryServiceInterface):
 
         Returns:
             float: Adaptive delay in seconds
-        '''
+        """
         # Basic exponential backoff
-        exponential_delay = base_delay * (backoff_multiplier ** attempt)
+        exponential_delay = base_delay * (backoff_multiplier**attempt)
 
         # Add jitter
         jitter = random.uniform(0, exponential_delay * 0.1)
@@ -284,11 +305,11 @@ class AdvancedRetryHandler(RetryServiceInterface):
         return delay_with_jitter
 
     def _record_success(self, start_time: float):
-        '''Record a successful operation.
+        """Record a successful operation.
 
         Args:
             start_time: Start time of the operation
-        '''
+        """
         duration = time.time() - start_time
 
         if self._circuit_breaker:
@@ -298,11 +319,11 @@ class AdvancedRetryHandler(RetryServiceInterface):
             self._health_tracker.record_call(duration, success=True)
 
     def _record_failure(self, error: Exception):
-        '''Record a failed operation.
+        """Record a failed operation.
 
         Args:
             error: Exception that occurred
-        '''
+        """
         if self._circuit_breaker:
             self._circuit_breaker.record_failure()
 
@@ -311,14 +332,14 @@ class AdvancedRetryHandler(RetryServiceInterface):
             self._health_tracker.record_call(0.0, success=False, error_type=error_type)
 
     def _categorize_error(self, error: Exception) -> str:
-        '''Categorize error for health tracking.
+        """Categorize error for health tracking.
 
         Args:
             error: Exception to categorize
 
         Returns:
             str: Error category
-        '''
+        """
         error_str = str(error).lower()
 
         if "404" in error_str:
@@ -337,13 +358,18 @@ class AdvancedRetryHandler(RetryServiceInterface):
             return "unknown"
 
     def _is_rate_limit_error(self, error: Exception) -> bool:
-        '''Check if an exception indicates a rate limit error.'''
+        """Check if an exception indicates a rate limit error."""
         error_str = str(error).lower()
         return "rate limit" in error_str or "429" in str(error)
 
-    def _log_retry_attempt(self, attempt: int, delay: float, error: Exception, 
-                          context: Optional[OperationContext] = None):
-        '''Log retry attempt with context information.'''
+    def _log_retry_attempt(
+        self,
+        attempt: int,
+        delay: float,
+        error: Exception,
+        context: Optional[OperationContext] = None,
+    ):
+        """Log retry attempt with context information."""
         is_rate_limit = self._is_rate_limit_error(error)
         context_str = f" [{context.value}]" if context else ""
 
@@ -363,8 +389,10 @@ class AdvancedRetryHandler(RetryServiceInterface):
 
         self._log_at_level(message, self.retry_log_level)
 
-    def _log_permanent_failure(self, error: Exception, should_retry: bool, is_last_attempt: bool):
-        '''Log permanent failure information.'''
+    def _log_permanent_failure(
+        self, error: Exception, should_retry: bool, is_last_attempt: bool
+    ):
+        """Log permanent failure information."""
         if not should_retry:
             error_msg = str(error)
             if len(error_msg) > 150:
@@ -376,18 +404,18 @@ class AdvancedRetryHandler(RetryServiceInterface):
             self._log_at_level(message, "ERROR")
 
     def _log_at_level(self, message: str, level: str):
-        '''Log message at specified level.'''
+        """Log message at specified level."""
         level = level.upper()
         log_method = getattr(self._logger, level.lower(), self._logger.info)
         log_method(message)
 
     def get_stats(self) -> Dict[str, Any]:
-        '''Get comprehensive retry handler statistics.'''
+        """Get comprehensive retry handler statistics."""
         stats: Dict[str, Any] = {
             "circuit_breaker_enabled": self.circuit_breaker_enabled,
             "adaptive_retry_enabled": self.adaptive_retry_enabled,
             "api_health_tracking": self.api_health_tracking,
-            "context_aware_retry": self.context_aware_retry
+            "context_aware_retry": self.context_aware_retry,
         }
 
         if self._circuit_breaker:
@@ -400,12 +428,12 @@ class AdvancedRetryHandler(RetryServiceInterface):
 
 
 def get_advanced_retry_handler(**kwargs) -> AdvancedRetryHandler:
-    '''Get a configured advanced retry handler instance.
+    """Get a configured advanced retry handler instance.
 
     Args:
         **kwargs: Configuration parameters for the retry handler
 
     Returns:
         AdvancedRetryHandler: Configured advanced retry handler instance
-    '''
+    """
     return AdvancedRetryHandler(**kwargs)

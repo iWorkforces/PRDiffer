@@ -11,7 +11,7 @@ class ServerConfiguration(ServerConfigurationProtocol):
     def __init__(
         self,
         settings_service,  # SettingsServiceInterface
-        logger: Optional[Any] = None
+        logger: Optional[Any] = None,
     ):
         """Initialize server configuration.
 
@@ -37,7 +37,9 @@ class ServerConfiguration(ServerConfigurationProtocol):
             if log_level in ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]:
                 root_logger.setLevel(getattr(logging, log_level))
 
-            self._logger.info(f"Logging configuration completed with level: {log_level}")
+            self._logger.info(
+                f"Logging configuration completed with level: {log_level}"
+            )
 
         except Exception as e:
             self._logger.error(f"Failed to setup logging: {str(e)}")
@@ -64,8 +66,8 @@ class ServerConfiguration(ServerConfigurationProtocol):
                     "caching": True,
                     "rate_limiting": True,
                     "metrics_tracking": True,
-                    "health_monitoring": True
-                }
+                    "health_monitoring": True,
+                },
             }
         except Exception as e:
             self._logger.error(f"Failed to get server info: {str(e)}")
@@ -73,7 +75,7 @@ class ServerConfiguration(ServerConfigurationProtocol):
                 "name": "ccpragents",
                 "version": "unknown",
                 "description": "GitHub PR Diff Fetcher MCP Server",
-                "error": str(e)
+                "error": str(e),
             }
 
     def get_mcp_instructions(self) -> str:
@@ -82,7 +84,7 @@ class ServerConfiguration(ServerConfigurationProtocol):
         Returns:
             String containing MCP server instructions
         """
-        return '''
+        return """
 CCPRAgents MCP - GitHub Pull Request Analysis Tools
 
 Available Tools:
@@ -94,7 +96,7 @@ Available Tools:
 • health() - Get server health and metrics
 
 Usage: Call tools with GitHub PR URLs (e.g., "https://github.com/owner/repo/pull/123")
-'''
+"""
 
     def validate_configuration(self) -> Dict[str, Any]:
         """Validate server configuration.
@@ -102,35 +104,41 @@ Usage: Call tools with GitHub PR URLs (e.g., "https://github.com/owner/repo/pull
         Returns:
             Dictionary with validation results
         """
-        validation_results = {
-            "valid": True,
-            "warnings": [],
-            "errors": []
-        }
+        validation_results = {"valid": True, "warnings": [], "errors": []}
 
         try:
             # Check required settings
             transport = self._settings_service.get("mcp.transport", "stdio")
             if transport not in ["stdio", "sse", "http"]:
-                validation_results["warnings"].append(f"Unknown transport '{transport}', defaulting to stdio")
+                validation_results["warnings"].append(
+                    f"Unknown transport '{transport}', defaulting to stdio"
+                )
 
             # Check port configuration for non-stdio transports
             if transport != "stdio":
                 port = self._settings_service.get("mcp.port", 9101)
                 if not isinstance(port, int) or port < 1 or port > 65535:
-                    validation_results["errors"].append(f"Invalid port '{port}', must be between 1-65535")
+                    validation_results["errors"].append(
+                        f"Invalid port '{port}', must be between 1-65535"
+                    )
                     validation_results["valid"] = False
 
             # Check GitHub configuration if available
             github_token = self._settings_service.get("github.token", None)
             if not github_token:
-                validation_results["warnings"].append("No GitHub token configured, API rate limits may apply")
+                validation_results["warnings"].append(
+                    "No GitHub token configured, API rate limits may apply"
+                )
 
-            self._logger.info(f"Configuration validation completed: {validation_results}")
+            self._logger.info(
+                f"Configuration validation completed: {validation_results}"
+            )
 
         except Exception as e:
             validation_results["valid"] = False
-            validation_results["errors"].append(f"Configuration validation failed: {str(e)}")
+            validation_results["errors"].append(
+                f"Configuration validation failed: {str(e)}"
+            )
             self._logger.error(f"Configuration validation failed: {str(e)}")
 
         return validation_results

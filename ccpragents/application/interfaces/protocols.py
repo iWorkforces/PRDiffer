@@ -59,7 +59,9 @@ class RateLimiterProtocol(Protocol):
 class MetricsTrackerProtocol(Protocol):
     """Protocol for tracking metrics and request statistics."""
 
-    def track_request(self, operation: str, success: bool, execution_time: float) -> None:
+    def track_request(
+        self, operation: str, success: bool, execution_time: float
+    ) -> None:
         """Track a request for metrics collection.
 
         Args:
@@ -100,7 +102,9 @@ class PROperationHandlerProtocol(Protocol):
         """
         ...
 
-    async def describe_pr(self, pr_url: str, commit_messages: str, diff_content: str) -> str:
+    async def describe_pr(
+        self, pr_url: str, commit_messages: str, diff_content: str
+    ) -> str:
         """Generate PR description based on commit messages and diff.
 
         Args:
@@ -113,7 +117,9 @@ class PROperationHandlerProtocol(Protocol):
         """
         ...
 
-    async def approve_pr(self, pr_url: str, commit_messages: str, diff_content: str) -> str:
+    async def approve_pr(
+        self, pr_url: str, commit_messages: str, diff_content: str
+    ) -> str:
         """Generate PR approval message.
 
         Args:
@@ -126,7 +132,9 @@ class PROperationHandlerProtocol(Protocol):
         """
         ...
 
-    async def review_pr(self, pr_url: str, commit_messages: str, diff_content: str) -> str:
+    async def review_pr(
+        self, pr_url: str, commit_messages: str, diff_content: str
+    ) -> str:
         """Generate PR review.
 
         Args:
@@ -139,7 +147,9 @@ class PROperationHandlerProtocol(Protocol):
         """
         ...
 
-    async def update_pr_changelog(self, pr_url: str, commit_messages: str, diff_content: str) -> str:
+    async def update_pr_changelog(
+        self, pr_url: str, commit_messages: str, diff_content: str
+    ) -> str:
         """Update PR changelog.
 
         Args:

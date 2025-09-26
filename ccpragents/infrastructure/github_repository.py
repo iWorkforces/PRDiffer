@@ -1,7 +1,8 @@
-'''GitHub repository implementation for PR diff data retrieval (Refactored).
+"""GitHub repository implementation for PR diff data retrieval (Refactored).
 
 This is the refactored version using composition with extracted components.
-'''
+"""
+
 import os
 from typing import Optional
 from ccpragents.domain.entities.pr_diff import PRDiff
@@ -17,7 +18,7 @@ from ccpragents.infrastructure.utils.diff_utils import get_diff_utils
 
 
 class GitHubPRDiffRepository(PRDiffRepositoryInterface):
-    '''GitHub repository implementation for PR diff data retrieval.
+    """GitHub repository implementation for PR diff data retrieval.
 
     This refactored class uses composition with extracted components for
     better separation of concerns and maintainability.
@@ -26,10 +27,16 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
         repo_owner: Repository owner/organization name
         repo_name: Repository name
         pr_number: Pull request number
-    '''
+    """
 
-    def __init__(self, repo_owner: str, repo_name: str, pr_number: int, github_token: Optional[str] = None):
-        '''Initialize the GitHub repository with repository details and optional authentication.
+    def __init__(
+        self,
+        repo_owner: str,
+        repo_name: str,
+        pr_number: int,
+        github_token: Optional[str] = None,
+    ):
+        """Initialize the GitHub repository with repository details and optional authentication.
 
         Args:
             repo_owner: The owner/organization of the repository
@@ -37,7 +44,7 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
             pr_number: The pull request number
             github_token: GitHub personal access token. If not provided,
                          uses GITHUB_TOKEN environment variable or anonymous access.
-        '''
+        """
         self._repo_owner = repo_owner
         self._repo_name = repo_name
         self._pr_number = pr_number
@@ -49,36 +56,44 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
 
         # Get GitHub token from settings, parameter, or environment variable
         self.github_token = (
-            github_token or
-            github_settings.get('token') or
-            os.getenv("GITHUB_TOKEN")
+            github_token or github_settings.get("token") or os.getenv("GITHUB_TOKEN")
         )
 
         # Get configuration values
-        self.rate_limit = github_settings.get('rate_limit', 5000)
-        self.timeout = github_settings.get('timeout', 30)
-        self.max_retries = github_settings.get('max_retries', 3)
-        self.retry_delay = github_settings.get('retry_delay', 1)
-        self.ignore_patterns = github_settings.get('ignore_patterns', [])
-        self.valid_extensions = github_settings.get('valid_extensions', [])
-        self.max_files_allowed = app_settings.get('max_files_allowed', 50)
+        self.rate_limit = github_settings.get("rate_limit", 5000)
+        self.timeout = github_settings.get("timeout", 30)
+        self.max_retries = github_settings.get("max_retries", 3)
+        self.retry_delay = github_settings.get("retry_delay", 1)
+        self.ignore_patterns = github_settings.get("ignore_patterns", [])
+        self.valid_extensions = github_settings.get("valid_extensions", [])
+        self.max_files_allowed = app_settings.get("max_files_allowed", 50)
 
         # Get smart retry configuration (Phase 2)
-        self.retry_on_404 = github_settings.get('retry_on_404', False)
-        self.retry_on_403 = github_settings.get('retry_on_403', True)
-        self.retry_on_500 = github_settings.get('retry_on_500', True)
-        self.retry_log_level = github_settings.get('retry_log_level', 'DEBUG')
-        self.permanent_failure_log_level = github_settings.get('permanent_failure_log_level', 'INFO')
+        self.retry_on_404 = github_settings.get("retry_on_404", False)
+        self.retry_on_403 = github_settings.get("retry_on_403", True)
+        self.retry_on_500 = github_settings.get("retry_on_500", True)
+        self.retry_log_level = github_settings.get("retry_log_level", "DEBUG")
+        self.permanent_failure_log_level = github_settings.get(
+            "permanent_failure_log_level", "INFO"
+        )
 
         # Get Phase 3 advance: d retry configuration
-        self.circuit_breaker_enabled = github_settings.get('circuit_breaker_enabled', True)
-        self.circuit_breaker_failure_threshold = github_settings.get('circuit_breaker_failure_threshold', 5)
-        self.circuit_breaker_timeout = github_settings.get('circuit_breaker_timeout', 60.0)
-        self.adaptive_retry_enabled = github_settings.get('adaptive_retry_enabled', True)
-        self.max_adaptive_delay = github_settings.get('max_adaptive_delay', 30.0)
-        self.api_health_tracking = github_settings.get('api_health_tracking', True)
-        self.context_aware_retry = github_settings.get('context_aware_retry', True)
-        self.use_advanced_retry = github_settings.get('use_advanced_retry', True)
+        self.circuit_breaker_enabled = github_settings.get(
+            "circuit_breaker_enabled", True
+        )
+        self.circuit_breaker_failure_threshold = github_settings.get(
+            "circuit_breaker_failure_threshold", 5
+        )
+        self.circuit_breaker_timeout = github_settings.get(
+            "circuit_breaker_timeout", 60.0
+        )
+        self.adaptive_retry_enabled = github_settings.get(
+            "adaptive_retry_enabled", True
+        )
+        self.max_adaptive_delay = github_settings.get("max_adaptive_delay", 30.0)
+        self.api_health_tracking = github_settings.get("api_health_tracking", True)
+        self.context_aware_retry = github_settings.get("context_aware_retry", True)
+        self.use_advanced_retry = github_settings.get("use_advanced_retry", True)
 
         # Initialize logger
         self.logger = get_logger()
@@ -101,12 +116,11 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
             max_adaptive_delay=self.max_adaptive_delay,
             api_health_tracking=self.api_health_tracking,
             context_aware_retry=self.context_aware_retry,
-            use_advanced_retry=self.use_advanced_retry
+            use_advanced_retry=self.use_advanced_retry,
         )
 
         self._pattern_matcher = get_pattern_matcher(
-            ignore_patterns=self.ignore_patterns,
-            valid_extensions=self.valid_extensions
+            ignore_patterns=self.ignore_patterns, valid_extensions=self.valid_extensions
         )
 
         self._diff_utils = get_diff_utils()
@@ -115,12 +129,10 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
             github_api_service=self._github_api_client,
             pattern_matcher=self._pattern_matcher,
             diff_utils=self._diff_utils,
-            max_files_allowed=self.max_files_allowed
+            max_files_allowed=self.max_files_allowed,
         )
 
-        self._diff_generator = get_diff_generator(
-            diff_utils=self._diff_utils
-        )
+        self._diff_generator = get_diff_generator(diff_utils=self._diff_utils)
 
         # Lazy initialization for GitHub objects
         self._repository = None
@@ -129,28 +141,27 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
 
     @property
     def repo_owner(self) -> str:
-        '''Repository owner/organization name.'''
+        """Repository owner/organization name."""
         return self._repo_owner
 
     @property
     def repo_name(self) -> str:
-        '''Repository name.'''
+        """Repository name."""
         return self._repo_name
 
     @property
     def pr_number(self) -> int:
-        '''Pull request number.'''
+        """Pull request number."""
         return self._pr_number
 
     def _initialize_github_objects(self):
-        '''Lazy initialization of GitHub client, repository, and PR objects.'''
+        """Lazy initialization of GitHub client, repository, and PR objects."""
         if self._initialized:
             return
 
         # Initialize GitHub API client
         self._github_api_client.initialize_client(
-            github_token=self.github_token,
-            timeout=self.timeout
+            github_token=self.github_token, timeout=self.timeout
         )
 
         # Define repository full name for error messages
@@ -160,7 +171,9 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
             self._repository = self._github_api_client.get_repository(repo_full_name)
         except Exception as e:
             self.logger.error(f"Failed to access repository {repo_full_name}: {e}")
-            self.logger.info(f"Repository {repo_full_name} might not exist or you may not have access to it")
+            self.logger.info(
+                f"Repository {repo_full_name} might not exist or you may not have access to it"
+            )
             self._repository = None
 
         if self._repository is not None:
@@ -169,24 +182,32 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
                     self._repository, self._pr_number
                 )
             except Exception as e:
-                self.logger.error(f"Failed to get pull request #{self._pr_number} from repository {repo_full_name}: {e}")
-                self.logger.info(f"Pull request #{self._pr_number} might not exist or be inaccessible")
+                self.logger.error(
+                    f"Failed to get pull request #{self._pr_number} from repository {repo_full_name}: {e}"
+                )
+                self.logger.info(
+                    f"Pull request #{self._pr_number} might not exist or be inaccessible"
+                )
                 self._pull_request = None
 
         if self._repository is None:
-            raise RuntimeError(f"Failed to initialize repository {repo_full_name} - repository may not exist or access may be denied")
+            raise RuntimeError(
+                f"Failed to initialize repository {repo_full_name} - repository may not exist or access may be denied"
+            )
 
         if self._pull_request is None:
-            raise RuntimeError(f"Failed to initialize pull request #{self._pr_number} for repository {repo_full_name} - pull request may not exist or be inaccessible")
+            raise RuntimeError(
+                f"Failed to initialize pull request #{self._pr_number} for repository {repo_full_name} - pull request may not exist or be inaccessible"
+            )
 
         self._initialized = True
 
     def get_latest_commit_sha(self) -> str:
-        '''Get the latest head commit SHA for the pull request.
+        """Get the latest head commit SHA for the pull request.
 
         Returns:
             str: The latest head commit SHA
-        '''
+        """
         self._initialize_github_objects()
 
         # Type assertion: self._repository and self._pull_request should not be None after initialization
@@ -199,12 +220,14 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
         )
 
         if self._pull_request is None:
-            raise ValueError(f"Failed to refresh pull request #{self._pr_number} - it may have been deleted or become inaccessible")
+            raise ValueError(
+                f"Failed to refresh pull request #{self._pr_number} - it may have been deleted or become inaccessible"
+            )
 
         return self._pull_request.head.sha
 
     async def get_pr_diff(self) -> PRDiff:
-        '''Fetch PR diff information from GitHub.
+        """Fetch PR diff information from GitHub.
 
         Returns:
             ExtraPRDiff: A ExtraPRDiff object containing complete PR information including:
@@ -213,7 +236,7 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
                 - Base and head commit SHAs
                 - File change statistics (changed files, additions, deletions)
                 - Commit messages
-        '''
+        """
         self._initialize_github_objects()
 
         # Type assertion: objects should not be None after initialization
@@ -249,24 +272,20 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
         # Get commit messages
         commit_messages = self._diff_generator.get_commit_messages(self._pull_request)
 
-        return PRDiff(
-            diff_content=diff_content,
-            commit_messages=commit_messages
-        )
+        return PRDiff(diff_content=diff_content, commit_messages=commit_messages)
 
     def _get_merge_base_commits(self) -> tuple[str, str]:
-        '''Get base and head commit SHAs, using merge base for accurate comparison.
+        """Get base and head commit SHAs, using merge base for accurate comparison.
 
         Returns:
             tuple: (base_sha, head_sha) where base_sha is the merge base commit
-        '''
+        """
         try:
             # Type assertion: self._repository should not be None after _initialize_github_objects()
             assert self._repository is not None, "Repository should be initialized"
             assert self._pull_request is not None, "Pull request should be initialized"
             compare = self._repository.compare(
-                self._pull_request.base.sha,
-                self._pull_request.head.sha
+                self._pull_request.base.sha, self._pull_request.head.sha
             )
             merge_base_commit = compare.merge_base_commit
             base_sha = merge_base_commit.sha
@@ -285,16 +304,13 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
         return base_sha, head_sha
 
     def _log_filtered_files(self, original_files, filtered_files):
-        '''Log information about filtered files.'''
+        """Log information about filtered files."""
         try:
             original_names = [file.filename for file in original_files]
             filtered_names = [file.filename for file in filtered_files]
             self.logger.info(
                 "Filtered out [ignore] files for pull request:",
-                extra={
-                    "files": original_names,
-                    "filtered_files": filtered_names
-                }
+                extra={"files": original_names, "filtered_files": filtered_names},
             )
         except Exception:
             pass
@@ -304,8 +320,10 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
 _repository_cache: dict = {}
 
 
-def get_github_repository(repo_owner: str, repo_name: str, pr_number: int, github_token: Optional[str] = None) -> GitHubPRDiffRepository:
-    '''Get a GitHub repository instance (singleton pattern per repository/PR).
+def get_github_repository(
+    repo_owner: str, repo_name: str, pr_number: int, github_token: Optional[str] = None
+) -> GitHubPRDiffRepository:
+    """Get a GitHub repository instance (singleton pattern per repository/PR).
 
     This function provides a singleton pattern for GitHubPRDiffRepository instances
     to avoid creating multiple instances for the same repository and PR.
@@ -318,7 +336,7 @@ def get_github_repository(repo_owner: str, repo_name: str, pr_number: int, githu
 
     Returns:
         GitHubPRDiffRepository: The repository instance
-    '''
+    """
     global _repository_cache
 
     # Create a unique cache key for this repository and PR

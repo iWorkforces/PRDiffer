@@ -1,4 +1,5 @@
-'''Diff generation and patch processing service.'''
+"""Diff generation and patch processing service."""
+
 import re
 from typing import List
 from ccpragents.domain.entities.file_patch import FilePatchInfo, EDIT_TYPE
@@ -7,28 +8,28 @@ from ccpragents.infrastructure.logging.console_logger import get_logger
 
 
 class DiffGenerator:
-    '''Service for generating extended diffs and processing patches.
+    """Service for generating extended diffs and processing patches.
 
     This class handles the creation of extended diff output with full file context,
     hunk processing, and formatting for pull request diff analysis.
-    '''
+    """
 
     RE_HUNK_HEADER = re.compile(r"^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@[ ]?(.*)")
 
     def __init__(self, diff_utils: DiffServiceInterface, logger=None):
-        '''Initialize the diff generator.
+        """Initialize the diff generator.
 
         Args:
             diff_utils: Service for diff utilities
             logger: Logger instance for logging operations
-        '''
+        """
         self._diff_utils = diff_utils
         self._logger = logger or get_logger()
 
-    def generate_extended_diff(self,
-                              diff_files: List[FilePatchInfo],
-                              add_line_numbers_to_hunks: bool = False) -> List[str]:
-        '''Generate an extended diff for a pull request.
+    def generate_extended_diff(
+        self, diff_files: List[FilePatchInfo], add_line_numbers_to_hunks: bool = False
+    ) -> List[str]:
+        """Generate an extended diff for a pull request.
 
         Args:
             diff_files: List of FilePatchInfo objects to process
@@ -36,7 +37,7 @@ class DiffGenerator:
 
         Returns:
             List of extended diff strings, one per file
-        '''
+        """
         extended_diffs = []
         for i, file in enumerate(diff_files):
             original_file_content_str = file.base_file
@@ -50,12 +51,16 @@ class DiffGenerator:
                 original_file_content_str, patch, new_file_str=new_file_content_str
             )
             if not extended_patch:
-                self._logger.warning(f"Failed to extend patch for file: {file.filename}")
+                self._logger.warning(
+                    f"Failed to extend patch for file: {file.filename}"
+                )
                 continue
 
             if add_line_numbers_to_hunks:
-                full_extended_patch = self._decouple_and_convert_to_hunks_with_lines_numbers(
-                    extended_patch, file, is_first_file=(i == 0)
+                full_extended_patch = (
+                    self._decouple_and_convert_to_hunks_with_lines_numbers(
+                        extended_patch, file, is_first_file=(i == 0)
+                    )
                 )
             else:
                 # Add separator and file header, only add \n\n prefix for non-first files
@@ -66,8 +71,10 @@ class DiffGenerator:
             extended_diffs.append(full_extended_patch)
         return extended_diffs
 
-    def _decouple_and_convert_to_hunks_with_lines_numbers(self, patch: str, file: FilePatchInfo, is_first_file: bool = False) -> str:
-        '''Convert a given patch string into a string with line numbers for each hunk.
+    def _decouple_and_convert_to_hunks_with_lines_numbers(
+        self, patch: str, file: FilePatchInfo, is_first_file: bool = False
+    ) -> str:
+        """Convert a given patch string into a string with line numbers for each hunk.
 
         This method processes patch hunks to display new and old content sections
         with line numbers, making it easier to understand the changes.
@@ -98,12 +105,12 @@ class DiffGenerator:
                     line5
                     line6
                     ...
-        '''
+        """
 
         # Add a header for the file
         if file:
             # if the file was deleted, return a message indicating that the file was deleted
-            if hasattr(file, 'edit_type') and file.edit_type == EDIT_TYPE.DELETED:
+            if hasattr(file, "edit_type") and file.edit_type == EDIT_TYPE.DELETED:
                 separator = "====" if is_first_file else "\n\n===="
                 return f"{separator}\n## File '{file.filename.strip()}' was deleted\n"
 
@@ -122,41 +129,59 @@ class DiffGenerator:
         header_line = []
 
         for line_i, line in enumerate(patch_lines):
-            if 'no newline at end of file' in line.lower():
+            if "no newline at end of file" in line.lower():
                 continue
 
-            if line.startswith('@@'):
+            if line.startswith("@@"):
                 header_line = line
                 match = RE_HUNK_HEADER.match(line)
-                if match and (new_content_lines or old_content_lines):  # found a new hunk, split the previous lines
+                if match and (
+                    new_content_lines or old_content_lines
+                ):  # found a new hunk, split the previous lines
                     if prev_header_line:
-                        patch_with_lines_str += f'\n{prev_header_line}\n'
+                        patch_with_lines_str += f"\n{prev_header_line}\n"
                     is_plus_lines = is_minus_lines = False
                     if new_content_lines:
-                        is_plus_lines = any([line.startswith('+') for line in new_content_lines])
+                        is_plus_lines = any(
+                            [line.startswith("+") for line in new_content_lines]
+                        )
                     if old_content_lines:
-                        is_minus_lines = any([line.startswith('-') for line in old_content_lines])
-                    if is_plus_lines or is_minus_lines:  # notice 'True' here - we always present __new hunk__ for section, otherwise LLM gets confused
-                        patch_with_lines_str = patch_with_lines_str.rstrip() + '\n__new hunk__\n'
+                        is_minus_lines = any(
+                            [line.startswith("-") for line in old_content_lines]
+                        )
+                    if (
+                        is_plus_lines or is_minus_lines
+                    ):  # notice 'True' here - we always present __new hunk__ for section, otherwise LLM gets confused
+                        patch_with_lines_str = (
+                            patch_with_lines_str.rstrip() + "\n__new hunk__\n"
+                        )
                         for i, line_new in enumerate(new_content_lines):
                             patch_with_lines_str += f"{start2 + i} {line_new}\n"
                     if is_minus_lines:
-                        patch_with_lines_str = patch_with_lines_str.rstrip() + '\n__old hunk__\n'
+                        patch_with_lines_str = (
+                            patch_with_lines_str.rstrip() + "\n__old hunk__\n"
+                        )
                         for line_old in old_content_lines:
                             patch_with_lines_str += f"{line_old}\n"
                     new_content_lines = []
                     old_content_lines = []
                 if match:
                     prev_header_line = header_line
-                    section_header, size1, size2, start1, start2 = self._extract_hunk_headers(match)
+                    section_header, size1, size2, start1, start2 = (
+                        self._extract_hunk_headers(match)
+                    )
 
-            elif line.startswith('+'):
+            elif line.startswith("+"):
                 new_content_lines.append(line)
-            elif line.startswith('-'):
+            elif line.startswith("-"):
                 old_content_lines.append(line)
             else:
-                if not line and line_i:  # if this line is empty and the next line is a hunk header, skip it
-                    if line_i + 1 < len(patch_lines) and patch_lines[line_i + 1].startswith('@@'):
+                if (
+                    not line and line_i
+                ):  # if this line is empty and the next line is a hunk header, skip it
+                    if line_i + 1 < len(patch_lines) and patch_lines[
+                        line_i + 1
+                    ].startswith("@@"):
                         continue
                     elif line_i + 1 == len(patch_lines):
                         continue
@@ -165,25 +190,35 @@ class DiffGenerator:
 
         # finishing last hunk
         if match and new_content_lines:
-            patch_with_lines_str += f'\n{header_line}\n'
+            patch_with_lines_str += f"\n{header_line}\n"
             is_plus_lines = is_minus_lines = False
             if new_content_lines:
-                is_plus_lines = any([line.startswith('+') for line in new_content_lines])
+                is_plus_lines = any(
+                    [line.startswith("+") for line in new_content_lines]
+                )
             if old_content_lines:
-                is_minus_lines = any([line.startswith('-') for line in old_content_lines])
-            if is_plus_lines or is_minus_lines:  # notice 'True' here - we always present __new hunk__ for section, otherwise LLM gets confused
-                patch_with_lines_str = patch_with_lines_str.rstrip() + '\n__new hunk__\n'
+                is_minus_lines = any(
+                    [line.startswith("-") for line in old_content_lines]
+                )
+            if (
+                is_plus_lines or is_minus_lines
+            ):  # notice 'True' here - we always present __new hunk__ for section, otherwise LLM gets confused
+                patch_with_lines_str = (
+                    patch_with_lines_str.rstrip() + "\n__new hunk__\n"
+                )
                 for i, line_new in enumerate(new_content_lines):
                     patch_with_lines_str += f"{start2 + i} {line_new}\n"
             if is_minus_lines:
-                patch_with_lines_str = patch_with_lines_str.rstrip() + '\n__old hunk__\n'
+                patch_with_lines_str = (
+                    patch_with_lines_str.rstrip() + "\n__old hunk__\n"
+                )
                 for line_old in old_content_lines:
                     patch_with_lines_str += f"{line_old}\n"
 
         return patch_with_lines_str.rstrip()
 
     def _extract_hunk_headers(self, match: re.Match) -> tuple:
-        '''Extract and parse hunk header information from regex match.
+        """Extract and parse hunk header information from regex match.
 
         Args:
             match: Regex match object from hunk header pattern
@@ -198,7 +233,7 @@ class DiffGenerator:
 
         Note:
             Handles edge cases like '@@ -0,0 +1 @@' for new files
-        '''
+        """
         res = list(match.groups())
         for i in range(len(res)):
             if res[i] is None:
@@ -212,7 +247,7 @@ class DiffGenerator:
         return section_header, size1, size2, start1, start2
 
     def get_commit_messages(self, pull_request) -> str:
-        '''Retrieve and format all commit messages from the pull request.
+        """Retrieve and format all commit messages from the pull request.
 
         Args:
             pull_request: GitHub pull request object
@@ -222,23 +257,25 @@ class DiffGenerator:
 
         Note:
             Each commit message is prefixed with its sequence number (1-based)
-        '''
+        """
         try:
             commit_list = pull_request.get_commits()
             commit_messages = [commit.commit.message for commit in commit_list]
-            commit_messages_str = "\n".join([f"{i + 1}. {message}" for i, message in enumerate(commit_messages)])
+            commit_messages_str = "\n".join(
+                [f"{i + 1}. {message}" for i, message in enumerate(commit_messages)]
+            )
         except Exception:
             commit_messages_str = ""
         return commit_messages_str
 
 
 def get_diff_generator(diff_utils: DiffServiceInterface) -> DiffGenerator:
-    '''Get a configured diff generator instance.
+    """Get a configured diff generator instance.
 
     Args:
         diff_utils: Service for diff utilities
 
     Returns:
         DiffGenerator: Configured diff generator instance
-    '''
+    """
     return DiffGenerator(diff_utils=diff_utils)

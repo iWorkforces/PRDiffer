@@ -11,8 +11,8 @@ class HealthMonitor(HealthMonitorProtocol):
     def __init__(
         self,
         metrics_tracker,  # MetricsTrackerProtocol
-        rate_limiter,     # RateLimiterProtocol
-        logger: Optional[Any] = None
+        rate_limiter,  # RateLimiterProtocol
+        logger: Optional[Any] = None,
     ):
         """Initialize health monitor.
 
@@ -63,10 +63,13 @@ class HealthMonitor(HealthMonitorProtocol):
                 "rate_limit": rate_limit_info.get("max_requests", 100),
                 "rate_limit_window": rate_limit_info.get("window_seconds", 60),
                 "remaining_requests": rate_limit_info.get("remaining_requests", 0),
-                "operations": metrics.get("operations", {})
+                "operations": metrics.get("operations", {}),
             }
 
-            self._logger.debug("Health check completed", extra={"status": status, "metrics": health_data})
+            self._logger.debug(
+                "Health check completed",
+                extra={"status": status, "metrics": health_data},
+            )
             return health_data
 
         except Exception as e:
@@ -84,7 +87,7 @@ class HealthMonitor(HealthMonitorProtocol):
                 "rate_limit": 100,
                 "rate_limit_window": 60,
                 "remaining_requests": 0,
-                "operations": {}
+                "operations": {},
             }
 
     def get_detailed_status(self) -> Dict[str, Any]:
@@ -99,12 +102,12 @@ class HealthMonitor(HealthMonitorProtocol):
         health_status["components"] = {
             "metrics_tracker": {
                 "status": "healthy",
-                "description": "Tracking request metrics and performance"
+                "description": "Tracking request metrics and performance",
             },
             "rate_limiter": {
                 "status": "healthy",
-                "description": "Managing request rate limiting"
-            }
+                "description": "Managing request rate limiting",
+            },
         }
 
         return health_status
