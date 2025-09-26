@@ -4,7 +4,6 @@ import difflib
 import re
 from typing import Union
 from ccpragents.domain.services import DiffServiceInterface
-from ccpragents.infrastructure.logging.console_logger import get_logger
 
 
 class DiffUtils(DiffServiceInterface):
@@ -22,7 +21,17 @@ class DiffUtils(DiffServiceInterface):
         Args:
             logger: Logger instance for logging operations
         """
-        self._logger = logger or get_logger()
+        self._logger = logger
+        self._logger_fetched = logger is not None
+
+    def _get_logger(self):
+        """Get logger instance, lazily loading if needed to avoid circular imports."""
+        if not self._logger_fetched:
+            from ccpragents.infrastructure.logging.console_logger import get_logger
+
+            self._logger = get_logger()
+            self._logger_fetched = True
+        return self._logger
 
     def build_full_file_patch(self, original_file_str: str, new_file_str: str) -> str:
         """Build a single unified-diff hunk that covers the entire file.
@@ -115,7 +124,7 @@ class DiffUtils(DiffServiceInterface):
                 original_file_str, new_file_str
             )
         except Exception as e:
-            self._logger.warning(f"Failed to extend patch: {e}")
+            self._get_logger().warning(f"Failed to extend patch: {e}")
             return patch_str
 
         return extended_patch_str

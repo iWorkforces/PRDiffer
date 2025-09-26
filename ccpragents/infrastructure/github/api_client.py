@@ -7,8 +7,8 @@ from github.Repository import Repository
 from github.PullRequest import PullRequest
 from github.ContentFile import ContentFile
 from ccpragents.domain.services import GitHubAPIServiceInterface
-from ccpragents.infrastructure.utils.retry_handler import get_retry_handler
-from ccpragents.infrastructure.utils.advanced_retry_handler import (
+from ccpragents.infrastructure.utils.retry_handler import (
+    get_retry_handler,
     get_advanced_retry_handler,
     OperationContext,
 )
