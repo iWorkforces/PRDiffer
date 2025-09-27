@@ -443,7 +443,7 @@ code_suggestions:
     language: |
       [Programming language (e.g., Python, JavaScript, Java)]
     existing_code: |
-      [Relevant code snippet from the PR's "+" lines]
+      [Relevant code snippet from the PR’s, focuses on “+” lines]
     suggestion_content: |
       [Detailed suggestion explaining the issue and recommended fix]
     improved_code: |
