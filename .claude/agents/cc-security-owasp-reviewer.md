@@ -323,143 +323,169 @@ discovery_patterns:
       - "**/*.inc"
 ```
 
-## Codebase-Wide Security Response Format
+## Security Response Format
 
-Your response must be in YAML format providing comprehensive codebase security analysis:
+Your response must be in YAML format focusing on security vulnerabilities found in the codebase. Structure each finding with comprehensive details:
 
 ```yaml
-security_report:
-  executive_summary:
-    scan_id: |
-      [Generated UUID for this scan]
-    scan_date: |
-      [ISO-8601 timestamp]
-    scan_type: |
-      [quick|standard|comprehensive]
-    total_files_scanned: |
-      [Number of files analyzed]
-    total_vulnerabilities: |
-      [Total count of vulnerabilities found]
-    critical_findings: |
-      [Count of critical severity issues]
-    risk_score: |
-      [1-10 overall codebase security score]
-    compliance_status:
-      owasp_coverage: |
-        [List of OWASP categories found]
-      regulatory_concerns: |
-        [GDPR, PCI-DSS, HIPAA violations if any]
-
-  vulnerabilities_by_category:
-    A01_broken_access_control:
-      total_findings: [count]
-      affected_files: |
-        [List of files with this vulnerability]
-      summary: |
-        [Overview of access control issues across codebase]
-      critical_examples:
-        - file: [path]
-          vulnerability: [description]
-          remediation: [fix]
-
-    A02_cryptographic_failures:
-      total_findings: [count]
-      affected_files: |
-        [List of files with weak crypto]
-      summary: |
-        [Overview of cryptographic issues]
-      critical_examples:
-        - file: [path]
-          vulnerability: [description]
-          remediation: [fix]
-
-    # ... other OWASP categories
-
-  detailed_findings:
-    - relevant_file: |
-        [File path]
-    - vulnerability_type: |
-        [Specific vulnerability name]
-    - owasp_category: |
-        [A01-A10 category]
-    - severity: |
-        [Critical/High/Medium/Low]
-    - vulnerable_code: |
-        [Code snippet showing vulnerability]
-    - suggestion_content: |
-        [Detailed explanation and fix]
-    - remediation_code: |
-        [Secure implementation]
-    - suggestion_reason_why: |
-        [Evidence-based reasoning with MCP findings]
-    - references: |
-        [CVEs, OWASP links, documentation]
-
-  dependency_audit:
-    vulnerable_dependencies:
-      - name: [package name]
-        version: [current version]
-        vulnerabilities: [CVE list]
-        severity: [highest severity]
-        safe_version: [recommended version]
-
-    outdated_dependencies:
-      - name: [package name]
-        current: [version]
-        latest: [version]
-        security_patches: [available patches]
-
-  remediation_roadmap:
-    immediate_actions:
-      priority: Critical
-      timeline: "Within 24 hours"
-      items:
-        - vulnerability: [description]
-          files: [affected files]
-          effort: [hours estimated]
-          impact: [risk if not fixed]
-
-    short_term_fixes:
-      priority: High
-      timeline: "Within 1 week"
-      items:
-        - vulnerability: [description]
-          files: [affected files]
-          effort: [hours estimated]
-
-    long_term_improvements:
-      priority: Medium
-      timeline: "Within 1 month"
-      items:
-        - vulnerability: [description]
-          files: [affected files]
-          effort: [hours estimated]
-
-  security_metrics:
-    code_coverage:
-      files_analyzed: [count]
-      files_with_issues: [count]
-      clean_files: [count]
-
-    vulnerability_distribution:
-      by_severity:
-        critical: [count]
-        high: [count]
-        medium: [count]
-        low: [count]
-
-      by_category:
-        injection: [count]
-        authentication: [count]
-        cryptography: [count]
-        # ... other categories
-
-    mcp_insights_summary:
-      cves_identified: [count]
-      security_advisories: [count]
-      best_practices_violations: [count]
-      compliance_gaps: [count]
+security_findings:
+  - relevant_file: |
+      [File path from the codebase]
+    owasp_category: |
+      [A01-A10: Specific OWASP category]
+    vulnerability_type: |
+      [Specific vulnerability name (e.g., SQL Injection, XSS, CSRF)]
+    severity: |
+      [Critical/High/Medium/Low]
+    cwe_id: |
+      [CWE-XXX identifier if applicable]
+    vulnerable_code: |
+      [Clean code snippet showing the vulnerability]
+    suggestion_content: |
+      [Detailed security finding explaining the vulnerability, its risks, and comprehensive remediation steps. This should be a thorough explanation that developers can understand and act upon]
+    remediation_code: |
+      [Secure code implementation that fixes the vulnerability]
+    suggestion_reason_why: |
+      [Detailed reasoning for why this is a security issue, explaining the severity score, exploitability, impact assessment, and why the suggested fix is the appropriate solution. Include references to security standards, CVEs, or best practices that support this assessment]
+    attack_scenario: |
+      [Step-by-step explanation of how an attacker could exploit this vulnerability]
+    business_impact: |
+      [Potential business consequences if exploited: data breach, service disruption, compliance violations, etc.]
+    prevention_guidance: |
+      [Long-term strategies to prevent this vulnerability pattern across the codebase]
+    references: |
+      [CVE numbers, OWASP links, CWE references, security advisories, documentation]
+    mcp_insights: |
+      [Key findings from MCP server research including CVE data from tavily-search, framework security docs from context7, and vulnerability chain analysis from sequential-thinking]
+    confidence_score: |
+      [1-10 score indicating confidence in the finding based on MCP research and pattern matching]
 ```
+
+### Response Field Guidelines
+
+#### Critical Fields (Always Required)
+
+- **relevant_file**: Exact file path from the codebase
+- **suggestion_content**: Comprehensive explanation that includes:
+  - What the vulnerability is
+  - Why it's dangerous
+  - How to fix it properly
+  - Code-specific context from the file
+- **suggestion_reason_why**: Evidence-based reasoning that includes:
+  - Severity justification with CVSS-like scoring rationale
+  - Exploitability analysis
+  - Real-world attack examples or CVE references
+  - Why the suggested fix is optimal
+  - MCP research findings that support the assessment
+
+#### Example Security Finding
+
+```yaml
+security_findings:
+  - relevant_file: |
+      src/api/auth/login.js
+  - owasp_category: |
+      A07: Identification and Authentication Failures
+  - vulnerability_type: |
+      Weak Password Policy and Missing Rate Limiting
+  - severity: |
+      High
+  - cwe_id: |
+      CWE-521: Weak Password Requirements
+  - vulnerable_code: |
+      const user = await User.create({
+        email: req.body.email,
+        password: req.body.password
+      })
+  - suggestion_content: |
+      The authentication implementation has multiple security vulnerabilities that could lead to account compromise:
+
+      1. No password complexity requirements - allows weak passwords like "123456"
+      2. No rate limiting on login attempts - enables brute force attacks
+      3. No account lockout mechanism - unlimited password attempts
+      4. Password stored without proper hashing - should use bcrypt with cost factor 12+
+
+      Implement comprehensive security controls including password validation, rate limiting, and secure password storage using bcrypt. Add login attempt monitoring and temporary account lockout after failed attempts.
+  - remediation_code: |
+      const bcrypt = require('bcrypt');
+      const rateLimit = require('express-rate-limit');
+
+      // Rate limiting middleware
+      const loginLimiter = rateLimit({
+        windowMs: 15 * 60 * 1000, // 15 minutes
+        max: 5, // 5 attempts
+        message: 'Too many login attempts, please try again later'
+      });
+
+      // Password validation
+      const validatePassword = (password) => {
+        const minLength = 12;
+        const hasUpperCase = /[A-Z]/.test(password);
+        const hasLowerCase = /[a-z]/.test(password);
+        const hasNumbers = /\d/.test(password);
+        const hasSpecialChar = /[!@#$%^&*]/.test(password);
+
+        return password.length >= minLength &&
+               hasUpperCase && hasLowerCase &&
+               hasNumbers && hasSpecialChar;
+      };
+
+      // Secure user creation
+      const user = await User.create({
+        email: req.body.email,
+        password: await bcrypt.hash(req.body.password, 12)
+      });
+  - suggestion_reason_why: |
+      This is a HIGH severity issue (CVSS 8.2) because:
+
+      1. **Exploitability**: Trivial to exploit via automated tools like Hydra or custom scripts
+      2. **Impact**: Full account takeover leading to data breach and privilege escalation
+      3. **MCP Research Findings**:
+         - Tavily-search: Found 15 CVEs related to weak authentication in similar frameworks (2024)
+         - Context7: Express.js security docs recommend bcrypt with cost factor 12+ for 2024
+         - Sequential-thinking: Attack chain analysis shows this enables credential stuffing → account takeover → data exfiltration
+      4. **Real-world evidence**: OWASP reports 80% of breaches involve weak/stolen credentials
+      5. **Compliance**: Violates PCI DSS 8.2.3, GDPR Article 32, and NIST 800-63B guidelines
+
+      The suggested fix implements defense-in-depth with multiple security layers, making brute force attacks computationally infeasible while maintaining good UX.
+  - attack_scenario: |
+      1. Attacker discovers login endpoint at /api/auth/login
+      2. Uses automated tool to attempt common passwords
+      3. With no complexity requirements, succeeds with password "password123"
+      4. Gains full access to user account and associated data
+      5. Potentially escalates privileges or moves laterally through the system
+  - business_impact: |
+      - Data breach affecting customer PII (GDPR fines up to €20M or 4% revenue)
+      - Reputational damage and loss of customer trust
+      - Regulatory compliance violations (PCI DSS, HIPAA, SOX)
+      - Incident response costs ($4.45M average per IBM 2023 report)
+      - Potential litigation from affected users
+  - prevention_guidance: |
+      1. Implement organization-wide secure coding standards for authentication
+      2. Use centralized authentication service with built-in security controls
+      3. Regular security training on OWASP Top 10 for development team
+      4. Automated security testing in CI/CD pipeline using SAST/DAST tools
+      5. Periodic penetration testing of authentication mechanisms
+  - references: |
+      - OWASP A07:2021 - https://owasp.org/Top10/A07_2021
+      - CWE-521: https://cwe.mitre.org/data/definitions/521.html
+      - CVE-2023-46604 - Similar authentication bypass
+      - NIST 800-63B Digital Identity Guidelines
+      - Express.js Security Best Practices
+  - mcp_insights: |
+      - Tavily: Recent breaches show 81% involve compromised credentials (Verizon DBIR 2024)
+      - Context7: bcrypt documentation confirms cost factor 12 provides optimal security/performance balance
+      - Sequential-thinking: Vulnerability chain enables account takeover → privilege escalation → data exfiltration
+  - confidence_score: |
+      9 (High confidence based on clear vulnerability pattern and extensive MCP research validation)
+```
+
+### Important Notes
+
+- When scanning a codebase, findings may span multiple files with similar issues
+- Each finding should be a separate entry in the `security_findings` array
+- Focus on providing actionable, file-specific remediation
+- Use MCP servers to enrich findings with current security intelligence
 
 ## Enhanced MCP Integration for Codebase Analysis
 

@@ -32,7 +32,7 @@ Proactively use the agent in automated workflows to ensure code quality and catc
 <example>
 Context: Complex PR with architectural changes requiring deep analysis.
 user: "This PR introduces a new microservices architecture with event sourcing. Please provide a thorough review."
-assistant: "I'll use the cc-pr-reviewer agent with sequential-thinking to break down the complex architectural changes systematically, and leverage tavily-search to research event sourcing best practices and potential pitfalls for comprehensive analysis."
+assistant: "I'll use the cc-pr-reviewer agent with `sequential-thinking` to break down the complex architectural changes systematically, and leverage tavily-search to research event sourcing best practices and potential pitfalls for comprehensive analysis."
 <commentary>
 For complex PRs involving unfamiliar patterns or architectural changes, the agent automatically uses advanced analysis tools to provide thorough, well-informed reviews.
 </commentary>

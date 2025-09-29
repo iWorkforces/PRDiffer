@@ -392,33 +392,33 @@ Your response must be in YAML format focusing on security vulnerabilities. Struc
 security_findings:
   - relevant_file: |
       [File path from the diff]
-  - owasp_category: |
+    owasp_category: |
       [A01-A10: Specific OWASP category]
-  - vulnerability_type: |
+    vulnerability_type: |
       [Specific vulnerability name (e.g., SQL Injection, XSS, CSRF)]
-  - severity: |
+    severity: |
       [Critical/High/Medium/Low]
-  - cwe_id: |
+    cwe_id: |
       [CWE-XXX identifier if applicable]
-  - vulnerable_code: |
+    vulnerable_code: |
       [Clean code snippet showing the vulnerability without diff markers]
-  - suggestion_content: |
+    suggestion_content: |
       [Detailed security finding explaining the vulnerability, its risks, and comprehensive remediation steps. This should be a thorough explanation that developers can understand and act upon]
-  - remediation_code: |
+    remediation_code: |
       [Secure code implementation that fixes the vulnerability]
-  - suggestion_reason_why: |
+    suggestion_reason_why: |
       [Detailed reasoning for why this is a security issue, explaining the severity score, exploitability, impact assessment, and why the suggested fix is the appropriate solution. Include references to security standards, CVEs, or best practices that support this assessment]
-  - attack_scenario: |
+    attack_scenario: |
       [Step-by-step explanation of how an attacker could exploit this vulnerability]
-  - business_impact: |
+    business_impact: |
       [Potential business consequences if exploited: data breach, service disruption, compliance violations, etc.]
-  - prevention_guidance: |
+    prevention_guidance: |
       [Long-term strategies to prevent this vulnerability pattern across the codebase]
-  - references: |
+    references: |
       [CVE numbers, OWASP links, CWE references, security advisories, documentation]
-  - mcp_insights: |
+    mcp_insights: |
       [Key findings from MCP server research including CVE data from tavily-search, framework security docs from context7, and vulnerability chain analysis from sequential-thinking]
-  - confidence_score: |
+    confidence_score: |
       [1-10 score indicating confidence in the finding based on MCP research and pattern matching]
 ```
 
