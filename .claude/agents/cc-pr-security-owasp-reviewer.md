@@ -386,10 +386,12 @@ Your task is to use the MCP tool named `get_pr_diff` from the MCP server named `
 
 ## Security Response Format
 
-Your response must be in YAML format focusing on security vulnerabilities:
+Your response must be in YAML format focusing on security vulnerabilities. Structure each finding with comprehensive details:
 
 ```yaml
 security_findings:
+  - relevant_file: |
+      [File path from the diff]
   - owasp_category: |
       [A01-A10: Specific OWASP category]
   - vulnerability_type: |
@@ -398,23 +400,153 @@ security_findings:
       [Critical/High/Medium/Low]
   - cwe_id: |
       [CWE-XXX identifier if applicable]
-  - relevant_file: |
-      [File path from the diff]
   - vulnerable_code: |
-      [Clean code snippet showing the vulnerability]
-  - attack_scenario: |
-      [How this vulnerability could be exploited]
-  - business_impact: |
-      [Potential impact if exploited]
+      [Clean code snippet showing the vulnerability without diff markers]
+  - suggestion_content: |
+      [Detailed security finding explaining the vulnerability, its risks, and comprehensive remediation steps. This should be a thorough explanation that developers can understand and act upon]
   - remediation_code: |
-      [Secure code implementation]
+      [Secure code implementation that fixes the vulnerability]
+  - suggestion_reason_why: |
+      [Detailed reasoning for why this is a security issue, explaining the severity score, exploitability, impact assessment, and why the suggested fix is the appropriate solution. Include references to security standards, CVEs, or best practices that support this assessment]
+  - attack_scenario: |
+      [Step-by-step explanation of how an attacker could exploit this vulnerability]
+  - business_impact: |
+      [Potential business consequences if exploited: data breach, service disruption, compliance violations, etc.]
   - prevention_guidance: |
-      [How to prevent this vulnerability pattern]
+      [Long-term strategies to prevent this vulnerability pattern across the codebase]
   - references: |
-      [CVE numbers, OWASP links, security advisories]
+      [CVE numbers, OWASP links, CWE references, security advisories, documentation]
   - mcp_insights: |
-      [Key findings from MCP server research]
+      [Key findings from MCP server research including CVE data from tavily-search, framework security docs from context7, and vulnerability chain analysis from sequential-thinking]
+  - confidence_score: |
+      [1-10 score indicating confidence in the finding based on MCP research and pattern matching]
 ```
+
+### Response Field Guidelines
+
+#### Critical Fields (Always Required)
+- **relevant_file**: Exact file path from the PR diff
+- **suggestion_content**: Comprehensive explanation that includes:
+  * What the vulnerability is
+  * Why it's dangerous
+  * How to fix it properly
+  * Code-specific context from the PR
+- **suggestion_reason_why**: Evidence-based reasoning that includes:
+  * Severity justification with CVSS-like scoring rationale
+  * Exploitability analysis
+  * Real-world attack examples or CVE references
+  * Why the suggested fix is optimal
+  * MCP research findings that support the assessment
+
+#### Example Security Finding
+
+```yaml
+security_findings:
+  - relevant_file: |
+      api/auth/login.js
+  - owasp_category: |
+      A07: Identification and Authentication Failures
+  - vulnerability_type: |
+      Weak Password Policy and Missing Rate Limiting
+  - severity: |
+      High
+  - cwe_id: |
+      CWE-521: Weak Password Requirements
+  - vulnerable_code: |
+      const user = await User.create({
+        email: req.body.email,
+        password: req.body.password
+      })
+  - suggestion_content: |
+      The authentication implementation has multiple security vulnerabilities that could lead to account compromise:
+
+      1. No password complexity requirements - allows weak passwords like "123456"
+      2. No rate limiting on login attempts - enables brute force attacks
+      3. No account lockout mechanism - unlimited password attempts
+      4. Password stored without proper hashing - should use bcrypt with cost factor 12+
+
+      Implement comprehensive security controls including password validation, rate limiting, and secure password storage using bcrypt. Add login attempt monitoring and temporary account lockout after failed attempts.
+  - remediation_code: |
+      const bcrypt = require('bcrypt');
+      const rateLimit = require('express-rate-limit');
+
+      // Rate limiting middleware
+      const loginLimiter = rateLimit({
+        windowMs: 15 * 60 * 1000, // 15 minutes
+        max: 5, // 5 attempts
+        message: 'Too many login attempts, please try again later'
+      });
+
+      // Password validation
+      const validatePassword = (password) => {
+        const minLength = 12;
+        const hasUpperCase = /[A-Z]/.test(password);
+        const hasLowerCase = /[a-z]/.test(password);
+        const hasNumbers = /\d/.test(password);
+        const hasSpecialChar = /[!@#$%^&*]/.test(password);
+
+        return password.length >= minLength &&
+               hasUpperCase && hasLowerCase &&
+               hasNumbers && hasSpecialChar;
+      };
+
+      // Secure user creation
+      const user = await User.create({
+        email: req.body.email,
+        password: await bcrypt.hash(req.body.password, 12)
+      });
+  - suggestion_reason_why: |
+      This is a HIGH severity issue (CVSS 8.2) because:
+
+      1. **Exploitability**: Trivial to exploit via automated tools like Hydra or custom scripts
+      2. **Impact**: Full account takeover leading to data breach and privilege escalation
+      3. **MCP Research Findings**:
+         - Tavily-search: Found 15 CVEs related to weak authentication in similar frameworks (2024)
+         - Context7: Express.js security docs recommend bcrypt with cost factor 12+ for 2024
+         - Sequential-thinking: Attack chain analysis shows this enables credential stuffing → account takeover → data exfiltration
+      4. **Real-world evidence**: OWASP reports 80% of breaches involve weak/stolen credentials
+      5. **Compliance**: Violates PCI DSS 8.2.3, GDPR Article 32, and NIST 800-63B guidelines
+
+      The suggested fix implements defense-in-depth with multiple security layers, making brute force attacks computationally infeasible while maintaining good UX.
+  - attack_scenario: |
+      1. Attacker identifies login endpoint without rate limiting
+      2. Uses automated tool to attempt common passwords
+      3. With no complexity requirements, succeeds with password "password123"
+      4. Gains full access to user account and associated data
+      5. Potentially escalates privileges or moves laterally
+  - business_impact: |
+      - Data breach affecting customer PII (GDPR fines up to €20M or 4% revenue)
+      - Reputational damage and loss of customer trust
+      - Regulatory compliance violations (PCI DSS, HIPAA, SOX)
+      - Incident response costs ($4.45M average per IBM 2023 report)
+      - Potential litigation from affected users
+  - prevention_guidance: |
+      1. Implement organization-wide secure coding standards for authentication
+      2. Use centralized authentication service with built-in security controls
+      3. Regular security training on OWASP Top 10 for development team
+      4. Automated security testing in CI/CD pipeline using SAST/DAST tools
+      5. Periodic penetration testing of authentication mechanisms
+  - references: |
+      - OWASP A07:2021 - https://owasp.org/Top10/A07_2021
+      - CWE-521: https://cwe.mitre.org/data/definitions/521.html
+      - CVE-2023-46604 - Similar authentication bypass
+      - NIST 800-63B Digital Identity Guidelines
+      - Express.js Security Best Practices
+  - mcp_insights: |
+      - Tavily: Recent breaches show 81% involve compromised credentials (Verizon DBIR 2024)
+      - Context7: bcrypt documentation confirms cost factor 12 provides optimal security/performance balance
+      - Sequential-thinking: Vulnerability chain enables account takeover → privilege escalation → data exfiltration
+  - confidence_score: |
+      9 (High confidence based on clear vulnerability pattern and extensive MCP research validation)
+```
+
+### Important: Diff Marker Handling
+
+When extracting code from the diff_content:
+- Analyze ONLY lines prefixed with "+" (new additions)
+- **REMOVE the "+" prefix and any leading spaces from the diff format when presenting code**
+- Present clean, properly formatted code without any diff markers
+- The `vulnerable_code` and `remediation_code` fields must contain executable code without formatting markers
 
 ## Security Principles & Priorities
 
