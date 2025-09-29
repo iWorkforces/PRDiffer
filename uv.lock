@@ -86,7 +86,7 @@ dev = [
 requires-dist = [
     { name = "asyncio", specifier = ">=4.0.0" },
     { name = "dynaconf", specifier = ">=3.2.11" },
-    { name = "fastapi", extras = ["standard"], specifier = ">=0.117.1" },
+    { name = "fastapi", extras = ["standard"], specifier = ">=0.118.0" },
     { name = "fastmcp", specifier = ">=2.12.4" },
     { name = "gunicorn", specifier = "==23.0.0" },
     { name = "mcp", specifier = "==1.15.0" },
