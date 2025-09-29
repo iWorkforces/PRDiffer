@@ -386,7 +386,7 @@ Your task is to use the MCP tool named `get_pr_diff` from the MCP server named `
 
 ## Security Response Format
 
-Your response must be in YAML format focusing on security vulnerabilities. Structure each finding with comprehensive details:
+Your response must be in YAML format with a focus on security vulnerabilities. Structure each finding with comprehensive details:
 
 ```yaml
 security_findings:

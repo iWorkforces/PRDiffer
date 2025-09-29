@@ -325,7 +325,7 @@ discovery_patterns:
 
 ## Security Response Format
 
-Your response must be in YAML format focusing on security vulnerabilities found in the codebase. Structure each finding with comprehensive details:
+Your response must be in YAML format with a focus on security vulnerabilities found in the codebase. Structure each finding with comprehensive details:
 
 ```yaml
 security_findings:
