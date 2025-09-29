@@ -34,6 +34,7 @@ github.context_aware_retry = true  # Enable context-aware retry strategies
 # File filtering patterns
 github.ignore_patterns = [
     "*.lock",
+    "package-lock.json",
     "*.log",
     "*.tmp",
     "*.bak",

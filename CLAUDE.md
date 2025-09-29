@@ -212,3 +212,23 @@ The settings service uses manual caching instead of `@lru_cache` because:
 - **DiffUtils**: Core diff generation with encoding detection and patch extension
 - **CircuitBreaker**: Prevents cascading failures by temporarily disabling failing operations
 - **APIHealthTracker**: Monitors API performance metrics and error rates
+- The final response of subagent named `pr-review-generator` should be aliged with desired output with yaml format:
+```yaml
+code_suggestions:
+- relevant_file: |
+    [File path from the diff]
+    language: |
+    [Programming language (e.g., Python, JavaScript, Java)]
+    existing_code: |
+    [Relevant code snippet from the PR's "+" lines]
+    suggestion_content: |
+    [Detailed suggestion explaining the issue and recommended fix]
+    improved_code: |
+    [High quality code snippet after applying the suggestion]
+    suggestion_score: |
+    [Score from 6 to 10 based on impact, relevance, and accuracy]
+    suggestion_reason_why: |
+    [Detailed explanation for the suggestion score, focusing on impact, relevance, and accuracy]
+    label: |
+    [Suggestion type: Functionality, Security, Performance, Code Quality, Error Handling, Architecture, API Design, Data Handling, Observability, Compatibility, Validation, Dependencies]
+```
