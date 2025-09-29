@@ -48,7 +48,8 @@ github.ignore_patterns = [
     ".idea/",
     ".vscode/",
     "coverage/",
-    ".pytest_cache/"
+    ".pytest_cache/",
+    "*package-lock.json",
 ]
 
 github.valid_extensions = [
