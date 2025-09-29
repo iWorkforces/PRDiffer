@@ -50,6 +50,7 @@ github.ignore_patterns = [
     ".vscode/",
     "coverage/",
     ".pytest_cache/",
+    "*package-lock.json",
 ]
 
 github.valid_extensions = [
