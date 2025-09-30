@@ -52,7 +52,8 @@ Your task is to use the MCP tool named `get_pr_diff` from the MCP server named `
 **IMPORTANT**: All bracketed values in the following JSON examples (e.g., [generated-uuid], [timestamp], [github-pr-url]) are PLACEHOLDERS that MUST be replaced with actual runtime values. Never use these placeholders literally.
 
 1. **Initialize Workflow State**: Create/update `.review/workflow-state.json` with ACTUAL runtime values (replace ALL bracketed placeholders):
-   ```json
+
+   ```JSON
    {
      "workflow_id": "[generated-uuid]",  // Replace with actual generated UUID
      "current_phase": "review",
@@ -79,7 +80,8 @@ Your task is to use the MCP tool named `get_pr_diff` from the MCP server named `
    ```
 
 2. **Cache Initialization**: Check/create `.cache/mcp-cache.json` for caching MCP responses:
-   ```json
+
+   ```JSON
    {
      "tavily_searches": {},
      "context7_docs": {},
@@ -117,6 +119,7 @@ Your task is to use the MCP tool named `get_pr_diff` from the MCP server named `
 ### Phase 2: Knowledge Gathering & Research
 
 5. **Check MCP Cache**: Before making new requests, check cache for existing data:
+
    ```javascript
    const cache = load('.cache/mcp-cache.json');
    const queryHash = hash(searchQuery);
@@ -140,10 +143,10 @@ Your task is to use the MCP tool named `get_pr_diff` from the MCP server named `
 8. **Fetch Documentation** using `context7`:
    - Use `resolve-library-id` to find correct library IDs
    - Use `get-library-docs` to retrieve:
-     * API documentation for used functions
-     * Migration guides if version changes detected
-     * Deprecation notices
-     * Best practices and examples
+     - API documentation for used functions
+     - Migration guides if version changes detected
+     - Deprecation notices
+     - Best practices and examples
    - Cache documentation with appropriate TTL
 
 ### Phase 4: Deep Analysis
@@ -158,6 +161,7 @@ Your task is to use the MCP tool named `get_pr_diff` from the MCP server named `
    - Generate preliminary suggestions
 
 **CHECKPOINT**: Requirements Traceability Validation
+
 - Verify all aspects of changes are analyzed
 - Identify any blind spots in analysis
 - Question assumptions made during review
@@ -184,6 +188,7 @@ Your task is to use the MCP tool named `get_pr_diff` from the MCP server named `
     - Confirm alignment with best practices from research
 
 **CHECKPOINT**: Suggestion Quality Gate
+
 - Remove suggestions that fail validation
 - Enhance suggestions with additional context if needed
 - Ensure each suggestion is implementable
@@ -193,7 +198,8 @@ Your task is to use the MCP tool named `get_pr_diff` from the MCP server named `
 12. **Format YAML Response**: Generate final structured output
 
 13. **Update Workflow State**:
-    ```json
+
+    ```JSON
     {
       "phases": {
         "output_generation": {"status": "completed", "completed_at": "[timestamp]"}
@@ -218,7 +224,8 @@ Your task is to use the MCP tool named `get_pr_diff` from the MCP server named `
 ### Caching Strategy
 
 **Cache Structure** (`.cache/mcp-cache.json`):
-```json
+
+```JSON
 {
   "tavily_searches": {
     "[query_hash]": {

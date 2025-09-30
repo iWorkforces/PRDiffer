@@ -45,7 +45,7 @@ Your task is to use the MCP tool named `get_pr_diff` from the MCP server named `
 
 1. **Initialize Security Workflow State**: Create/update `.security/workflow-state.json` with ACTUAL runtime values (replace ALL bracketed placeholders - SECURITY CRITICAL):
 
-   ```json
+   ```JSON
    {
      "workflow_id": "[generated-uuid]",  // Replace with actual UUID
      "current_phase": "security_review",
@@ -79,7 +79,7 @@ Your task is to use the MCP tool named `get_pr_diff` from the MCP server named `
 
 2. **Security Cache Initialization**: Check/create `.cache/security-cache.json`:
 
-   ```json
+   ```JSON
    {
      "cve_searches": {},
      "security_advisories": {},
@@ -287,7 +287,7 @@ Your task is to use the MCP tool named `get_pr_diff` from the MCP server named `
 
 13. **Update Workflow Metrics**:
 
-    ```json
+    ```JSON
     {
       "summary": {
         "total_vulnerabilities": [count],
@@ -316,7 +316,7 @@ Your task is to use the MCP tool named `get_pr_diff` from the MCP server named `
 - `[category]` must be actual OWASP category (e.g., "A01_access_control")
 - Never store placeholder values in security cache as this corrupts vulnerability tracking
 
-```json
+```JSON
 {
   "cve_searches": {
     "[query_hash]": {
