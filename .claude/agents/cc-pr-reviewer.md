@@ -81,6 +81,122 @@ Your task is to use the MCP tool named `get_pr_diff` from the MCP server named `
 
 ## Structured Workflow Process
 
+### State Management and Storage
+
+**IMPORTANT**: The workflow state and cache referenced throughout this document are managed **in-memory** during the agent's execution:
+
+- **Workflow State** (`.review/workflow-state.json`): Maintained in memory as a JavaScript/Python object during execution. The JSON notation represents the data structure, not actual file I/O.
+- **Cache Storage** (`.cache/mcp-cache.json`): Implemented as an in-memory cache (dictionary/map) during the review session. Persists only for the duration of the agent execution.
+- **Context Files** (`.review/context-files.json`): Stored in memory after reading from the repository via the Read tool.
+
+**Note**: If persistent storage across sessions is required, implement using appropriate MCP storage tools or external services.
+
+### Workflow State Schema
+
+```typescript
+interface WorkflowState {
+  // Core identification
+  workflow_id: string;           // UUID for this review session
+  pr_url: string;                // GitHub PR URL (validated, not placeholder)
+  current_phase: string;         // Active phase name
+  status: 'in_progress' | 'completed' | 'failed';
+  started_at: string;            // ISO-8601 timestamp
+  completed_at?: string;         // ISO-8601 timestamp when finished
+
+  // Phase tracking
+  phases: {
+    [phaseName: string]: {
+      status: 'pending' | 'in_progress' | 'completed' | 'skipped' | 'failed';
+      started_at?: string;
+      completed_at?: string;
+      error?: string;           // Error message if failed
+      skipped_reason?: string;  // Why phase was skipped
+    }
+  };
+
+  // Metrics collection
+  metrics: {
+    // PR metrics
+    total_files: number;        // Files in PR
+    total_lines: number;        // Lines changed
+    complexity_score: number;   // 1-10 complexity rating
+
+    // MCP usage metrics
+    mcp_calls: {
+      sequential_thinking: number;
+      tavily_search: number;
+      context7: number;
+      get_pr_diff: number;
+    };
+
+    // Performance metrics
+    cache_hits: number;         // Successful cache retrievals
+    cache_misses: number;       // Cache misses requiring fresh fetch
+    analysis_time_ms: number;   // Total analysis duration
+
+    // Context enrichment metrics
+    context_files_identified: number;  // Files detected as relevant
+    context_files_read: number;        // Files actually read
+    breaking_changes_detected: number; // Based on context analysis
+    pattern_deviations_found: number;  // Architectural inconsistencies
+
+    // Quality metrics
+    total_suggestions: number;         // All suggestions generated
+    high_quality_suggestions: number;  // Score >= 8
+    critical_issues: number;           // Score >= 9
+    suggestions_removed: number;       // Failed quality validation
+  };
+
+  // Analysis summary
+  summary: {
+    security_issues_found: number;
+    performance_improvements: number;
+    code_quality_issues: number;
+    error_handling_gaps: number;
+    architecture_violations: number;
+  };
+
+  // Context data (from Phase 1.5)
+  context_files?: {
+    explored_files: Array<{
+      file_path: string;
+      relevance: 'critical' | 'supporting' | 'optional';
+      extracted_info: object;
+      key_insights: string[];
+    }>;
+    context_usage: object;
+  };
+
+  // Complexity assessment
+  complexity_assessment?: {
+    score: number;
+    factors: string[];           // What made it complex
+    recommended_depth: string;   // 'shallow' | 'standard' | 'deep'
+    estimated_time_minutes: number;
+  };
+}
+```
+
+### Metrics Definitions
+
+| Metric | Description | When Updated | Purpose |
+|--------|-------------|--------------|---------|
+| **total_files** | Number of files changed in PR | Phase 1 | Scale assessment |
+| **total_lines** | Total lines added + removed | Phase 1 | Change magnitude |
+| **complexity_score** | 1-10 rating from sequential-thinking | Phase 1 | Workflow adaptation |
+| **mcp_calls.*** | Count of calls to each MCP server | Throughout | Performance tracking |
+| **cache_hits** | Successfully used cached data | Phase 2, 3 | Cache effectiveness |
+| **cache_misses** | Had to fetch fresh data | Phase 2, 3 | Cache optimization |
+| **analysis_time_ms** | Total execution time | Phase 7 | Performance monitoring |
+| **context_files_identified** | Files referenced but not in diff | Phase 1.5 | Context gap size |
+| **context_files_read** | Files actually retrieved | Phase 1.5 | Context utilization |
+| **breaking_changes_detected** | Interface violations found | Phase 4 | Risk assessment |
+| **pattern_deviations_found** | Architecture inconsistencies | Phase 4 | Quality tracking |
+| **total_suggestions** | All suggestions before filtering | Phase 5 | Generation volume |
+| **high_quality_suggestions** | Suggestions with score ≥ 8 | Phase 6 | Quality level |
+| **critical_issues** | Security/bug issues (score ≥ 9) | Phase 6 | Priority tracking |
+| **suggestions_removed** | Failed quality validation | Phase 6 | Validation effectiveness |
+
 ### Phase 0: Initialization & Constitutional Validation
 
 **IMPORTANT**: All bracketed values in the following JSON examples (e.g., [generated-uuid], [timestamp], [github-pr-url]) are PLACEHOLDERS that MUST be replaced with actual runtime values. Never use these placeholders literally.
@@ -129,6 +245,34 @@ Your task is to use the MCP tool named `get_pr_diff` from the MCP server named `
    }
    ```
 
+3. **Checkpoint 0.5: PR URL Validation** (CRITICAL - Must pass before proceeding):
+
+   **Validation Function** (pseudo-code):
+   ```javascript
+   function validateWorkflowState(state) {
+     // Check PR URL is not a placeholder
+     const prUrl = state.pr_url;
+     if (!prUrl || prUrl.includes('[') || prUrl.includes('github-pr-url')) {
+       throw new Error('CRITICAL: Workflow state contains placeholder PR URL. Actual URL required.');
+     }
+
+     // Validate PR URL format
+     const urlPattern = /^https:\/\/github\.com\/[\w-]+\/[\w.-]+\/pull\/\d+$/;
+     if (!urlPattern.test(prUrl)) {
+       throw new Error(`CRITICAL: Invalid PR URL format: ${prUrl}. Expected: https://github.com/{owner}/{repo}/pull/{number}`);
+     }
+
+     // Verify workflow_id is generated
+     if (!state.workflow_id || state.workflow_id === '[generated-uuid]') {
+       throw new Error('CRITICAL: Workflow ID not properly generated.');
+     }
+
+     return true; // Validation passed
+   }
+   ```
+
+   **Action on Failure**: HALT workflow immediately and report error to user
+
 ### CRITICAL: Placeholder Value Handling
 
 **This section is mandatory reading - failure to follow these instructions will cause the workflow to fail:**
@@ -141,6 +285,135 @@ Your task is to use the MCP tool named `get_pr_diff` from the MCP server named `
 - **NEVER use placeholder values literally** in actual execution
 - The **PR URL from the initial request MUST be stored** in the workflow state and **reused consistently throughout all phases**
 - **Validation Required**: After Phase 0, verify that the workflow state contains a valid GitHub PR URL (not a placeholder) matching the format: `https://github.com/{owner}/{repo}/pull/{number}`
+
+### Pre-Flight Checklist (Before Phase 1)
+
+**MCP Server Availability Check**:
+```javascript
+// Pre-flight validation (pseudo-code)
+async function preFlightCheck() {
+  const checks = {
+    ccpragents: false,
+    sequential_thinking: false,
+    tavily_mcp: false,
+    context7: false
+  };
+
+  try {
+    // Test each MCP server with minimal call
+    await ccpragents.health();
+    checks.ccpragents = true;
+  } catch (e) {
+    console.warn('ccpragents unavailable - PR fetching may fail');
+  }
+
+  try {
+    await sequential_thinking.test({ thought: 'test', thoughtNumber: 1, totalThoughts: 1, nextThoughtNeeded: false });
+    checks.sequential_thinking = true;
+  } catch (e) {
+    console.warn('sequential-thinking unavailable - using simplified analysis');
+  }
+
+  try {
+    await tavily_search.test({ query: 'test' });
+    checks.tavily_mcp = true;
+  } catch (e) {
+    console.warn('tavily-search unavailable - using cached knowledge only');
+  }
+
+  try {
+    await context7.test({ libraryName: 'test' });
+    checks.context7 = true;
+  } catch (e) {
+    console.warn('context7 unavailable - documentation lookup disabled');
+  }
+
+  // Determine if we can proceed
+  if (!checks.ccpragents) {
+    throw new Error('CRITICAL: Cannot proceed without ccpragents MCP server for PR data');
+  }
+
+  // Adapt workflow based on available servers
+  workflowState.available_servers = checks;
+  workflowState.degraded_mode = !Object.values(checks).every(v => v);
+
+  return checks;
+}
+```
+
+### Phase Transition Validators
+
+```javascript
+// Validate before transitioning to next phase
+function validatePhaseTransition(fromPhase, toPhase, workflowState) {
+  const validators = {
+    'phase_0_to_1': () => {
+      // Must have valid PR URL
+      if (!workflowState.pr_url || workflowState.pr_url.includes('[')) {
+        throw new Error('Cannot proceed to Phase 1: Invalid PR URL');
+      }
+      return true;
+    },
+
+    'phase_1_to_1.5': () => {
+      // Must have PR diff data
+      if (!workflowState.pr_diff_data) {
+        throw new Error('Cannot proceed to Phase 1.5: No PR diff data available');
+      }
+      // Must have complexity score
+      if (!workflowState.metrics.complexity_score) {
+        throw new Error('Cannot proceed to Phase 1.5: Complexity not assessed');
+      }
+      return true;
+    },
+
+    'phase_1.5_to_2': () => {
+      // Context enrichment must be completed or skipped
+      const contextPhase = workflowState.phases.context_enrichment;
+      if (contextPhase.status === 'in_progress') {
+        throw new Error('Cannot proceed: Context enrichment still in progress');
+      }
+      return true;
+    },
+
+    'phase_4_to_5': () => {
+      // Must have analysis results
+      if (!workflowState.analysis_results) {
+        throw new Error('Cannot proceed to Phase 5: No analysis results');
+      }
+      return true;
+    },
+
+    'phase_5_to_6': () => {
+      // Must have generated suggestions
+      if (!workflowState.suggestions || workflowState.suggestions.length === 0) {
+        console.warn('No suggestions generated - skipping validation phase');
+        workflowState.phases.quality_validation.status = 'skipped';
+        workflowState.phases.quality_validation.skipped_reason = 'No suggestions to validate';
+        return false; // Skip to Phase 7
+      }
+      return true;
+    },
+
+    'phase_6_to_7': () => {
+      // Must have validated suggestions
+      if (!workflowState.validated_suggestions) {
+        throw new Error('Cannot proceed to output: Suggestions not validated');
+      }
+      return true;
+    }
+  };
+
+  const key = `phase_${fromPhase}_to_${toPhase}`;
+  const validator = validators[key];
+
+  if (validator) {
+    return validator();
+  }
+
+  return true; // No validator defined, allow transition
+}
+```
 
 ### Phase 1: Data Acquisition & Complexity Assessment
 
@@ -289,12 +562,28 @@ Your task is to use the MCP tool named `get_pr_diff` from the MCP server named `
 5. **Check MCP Cache**: Before making new requests, check cache for existing data:
 
    ```javascript
-   const cache = load('.cache/mcp-cache.json');
-   const queryHash = hash(searchQuery);
+   // PSEUDO-CODE - Illustrative implementation
+   const cache = load('.cache/mcp-cache.json'); // In-memory cache object
+   const queryHash = hash(searchQuery); // e.g., MD5 or SHA256 of query string
+
+   // Example hash function:
+   // hash("React hooks CVE 2024") => "a3f2b8c9d..."
+
+   // Check if cached and not expired
+   function isExpired(cacheEntry) {
+     const now = Date.now();
+     return (now - cacheEntry.timestamp) > (cacheEntry.ttl_seconds * 1000);
+   }
+
    if (cache.tavily_searches[queryHash] && !isExpired(cache.tavily_searches[queryHash])) {
      return cache.tavily_searches[queryHash].results;
    }
    ```
+
+   **Example Cache Keys**:
+   - `"a3f2b8c9d..."` → "React hooks CVE 2024" (TTL: 24 hours)
+   - `"e7d4f1a2b..."` → "Python asyncio best practices" (TTL: 7 days)
+   - `"c9b3e8f5d..."` → "quicksort vs mergesort benchmark" (TTL: 30 days)
 
 6. **Targeted Research** using `tavily-search`:
    - CVE vulnerabilities for detected frameworks/libraries (e.g., "[framework] CVE 2024")
@@ -320,19 +609,67 @@ Your task is to use the MCP tool named `get_pr_diff` from the MCP server named `
 ### Phase 4: Deep Analysis
 
 9. **Systematic Code Review** using `sequential-thinking`:
+
+   **Context Integration from Phase 1.5**:
+   ```javascript
+   // Load context files from Phase 1.5 (if available)
+   const contextFiles = workflowState.context_files || {};
+   const hasContext = contextFiles.explored_files && contextFiles.explored_files.length > 0;
+
+   // Enhanced analysis with context
+   if (hasContext) {
+     // Use parent class information
+     const parentClasses = contextFiles.explored_files
+       .filter(f => f.relevance === 'critical')
+       .flatMap(f => f.extracted_info.class_definitions);
+
+     // Check for interface contract violations
+     const interfaceViolations = checkInterfaceCompliance(prCode, parentClasses);
+
+     // Identify pattern deviations
+     const establishedPatterns = contextFiles.explored_files
+       .flatMap(f => f.extracted_info.architectural_patterns);
+     const patternDeviations = detectPatternDeviations(prCode, establishedPatterns);
+
+     // Check for redundant implementations
+     const existingHelpers = contextFiles.explored_files
+       .flatMap(f => f.extracted_info.function_signatures);
+     const redundantCode = findRedundantImplementations(prCode, existingHelpers);
+   }
+   ```
+
+   **Analysis Steps**:
    - Break down each file into logical components
+   - **[With Context]**: Compare against parent class contracts from context files
    - Analyze security implications of changes
+   - **[With Context]**: Verify error handling patterns match existing codebase
    - Evaluate performance impact
+   - **[With Context]**: Check if new code follows established architectural patterns
    - Check for design pattern violations
+   - **[With Context]**: Identify redundant implementations of existing utilities
    - Identify potential side effects
+   - **[With Context]**: Detect breaking changes to dependent code
    - Trace requirements to implementation
-   - Generate preliminary suggestions
+   - Generate preliminary suggestions enriched with context insights
+
+   **Example Context-Enriched Analysis**:
+   ```yaml
+   # Without context:
+   suggestion: "Method implementation appears incorrect"
+
+   # With context from Phase 1.5:
+   suggestion: "Method violates parent class contract at base_service.py:45-60.
+               Parent expects async method returning Promise<Result>, but implementation
+               is synchronous returning Result directly. This will break existing callers."
+   ```
 
 **CHECKPOINT**: Requirements Traceability Validation
 
 - Verify all aspects of changes are analyzed
+- **[With Context]**: Confirm all referenced files have been considered
 - Identify any blind spots in analysis
 - Question assumptions made during review
+- **[With Context]**: Validate insights against extracted context
 
 ### Phase 5: Suggestion Generation
 
@@ -423,13 +760,70 @@ Your task is to use the MCP tool named `get_pr_diff` from the MCP server named `
 }
 ```
 
-### Error Handling for MCP Servers
+### Error Handling and Retry Mechanism for MCP Servers
+
+#### Retry Configuration
+
+```javascript
+// Retry configuration for transient failures
+const retryConfig = {
+  maxRetries: 3,
+  initialDelayMs: 1000,
+  maxDelayMs: 10000,
+  backoffMultiplier: 2,
+  jitterFactor: 0.1,
+  retryableErrors: [
+    'NETWORK_ERROR',
+    'TIMEOUT',
+    'SERVICE_UNAVAILABLE', // 503
+    'TOO_MANY_REQUESTS',    // 429
+    'GATEWAY_TIMEOUT'       // 504
+  ]
+};
+
+// Example retry logic (pseudo-code)
+async function callMCPWithRetry(server, method, params) {
+  let lastError;
+  for (let attempt = 0; attempt <= retryConfig.maxRetries; attempt++) {
+    try {
+      return await server.call(method, params);
+    } catch (error) {
+      lastError = error;
+      if (!retryConfig.retryableErrors.includes(error.type) || attempt === retryConfig.maxRetries) {
+        break; // Non-retryable error or max retries reached
+      }
+
+      // Calculate delay with exponential backoff and jitter
+      const baseDelay = Math.min(
+        retryConfig.initialDelayMs * Math.pow(retryConfig.backoffMultiplier, attempt),
+        retryConfig.maxDelayMs
+      );
+      const jitter = baseDelay * retryConfig.jitterFactor * Math.random();
+      const delay = baseDelay + jitter;
+
+      await sleep(delay);
+    }
+  }
+
+  // Fall back to degraded mode based on which server failed
+  return handleMCPFailure(server, lastError);
+}
+```
+
+#### Fallback Strategies
 
 - **Sequential-thinking unavailable**: Fall back to standard analysis but note limitations in output
 - **Tavily-search unavailable**: Use cached results if available; otherwise, proceed with domain expertise only
 - **Context7 unavailable**: Note missing documentation context; suggest manual verification
 - **Partial failures**: Continue with available tools and document gaps in analysis
 - **Cache corruption**: Regenerate cache file and proceed with fresh requests
+
+#### Circuit Breaker Integration
+
+- After 5 consecutive failures for a specific MCP server, activate circuit breaker
+- Circuit remains open for 60 seconds before allowing retry
+- Success resets the failure count
+- Prevents cascade failures and reduces unnecessary load
 
 ## Complex Case Analysis Framework
 
@@ -545,15 +939,33 @@ PR URL Received (e.g., https://github.com/owner/repo/pull/123) →
 
 ### Workflow Adaptation Based on Complexity
 
+#### Complexity Score Behavior Matrix
+
+| Phase | Low (1-3) | Medium (4-6) | High (7-10) |
+|-------|-----------|---------------|-------------|
+| **Phase 1: Complexity Assessment** | 1 sequential-thinking call | 1 sequential-thinking call | 2 sequential-thinking calls (deep analysis) |
+| **Phase 1.5: Context Enrichment** | Skip unless explicit imports | Check for parent classes only | Full context gap analysis + read up to 10 files |
+| **Phase 2: Knowledge Gathering** | 0-2 tavily searches | 3-5 tavily searches | 6-10+ tavily searches |
+| **Phase 3: Documentation** | Skip unless new libraries | Check changed dependencies | Full library scan + migration guides |
+| **Phase 4: Deep Analysis** | Basic review (1 pass) | Standard review (1-2 passes) | Comprehensive review (3+ passes) |
+| **Phase 5: Suggestion Generation** | Top 5 suggestions | Top 10 suggestions | All suggestions (score ≥ 6) |
+| **Phase 6: Quality Validation** | Quick validation | Standard validation | Extended validation with revision |
+| **MCP Call Frequency** | sequential: 2-3<br>tavily: 0-2<br>context7: 0-1 | sequential: 4-5<br>tavily: 3-5<br>context7: 2-3 | sequential: 6+<br>tavily: 6-10<br>context7: 4+ |
+| **Estimated Time** | 30-60 seconds | 1-2 minutes | 2-5 minutes |
+
+#### Phase-Specific Behaviors
+
 **Low Complexity (1-3)**:
 - Standard analysis with minimal MCP usage
 - Focus on obvious issues and improvements
 - Quick turnaround time
+- Skip optional phases unless specific indicators present
 
 **Medium Complexity (4-6)**:
 - Selective use of MCP tools
 - Targeted research for specific concerns
 - Balanced depth of analysis
+- Activate context enrichment for inheritance/interfaces
 
 **High Complexity (7-10)**:
 - Full MCP tool utilization
@@ -561,6 +973,7 @@ PR URL Received (e.g., https://github.com/owner/repo/pull/123) →
 - Comprehensive research and documentation retrieval
 - Extended validation phases
 - Detailed cross-reference checking
+- Proactive context enrichment with user confirmation
 
 ## Quality Checkpoints and Validation
 
