@@ -53,13 +53,13 @@ Your task is to use the MCP tool named `get_pr_diff` from the MCP server named `
 
 1. **Initialize Workflow State**: Create/update `.review/workflow-state.json` with ACTUAL runtime values (replace ALL bracketed placeholders):
 
-   ```JSON
+   ```json
    {
-     "workflow_id": "[generated-uuid]",  // Replace with actual generated UUID
+     "workflow_id": "[generated-uuid]",
      "current_phase": "review",
      "status": "in_progress",
-     "started_at": "[timestamp]",  // Replace with actual ISO-8601 timestamp
-     "pr_url": "[ACTUAL_PR_URL_FROM_USER_REQUEST]",  // Replace with the ACTUAL GitHub PR URL received (e.g., https://github.com/owner/repo/pull/123)
+     "started_at": "[timestamp]",
+     "pr_url": "[ACTUAL_PR_URL_FROM_USER_REQUEST]",
      "phases": {
        "initialization": {"status": "in_progress", "started_at": "[timestamp]"},
        "complexity_assessment": {"status": "pending"},
@@ -79,9 +79,14 @@ Your task is to use the MCP tool named `get_pr_diff` from the MCP server named `
    }
    ```
 
+   **IMPORTANT: Replace all bracketed placeholders with actual runtime values:**
+   - `[generated-uuid]`: Replace with actual generated UUID
+   - `[timestamp]`: Replace with actual ISO-8601 timestamp
+   - `[ACTUAL_PR_URL_FROM_USER_REQUEST]`: Replace with the ACTUAL GitHub PR URL received (e.g., <https://github.com/owner/repo/pull/123>)
+
 2. **Cache Initialization**: Check/create `.cache/mcp-cache.json` for caching MCP responses:
 
-   ```JSON
+   ```json
    {
      "tavily_searches": {},
      "context7_docs": {},
@@ -199,7 +204,7 @@ Your task is to use the MCP tool named `get_pr_diff` from the MCP server named `
 
 13. **Update Workflow State**:
 
-    ```JSON
+    ```json
     {
       "phases": {
         "output_generation": {"status": "completed", "completed_at": "[timestamp]"}
@@ -225,7 +230,7 @@ Your task is to use the MCP tool named `get_pr_diff` from the MCP server named `
 
 **Cache Structure** (`.cache/mcp-cache.json`):
 
-```JSON
+```json
 {
   "tavily_searches": {
     "[query_hash]": {

@@ -43,7 +43,7 @@ Your task is to use file system tools (Glob, Grep, Read) to discover and analyze
 
 1. **Initialize Codebase Security Scan**: Create/update `.security/codebase-scan-state.json`:
 
-   ```JSON
+   ```json
    {
      "scan_id": "[generated-uuid]",
      "scan_type": "comprehensive|standard|quick",
@@ -510,7 +510,7 @@ security_findings:
 
 ### Caching Strategy for Codebases
 
-```JSON
+```json
 {
   "codebase_cache": {
     "framework_docs": {

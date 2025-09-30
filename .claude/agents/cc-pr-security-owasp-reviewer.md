@@ -45,17 +45,17 @@ Your task is to use the MCP tool named `get_pr_diff` from the MCP server named `
 
 1. **Initialize Security Workflow State**: Create/update `.security/workflow-state.json` with ACTUAL runtime values (replace ALL bracketed placeholders - SECURITY CRITICAL):
 
-   ```JSON
+   ```json
    {
-     "workflow_id": "[generated-uuid]",  // Replace with actual UUID
+     "workflow_id": "[generated-uuid]",
      "current_phase": "security_review",
      "status": "in_progress",
-     "started_at": "[timestamp]",  // Replace with actual ISO-8601 timestamp
-     "pr_url": "[ACTUAL_PR_URL_FROM_USER_REQUEST]",  // CRITICAL: Replace with the ACTUAL GitHub PR URL (e.g., https://github.com/owner/repo/pull/123) - NEVER use placeholders or example URLs
+     "started_at": "[timestamp]",
+     "pr_url": "[ACTUAL_PR_URL_FROM_USER_REQUEST]",
      "threat_model": {
-       "attack_surface": [],  // Will be populated with actual threats
-       "threat_actors": [],   // Will be populated with actual actors
-       "assets_at_risk": []   // Will be populated with actual assets
+       "attack_surface": [],
+       "threat_actors": [],
+       "assets_at_risk": []
      },
      "phases": {
        "initialization": {"status": "in_progress", "started_at": "[timestamp]"},
@@ -77,9 +77,15 @@ Your task is to use the MCP tool named `get_pr_diff` from the MCP server named `
    }
    ```
 
+   **IMPORTANT: Replace all bracketed placeholders with actual runtime values:**
+   - `[generated-uuid]`: Replace with actual UUID
+   - `[timestamp]`: Replace with actual ISO-8601 timestamp
+   - `[ACTUAL_PR_URL_FROM_USER_REQUEST]`: CRITICAL - Replace with the ACTUAL GitHub PR URL (e.g., <https://github.com/owner/repo/pull/123>) - NEVER use placeholders or example URLs
+   - Empty arrays (`attack_surface`, `threat_actors`, `assets_at_risk`): Will be populated with actual threats, actors, and assets during analysis
+
 2. **Security Cache Initialization**: Check/create `.cache/security-cache.json`:
 
-   ```JSON
+   ```json
    {
      "cve_searches": {},
      "security_advisories": {},
@@ -287,15 +293,15 @@ Your task is to use the MCP tool named `get_pr_diff` from the MCP server named `
 
 13. **Update Workflow Metrics**:
 
-    ```JSON
+    ```json
     {
       "summary": {
-        "total_vulnerabilities": [count],
+        "total_vulnerabilities": "[count]",
         "by_severity": {
-          "critical": [count],
-          "high": [count],
-          "medium": [count],
-          "low": [count]
+          "critical": "[count]",
+          "high": "[count]",
+          "medium": "[count]",
+          "low": "[count]"
         },
         "owasp_coverage": ["A01", "A03", "A07"],
         "cves_identified": ["CVE-2024-xxx"],
@@ -303,6 +309,8 @@ Your task is to use the MCP tool named `get_pr_diff` from the MCP server named `
       }
     }
     ```
+
+    **Note**: Replace `[count]` placeholders with actual numerical counts from the security analysis.
 
 ## Enhanced MCP Server Integration for Security
 
@@ -316,7 +324,7 @@ Your task is to use the MCP tool named `get_pr_diff` from the MCP server named `
 - `[category]` must be actual OWASP category (e.g., "A01_access_control")
 - Never store placeholder values in security cache as this corrupts vulnerability tracking
 
-```JSON
+```json
 {
   "cve_searches": {
     "[query_hash]": {
