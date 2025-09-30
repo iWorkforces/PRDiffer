@@ -217,6 +217,7 @@ Your task is to use the MCP tool named `get_pr_diff` from the MCP server named `
    - **Relevance Filtering**: Skip files if their content doesn't add actionable insights
 
    **Information Extraction** (store in workflow state `.review/context-files.json`):
+
    ```json
    {
      "explored_files": [
@@ -257,6 +258,7 @@ Your task is to use the MCP tool named `get_pr_diff` from the MCP server named `
    - If reading fails: Continue with available context and note limitations
 
 8. **Update Workflow State** with context enrichment metrics:
+
    ```json
    {
      "phases": {
@@ -447,25 +449,29 @@ Identify when to use advanced analysis tools based on these patterns:
 Use `sequential-thinking` MCP server systematically throughout the workflow:
 
 **Phase 1 - Complexity Assessment**:
+
 - Analyze PR scope and scale
 - Identify architectural patterns and changes
 - Detect areas requiring deep analysis
 - Generate complexity score for workflow adaptation
 
-**Phase 4 - Deep Analysis**:
+**Phase 2 - Deep Analysis**:
+
 1. **Problem Decomposition**: Break large changes into logical components for individual analysis
 2. **Risk Assessment**: Evaluate each component's potential impact on system stability and security
 3. **Dependency Analysis**: Identify interdependencies between different code changes
 4. **Testing Strategy**: Determine comprehensive testing approaches for complex modifications
 5. **Implementation Sequencing**: Suggest optimal order for applying multiple related changes
 
-**Phase 6 - Quality Validation**:
+**Phase 3 - Quality Validation**:
+
 - Self-validate generated suggestions
 - Question assumptions and identify gaps
 - Verify technical feasibility
 - Ensure consistency across suggestions
 
 **Checkpoint Integration**:
+
 - After each phase, use sequential-thinking to validate completeness
 - Question if analysis is thorough enough
 - Identify areas needing additional attention
@@ -475,6 +481,7 @@ Use `sequential-thinking` MCP server systematically throughout the workflow:
 Leverage `tavily-search` from `tavily-mcp` server with intelligent caching:
 
 **Search Patterns with Caching**:
+
 - **CVE Lookup** (cache 24h): "[technology] CVE vulnerabilities 2024 critical"
 - **Security Best Practices** (cache 7d): "[framework] security best practices [year]"
 - **Performance Benchmarks** (cache 30d): "[algorithm] performance comparison benchmark"
@@ -482,6 +489,7 @@ Leverage `tavily-search` from `tavily-mcp` server with intelligent caching:
 - **Compliance** (cache 7d): "[regulation] compliance requirements [year]"
 
 **Auto-triggered Searches**:
+
 - When auth code detected: Search for OAuth/JWT best practices
 - When SQL queries found: Search for SQL injection prevention
 - When crypto code found: Search for cryptographic vulnerabilities
@@ -493,12 +501,14 @@ Leverage `tavily-search` from `tavily-mcp` server with intelligent caching:
 Leverage `context7` MCP server for accurate, up-to-date documentation:
 
 **Auto-detection Patterns**:
+
 - Scan imports/requires for library usage
 - Parse package.json, requirements.txt, go.mod, etc.
 - Identify framework-specific patterns
 - Detect version upgrades in dependency changes
 
 **Documentation Priorities**:
+
 1. **API Changes**: Fetch docs for modified API endpoints
 2. **New Libraries**: Get complete docs for newly added dependencies
 3. **Version Upgrades**: Retrieve migration guides and breaking changes
@@ -507,7 +517,7 @@ Leverage `context7` MCP server for accurate, up-to-date documentation:
 
 #### **Integrated Analysis Workflow**
 
-```
+```Text
 PR URL Received (e.g., https://github.com/owner/repo/pull/123) →
   Store ACTUAL PR URL in workflow state (NOT placeholders!) →
     Phase 0: Initialize workflow state & cache with ACTUAL PR URL →
@@ -773,8 +783,8 @@ Remember: Always present clean, executable code in the `existing_code` and `impr
 
 - **`sequential-thinking`**: Use from MCP server `sequential-thinking` throughout the workflow for:
   * **Phase 1**: Initial complexity assessment and risk evaluation
-  * **Phase 4**: Deep analysis and problem decomposition
-  * **Phase 6**: Quality validation and self-reflection
+  - **Phase 2**: Deep analysis and problem decomposition
+  - **Phase 3**: Quality validation and self-reflection
   * **Checkpoints**: Validation at critical workflow junctures
 - **Usage Frequency**:
   * Low complexity: 1-2 calls (assessment + validation)
