@@ -42,6 +42,7 @@ Your task is to use file system tools (Glob, Grep, Read) to discover and analyze
 ### Phase 0: Initialization & Codebase Assessment
 
 1. **Initialize Codebase Security Scan**: Create/update `.security/codebase-scan-state.json`:
+
    ```json
    {
      "scan_id": "[generated-uuid]",

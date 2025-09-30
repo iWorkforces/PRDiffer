@@ -49,14 +49,17 @@ Your task is to use the MCP tool named `get_pr_diff` from the MCP server named `
 
 ### Phase 0: Initialization & Constitutional Validation
 
-1. **Initialize Workflow State**: Create/update `.review/workflow-state.json`:
+**IMPORTANT**: All bracketed values in the following JSON examples (e.g., [generated-uuid], [timestamp], [github-pr-url]) are PLACEHOLDERS that MUST be replaced with actual runtime values. Never use these placeholders literally.
+
+1. **Initialize Workflow State**: Create/update `.review/workflow-state.json` with ACTUAL runtime values (replace ALL bracketed placeholders):
+
    ```json
    {
      "workflow_id": "[generated-uuid]",
      "current_phase": "review",
      "status": "in_progress",
      "started_at": "[timestamp]",
-     "pr_url": "[github-pr-url]",
+     "pr_url": "[ACTUAL_PR_URL_FROM_USER_REQUEST]",
      "phases": {
        "initialization": {"status": "in_progress", "started_at": "[timestamp]"},
        "complexity_assessment": {"status": "pending"},
@@ -76,7 +79,13 @@ Your task is to use the MCP tool named `get_pr_diff` from the MCP server named `
    }
    ```
 
+   **IMPORTANT: Replace all bracketed placeholders with actual runtime values:**
+   - `[generated-uuid]`: Replace with actual generated UUID
+   - `[timestamp]`: Replace with actual ISO-8601 timestamp
+   - `[ACTUAL_PR_URL_FROM_USER_REQUEST]`: Replace with the ACTUAL GitHub PR URL received (e.g., <https://github.com/owner/repo/pull/123>)
+
 2. **Cache Initialization**: Check/create `.cache/mcp-cache.json` for caching MCP responses:
+
    ```json
    {
      "tavily_searches": {},
@@ -85,9 +94,22 @@ Your task is to use the MCP tool named `get_pr_diff` from the MCP server named `
    }
    ```
 
+### CRITICAL: Placeholder Value Handling
+
+**This section is mandatory reading - failure to follow these instructions will cause the workflow to fail:**
+
+- **ALL bracketed values** like `[github-pr-url]`, `[timestamp]`, `[generated-uuid]` are **PLACEHOLDERS**
+- You **MUST replace** these with actual runtime values:
+  - `[github-pr-url]` or `[ACTUAL_PR_URL_FROM_USER_REQUEST]` → The actual PR URL received from the user (e.g., `https://github.com/owner/repo/pull/123`)
+  - `[timestamp]` → Current ISO-8601 timestamp (e.g., `2024-01-15T10:30:00Z`)
+  - `[generated-uuid]` → Generated UUID for workflow tracking (e.g., `550e8400-e29b-41d4-a716-446655440000`)
+- **NEVER use placeholder values literally** in actual execution
+- The **PR URL from the initial request MUST be stored** in the workflow state and **reused consistently throughout all phases**
+- **Validation Required**: After Phase 0, verify that the workflow state contains a valid GitHub PR URL (not a placeholder) matching the format: `https://github.com/{owner}/{repo}/pull/{number}`
+
 ### Phase 1: Data Acquisition & Complexity Assessment
 
-3. **Fetch PR Data**: Use `get_pr_diff` tool with GitHub PR URL to fetch commit messages and diff content
+3. **Fetch PR Data**: Use `get_pr_diff` tool with the **SAME GitHub PR URL stored in the workflow state from Phase 0** (NOT a new or example URL) to fetch commit messages and diff content
 
 4. **Initial Complexity Assessment**: Use `sequential-thinking` to:
    - Analyze PR scope and identify key change areas
@@ -102,6 +124,7 @@ Your task is to use the MCP tool named `get_pr_diff` from the MCP server named `
 ### Phase 2: Knowledge Gathering & Research
 
 5. **Check MCP Cache**: Before making new requests, check cache for existing data:
+
    ```javascript
    const cache = load('.cache/mcp-cache.json');
    const queryHash = hash(searchQuery);
@@ -125,10 +148,10 @@ Your task is to use the MCP tool named `get_pr_diff` from the MCP server named `
 8. **Fetch Documentation** using `context7`:
    - Use `resolve-library-id` to find correct library IDs
    - Use `get-library-docs` to retrieve:
-     * API documentation for used functions
-     * Migration guides if version changes detected
-     * Deprecation notices
-     * Best practices and examples
+     - API documentation for used functions
+     - Migration guides if version changes detected
+     - Deprecation notices
+     - Best practices and examples
    - Cache documentation with appropriate TTL
 
 ### Phase 4: Deep Analysis
@@ -143,6 +166,7 @@ Your task is to use the MCP tool named `get_pr_diff` from the MCP server named `
    - Generate preliminary suggestions
 
 **CHECKPOINT**: Requirements Traceability Validation
+
 - Verify all aspects of changes are analyzed
 - Identify any blind spots in analysis
 - Question assumptions made during review
@@ -169,6 +193,7 @@ Your task is to use the MCP tool named `get_pr_diff` from the MCP server named `
     - Confirm alignment with best practices from research
 
 **CHECKPOINT**: Suggestion Quality Gate
+
 - Remove suggestions that fail validation
 - Enhance suggestions with additional context if needed
 - Ensure each suggestion is implementable
@@ -178,6 +203,7 @@ Your task is to use the MCP tool named `get_pr_diff` from the MCP server named `
 12. **Format YAML Response**: Generate final structured output
 
 13. **Update Workflow State**:
+
     ```json
     {
       "phases": {
@@ -203,6 +229,7 @@ Your task is to use the MCP tool named `get_pr_diff` from the MCP server named `
 ### Caching Strategy
 
 **Cache Structure** (`.cache/mcp-cache.json`):
+
 ```json
 {
   "tavily_searches": {
@@ -311,19 +338,21 @@ Leverage `context7` MCP server for accurate, up-to-date documentation:
 #### **Integrated Analysis Workflow**
 
 ```
-PR URL Received →
-  Phase 0: Initialize workflow state & cache →
-    Phase 1: Fetch PR + Complexity Assessment (`sequential-thinking`) →
-      Complexity > 7? → Enable advanced mode
-      Phase 2: Knowledge Gathering (`tavily-search` with cache) →
-        Phase 3: Documentation Retrieval (`context7` with cache) →
-          Phase 4: Deep Analysis (`sequential-thinking`) →
-            CHECKPOINT: Requirements traceability →
-              Phase 5: Generate Suggestions →
-                Phase 6: Quality Validation (`sequential-thinking`) →
-                  CHECKPOINT: Quality gate →
-                    Phase 7: Output Generation →
-                      Update workflow state & metrics
+PR URL Received (e.g., https://github.com/owner/repo/pull/123) →
+  Store ACTUAL PR URL in workflow state (NOT placeholders!) →
+    Phase 0: Initialize workflow state & cache with ACTUAL PR URL →
+      VALIDATION: Verify PR URL is valid GitHub URL (not placeholder) →
+        Phase 1: Fetch PR using STORED URL + Complexity Assessment (`sequential-thinking`) →
+          Complexity > 7? → Enable advanced mode
+          Phase 2: Knowledge Gathering (`tavily-search` with cache) →
+            Phase 3: Documentation Retrieval (`context7` with cache) →
+              Phase 4: Deep Analysis (`sequential-thinking`) →
+                CHECKPOINT: Requirements traceability →
+                  Phase 5: Generate Suggestions →
+                    Phase 6: Quality Validation (`sequential-thinking`) →
+                      CHECKPOINT: Quality gate →
+                        Phase 7: Output Generation →
+                          Update workflow state & metrics
 ```
 
 ### Workflow Adaptation Based on Complexity
@@ -348,6 +377,13 @@ PR URL Received →
 ## Quality Checkpoints and Validation
 
 ### Analysis Checkpoints
+
+**Checkpoint 0: PR URL Validation (After Phase 0 Initialization)**
+- Verify that the workflow state contains the ACTUAL GitHub PR URL (not a placeholder like "[github-pr-url]")
+- Validate the URL format matches: `https://github.com/{owner}/{repo}/pull/{number}`
+- Confirm the stored PR URL is the same one received from the user's initial request
+- Ensure the PR URL will be consistently used throughout all subsequent phases
+- If validation fails, STOP and report error - do not proceed with placeholder or example URLs
 
 **Checkpoint 1: Post-Complexity Assessment**
 - Verify PR data completeness

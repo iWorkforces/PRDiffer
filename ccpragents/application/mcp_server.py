@@ -9,7 +9,15 @@ from ccpragents.domain.services.repository_cache import RepositoryCacheServiceIn
 from ccpragents.domain.services.logger import LoggerServiceInterface
 from ccpragents.domain.repositories.pr_diff_repository import PRDiffRepositoryInterface
 
-# Import new component interfaces
+from ccpragents.infrastructure.security.input_validator import InputValidator
+from ccpragents.domain.exceptions import (
+    InvalidURLError,
+    InvalidRepositoryError,
+    InvalidPRNumberError,
+    InputSanitizationError,
+    SuspiciousOperationError,
+)
+
 from .interfaces.protocols import (
     URLValidatorProtocol,
     RateLimiterProtocol,
@@ -19,7 +27,6 @@ from .interfaces.protocols import (
     ServerConfigurationProtocol,
 )
 
-# Import component implementations for default factory
 from .components.url_validator import URLValidator
 from .components.rate_limiter import RateLimiter
 from .components.metrics_tracker import MetricsTracker
@@ -69,6 +76,9 @@ class FastMCPServer:
         self._repository_cache_service = repository_cache_service
         self._logger = logger
         self._github_repository_class = github_repository_class
+
+        # Initialize security validator
+        self._input_validator = InputValidator()
 
         # Initialize components (use injected ones or create defaults for backward compatibility)
         # Cast logger to standard logging.Logger for component compatibility
@@ -134,9 +144,10 @@ class FastMCPServer:
             tuple[str, str, int]: A tuple containing (repo_owner, repo_name, pr_number)
 
         Raises:
-            ValueError: If the URL format is invalid or contains invalid characters
+            InvalidURLError: If the URL format is invalid or contains invalid characters
+            SuspiciousOperationError: If the URL contains suspicious patterns
         """
-        return self._url_validator.parse_github_url(pr_url)
+        return self._input_validator.validate_github_url(pr_url)
 
     def _check_rate_limit(self):
         """Check if the current request exceeds rate limits.
@@ -177,12 +188,13 @@ class FastMCPServer:
         """
 
         @self.mcp.tool()
-        async def get_pr_diff(pr_url: str, use_cache: bool = True):
+        async def get_pr_diff(pr_url: str):
             """Get the diff content for a specific GitHub pull request.
+
+            Automatic commit-based caching ensures fresh data is returned when the PR changes.
 
             Args:
                 pr_url: The full GitHub PR URL (e.g., https://github.com/owner/repo/pull/123)
-                use_cache: Whether to use caching (default: True)
             """
             # Generate request ID for tracing
             request_id = self._generate_request_id()
@@ -191,7 +203,6 @@ class FastMCPServer:
                 "Processing get_pr_diff request",
                 request_id=request_id,
                 pr_url=pr_url,
-                use_cache=use_cache,
             )
 
             # Track total requests (legacy + new metrics)
@@ -204,13 +215,14 @@ class FastMCPServer:
                 # Check rate limit
                 self._check_rate_limit()
 
-                # Validate input parameters
+                # Validate input parameters using InputValidator
                 if not pr_url:
-                    raise ValueError("PR URL parameter is required")
+                    raise InputSanitizationError("PR URL parameter is required")
 
-                if not isinstance(use_cache, bool):
-                    raise ValueError("use_cache parameter must be a boolean")
+                # Sanitize PR URL string (basic validation before detailed parsing)
+                pr_url = self._input_validator.sanitize_string(pr_url, max_length=2000)
 
+                # Parse and validate GitHub URL with security checks
                 repo_owner, repo_name, pr_number = self._parse_pr_url(pr_url)
 
                 # Try to get repository from cache first
@@ -244,7 +256,7 @@ class FastMCPServer:
                 use_case: GetPRDiffUseCase = GetPRDiffUseCase(
                     repository, cache_service=self._cache_service
                 )
-                pr_diff: PRDiff = await use_case.execute(use_cache=use_cache)
+                pr_diff: PRDiff = await use_case.execute()
 
                 # Cache the repository after it's been used (now it should be initialized)
                 if hasattr(repository, "_initialized") and getattr(
@@ -269,6 +281,33 @@ class FastMCPServer:
                 self._logger.info("Successfully fetched PR diff")
                 return pr_diff
 
+            except (
+                InvalidURLError,
+                InvalidRepositoryError,
+                InvalidPRNumberError,
+                InputSanitizationError,
+                SuspiciousOperationError,
+            ) as e:
+                # Track failed request
+                execution_time = time.time() - start_time
+                self._metrics_tracker.track_request(
+                    "get_pr_diff", False, execution_time
+                )
+                # Legacy metrics for backward compatibility
+                self._failed_requests += 1
+
+                # Security validation errors - provide clear error messages
+                self._logger.warning(
+                    "Security validation error in PR diff request",
+                    request_id=request_id,
+                    pr_url=self._input_validator.sanitize_for_logging(pr_url)
+                    if pr_url
+                    else None,
+                    error=str(e),
+                    error_type=type(e).__name__,
+                )
+                raise ValueError(f"Invalid request: {e}")
+
             except ValueError as e:
                 # Track failed request
                 execution_time = time.time() - start_time
@@ -278,13 +317,14 @@ class FastMCPServer:
                 # Legacy metrics for backward compatibility
                 self._failed_requests += 1
 
-                # Validation errors - provide clear error messages
+                # Other validation errors - provide clear error messages
                 self._logger.warning(
                     "Validation error in PR diff request",
                     request_id=request_id,
-                    pr_url=pr_url,
+                    pr_url=self._input_validator.sanitize_for_logging(pr_url)
+                    if pr_url
+                    else None,
                     error=str(e),
-                    use_cache=use_cache,
                 )
                 raise ValueError(f"Invalid request: {e}")
 
@@ -303,7 +343,6 @@ class FastMCPServer:
                     request_id=request_id,
                     pr_url=pr_url,
                     error=str(e),
-                    use_cache=use_cache,
                 )
                 # Re-raise with consistent error format
                 raise RuntimeError(f"Failed to fetch PR diff: {e}")

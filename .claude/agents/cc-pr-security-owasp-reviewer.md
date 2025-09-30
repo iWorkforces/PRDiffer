@@ -41,7 +41,9 @@ Your task is to use the MCP tool named `get_pr_diff` from the MCP server named `
 
 ### Phase 0: Initialization & Threat Assessment
 
-1. **Initialize Security Workflow State**: Create/update `.security/workflow-state.json`:
+**IMPORTANT**: All bracketed values in the following JSON examples (e.g., [generated-uuid], [timestamp], [github-pr-url]) are PLACEHOLDERS that MUST be replaced with actual runtime values. Never use these placeholders literally. This is CRITICAL for security analysis as using wrong URLs could analyze the wrong code and miss vulnerabilities.
+
+1. **Initialize Security Workflow State**: Create/update `.security/workflow-state.json` with ACTUAL runtime values (replace ALL bracketed placeholders - SECURITY CRITICAL):
 
    ```json
    {
@@ -49,7 +51,7 @@ Your task is to use the MCP tool named `get_pr_diff` from the MCP server named `
      "current_phase": "security_review",
      "status": "in_progress",
      "started_at": "[timestamp]",
-     "pr_url": "[github-pr-url]",
+     "pr_url": "[ACTUAL_PR_URL_FROM_USER_REQUEST]",
      "threat_model": {
        "attack_surface": [],
        "threat_actors": [],
@@ -75,6 +77,12 @@ Your task is to use the MCP tool named `get_pr_diff` from the MCP server named `
    }
    ```
 
+   **IMPORTANT: Replace all bracketed placeholders with actual runtime values:**
+   - `[generated-uuid]`: Replace with actual UUID
+   - `[timestamp]`: Replace with actual ISO-8601 timestamp
+   - `[ACTUAL_PR_URL_FROM_USER_REQUEST]`: CRITICAL - Replace with the ACTUAL GitHub PR URL (e.g., <https://github.com/owner/repo/pull/123>) - NEVER use placeholders or example URLs
+   - Empty arrays (`attack_surface`, `threat_actors`, `assets_at_risk`): Will be populated with actual threats, actors, and assets during analysis
+
 2. **Security Cache Initialization**: Check/create `.cache/security-cache.json`:
 
    ```json
@@ -92,9 +100,42 @@ Your task is to use the MCP tool named `get_pr_diff` from the MCP server named `
    }
    ```
 
+### CRITICAL: Security Analysis Placeholder Handling
+
+**SECURITY WARNING - Failure to follow these instructions will result in analyzing the wrong code, potentially missing critical vulnerabilities:**
+
+- **ALL bracketed values** like `[github-pr-url]`, `[timestamp]`, `[generated-uuid]` are **PLACEHOLDERS**
+- You **MUST replace** these with actual runtime values:
+  - `[github-pr-url]` or `[ACTUAL_PR_URL_FROM_USER_REQUEST]` → The actual PR URL received from the user (e.g., `https://github.com/owner/repo/pull/123`)
+  - `[timestamp]` → Current ISO-8601 timestamp (e.g., `2024-01-15T10:30:00Z`)
+  - `[generated-uuid]` → Generated UUID for workflow tracking (e.g., `550e8400-e29b-41d4-a716-446655440000`)
+  - `[query_hash]`, `[component_version]`, `[category]` in cache → Actual computed/detected values
+- **NEVER use placeholder values literally** - this could lead to:
+  - Analyzing wrong repository (security breach)
+  - Missing actual vulnerabilities in the target code
+  - False security clearance for vulnerable code
+- The **PR URL from the initial request MUST be stored** and **reused consistently throughout ALL security phases**
+- **Security Validation Required**: After Phase 0, verify the workflow state contains a valid GitHub PR URL matching: `https://github.com/{owner}/{repo}/pull/{number}`
+- **If validation fails**: STOP immediately and report security analysis failure - do not proceed with incorrect URLs
+
+### Security Workflow URL Integrity
+
+**Why URL integrity is critical for security analysis:**
+1. **Wrong Repository Risk**: Analyzing the wrong code gives false security clearance
+2. **Vulnerability Miss Risk**: Real vulnerabilities in target code go undetected
+3. **Compliance Risk**: Security audits become invalid with wrong URLs
+4. **Attack Surface Confusion**: Threat model becomes meaningless
+5. **CVE Mismatch**: Searching CVEs for wrong components/versions
+
+**Security Safeguards**:
+- Log all PR URLs used in security analysis for audit trail
+- Implement URL validation at EVERY phase transition
+- Use cryptographic hash of PR URL as additional verification
+- Never allow fallback to default/example URLs in security context
+
 ### Phase 1: PR Data Acquisition & Threat Modeling
 
-3. **Fetch PR Data**: Use `get_pr_diff` tool with GitHub PR URL
+3. **Fetch PR Data**: Use `get_pr_diff` tool with the **SAME GitHub PR URL stored in the security workflow state from Phase 0** (NOT a new, example, or placeholder URL) - this is CRITICAL for accurate security analysis
 
 4. **Initial Threat Assessment**: Use `sequential-thinking` to:
    - Identify attack surface from code changes
@@ -255,12 +296,12 @@ Your task is to use the MCP tool named `get_pr_diff` from the MCP server named `
     ```json
     {
       "summary": {
-        "total_vulnerabilities": [count],
+        "total_vulnerabilities": "[count]",
         "by_severity": {
-          "critical": [count],
-          "high": [count],
-          "medium": [count],
-          "low": [count]
+          "critical": "[count]",
+          "high": "[count]",
+          "medium": "[count]",
+          "low": "[count]"
         },
         "owasp_coverage": ["A01", "A03", "A07"],
         "cves_identified": ["CVE-2024-xxx"],
@@ -269,11 +310,19 @@ Your task is to use the MCP tool named `get_pr_diff` from the MCP server named `
     }
     ```
 
+    **Note**: Replace `[count]` placeholders with actual numerical counts from the security analysis.
+
 ## Enhanced MCP Server Integration for Security
 
 ### Security-Specific Caching Strategy
 
 **Cache Structure** (`.cache/security-cache.json`):
+
+**IMPORTANT**: The cache structure below shows placeholders in brackets. In actual execution:
+- `[query_hash]` must be replaced with actual SHA256 hash of the search query
+- `[component_version]` must be actual component and version (e.g., "express_4.18.2")
+- `[category]` must be actual OWASP category (e.g., "A01_access_control")
+- Never store placeholder values in security cache as this corrupts vulnerability tracking
 
 ```json
 {
@@ -636,6 +685,11 @@ When extracting code from the diff_content:
 When detecting specific patterns, automatically trigger MCP searches:
 
 ```javascript
+// CRITICAL: Verify PR URL is not a placeholder before triggering searches
+if (pr_url.includes('[') || pr_url.includes('example/')) {
+  throw new SecurityError('Invalid PR URL detected - aborting security analysis');
+}
+
 const securityTriggers = {
   'auth': ['OAuth vulnerabilities', 'JWT security'],
   'crypto': ['algorithm CVE', 'key management'],
@@ -653,6 +707,19 @@ const securityTriggers = {
 ## Quality Checkpoints & Validation
 
 ### Security Analysis Checkpoints
+
+**Checkpoint 0: Security-Critical PR URL Validation (After Phase 0)**
+
+**SECURITY GATE - This checkpoint prevents analyzing wrong code:**
+- Verify the workflow state contains the ACTUAL GitHub PR URL (not placeholders like "[github-pr-url]" or "example/repo")
+- Validate URL format: `https://github.com/{owner}/{repo}/pull/{number}`
+- Confirm the stored PR URL matches the user's initial security review request
+- Ensure this URL will be used consistently across ALL security analysis phases
+- Check that threat_model fields don't contain placeholder values
+- **SECURITY FAIL-SAFE**: If validation fails, ABORT security analysis immediately
+  - Log security analysis failure with reason
+  - Alert that wrong repository analysis was prevented
+  - Do NOT proceed with placeholder/example URLs as this compromises security
 
 **Checkpoint 1: Post-Threat Modeling**
 

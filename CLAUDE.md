@@ -77,6 +77,17 @@ The codebase follows Clean Architecture with these layers:
     - `file_processor`: File filtering and validation
     - `diff_generator`: Unified diff generation
     - `parallel_executor`: Concurrent file processing
+- **Security Components** (`security/`):
+  - `InputValidator`: Comprehensive input validation and sanitization
+    - SQL injection prevention
+    - Command injection prevention
+    - Path traversal prevention
+    - XSS attack prevention
+    - GitHub URL validation with security checks
+    - Repository identifier validation
+    - Token format validation
+    - User ID validation
+    - Safe logging sanitization
 - **Utility Components** (`utils/`):
   - `retry_handler`: Exponential backoff with jitter
   - `pattern_matcher`: File pattern matching with regex
@@ -150,14 +161,49 @@ The MCP server supports multiple transport modes configured in `settings.toml`:
 - `sse`: Server-sent events
 - `streamable-http`: FastMCP streamable HTTP
 
+### Security and Input Validation
+
+The MCP server implements comprehensive security validation through the `InputValidator` class integrated into `FastMCPServer`:
+
+**Input Validation Features**:
+- **URL Validation**: GitHub PR URLs are validated against strict patterns with length limits (max 2000 chars)
+- **Pattern Detection**: Blocks suspicious patterns including:
+  - Command injection: Shell metacharacters (`;&|`$`), command substitution (`$(`, backticks)
+  - Path traversal: Parent directory references (`..`), system directories (`/etc/`, `/var/`, `/usr/`)
+  - SQL injection: SQL comments (`--`, `#`, `/* */`), SQL keywords (union, select, insert, etc.)
+- **Repository Validation**: Owner and repo names validated against GitHub's naming rules
+  - Owner: Max 39 chars, alphanumeric with hyphens/underscores
+  - Repo: Max 100 chars, alphanumeric with hyphens/underscores/dots
+- **PR Number Validation**: Ensures positive integers with reasonable upper limit (max 1,000,000)
+- **String Sanitization**: Removes control characters, checks for null bytes, enforces length limits
+- **Safe Logging**: Sanitizes values before logging to prevent log injection attacks
+
+**Security Exceptions**:
+- `InvalidURLError`: Malformed or suspicious URLs
+- `InvalidRepositoryError`: Invalid repository identifiers
+- `InvalidPRNumberError`: Invalid PR numbers
+- `InputSanitizationError`: General input validation failures
+- `SuspiciousOperationError`: Detected security threats
+
+**Implementation in FastMCPServer** (mcp_server.py):
+1. `InputValidator` initialized at line 84
+2. URL validation via `validate_github_url()` at line 153
+3. Parameter sanitization in `get_pr_diff` tool at lines 222-232
+4. Security exception handling at lines 290-314
+5. Safe logging with `sanitize_for_logging()` at lines 309, 329
+
 ### Error Handling Patterns
 
+- **Security Validation**: All user inputs validated through `InputValidator` before processing
+  - Security exceptions (InvalidURLError, SuspiciousOperationError, etc.) caught and logged with sanitized values
+  - Failed requests tracked in metrics for security monitoring
 - **Graceful Degradation**: Settings service falls back gracefully when cache keys are unhashable
 - **API Error Handling**: GitHub API errors return empty strings rather than failing
 - **Retry Strategies**: Configurable exponential backoff with jitter for transient failures
 - **Circuit Breaker**: Prevents cascading failures by temporarily disabling failing operations
 - **Content Decoding**: File content decoding attempts multiple encodings (UTF-8, iso-8859-1, latin-1, ascii, utf-16)
 - **Health Monitoring**: API health tracking to detect and respond to performance degradation
+- **Safe Error Logging**: All error logs use `sanitize_for_logging()` to prevent log injection
 
 ### Caching System
 
@@ -176,7 +222,7 @@ The MCP server supports multiple transport modes configured in `settings.toml`:
 3. If SHAs match: Return cached data (cache hit)
 4. If SHAs differ: Fetch fresh data and update cache (cache miss)
 
-**MCP Tool Parameter**: `use_cache` (default: `true`) - controls whether caching is used
+**Caching is Automatic**: Caching is always enabled and uses commit-based invalidation to ensure fresh data is returned when PRs change.
 
 ## Important Implementation Notes
 
@@ -212,6 +258,22 @@ The settings service uses manual caching instead of `@lru_cache` because:
 - **DiffUtils**: Core diff generation with encoding detection and patch extension
 - **CircuitBreaker**: Prevents cascading failures by temporarily disabling failing operations
 - **APIHealthTracker**: Monitors API performance metrics and error rates
+
+### Security Components
+- **InputValidator**: Comprehensive input validation and sanitization (infrastructure/security/input_validator.py)
+  - **URL Validation**: Validates GitHub PR URLs with strict pattern matching and length limits
+  - **Suspicious Pattern Detection**: Blocks command injection, path traversal, and SQL injection attempts
+  - **Repository Validation**: Enforces GitHub naming conventions for owners and repos
+  - **String Sanitization**: Removes control characters, null bytes, and enforces length constraints
+  - **Token Validation**: Validates authentication token format (20-500 chars, alphanumeric)
+  - **User ID Validation**: Validates user identifiers (max 100 chars, alphanumeric with @.-_)
+  - **Safe Logging**: Sanitizes values for secure logging (max 200 chars, printable chars only)
+  - **Convenience Functions**: Module-level functions (validate_github_url, sanitize_string, etc.)
+- **Integration**: Integrated into `FastMCPServer` (application/mcp_server.py:84)
+  - All PR URLs validated before processing
+  - Parameters sanitized to prevent injection attacks
+  - Security exceptions caught and logged safely
+  - Failed security validations tracked in metrics
 - The final response of subagent named `pr-review-generator` should be aliged with desired output with yaml format:
 ```yaml
 code_suggestions:
