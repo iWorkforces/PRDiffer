@@ -222,7 +222,7 @@ The MCP server implements comprehensive security validation through the `InputVa
 3. If SHAs match: Return cached data (cache hit)
 4. If SHAs differ: Fetch fresh data and update cache (cache miss)
 
-**MCP Tool Parameter**: `use_cache` (default: `true`) - controls whether caching is used
+**Caching is Automatic**: Caching is always enabled and uses commit-based invalidation to ensure fresh data is returned when PRs change.
 
 ## Important Implementation Notes
 

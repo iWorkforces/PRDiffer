@@ -92,28 +92,26 @@ use_case = GetPRDiffUseCase(mock_repository, mock_cache)
 ## Business Logic Implementation
 
 ### Caching Strategy
-The use case implements intelligent caching based on commit SHAs:
+The use case implements automatic intelligent caching based on commit SHAs:
 
 ```python
-async def execute(self, use_cache: bool = True) -> PRDiff:
-    if not use_cache or not self.cache_service:
-        return await self.repository.get_pr_diff()
-    
+async def execute(self) -> PRDiff:
     # Check cache for existing data
     cache_key = self._generate_cache_key()
-    cached_data = self.cache_service.get(cache_key)
-    
+    current_commit = self.repository.get_latest_commit_sha()
+    cached_data = self.cache_service.get(cache_key, current_commit)
+
     if cached_data:
-        # Validate cached data against current commit
-        current_commit = self.repository.get_latest_commit_sha()
-        if cached_data.get('commit_sha') == current_commit:
-            return cached_data['pr_diff']
-    
-    # Fetch fresh data and cache it
+        # Cache hit - data is still valid for current commit
+        return cached_data
+
+    # Cache miss - fetch fresh data and cache it
     pr_diff = await self.repository.get_pr_diff()
-    self._cache_result(cache_key, pr_diff)
+    self.cache_service.set(cache_key, current_commit, pr_diff)
     return pr_diff
 ```
+
+**Note**: Caching is always enabled and uses commit-based invalidation. The cache automatically detects when PRs have new commits and fetches fresh data.
 
 ### Validation Rules
 Use cases enforce business rules and validation:
@@ -175,10 +173,10 @@ async def test_get_pr_diff_cache_hit():
     mock_repo.get_latest_commit_sha.return_value = 'abc123'
     
     use_case = GetPRDiffUseCase(mock_repo, mock_cache)
-    
+
     # Act
-    result = await use_case.execute(use_cache=True)
-    
+    result = await use_case.execute()
+
     # Assert
     assert result == expected_pr_diff
     mock_repo.get_pr_diff.assert_not_called()  # Should use cache

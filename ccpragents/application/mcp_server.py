@@ -188,12 +188,13 @@ class FastMCPServer:
         """
 
         @self.mcp.tool()
-        async def get_pr_diff(pr_url: str, use_cache: bool = True):
+        async def get_pr_diff(pr_url: str):
             """Get the diff content for a specific GitHub pull request.
+
+            Automatic commit-based caching ensures fresh data is returned when the PR changes.
 
             Args:
                 pr_url: The full GitHub PR URL (e.g., https://github.com/owner/repo/pull/123)
-                use_cache: Whether to use caching (default: True)
             """
             # Generate request ID for tracing
             request_id = self._generate_request_id()
@@ -202,7 +203,6 @@ class FastMCPServer:
                 "Processing get_pr_diff request",
                 request_id=request_id,
                 pr_url=pr_url,
-                use_cache=use_cache,
             )
 
             # Track total requests (legacy + new metrics)
@@ -218,11 +218,6 @@ class FastMCPServer:
                 # Validate input parameters using InputValidator
                 if not pr_url:
                     raise InputSanitizationError("PR URL parameter is required")
-
-                if not isinstance(use_cache, bool):
-                    raise InputSanitizationError(
-                        "use_cache parameter must be a boolean"
-                    )
 
                 # Sanitize PR URL string (basic validation before detailed parsing)
                 pr_url = self._input_validator.sanitize_string(pr_url, max_length=2000)
@@ -261,7 +256,7 @@ class FastMCPServer:
                 use_case: GetPRDiffUseCase = GetPRDiffUseCase(
                     repository, cache_service=self._cache_service
                 )
-                pr_diff: PRDiff = await use_case.execute(use_cache=use_cache)
+                pr_diff: PRDiff = await use_case.execute()
 
                 # Cache the repository after it's been used (now it should be initialized)
                 if hasattr(repository, "_initialized") and getattr(
@@ -310,7 +305,6 @@ class FastMCPServer:
                     else None,
                     error=str(e),
                     error_type=type(e).__name__,
-                    use_cache=use_cache,
                 )
                 raise ValueError(f"Invalid request: {e}")
 
@@ -331,7 +325,6 @@ class FastMCPServer:
                     if pr_url
                     else None,
                     error=str(e),
-                    use_cache=use_cache,
                 )
                 raise ValueError(f"Invalid request: {e}")
 
@@ -350,7 +343,6 @@ class FastMCPServer:
                     request_id=request_id,
                     pr_url=pr_url,
                     error=str(e),
-                    use_cache=use_cache,
                 )
                 # Re-raise with consistent error format
                 raise RuntimeError(f"Failed to fetch PR diff: {e}")

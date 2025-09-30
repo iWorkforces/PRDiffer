@@ -243,18 +243,14 @@ class FastMCPServer:
         # Initialize security validator
         self._input_validator = InputValidator()
 
-    async def handle_request(self, pr_url: str, use_cache: bool = True):
+    async def handle_request(self, pr_url: str):
         try:
-            # Validate parameters
-            if not isinstance(use_cache, bool):
-                raise InputSanitizationError("use_cache must be boolean")
-
             # Sanitize and validate URL
             pr_url = self._input_validator.sanitize_string(pr_url, max_length=2000)
             owner, repo, pr_number = self._input_validator.validate_github_url(pr_url)
 
             # Process with validated inputs
-            return await self._process_pr(owner, repo, pr_number, use_cache)
+            return await self._process_pr(owner, repo, pr_number)
 
         except (InvalidURLError, InputSanitizationError, SuspiciousOperationError) as e:
             # Log safely
