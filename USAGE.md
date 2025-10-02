@@ -23,7 +23,7 @@ uv run python ccpragents/server.py --link-mode=copy
 
 ### Default Configuration
 - **Transport**: HTTP
-- **Port**: 9101
+- **Port**: 9102
 - **Link Mode**: copy
 
 ### Custom Configuration
@@ -44,7 +44,7 @@ Once running, you can interact with the MCP server through various endpoints:
 ### HTTP Endpoint
 Access the MCP server HTTP interface at:
 ```
-http://127.0.0.1:9101/mcp
+http://127.0.0.1:9102/mcp
 ```
 
 If running on a custom port (e.g., 9102):
@@ -54,7 +54,7 @@ http://127.0.0.1:9102/mcp
 
 ### Configuration Options
 - `TRANSPORT`: Server transport mode (`http`, `sse`, `streamable-http`, `stdio`)
-- `PORT`: Server port (default: 9101)
+- `PORT`: Server port (default: 9102)
 - `GITHUB_TOKEN`: Optional GitHub authentication token
 
 ### Transport Modes
@@ -121,7 +121,10 @@ uv run python tests/test_mcp_server.py
     - Windows: %APPDATA%\Claude\claude_desktop_config.json
 
   For Claude Code:
+
+  ```bash
   claude mcp add --transport http ccpragents http://127.0.0.1:9102/mcp
+  ```
 
   For other MCP clients:
   - Use the JSON structure from mcp-config.json
