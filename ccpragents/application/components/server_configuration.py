@@ -57,7 +57,7 @@ class ServerConfiguration(ServerConfigurationProtocol):
                 "version": "0.1.3",
                 "description": "GitHub PR Diff Fetcher MCP Server",
                 "transport": self._settings_service.get("mcp.transport", "stdio"),
-                "port": self._settings_service.get("mcp.port", 9101),
+                "port": self._settings_service.get("mcp.port", 9102),
                 "host": self._settings_service.get("mcp.host", "127.0.0.1"),
                 "path": self._settings_service.get("mcp.path", "/mcp"),
                 "environment": self._settings_service.get("env", "development"),
@@ -116,7 +116,7 @@ Usage: Call tools with GitHub PR URLs (e.g., "https://github.com/owner/repo/pull
 
             # Check port configuration for non-stdio transports
             if transport != "stdio":
-                port = self._settings_service.get("mcp.port", 9101)
+                port = self._settings_service.get("mcp.port", 9102)
                 if not isinstance(port, int) or port < 1 or port > 65535:
                     validation_results["errors"].append(
                         f"Invalid port '{port}', must be between 1-65535"

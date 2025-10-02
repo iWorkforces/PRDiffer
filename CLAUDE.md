@@ -19,7 +19,7 @@ uv install --dev
 
 ### Running the Server
 ```bash
-# Run MCP server (default HTTP transport on port 9101)
+# Run MCP server (default HTTP transport on port 9102)
 uv run python ccpragents/server.py
 
 # Run with different transport/port via environment variables

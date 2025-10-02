@@ -48,7 +48,7 @@ The server supports multiple MCP transport protocols via settings:
 
 ### Settings Dependencies
 - `mcp.transport`: Transport protocol selection
-- `mcp.port`: Server port (default: 9101)  
+- `mcp.port`: Server port (default: 9102)  
 - `mcp.host`: Server host (default: "127.0.0.1")
 - All GitHub and application settings are passed through to infrastructure layer
 
@@ -92,7 +92,7 @@ The server leverages FastMCP's capabilities:
 ### MCP Client Usage Example
 ```python
 # Connect to HTTP transport
-async with Client("http://127.0.0.1:9101/mcp") as client:
+async with Client("http://127.0.0.1:9102/mcp") as client:
     result = await client.call_tool("get_pr_diff", {
         "pr_url": "https://github.com/owner/repo/pull/123"
     })
