@@ -84,8 +84,7 @@ class RequestCoalescingService:
             # Double-check (race condition prevention)
             if key in self._pending_requests:
                 future = self._pending_requests[key].future
-
-            if key not in self._pending_requests:
+            else:
                 # Create new future for this request
                 future = asyncio.Future()
                 self._pending_requests[key] = CoalescedRequest(
@@ -96,27 +95,28 @@ class RequestCoalescingService:
                 )
                 self._logger.debug(f"Starting new request for key '{key}'")
 
-                # Execute the fetch function outside the lock
-                try:
-                    result = await fetch_func()
-                    future.set_result(result)
-                    self._logger.info(
-                        f"Request completed for key '{key}' "
-                        f"(served {self._pending_requests[key].request_count} waiters)"
-                    )
-                    return result
-                except Exception as e:
-                    future.set_exception(e)
-                    self._logger.error(f"Request failed for key '{key}': {e}")
-                    raise
-                finally:
-                    # Clean up pending request
-                    async with self._lock:
-                        if key in self._pending_requests:
-                            del self._pending_requests[key]
+        # If we found an existing request after double-check, wait for it
+        if key in self._pending_requests and self._pending_requests[key].future is not future:
+            return await future
 
-        # If we got here through double-check, wait for the existing request
-        return await future
+        # Execute the fetch function outside the lock
+        try:
+            result = await fetch_func()
+            future.set_result(result)
+            waiter_count = self._pending_requests.get(key, CoalescedRequest(key, future, datetime.now(), 1)).request_count
+            self._logger.info(
+                f"Request completed for key '{key}' (served {waiter_count} waiters)"
+            )
+            return result
+        except Exception as e:
+            future.set_exception(e)
+            self._logger.error(f"Request failed for key '{key}': {e}")
+            raise
+        finally:
+            # Clean up pending request (safe to do outside lock since we're done)
+            async with self._lock:
+                if key in self._pending_requests:
+                    del self._pending_requests[key]
 
     async def clear(self) -> None:
         """Clear all pending requests.
