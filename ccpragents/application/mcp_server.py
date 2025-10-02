@@ -10,6 +10,7 @@ from ccpragents.domain.services.logger import LoggerServiceInterface
 from ccpragents.domain.repositories.pr_diff_repository import PRDiffRepositoryInterface
 
 from ccpragents.infrastructure.security.input_validator import InputValidator
+from ccpragents.infrastructure.request_coalescing import get_request_coalescing_service
 from ccpragents.domain.exceptions import (
     InvalidURLError,
     InvalidRepositoryError,
@@ -79,6 +80,9 @@ class FastMCPServer:
 
         # Initialize security validator
         self._input_validator = InputValidator()
+
+        # Initialize request coalescing service
+        self._request_coalescing = get_request_coalescing_service()
 
         # Initialize components (use injected ones or create defaults for backward compatibility)
         # Cast logger to standard logging.Logger for component compatibility
@@ -225,52 +229,67 @@ class FastMCPServer:
                 # Parse and validate GitHub URL with security checks
                 repo_owner, repo_name, pr_number = self._parse_pr_url(pr_url)
 
-                # Try to get repository from cache first
-                repository: Optional[PRDiffRepositoryInterface] = (
-                    self._repository_cache_service.retrieve(
-                        repo_owner, repo_name, pr_number
-                    )
-                )
+                # Create coalescing key
+                coalesce_key = f"{repo_owner}/{repo_name}/pr/{pr_number}"
 
-                if repository is None:
-                    # Create new repository instance
-                    repository = self._github_repository_class(
-                        repo_owner, repo_name, pr_number
-                    )
-                    self._logger.debug(
-                        "Created new repository instance",
-                        request_id=request_id,
-                        repo_owner=repo_owner,
-                        repo_name=repo_name,
-                        pr_number=pr_number,
-                    )
-                else:
-                    self._logger.debug(
-                        "Reusing cached repository instance",
-                        request_id=request_id,
-                        repo_owner=repo_owner,
-                        repo_name=repo_name,
-                        pr_number=pr_number,
+                # Define the actual fetch function
+                async def fetch_pr_diff() -> PRDiff:
+                    """Fetch PR diff - will be coalesced if multiple requests arrive."""
+                    # Try to get repository from cache first
+                    repository: Optional[PRDiffRepositoryInterface] = (
+                        self._repository_cache_service.retrieve(
+                            repo_owner, repo_name, pr_number
+                        )
                     )
 
-                use_case: GetPRDiffUseCase = GetPRDiffUseCase(
-                    repository, cache_service=self._cache_service
-                )
-                pr_diff: PRDiff = await use_case.execute()
-
-                # Cache the repository after it's been used (now it should be initialized)
-                if hasattr(repository, "_initialized") and getattr(
-                    repository, "_initialized", False
-                ):
-                    cache_success = self._repository_cache_service.insert(repository)
-                    if cache_success:
+                    if repository is None:
+                        # Create new repository instance
+                        repository = self._github_repository_class(
+                            repo_owner, repo_name, pr_number
+                        )
                         self._logger.debug(
-                            "Cached repository instance after initialization",
+                            "Created new repository instance",
                             request_id=request_id,
                             repo_owner=repo_owner,
                             repo_name=repo_name,
                             pr_number=pr_number,
                         )
+                    else:
+                        self._logger.debug(
+                            "Reusing cached repository instance",
+                            request_id=request_id,
+                            repo_owner=repo_owner,
+                            repo_name=repo_name,
+                            pr_number=pr_number,
+                        )
+
+                    use_case: GetPRDiffUseCase = GetPRDiffUseCase(
+                        repository, cache_service=self._cache_service
+                    )
+                    result = await use_case.execute()
+
+                    # Cache the repository after it's been used
+                    if hasattr(repository, "_initialized") and getattr(
+                        repository, "_initialized", False
+                    ):
+                        cache_success = self._repository_cache_service.insert(
+                            repository
+                        )
+                        if cache_success:
+                            self._logger.debug(
+                                "Cached repository instance after initialization",
+                                request_id=request_id,
+                                repo_owner=repo_owner,
+                                repo_name=repo_name,
+                                pr_number=pr_number,
+                            )
+                    return result
+
+                # Coalesce the request - if multiple concurrent requests for same PR,
+                # only one will actually fetch, others will wait and share the result
+                pr_diff: PRDiff = await self._request_coalescing.coalesce(
+                    coalesce_key, fetch_pr_diff
+                )
 
                 # Track successful request
                 execution_time = time.time() - start_time
