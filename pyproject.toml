@@ -1,6 +1,6 @@
 [project]
 name = "ccpragents"
-version = "0.1.8"
+version = "0.1.9"
 description = "MCP Server For GitHub PR’s Review Process With Full Contexts"
 readme = "README.md"
 authors = [
