@@ -39,8 +39,13 @@ class RequestCoalescingService:
         self._lock = asyncio.Lock()
         self._logger = logger or get_logger()
 
-    async def coalesce(self, key: str, fetch_func: Callable[[], Awaitable[Any]]) -> Any:
-        """Coalesce requests for the same key.
+    async def coalesce(
+        self,
+        key: str,
+        fetch_func: Callable[[], Awaitable[Any]],
+        timeout: Optional[float] = 30.0,
+    ) -> Any:
+        """Coalesce requests for the same key with timeout protection.
 
         If a request for this key is already in progress, wait for its result.
         Otherwise, execute the fetch function and share the result with all waiters.
@@ -48,85 +53,143 @@ class RequestCoalescingService:
         Args:
             key: Unique key identifying the request (e.g., "owner/repo/pr/123")
             fetch_func: Async function to fetch the data if not already pending
+            timeout: Maximum time to wait for the fetch function (default: 30 seconds)
 
         Returns:
             The result from the fetch function
 
         Raises:
+            asyncio.TimeoutError: If the fetch function times out
             Exception: Any exception raised by the fetch function
         """
-        # Check if request is already pending and get future reference
-        existing_future = None
+        # Phase 1: Check for existing request and increment waiter count atomically
+        existing_request = None
         async with self._lock:
             if key in self._pending_requests:
                 pending = self._pending_requests[key]
                 pending.request_count += 1
-                existing_future = pending.future
+                existing_request = pending
                 self._logger.debug(
                     f"Coalescing request for key '{key}' "
                     f"(total waiting: {pending.request_count})"
                 )
 
-        # If we found a pending request, wait for it outside the lock
-        if existing_future is not None:
+        # Phase 2: Wait for existing request with timeout (outside lock)
+        if existing_request is not None:
             try:
-                result = await existing_future
+                result = await asyncio.wait_for(
+                    existing_request.future, timeout=timeout
+                )
                 self._logger.debug(
                     f"Request coalesced for key '{key}' - returning cached result"
                 )
                 return result
+            except asyncio.TimeoutError:
+                self._logger.error(f"Coalesced request timed out for key '{key}'")
+                raise
             except Exception as e:
                 self._logger.error(f"Coalesced request failed for key '{key}': {e}")
                 raise
+            finally:
+                # Decrement waiter count for coalesced requests
+                async with self._lock:
+                    if key in self._pending_requests:
+                        self._pending_requests[key].request_count -= 1
 
-        # No pending request, create a new one
+        # Phase 3: Create new request (double-check pattern with proper locking)
         new_future = None
-        waiter_count = 1
+        new_request = None
         async with self._lock:
-            # Double-check (race condition prevention)
+            # Double-check after acquiring lock
             if key in self._pending_requests:
-                existing_future = self._pending_requests[key].future
+                # Another thread created the request while we were waiting for lock
+                pending = self._pending_requests[key]
+                pending.request_count += 1
+                existing_request = pending
             else:
-                # Create new future for this request
+                # We're the first - create the request
                 new_future = asyncio.Future()
-                self._pending_requests[key] = CoalescedRequest(
+                new_request = CoalescedRequest(
                     key=key,
                     future=new_future,
                     created_at=datetime.now(),
                     request_count=1,
                 )
+                self._pending_requests[key] = new_request
                 self._logger.debug(f"Starting new request for key '{key}'")
 
-        # If we found an existing request after double-check, wait for it
-        if existing_future is not None:
-            return await existing_future
+        # Phase 4: If another thread created the request, wait for it
+        if existing_request is not None:
+            try:
+                return await asyncio.wait_for(existing_request.future, timeout=timeout)
+            finally:
+                # Decrement waiter count
+                async with self._lock:
+                    if key in self._pending_requests:
+                        self._pending_requests[key].request_count -= 1
 
-        # Execute the fetch function outside the lock (we own the new future)
+        # Phase 5: Execute the fetch function (we own the request)
+        cleanup_done = False
         try:
-            result = await fetch_func()
-            new_future.set_result(result)
+            # Execute with timeout protection
+            result = await asyncio.wait_for(fetch_func(), timeout=timeout)
 
-            # Get waiter count safely
-            async with self._lock:
-                if key in self._pending_requests:
-                    waiter_count = self._pending_requests[key].request_count
-
-            self._logger.info(
-                f"Request completed for key '{key}' (served {waiter_count} waiters)"
-            )
-            return result
-        except Exception as e:
-            new_future.set_exception(e)
-            self._logger.error(f"Request failed for key '{key}': {e}")
-            raise
-        finally:
-            # Clean up pending request
+            # Set result while holding lock to ensure atomicity
             async with self._lock:
                 if (
                     key in self._pending_requests
-                    and self._pending_requests[key].future is new_future
+                    and self._pending_requests[key] is new_request
                 ):
+                    waiter_count = self._pending_requests[key].request_count
+                    # Set result before removing from dict to avoid race
+                    new_future.set_result(result)
                     del self._pending_requests[key]
+                    cleanup_done = True
+                    self._logger.info(
+                        f"Request completed for key '{key}' (served {waiter_count} waiters)"
+                    )
+                else:
+                    # Edge case: request was somehow replaced or removed
+                    new_future.set_result(result)
+                    cleanup_done = True
+                    self._logger.warning(
+                        f"Request completed for key '{key}' but state was modified"
+                    )
+
+            return result
+
+        except asyncio.TimeoutError:
+            # Handle timeout
+            async with self._lock:
+                if (
+                    not cleanup_done
+                    and key in self._pending_requests
+                    and self._pending_requests[key] is new_request
+                ):
+                    exc = asyncio.TimeoutError(
+                        f"Request timed out after {timeout} seconds"
+                    )
+                    new_future.set_exception(exc)
+                    del self._pending_requests[key]
+                    cleanup_done = True
+            self._logger.error(
+                f"Request timed out for key '{key}' after {timeout} seconds"
+            )
+            raise
+
+        except Exception as e:
+            # Handle other exceptions
+            async with self._lock:
+                if (
+                    not cleanup_done
+                    and key in self._pending_requests
+                    and self._pending_requests[key] is new_request
+                ):
+                    new_future.set_exception(e)
+                    del self._pending_requests[key]
+                    cleanup_done = True
+            self._logger.error(f"Request failed for key '{key}': {e}")
+            raise
 
     async def clear(self) -> None:
         """Clear all pending requests.
