@@ -214,6 +214,7 @@ class AsyncParallelExecutor:
         total = len(items)
         completed = 0
         results = []
+        progress_lock = asyncio.Lock()  # Lock for thread-safe counter updates
 
         async def process_with_progress(item: Any) -> Optional[Any]:
             """Process item and update progress."""
@@ -227,16 +228,25 @@ class AsyncParallelExecutor:
                     else:
                         result = await func(item, *args, **kwargs)
 
-                    completed += 1
+                    # Thread-safe counter update
+                    async with progress_lock:
+                        completed += 1
+                        current_count = completed
+
                     if progress_callback:
-                        progress_callback(completed, total)
+                        progress_callback(current_count, total)
 
                     return result
                 except Exception as e:
                     self._logger.error(f"Error processing item {item}: {e}")
-                    completed += 1
+
+                    # Thread-safe counter update
+                    async with progress_lock:
+                        completed += 1
+                        current_count = completed
+
                     if progress_callback:
-                        progress_callback(completed, total)
+                        progress_callback(current_count, total)
                     return None
 
         # Execute all tasks concurrently

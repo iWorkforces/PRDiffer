@@ -2,6 +2,7 @@
 
 import time
 import logging
+import threading
 from typing import Dict, Any, Optional
 from ..interfaces.protocols import MetricsTrackerProtocol
 
@@ -16,6 +17,9 @@ class MetricsTracker(MetricsTrackerProtocol):
             logger: Optional logger instance
         """
         self._logger = logger or logging.getLogger(__name__)
+
+        # Thread safety lock
+        self._lock = threading.Lock()
 
         # Request tracking for structured logging
         self._request_counter = 0
@@ -39,42 +43,45 @@ class MetricsTracker(MetricsTrackerProtocol):
             success: Whether the operation was successful
             execution_time: Time taken to execute the operation in seconds
         """
-        self._total_requests += 1
+        with self._lock:
+            self._total_requests += 1
 
-        if success:
-            self._successful_requests += 1
-        else:
-            self._failed_requests += 1
+            if success:
+                self._successful_requests += 1
+            else:
+                self._failed_requests += 1
 
-        # Track operation-specific metrics
-        if operation not in self._operation_metrics:
-            self._operation_metrics[operation] = {
-                "total_requests": 0,
-                "successful_requests": 0,
-                "failed_requests": 0,
-                "total_execution_time": 0.0,
-                "min_execution_time": float("inf"),
-                "max_execution_time": 0.0,
-            }
+            # Track operation-specific metrics
+            if operation not in self._operation_metrics:
+                self._operation_metrics[operation] = {
+                    "total_requests": 0,
+                    "successful_requests": 0,
+                    "failed_requests": 0,
+                    "total_execution_time": 0.0,
+                    "min_execution_time": float("inf"),
+                    "max_execution_time": 0.0,
+                }
 
-        op_metrics = self._operation_metrics[operation]
-        op_metrics["total_requests"] += 1
+            op_metrics = self._operation_metrics[operation]
+            op_metrics["total_requests"] += 1
 
-        if success:
-            op_metrics["successful_requests"] += 1
-        else:
-            op_metrics["failed_requests"] += 1
+            if success:
+                op_metrics["successful_requests"] += 1
+            else:
+                op_metrics["failed_requests"] += 1
 
-        op_metrics["total_execution_time"] += execution_time
-        op_metrics["min_execution_time"] = min(
-            op_metrics["min_execution_time"], execution_time
-        )
-        op_metrics["max_execution_time"] = max(
-            op_metrics["max_execution_time"], execution_time
-        )
+            op_metrics["total_execution_time"] += execution_time
+            op_metrics["min_execution_time"] = min(
+                op_metrics["min_execution_time"], execution_time
+            )
+            op_metrics["max_execution_time"] = max(
+                op_metrics["max_execution_time"], execution_time
+            )
+
+            total_requests = self._total_requests
 
         self._logger.debug(
-            f"Request tracked - operation: {operation}, success: {success}, execution_time: {execution_time:.3f}s, total_requests: {self._total_requests}"
+            f"Request tracked - operation: {operation}, success: {success}, execution_time: {execution_time:.3f}s, total_requests: {total_requests}"
         )
 
     def generate_request_id(self) -> str:
@@ -83,8 +90,10 @@ class MetricsTracker(MetricsTrackerProtocol):
         Returns:
             Unique request ID in format REQ-{timestamp}-{counter}
         """
-        self._request_counter += 1
-        return f"REQ-{int(time.time() * 1000)}-{self._request_counter}"
+        with self._lock:
+            self._request_counter += 1
+            counter = self._request_counter
+        return f"REQ-{int(time.time() * 1000)}-{counter}"
 
     def get_metrics_summary(self) -> Dict[str, Any]:
         """Get a summary of collected metrics.
@@ -93,20 +102,32 @@ class MetricsTracker(MetricsTrackerProtocol):
             Dictionary containing metrics data
         """
         current_time = time.time()
-        uptime_seconds = current_time - self._start_time
+
+        # Create a snapshot of metrics under lock
+        with self._lock:
+            uptime_seconds = current_time - self._start_time
+            total_requests = self._total_requests
+            successful_requests = self._successful_requests
+            failed_requests = self._failed_requests
+            # Deep copy operation metrics to avoid modification during iteration
+            operation_metrics_copy = {}
+            for op, metrics in self._operation_metrics.items():
+                operation_metrics_copy[op] = metrics.copy()
 
         metrics = {
             "uptime_seconds": uptime_seconds,
             "uptime_human": self._format_uptime(uptime_seconds),
-            "total_requests": self._total_requests,
-            "successful_requests": self._successful_requests,
-            "failed_requests": self._failed_requests,
-            "success_rate": self._calculate_success_rate(),
+            "total_requests": total_requests,
+            "successful_requests": successful_requests,
+            "failed_requests": failed_requests,
+            "success_rate": self._calculate_success_rate_safe(
+                successful_requests, total_requests
+            ),
             "operations": {},
         }
 
-        # Add operation-specific metrics with calculated averages
-        for operation, op_metrics in self._operation_metrics.items():
+        # Process operation-specific metrics (now safe to iterate outside the lock)
+        for operation, op_metrics in operation_metrics_copy.items():
             avg_execution_time = 0.0
             if op_metrics["total_requests"] > 0:
                 avg_execution_time = (
@@ -162,16 +183,34 @@ class MetricsTracker(MetricsTrackerProtocol):
         Returns:
             Success rate as percentage (0.0-100.0)
         """
-        if self._total_requests == 0:
+        with self._lock:
+            if self._total_requests == 0:
+                return 0.0
+            return round((self._successful_requests / self._total_requests) * 100, 2)
+
+    def _calculate_success_rate_safe(
+        self, successful_requests: int, total_requests: int
+    ) -> float:
+        """Calculate success rate percentage from provided values.
+
+        Args:
+            successful_requests: Number of successful requests
+            total_requests: Total number of requests
+
+        Returns:
+            Success rate as percentage (0.0-100.0)
+        """
+        if total_requests == 0:
             return 0.0
-        return round((self._successful_requests / self._total_requests) * 100, 2)
+        return round((successful_requests / total_requests) * 100, 2)
 
     def reset_metrics(self) -> None:
         """Reset all metrics to zero."""
-        self._total_requests = 0
-        self._successful_requests = 0
-        self._failed_requests = 0
-        self._operation_metrics.clear()
-        self._start_time = time.time()
+        with self._lock:
+            self._total_requests = 0
+            self._successful_requests = 0
+            self._failed_requests = 0
+            self._operation_metrics.clear()
+            self._start_time = time.time()
 
         self._logger.info("Metrics reset to zero")

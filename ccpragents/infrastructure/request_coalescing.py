@@ -55,22 +55,22 @@ class RequestCoalescingService:
         Raises:
             Exception: Any exception raised by the fetch function
         """
+        # Check if request is already pending and get future reference
+        existing_future = None
         async with self._lock:
-            # Check if request is already pending
             if key in self._pending_requests:
                 pending = self._pending_requests[key]
                 pending.request_count += 1
+                existing_future = pending.future
                 self._logger.debug(
                     f"Coalescing request for key '{key}' "
                     f"(total waiting: {pending.request_count})"
                 )
-                # Release lock before waiting
-                future = pending.future
 
         # If we found a pending request, wait for it outside the lock
-        if key in self._pending_requests:
+        if existing_future is not None:
             try:
-                result = await future
+                result = await existing_future
                 self._logger.debug(
                     f"Request coalesced for key '{key}' - returning cached result"
                 )
@@ -80,42 +80,52 @@ class RequestCoalescingService:
                 raise
 
         # No pending request, create a new one
+        new_future = None
+        waiter_count = 1
         async with self._lock:
             # Double-check (race condition prevention)
             if key in self._pending_requests:
-                future = self._pending_requests[key].future
+                existing_future = self._pending_requests[key].future
             else:
                 # Create new future for this request
-                future = asyncio.Future()
+                new_future = asyncio.Future()
                 self._pending_requests[key] = CoalescedRequest(
                     key=key,
-                    future=future,
+                    future=new_future,
                     created_at=datetime.now(),
                     request_count=1,
                 )
                 self._logger.debug(f"Starting new request for key '{key}'")
 
         # If we found an existing request after double-check, wait for it
-        if key in self._pending_requests and self._pending_requests[key].future is not future:
-            return await future
+        if existing_future is not None:
+            return await existing_future
 
-        # Execute the fetch function outside the lock
+        # Execute the fetch function outside the lock (we own the new future)
         try:
             result = await fetch_func()
-            future.set_result(result)
-            waiter_count = self._pending_requests.get(key, CoalescedRequest(key, future, datetime.now(), 1)).request_count
+            new_future.set_result(result)
+
+            # Get waiter count safely
+            async with self._lock:
+                if key in self._pending_requests:
+                    waiter_count = self._pending_requests[key].request_count
+
             self._logger.info(
                 f"Request completed for key '{key}' (served {waiter_count} waiters)"
             )
             return result
         except Exception as e:
-            future.set_exception(e)
+            new_future.set_exception(e)
             self._logger.error(f"Request failed for key '{key}': {e}")
             raise
         finally:
-            # Clean up pending request (safe to do outside lock since we're done)
+            # Clean up pending request
             async with self._lock:
-                if key in self._pending_requests:
+                if (
+                    key in self._pending_requests
+                    and self._pending_requests[key].future is new_future
+                ):
                     del self._pending_requests[key]
 
     async def clear(self) -> None:
@@ -127,18 +137,24 @@ class RequestCoalescingService:
             self._pending_requests.clear()
             self._logger.info("Cleared all pending requests")
 
-    def get_stats(self) -> Dict[str, Any]:
+    async def get_stats(self) -> Dict[str, Any]:
         """Get statistics about pending requests.
 
         Returns:
             Dictionary containing statistics
         """
-        return {
-            "pending_count": len(self._pending_requests),
-            "pending_keys": list(self._pending_requests.keys()),
-            "total_waiters": sum(
+        async with self._lock:
+            # Create a snapshot of the data under lock
+            pending_count = len(self._pending_requests)
+            pending_keys = list(self._pending_requests.keys())
+            total_waiters = sum(
                 req.request_count for req in self._pending_requests.values()
-            ),
+            )
+
+        return {
+            "pending_count": pending_count,
+            "pending_keys": pending_keys,
+            "total_waiters": total_waiters,
         }
 
 
