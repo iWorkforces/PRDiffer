@@ -1,7 +1,7 @@
 """Diff generation and patch processing service."""
 
 import re
-from typing import List
+from typing import List, Dict, Optional
 from ccpragents.domain.entities.file_patch import FilePatchInfo, EDIT_TYPE
 from ccpragents.domain.services import DiffServiceInterface
 from ccpragents.infrastructure.logging.console_logger import get_logger
@@ -82,140 +82,157 @@ class DiffGenerator:
         Args:
             patch: The patch string to be converted
             file: FilePatchInfo object containing the filename and metadata
+            is_first_file: Whether this is the first file in the diff
 
         Returns:
             str: A string with line numbers for each hunk, indicating the new and old content
-
-        Example output:
-            ## src/file.ts
-            __new hunk__
-            881        line1
-            882        line2
-            883        line3
-            887 +      line4
-            888 +      line5
-            889        line6
-            890        line7
-            ...
-            __old hunk__
-                    line1
-                    line2
-            -       line3
-            -       line4
-                    line5
-                    line6
-                    ...
         """
+        # Generate file header
+        patch_with_lines_str = self._generate_file_header(file, is_first_file)
+        if file and hasattr(file, "edit_type") and file.edit_type == EDIT_TYPE.DELETED:
+            return patch_with_lines_str
 
-        # Add a header for the file
-        if file:
-            # if the file was deleted, return a message indicating that the file was deleted
-            if hasattr(file, "edit_type") and file.edit_type == EDIT_TYPE.DELETED:
-                separator = "====" if is_first_file else "\n\n===="
-                return f"{separator}\n## File '{file.filename.strip()}' was deleted\n"
-
-            separator = "====" if is_first_file else "\n\n===="
-            patch_with_lines_str = f"{separator}\n## File: '{file.filename.strip()}'\n"
-        else:
-            patch_with_lines_str = ""
-
+        # Process all hunks in the patch
         patch_lines = patch.splitlines()
+        hunks = self._parse_hunks_from_patch(patch_lines)
+
+        # Format each hunk with line numbers
+        for hunk in hunks:
+            patch_with_lines_str += self._format_hunk_with_line_numbers(hunk)
+
+        return patch_with_lines_str.rstrip()
+
+    def _generate_file_header(
+        self, file: Optional[FilePatchInfo], is_first_file: bool
+    ) -> str:
+        """Generate the file header for the patch output.
+
+        Args:
+            file: FilePatchInfo object or None
+            is_first_file: Whether this is the first file in the diff
+
+        Returns:
+            str: Formatted file header
+        """
+        if not file:
+            return ""
+
+        separator = "====" if is_first_file else "\n\n===="
+
+        # Handle deleted files
+        if hasattr(file, "edit_type") and file.edit_type == EDIT_TYPE.DELETED:
+            return f"{separator}\n## File '{file.filename.strip()}' was deleted\n"
+
+        return f"{separator}\n## File: '{file.filename.strip()}'\n"
+
+    def _parse_hunks_from_patch(self, patch_lines: List[str]) -> List[Dict]:
+        """Parse hunks from patch lines.
+
+        Args:
+            patch_lines: List of patch lines
+
+        Returns:
+            List of hunk dictionaries containing header, new_lines, old_lines, start positions
+        """
+        hunks = []
+        current_hunk = None
         RE_HUNK_HEADER = self.RE_HUNK_HEADER
-        new_content_lines = []
-        old_content_lines = []
-        match = None
-        start1, size1, start2, size2 = -1, -1, -1, -1
-        prev_header_line = []
-        header_line = []
 
         for line_i, line in enumerate(patch_lines):
             if "no newline at end of file" in line.lower():
                 continue
 
             if line.startswith("@@"):
-                header_line = line
+                # Save previous hunk if exists
+                if current_hunk is not None:
+                    hunks.append(current_hunk)
+
+                # Start new hunk
                 match = RE_HUNK_HEADER.match(line)
-                if match and (
-                    new_content_lines or old_content_lines
-                ):  # found a new hunk, split the previous lines
-                    if prev_header_line:
-                        patch_with_lines_str += f"\n{prev_header_line}\n"
-                    is_plus_lines = is_minus_lines = False
-                    if new_content_lines:
-                        is_plus_lines = any(
-                            [line.startswith("+") for line in new_content_lines]
-                        )
-                    if old_content_lines:
-                        is_minus_lines = any(
-                            [line.startswith("-") for line in old_content_lines]
-                        )
-                    if (
-                        is_plus_lines or is_minus_lines
-                    ):  # notice 'True' here - we always present __new hunk__ for section, otherwise LLM gets confused
-                        patch_with_lines_str = (
-                            patch_with_lines_str.rstrip() + "\n__new hunk__\n"
-                        )
-                        for i, line_new in enumerate(new_content_lines):
-                            patch_with_lines_str += f"{start2 + i} {line_new}\n"
-                    if is_minus_lines:
-                        patch_with_lines_str = (
-                            patch_with_lines_str.rstrip() + "\n__old hunk__\n"
-                        )
-                        for line_old in old_content_lines:
-                            patch_with_lines_str += f"{line_old}\n"
-                    new_content_lines = []
-                    old_content_lines = []
                 if match:
-                    prev_header_line = header_line
                     section_header, size1, size2, start1, start2 = (
                         self._extract_hunk_headers(match)
                     )
+                    current_hunk = {
+                        "header": line,
+                        "new_lines": [],
+                        "old_lines": [],
+                        "start1": start1,
+                        "start2": start2,
+                    }
+            elif current_hunk is not None:
+                # Process lines within current hunk
+                self._add_line_to_hunk(current_hunk, line, line_i, patch_lines)
 
-            elif line.startswith("+"):
-                new_content_lines.append(line)
-            elif line.startswith("-"):
-                old_content_lines.append(line)
-            else:
-                if (
-                    not line and line_i
-                ):  # if this line is empty and the next line is a hunk header, skip it
-                    if line_i + 1 < len(patch_lines) and patch_lines[
-                        line_i + 1
-                    ].startswith("@@"):
-                        continue
-                    elif line_i + 1 == len(patch_lines):
-                        continue
-                new_content_lines.append(line)
-                old_content_lines.append(line)
+        # Add last hunk
+        if current_hunk is not None:
+            hunks.append(current_hunk)
 
-        # finishing last hunk
-        if match and new_content_lines:
-            patch_with_lines_str += f"\n{header_line}\n"
-            is_plus_lines = is_minus_lines = False
-            if new_content_lines:
-                is_plus_lines = any(
-                    [line.startswith("+") for line in new_content_lines]
-                )
-            if old_content_lines:
-                is_minus_lines = any(
-                    [line.startswith("-") for line in old_content_lines]
-                )
-            if (
-                is_plus_lines or is_minus_lines
-            ):  # notice 'True' here - we always present __new hunk__ for section, otherwise LLM gets confused
-                patch_with_lines_str = (
-                    patch_with_lines_str.rstrip() + "\n__new hunk__\n"
-                )
-                for i, line_new in enumerate(new_content_lines):
-                    patch_with_lines_str += f"{start2 + i} {line_new}\n"
-            if is_minus_lines:
-                patch_with_lines_str = (
-                    patch_with_lines_str.rstrip() + "\n__old hunk__\n"
-                )
-                for line_old in old_content_lines:
-                    patch_with_lines_str += f"{line_old}\n"
+        return hunks
 
-        return patch_with_lines_str.rstrip()
+    def _add_line_to_hunk(
+        self,
+        hunk: Dict,
+        line: str,
+        line_i: int,
+        patch_lines: List[str],
+    ) -> None:
+        """Add a line to the current hunk.
+
+        Args:
+            hunk: Current hunk dictionary to update
+            line: Line to add
+            line_i: Line index in patch
+            patch_lines: All patch lines (for lookahead)
+        """
+        if line.startswith("+"):
+            hunk["new_lines"].append(line)
+        elif line.startswith("-"):
+            hunk["old_lines"].append(line)
+        else:
+            # Skip empty lines before hunk headers or at end of patch
+            if not line and line_i:
+                if line_i + 1 < len(patch_lines) and patch_lines[line_i + 1].startswith(
+                    "@@"
+                ):
+                    return
+                elif line_i + 1 == len(patch_lines):
+                    return
+
+            # Context line (appears in both new and old)
+            hunk["new_lines"].append(line)
+            hunk["old_lines"].append(line)
+
+    def _format_hunk_with_line_numbers(self, hunk: Dict) -> str:
+        """Format a hunk with line numbers.
+
+        Args:
+            hunk: Hunk dictionary with header, new_lines, old_lines, start positions
+
+        Returns:
+            str: Formatted hunk string with line numbers
+        """
+        output = f"\n{hunk['header']}\n"
+
+        # Check if there are any actual changes
+        has_additions = any(line.startswith("+") for line in hunk["new_lines"])
+        has_deletions = any(line.startswith("-") for line in hunk["old_lines"])
+
+        if not (has_additions or has_deletions):
+            return ""  # No changes in this hunk
+
+        # Format new content section
+        output = output.rstrip() + "\n__new hunk__\n"
+        for i, line_new in enumerate(hunk["new_lines"]):
+            output += f"{hunk['start2'] + i} {line_new}\n"
+
+        # Format old content section if there are deletions
+        if has_deletions:
+            output = output.rstrip() + "\n__old hunk__\n"
+            for line_old in hunk["old_lines"]:
+                output += f"{line_old}\n"
+
+        return output
 
     def _extract_hunk_headers(self, match: re.Match) -> tuple:
         """Extract and parse hunk header information from regex match.
