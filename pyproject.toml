@@ -17,7 +17,7 @@ dependencies = [
     "asyncio>=4.0.0",
     "python-dotenv>=1.1.1",
     "dynaconf>=3.2.11",
-    "mcp==1.15.0",
+    "mcp==1.16.0",
     "standard>=1.0.3",
 ]
 
@@ -30,7 +30,7 @@ packages = ["ccpragents"]
 
 [dependency-groups]
 dev = [
-    "ruff>=0.13.2",
+    "ruff>=0.13.3",
     "pytest>=8.4.2",
     "pytest-asyncio>=1.2.0",
     "pytest-cov>=7.0.0",
