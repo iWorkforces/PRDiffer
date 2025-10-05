@@ -9,7 +9,7 @@ authors = [
 requires-python = ">=3.13"
 dependencies = [
     "fastmcp>=2.12.4",
-    "pydantic>=2.11.9",
+    "pydantic>=2.11.10",
     "fastapi[standard]>=0.118.0",
     "uvicorn>=0.37.0",
     "pygithub>=2.8.1",
