@@ -51,6 +51,7 @@ github.ignore_patterns = [
     "coverage/",
     ".pytest_cache/",
     "*package-lock.json",
+    "*.html",
 ]
 
 github.valid_extensions = [
