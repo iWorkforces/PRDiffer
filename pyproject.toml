@@ -1,6 +1,6 @@
 [project]
 name = "ccpragents"
-version = "0.1.9"
+version = "0.2.0"
 description = "MCP Server For GitHub PR’s Review Process With Full Contexts"
 readme = "README.md"
 authors = [
@@ -18,6 +18,10 @@ dependencies = [
     "dynaconf>=3.2.12",
     "mcp==1.17.0",
     "standard>=1.0.3",
+    "uvloop>=0.21.0",
+    "httptools>=0.7.1",
+    "locust==2.41.6",
+    "starlette>=0.48.0",
 ]
 
 [build-system]

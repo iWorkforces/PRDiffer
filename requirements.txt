@@ -9,3 +9,7 @@ dynaconf>=3.2.12
 mcp==1.17.0
 standard>=1.0.3
 ruff>=0.14.0
+uvloop>=0.21.0
+httptools>=0.7.1
+locust==2.41.6
+starlette>=0.48.0
