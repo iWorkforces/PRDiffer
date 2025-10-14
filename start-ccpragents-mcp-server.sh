@@ -89,7 +89,8 @@ else
     echo -e "${GREEN}✅ uv is available${NC}"
 fi
 
-echo -e "${CYAN}Version: $(uv --version)${NC}"
+echo -e "${CYAN}uv version: $(uv --version)${NC}"
+echo -e "${CYAN}Python version: $(uv run python --version 2>&1)${NC}"
 echo ""
 
 # Check if we're in the correct directory
