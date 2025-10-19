@@ -8,19 +8,19 @@ authors = [
 ]
 requires-python = ">=3.13"
 dependencies = [
-    "fastmcp>=2.12.4",
-    "pydantic>=2.12.2",
+    "fastmcp>=2.12.5",
+    "pydantic>=2.12.3",
     "fastapi[standard]>=0.119.0",
-    "uvicorn>=0.37.0",
+    "uvicorn>=0.38.0",
     "pygithub>=2.8.1",
     "asyncio>=4.0.0",
     "python-dotenv>=1.1.1",
     "dynaconf>=3.2.12",
-    "mcp==1.18.0",
+    "mcp>=1.16.0",
     "standard>=1.0.3",
     "uvloop>=0.22.1",
     "httptools>=0.7.1",
-    "locust==2.41.6",
+    "locust==2.42.0",
     "starlette>=0.48.0",
 ]
 
