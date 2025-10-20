@@ -4,9 +4,9 @@ version = "0.2.0"
 description = "MCP Server For GitHub PR’s Review Process With Full Contexts"
 readme = "README.md"
 authors = [
-    { name = "Trung Dinh", email = "chitrung09t2@gmail.com" }
+    { name = "CCWorkforce Engineers" }
 ]
-requires-python = ">=3.13"
+requires-python = ">=3.14.0"
 dependencies = [
     "fastmcp>=2.12.5",
     "pydantic>=2.12.3",
