@@ -5,7 +5,22 @@ import hashlib
 import json
 import time
 from collections import OrderedDict
-from typing import Any, Callable, Dict, Optional, Tuple, Set
+from typing import Any, Callable, Dict, Optional, Tuple, Set, Protocol, TypeVar, cast
+
+# Type variable for generic function signatures
+F = TypeVar('F', bound=Callable[..., Any])
+
+
+class CacheableMethod(Protocol):
+    """Protocol for methods that have been decorated with caching."""
+
+    def __call__(self, *args: Any, **kwargs: Any) -> Any:
+        """Call the cached method."""
+        ...
+
+    def clear_cache(self) -> None:
+        """Clear the cache for this method."""
+        ...
 
 
 class CachingMixin:
@@ -185,7 +200,7 @@ def cached_method(ttl: Optional[int] = None, key_prefix: Optional[str] = None):
                 return do_expensive_work(param)
     """
 
-    def decorator(method: Callable) -> Callable:
+    def decorator(method: F) -> F:
         @functools.wraps(method)
         def wrapper(self, *args, **kwargs):
             # Ensure the class has CachingMixin
@@ -254,9 +269,10 @@ def cached_method(ttl: Optional[int] = None, key_prefix: Optional[str] = None):
             for key in keys_to_remove:
                 del self._method_cache[key]
 
-        wrapper.clear_cache = clear_method_cache
+        # Use setattr to dynamically add clear_cache method
+        setattr(wrapper, 'clear_cache', clear_method_cache)
 
-        return wrapper
+        return cast(F, wrapper)
 
     return decorator
 

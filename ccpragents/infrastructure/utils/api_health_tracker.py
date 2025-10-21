@@ -158,7 +158,7 @@ class APIHealthTracker:
             dict: Error types and their counts
         """
         recent_calls = self._get_recent_calls(time.time())
-        error_counts = {}
+        error_counts: Dict[str, int] = {}
 
         for call in recent_calls:
             if not call.success and call.error_type:

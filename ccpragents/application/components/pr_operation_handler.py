@@ -46,13 +46,17 @@ class PROperationHandler(PROperationHandlerProtocol):
 
         Args:
             pr_url: GitHub PR URL
-            use_cache: Whether to use caching
+            use_cache: Whether to use caching (currently ignored - caching is automatic)
             repo_owner: Repository owner (extracted from URL if not provided)
             repo_name: Repository name (extracted from URL if not provided)
             pr_number: PR number (extracted from URL if not provided)
 
         Returns:
             Dictionary containing PR diff data
+
+        Note:
+            The use_cache parameter is kept for API compatibility but caching is
+            automatic and always enabled based on commit SHA invalidation.
         """
         try:
             # Validate input parameters
@@ -104,9 +108,8 @@ class PROperationHandler(PROperationHandlerProtocol):
             use_case: GetPRDiffUseCase = GetPRDiffUseCase(
                 repository, cache_service=self._cache_service
             )
-            pr_diff: PRDiff = await use_case.execute(
-                use_cache=use_cache
-            )  # Async execution
+            # Note: Caching is automatic based on commit SHA, use_cache parameter ignored
+            pr_diff: PRDiff = await use_case.execute()  # Async execution
 
             # Cache the repository after it's been used (now it should be initialized)
             if hasattr(repository, "_initialized") and getattr(
@@ -145,3 +148,87 @@ class PROperationHandler(PROperationHandlerProtocol):
             )
             # Re-raise with consistent error format
             raise RuntimeError(f"Failed to fetch PR diff: {e}")
+
+    async def describe_pr(
+        self, pr_url: str, commit_messages: str, diff_content: str
+    ) -> str:
+        """Generate PR description based on commit messages and diff.
+
+        Args:
+            pr_url: GitHub PR URL
+            commit_messages: Commit messages from the PR
+            diff_content: Diff content of the PR
+
+        Returns:
+            Generated PR description
+
+        Raises:
+            NotImplementedError: This feature is not yet implemented
+        """
+        raise NotImplementedError(
+            "PR description generation is not yet implemented. "
+            "This feature is planned for a future release."
+        )
+
+    async def approve_pr(
+        self, pr_url: str, commit_messages: str, diff_content: str
+    ) -> str:
+        """Generate PR approval message.
+
+        Args:
+            pr_url: GitHub PR URL
+            commit_messages: Commit messages from the PR
+            diff_content: Diff content of the PR
+
+        Returns:
+            Generated approval message
+
+        Raises:
+            NotImplementedError: This feature is not yet implemented
+        """
+        raise NotImplementedError(
+            "PR approval generation is not yet implemented. "
+            "This feature is planned for a future release."
+        )
+
+    async def review_pr(
+        self, pr_url: str, commit_messages: str, diff_content: str
+    ) -> str:
+        """Generate PR review.
+
+        Args:
+            pr_url: GitHub PR URL
+            commit_messages: Commit messages from the PR
+            diff_content: Diff content of the PR
+
+        Returns:
+            Generated PR review
+
+        Raises:
+            NotImplementedError: This feature is not yet implemented
+        """
+        raise NotImplementedError(
+            "PR review generation is not yet implemented. "
+            "This feature is planned for a future release."
+        )
+
+    async def update_pr_changelog(
+        self, pr_url: str, commit_messages: str, diff_content: str
+    ) -> str:
+        """Update PR changelog.
+
+        Args:
+            pr_url: GitHub PR URL
+            commit_messages: Commit messages from the PR
+            diff_content: Diff content of the PR
+
+        Returns:
+            Updated changelog content
+
+        Raises:
+            NotImplementedError: This feature is not yet implemented
+        """
+        raise NotImplementedError(
+            "PR changelog update is not yet implemented. "
+            "This feature is planned for a future release."
+        )

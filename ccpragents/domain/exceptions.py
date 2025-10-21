@@ -4,6 +4,8 @@ This module defines custom exceptions for different error scenarios,
 providing better error handling and more informative error messages.
 """
 
+from typing import Optional, Any, Dict
+
 
 class CCPRAgentsException(Exception):
     """Base exception for all CCPRAgents errors.
@@ -11,7 +13,7 @@ class CCPRAgentsException(Exception):
     All custom exceptions should inherit from this base class.
     """
 
-    def __init__(self, message: str, details: dict = None):
+    def __init__(self, message: str, details: Optional[Dict[str, Any]] = None):
         """Initialize exception with message and optional details.
 
         Args:
@@ -20,7 +22,7 @@ class CCPRAgentsException(Exception):
         """
         super().__init__(message)
         self.message = message
-        self.details = details or {}
+        self.details: Dict[str, Any] = details or {}
 
 
 # ============================================================================
@@ -72,7 +74,12 @@ class InsufficientPermissionsError(AuthorizationError):
 class RateLimitError(CCPRAgentsException):
     """Raised when rate limit is exceeded."""
 
-    def __init__(self, message: str, retry_after: int = None, details: dict = None):
+    def __init__(
+        self,
+        message: str,
+        retry_after: Optional[int] = None,
+        details: Optional[Dict[str, Any]] = None,
+    ):
         """Initialize with retry information.
 
         Args:
@@ -92,12 +99,6 @@ class GlobalRateLimitError(RateLimitError):
 
 class UserRateLimitError(RateLimitError):
     """Raised when per-user rate limit is exceeded."""
-
-    pass
-
-
-class GitHubRateLimitError(RateLimitError):
-    """Raised when GitHub API rate limit is exceeded."""
 
     pass
 
@@ -145,7 +146,12 @@ class UnsupportedFormatError(ValidationError):
 class GitHubAPIError(CCPRAgentsException):
     """Base exception for GitHub API errors."""
 
-    def __init__(self, message: str, status_code: int = None, details: dict = None):
+    def __init__(
+        self,
+        message: str,
+        status_code: Optional[int] = None,
+        details: Optional[Dict[str, Any]] = None,
+    ):
         """Initialize with HTTP status code.
 
         Args:
@@ -185,6 +191,28 @@ class GitHubConnectionError(GitHubAPIError):
     """Raised when connection to GitHub fails."""
 
     pass
+
+
+class GitHubRateLimitError(GitHubAPIError):
+    """Raised when GitHub API rate limit is exceeded."""
+
+    def __init__(
+        self,
+        message: str,
+        retry_after: Optional[int] = None,
+        status_code: Optional[int] = None,
+        details: Optional[Dict[str, Any]] = None,
+    ):
+        """Initialize with retry information.
+
+        Args:
+            message: Error message
+            retry_after: Seconds until rate limit resets
+            status_code: HTTP status code from GitHub API
+            details: Additional context
+        """
+        super().__init__(message, status_code, details)
+        self.retry_after = retry_after
 
 
 # ============================================================================
@@ -331,7 +359,7 @@ class SignatureVerificationError(SecurityError):
 # ============================================================================
 
 
-def get_exception_details(exception: Exception) -> dict:
+def get_exception_details(exception: Exception) -> Dict[str, Any]:
     """Extract details from an exception for logging.
 
     Args:
@@ -340,7 +368,7 @@ def get_exception_details(exception: Exception) -> dict:
     Returns:
         Dictionary with exception details
     """
-    details = {
+    details: Dict[str, Any] = {
         "type": type(exception).__name__,
         "message": str(exception),
     }

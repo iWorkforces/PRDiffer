@@ -97,8 +97,8 @@ class RequestCoalescingService:
                         self._pending_requests[key].request_count -= 1
 
         # Phase 3: Create new request (double-check pattern with proper locking)
-        new_future = None
-        new_request = None
+        new_future: Optional[asyncio.Future[Any]] = None
+        new_request: Optional[CoalescedRequest] = None
         async with self._lock:
             # Double-check after acquiring lock
             if key in self._pending_requests:
@@ -129,6 +129,10 @@ class RequestCoalescingService:
                         self._pending_requests[key].request_count -= 1
 
         # Phase 5: Execute the fetch function (we own the request)
+        # At this point, new_future and new_request must be set (we're in the else branch)
+        assert new_future is not None, "new_future should be set when owning request"
+        assert new_request is not None, "new_request should be set when owning request"
+
         cleanup_done = False
         try:
             # Execute with timeout protection

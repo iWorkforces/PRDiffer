@@ -25,7 +25,7 @@ class BatchResult:
     """Result container for batch operations with error tracking."""
 
     successful: List[Any]
-    failed: List[Tuple[Any, Exception]]
+    failed: List[Tuple[Any, BaseException]]  # BaseException to handle all exception types
     total_processed: int
 
     @property
@@ -116,13 +116,15 @@ class AsyncParallelExecutor:
 
         # Process results based on error strategy
         for result in results:
-            if isinstance(result, Exception):
+            if isinstance(result, BaseException):
                 # This is an unexpected exception from gather itself
+                # (could be Exception, KeyboardInterrupt, SystemExit, etc.)
                 self._logger.error(f"Unexpected gather exception: {result}")
                 if self.error_strategy == ErrorHandlingStrategy.RAISE:
                     raise result
                 failed_items.append((None, result))
             else:
+                # Result is a tuple from process_with_semaphore
                 item, value, exception = result
                 if exception is None:
                     successful_results.append(value)
@@ -290,7 +292,7 @@ class AsyncParallelExecutor:
             """Process item and update progress atomically."""
             async with self._semaphore:
                 result = None
-                exception = None
+                exception: Optional[Exception] = None
 
                 try:
                     if self.timeout:
@@ -332,13 +334,15 @@ class AsyncParallelExecutor:
 
         # Process results based on error strategy
         for result in results:
-            if isinstance(result, Exception):
+            if isinstance(result, BaseException):
                 # Unexpected exception from gather itself
+                # (could be Exception, KeyboardInterrupt, SystemExit, etc.)
                 self._logger.error(f"Unexpected gather exception: {result}")
                 if self.error_strategy == ErrorHandlingStrategy.RAISE:
                     raise result
                 failed_items.append((None, result))
             else:
+                # Result is a tuple from process_with_semaphore
                 item, value, exception = result
                 if exception is None:
                     successful_results.append(value)

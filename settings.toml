@@ -66,6 +66,12 @@ github.valid_extensions = [
     ".dockerfile", ".tf", ".tfvars"
 ]
 
+# Diff generator parallel processing settings
+github.diff_parallel_enabled = true  # Enable parallel diff generation
+github.diff_parallel_threshold = 3   # Minimum files to trigger parallel processing
+github.diff_max_workers = 4          # Maximum worker threads for parallel processing
+github.diff_worker_timeout = 30.0    # Timeout per file in seconds
+
 # Cache settings
 cache.ttl = 300  # 5 minutes
 cache.max_size = 1000
@@ -90,6 +96,8 @@ cache.ttl = 60  # 1 minute for faster development
 # Development uses more verbose retry logging for debugging
 github.retry_log_level = "INFO"
 github.permanent_failure_log_level = "WARNING"
+# Development uses fewer workers for easier debugging
+github.diff_max_workers = 2
 
 [production]
 app.debug = false
@@ -108,3 +116,7 @@ cache.enabled = false  # Disable cache for testing
 # Testing uses detailed logging for debugging
 github.retry_log_level = "DEBUG"
 github.permanent_failure_log_level = "DEBUG"
+# Testing can use parallel processing with limited workers for predictability
+github.diff_parallel_enabled = true
+github.diff_max_workers = 2
+github.diff_parallel_threshold = 5  # Higher threshold to test both sequential and parallel paths
