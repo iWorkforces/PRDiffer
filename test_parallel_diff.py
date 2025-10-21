@@ -153,9 +153,9 @@ def test_output_consistency():
 
 def main():
     """Run all tests."""
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("🧪 Parallel Diff Generation Validation Tests")
-    print("="*60 + "\n")
+    print("=" * 60 + "\n")
 
     tests = [
         ("Sequential Processing", test_sequential_processing),
@@ -180,11 +180,12 @@ def main():
             failed += 1
             print(f"❌ {test_name} failed with error: {e}")
             import traceback
+
             traceback.print_exc()
 
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print(f"📊 Test Results: {passed} passed, {failed} failed")
-    print("="*60 + "\n")
+    print("=" * 60 + "\n")
 
     if failed > 0:
         print("❌ Some tests failed")

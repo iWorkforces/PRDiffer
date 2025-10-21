@@ -25,7 +25,9 @@ class BatchResult:
     """Result container for batch operations with error tracking."""
 
     successful: List[Any]
-    failed: List[Tuple[Any, BaseException]]  # BaseException to handle all exception types
+    failed: List[
+        Tuple[Any, BaseException]
+    ]  # BaseException to handle all exception types
     total_processed: int
 
     @property

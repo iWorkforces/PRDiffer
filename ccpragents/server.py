@@ -8,7 +8,9 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from ccpragents.application.mcp_server import FastMCPServer
 from ccpragents.infrastructure.settings import get_settings_service
 from ccpragents.infrastructure.cache_service import get_cache_service
-from ccpragents.infrastructure.repository_cache_service import get_repository_cache_service
+from ccpragents.infrastructure.repository_cache_service import (
+    get_repository_cache_service,
+)
 from ccpragents.infrastructure.logging.console_logger import get_logger
 from ccpragents.infrastructure import GitHubPRDiffRepository
 

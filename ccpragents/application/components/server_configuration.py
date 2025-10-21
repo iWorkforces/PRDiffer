@@ -112,7 +112,11 @@ Usage: Call tools with GitHub PR URLs (e.g., "https://github.com/owner/repo/pull
         Returns:
             ValidationResult dictionary with validation results
         """
-        validation_results: ValidationResult = {"valid": True, "warnings": [], "errors": []}
+        validation_results: ValidationResult = {
+            "valid": True,
+            "warnings": [],
+            "errors": [],
+        }
 
         try:
             # Check required settings

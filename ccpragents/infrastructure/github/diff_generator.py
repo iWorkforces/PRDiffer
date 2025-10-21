@@ -2,7 +2,7 @@
 
 import re
 import time
-from typing import List, Dict, Optional, Tuple
+from typing import List, Dict, Optional
 from ccpragents.domain.entities.file_patch import FilePatchInfo, EDIT_TYPE
 from ccpragents.domain.services import DiffServiceInterface
 from ccpragents.infrastructure.logging.console_logger import get_logger
@@ -76,7 +76,11 @@ class DiffGenerator:
                 diff_files, add_line_numbers_to_hunks
             )
         else:
-            reason = "disabled" if not self._parallel_enabled else f"below threshold ({num_files} < {self._parallel_threshold})"
+            reason = (
+                "disabled"
+                if not self._parallel_enabled
+                else f"below threshold ({num_files} < {self._parallel_threshold})"
+            )
             self._logger.debug(
                 f"Using sequential processing for {num_files} files (parallel {reason})"
             )
@@ -330,7 +334,7 @@ class DiffGenerator:
                 )
                 return None
 
-            is_first_file = (i == 0)
+            is_first_file = i == 0
 
             if add_line_numbers_to_hunks:
                 full_extended_patch = (
@@ -341,7 +345,7 @@ class DiffGenerator:
             else:
                 # Add separator and file header
                 separator = "" if is_first_file else "\n---"
-                full_extended_patch = f"{separator}{"" if is_first_file else "\n\n"}## File: '{file.filename.strip()}'\n{extended_patch.rstrip()}\n"
+                full_extended_patch = f"{separator}{'' if is_first_file else '\n\n'}## File: '{file.filename.strip()}'\n{extended_patch.rstrip()}\n"
                 if is_first_file:
                     full_extended_patch = f"\n{full_extended_patch}"
 
@@ -394,7 +398,7 @@ class DiffGenerator:
             else:
                 # Add separator and file header
                 separator = "" if i == 0 else "\n---"
-                full_extended_patch = f"{separator}{"" if i == 0 else "\n\n"}## File: '{file.filename.strip()}'\n{extended_patch.rstrip()}\n"
+                full_extended_patch = f"{separator}{'' if i == 0 else '\n\n'}## File: '{file.filename.strip()}'\n{extended_patch.rstrip()}\n"
                 if i == 0:
                     full_extended_patch = f"\n{full_extended_patch}"
             extended_diffs.append(full_extended_patch)
@@ -454,7 +458,7 @@ class DiffGenerator:
         self._logger.info(
             f"Parallel diff generation completed: {len(extended_diffs)}/{total_files} files "
             f"processed in {elapsed_time:.2f}s "
-            f"({elapsed_time/total_files*1000:.1f}ms per file avg)"
+            f"({elapsed_time / total_files * 1000:.1f}ms per file avg)"
         )
 
         return extended_diffs

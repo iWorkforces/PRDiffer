@@ -8,7 +8,7 @@ from collections import OrderedDict
 from typing import Any, Callable, Dict, Optional, Tuple, Set, Protocol, TypeVar, cast
 
 # Type variable for generic function signatures
-F = TypeVar('F', bound=Callable[..., Any])
+F = TypeVar("F", bound=Callable[..., Any])
 
 
 class CacheableMethod(Protocol):
@@ -270,7 +270,7 @@ def cached_method(ttl: Optional[int] = None, key_prefix: Optional[str] = None):
                 del self._method_cache[key]
 
         # Use setattr to dynamically add clear_cache method
-        setattr(wrapper, 'clear_cache', clear_method_cache)
+        setattr(wrapper, "clear_cache", clear_method_cache)
 
         return cast(F, wrapper)
 

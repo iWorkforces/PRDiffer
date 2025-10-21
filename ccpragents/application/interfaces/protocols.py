@@ -4,7 +4,7 @@ This module defines the interfaces that each component must implement,
 ensuring loose coupling and enabling easy testing with mocks.
 """
 
-from typing import Dict, Any, Tuple, Protocol, Optional
+from typing import Dict, Any, Tuple, Protocol
 
 
 class URLValidatorProtocol(Protocol):

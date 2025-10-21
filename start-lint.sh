@@ -95,7 +95,7 @@ check_ruff() {
     fi
 
     echo -e "${GREEN}✅ ruff is available${NC}"
-    echo -e "${CYAN}Version: $(ruff --version)${NC}"
+    echo -e "${CYAN}Version: $(uv run ruff --version)${NC}"
 }
 
 # Function to upgrade ruff to latest version
@@ -119,7 +119,7 @@ upgrade_ruff() {
     fi
 
     echo -e "${GREEN}✅ ruff upgraded to latest version${NC}"
-    echo -e "${CYAN}Version: $(ruff --version)${NC}"
+    echo -e "${CYAN}Version: $(uv run ruff --version)${NC}"
     echo ""
 }
 
@@ -175,7 +175,7 @@ run_check() {
     echo ""
 
     # Run ruff check with detailed output
-    if ruff check . --output-format=full; then
+    if uv run ruff check . --output-format=full; then
         echo ""
         echo -e "${GREEN}✅ No linting issues found!${NC}"
         return 0
@@ -193,12 +193,12 @@ run_check_stats() {
 
     # Get statistics by rule
     echo -e "${CYAN}Issues by rule:${NC}"
-    ruff check . --output-format=concise | cut -d: -f4 | cut -d' ' -f2 | sort | uniq -c | sort -nr || true
+    uv run ruff check . --output-format=concise | cut -d: -f4 | cut -d' ' -f2 | sort | uniq -c | sort -nr || true
     echo ""
 
     # Get statistics by file
     echo -e "${CYAN}Files with issues:${NC}"
-    ruff check . --output-format=concise | cut -d: -f1 | sort | uniq -c | sort -nr | head -10 || true
+    uv run ruff check . --output-format=concise | cut -d: -f1 | sort | uniq -c | sort -nr | head -10 || true
     echo ""
 }
 
@@ -208,7 +208,7 @@ run_fix() {
     echo ""
 
     # Run ruff with --fix flag
-    if ruff check . --fix; then
+    if uv run ruff check . --fix; then
         echo ""
         echo -e "${GREEN}✅ Automatic fixes applied successfully${NC}"
     else
@@ -219,7 +219,7 @@ run_fix() {
     # Show remaining issues
     echo ""
     echo -e "${BLUE}🔍 Checking for remaining issues...${NC}"
-    if ruff check . --output-format=concise; then
+    if uv run ruff check . --output-format=concise; then
         echo -e "${GREEN}✅ All fixable issues have been resolved${NC}"
     else
         echo -e "${YELLOW}⚠️  Some issues require manual attention${NC}"
@@ -270,7 +270,7 @@ run_format() {
     echo ""
 
     # Run ruff format (ignore failures, whitespace will be stripped anyway)
-    ruff format . || true
+    uv run ruff format . || true
 
     # Remove trailing whitespace in all Python files
     find_python_files
@@ -350,7 +350,7 @@ install_ruff() {
     fi
 
     echo -e "${GREEN}✅ ruff installation completed${NC}"
-    echo -e "${CYAN}Version: $(ruff --version)${NC}"
+    echo -e "${CYAN}Version: $(uv run ruff --version)${NC}"
 }
 
 # Function to list files
