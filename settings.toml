@@ -1,7 +1,7 @@
 [default]
 # Application settings
 app.debug = false
-app.log_level = "WARNING"
+app.log_level = "INFO"
 app.max_files_allowed = 50
 app.incremental_mode = false
 
