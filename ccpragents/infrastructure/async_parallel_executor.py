@@ -1,10 +1,10 @@
 """Async parallel execution service for batch processing operations.
 
-This module provides async parallel execution using asyncio.gather instead
+This module provides async parallel execution using anyio task groups instead
 of ThreadPoolExecutor for better performance and resource utilization.
 """
 
-import asyncio
+import anyio
 from typing import List, Callable, Any, Optional, Dict, Awaitable, Union, Tuple
 from dataclasses import dataclass
 from enum import Enum
@@ -64,7 +64,7 @@ class AsyncParallelExecutor:
         self.timeout = timeout
         self.error_strategy = error_strategy
         self._logger = logger or get_logger()
-        self._semaphore = asyncio.Semaphore(max_concurrent)
+        self._semaphore = anyio.Semaphore(max_concurrent)
 
     async def execute_batch(
         self, func: Callable[[Any], Awaitable[Any]], items: List[Any], *args, **kwargs
@@ -87,53 +87,57 @@ class AsyncParallelExecutor:
 
         successful_results = []
         failed_items = []
+        results: List[Tuple[Any, Optional[Any], Optional[Exception]]] = []
 
         async def process_with_semaphore(
-            item: Any,
-        ) -> Tuple[Any, Optional[Any], Optional[Exception]]:
-            """Process item with concurrency limit, returning (item, result, exception)."""
+            item: Any, index: int
+        ) -> None:
+            """Process item with concurrency limit, storing result at index."""
             async with self._semaphore:
                 try:
                     if self.timeout:
-                        result = await asyncio.wait_for(
-                            func(item, *args, **kwargs), timeout=self.timeout
-                        )
+                        with anyio.fail_after(self.timeout):
+                            result = await func(item, *args, **kwargs)
                     else:
                         result = await func(item, *args, **kwargs)
-                    return (item, result, None)
-                except asyncio.TimeoutError as e:
+                    results[index] = (item, result, None)
+                except TimeoutError as e:
                     self._logger.error(
                         f"Timeout processing item {item} after {self.timeout}s"
                     )
-                    return (item, None, e)
+                    results[index] = (item, None, e)
                 except Exception as e:
                     self._logger.error(f"Error processing item {item}: {e}")
-                    return (item, None, e)
+                    results[index] = (item, None, e)
 
-        # Execute all tasks concurrently with return_exceptions=True to prevent cancellation
-        results = await asyncio.gather(
-            *[process_with_semaphore(item) for item in items],
-            return_exceptions=True,
-        )
+        # Initialize results list with placeholders
+        results = [(None, None, None) for _ in items]
+
+        # Execute all tasks concurrently using task group
+        try:
+            async with anyio.create_task_group() as tg:
+                for index, item in enumerate(items):
+                    tg.start_soon(process_with_semaphore, item, index)
+        except BaseException as e:
+            # Task group raises first exception if error_strategy is RAISE
+            # For other strategies, exceptions are captured in results
+            if self.error_strategy == ErrorHandlingStrategy.RAISE:
+                raise
+            self._logger.error(f"Unexpected task group exception: {e}")
+            failed_items.append((None, e))
 
         # Process results based on error strategy
         for result in results:
-            if isinstance(result, BaseException):
-                # This is an unexpected exception from gather itself
-                # (could be Exception, KeyboardInterrupt, SystemExit, etc.)
-                self._logger.error(f"Unexpected gather exception: {result}")
-                if self.error_strategy == ErrorHandlingStrategy.RAISE:
-                    raise result
-                failed_items.append((None, result))
+            if result == (None, None, None):
+                # Placeholder not replaced - task was cancelled or didn't run
+                continue
+            item, value, exception = result
+            if exception is None:
+                successful_results.append(value)
             else:
-                # Result is a tuple from process_with_semaphore
-                item, value, exception = result
-                if exception is None:
-                    successful_results.append(value)
-                else:
-                    if self.error_strategy == ErrorHandlingStrategy.RAISE:
-                        raise exception
-                    failed_items.append((item, exception))
+                if self.error_strategy == ErrorHandlingStrategy.RAISE:
+                    raise exception
+                failed_items.append((item, exception))
 
         # Return based on strategy
         if self.error_strategy == ErrorHandlingStrategy.IGNORE:
@@ -165,31 +169,29 @@ class AsyncParallelExecutor:
         if not items:
             return []
 
-        async def process_with_semaphore(item: Any) -> Optional[Any]:
+        results: List[Optional[Any]] = [None for _ in items]
+
+        async def process_with_semaphore(item: Any, index: int) -> None:
             """Process item with concurrency limit and context."""
             async with self._semaphore:
                 try:
                     if self.timeout:
-                        result = await asyncio.wait_for(
-                            func(item, context), timeout=self.timeout
-                        )
+                        with anyio.fail_after(self.timeout):
+                            result = await func(item, context)
                     else:
                         result = await func(item, context)
-                    return result
-                except asyncio.TimeoutError:
+                    results[index] = result
+                except TimeoutError:
                     self._logger.error(
                         f"Timeout processing item {item} after {self.timeout}s"
                     )
-                    return None
                 except Exception as e:
                     self._logger.error(f"Error processing item {item}: {e}")
-                    return None
 
         # Execute all tasks concurrently
-        results = await asyncio.gather(
-            *[process_with_semaphore(item) for item in items],
-            return_exceptions=False,
-        )
+        async with anyio.create_task_group() as tg:
+            for index, item in enumerate(items):
+                tg.start_soon(process_with_semaphore, item, index)
 
         # Filter out None results
         return [r for r in results if r is not None]
@@ -215,7 +217,9 @@ class AsyncParallelExecutor:
         if not items:
             return []
 
-        async def process_with_semaphore(item: Any) -> Optional[Any]:
+        results: List[Optional[Any]] = [None for _ in items]
+
+        async def process_with_semaphore(item: Any, index: int) -> None:
             """Process item with appropriate function and concurrency limit."""
             async with self._semaphore:
                 # Determine which function to use
@@ -229,30 +233,26 @@ class AsyncParallelExecutor:
 
                 if func is None:
                     self._logger.warning(f"No function found for item: {item}")
-                    return None
+                    return
 
                 try:
                     if self.timeout:
-                        result = await asyncio.wait_for(
-                            func(item, **kwargs), timeout=self.timeout
-                        )
+                        with anyio.fail_after(self.timeout):
+                            result = await func(item, **kwargs)
                     else:
                         result = await func(item, **kwargs)
-                    return result
-                except asyncio.TimeoutError:
+                    results[index] = result
+                except TimeoutError:
                     self._logger.error(
                         f"Timeout processing item {item} after {self.timeout}s"
                     )
-                    return None
                 except Exception as e:
                     self._logger.error(f"Error processing item {item}: {e}")
-                    return None
 
         # Execute all tasks concurrently
-        results = await asyncio.gather(
-            *[process_with_semaphore(item) for item in items],
-            return_exceptions=False,
-        )
+        async with anyio.create_task_group() as tg:
+            for index, item in enumerate(items):
+                tg.start_soon(process_with_semaphore, item, index)
 
         # Filter out None results
         return [r for r in results if r is not None]
@@ -283,14 +283,15 @@ class AsyncParallelExecutor:
             return BatchResult(successful=[], failed=[], total_processed=0)
 
         total = len(items)
-        progress_lock = asyncio.Lock()  # Lock for thread-safe counter updates
+        progress_lock = anyio.Lock()  # Lock for thread-safe counter updates
         progress_counter = {"completed": 0}  # Use dict to avoid nonlocal issues
         successful_results = []
         failed_items = []
+        results: List[Tuple[Any, Optional[Any], Optional[Exception]]] = []
 
         async def process_with_progress(
-            item: Any,
-        ) -> Tuple[Any, Optional[Any], Optional[Exception]]:
+            item: Any, index: int
+        ) -> None:
             """Process item and update progress atomically."""
             async with self._semaphore:
                 result = None
@@ -298,12 +299,11 @@ class AsyncParallelExecutor:
 
                 try:
                     if self.timeout:
-                        result = await asyncio.wait_for(
-                            func(item, *args, **kwargs), timeout=self.timeout
-                        )
+                        with anyio.fail_after(self.timeout):
+                            result = await func(item, *args, **kwargs)
                     else:
                         result = await func(item, *args, **kwargs)
-                except asyncio.TimeoutError as e:
+                except TimeoutError as e:
                     self._logger.error(
                         f"Timeout processing item {item} after {self.timeout}s"
                     )
@@ -326,32 +326,35 @@ class AsyncParallelExecutor:
                                 f"Progress callback error: {callback_error}"
                             )
 
-                return (item, result, exception)
+                results[index] = (item, result, exception)
 
-        # Execute all tasks concurrently with return_exceptions=True
-        results = await asyncio.gather(
-            *[process_with_progress(item) for item in items],
-            return_exceptions=True,
-        )
+        # Initialize results list with placeholders
+        results = [(None, None, None) for _ in items]
+
+        # Execute all tasks concurrently with task group
+        try:
+            async with anyio.create_task_group() as tg:
+                for index, item in enumerate(items):
+                    tg.start_soon(process_with_progress, item, index)
+        except BaseException as e:
+            # Task group raises first exception if error_strategy is RAISE
+            if self.error_strategy == ErrorHandlingStrategy.RAISE:
+                raise
+            self._logger.error(f"Unexpected task group exception: {e}")
+            failed_items.append((None, e))
 
         # Process results based on error strategy
         for result in results:
-            if isinstance(result, BaseException):
-                # Unexpected exception from gather itself
-                # (could be Exception, KeyboardInterrupt, SystemExit, etc.)
-                self._logger.error(f"Unexpected gather exception: {result}")
-                if self.error_strategy == ErrorHandlingStrategy.RAISE:
-                    raise result
-                failed_items.append((None, result))
+            if result == (None, None, None):
+                # Placeholder not replaced - task was cancelled or didn't run
+                continue
+            item, value, exception = result
+            if exception is None:
+                successful_results.append(value)
             else:
-                # Result is a tuple from process_with_semaphore
-                item, value, exception = result
-                if exception is None:
-                    successful_results.append(value)
-                else:
-                    if self.error_strategy == ErrorHandlingStrategy.RAISE:
-                        raise exception
-                    failed_items.append((item, exception))
+                if self.error_strategy == ErrorHandlingStrategy.RAISE:
+                    raise exception
+                failed_items.append((item, exception))
 
         # Return based on strategy
         if self.error_strategy == ErrorHandlingStrategy.IGNORE:
@@ -369,14 +372,17 @@ class AsyncParallelExecutor:
         Returns:
             Dictionary containing executor statistics
         """
+        # Note: anyio.Semaphore doesn't have locked() method like asyncio
+        # We can check the statistics attribute if available
+        semaphore_stats = None
+        if hasattr(self._semaphore, "statistics"):
+            semaphore_stats = self._semaphore.statistics()
+
         return {
             "max_concurrent": self.max_concurrent,
             "timeout": self.timeout,
             "error_strategy": self.error_strategy.value,
-            "semaphore_locked": self._semaphore.locked(),
-            "available_permits": self._semaphore._value
-            if hasattr(self._semaphore, "_value")
-            else None,
+            "semaphore_stats": semaphore_stats,
         }
 
 

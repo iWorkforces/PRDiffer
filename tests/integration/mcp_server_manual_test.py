@@ -1,7 +1,7 @@
 # https://github.com/jlowin/fastmcp?tab=readme-ov-file#mcp-clients
 # https://github.com/StevenBtw/uv-docs-mcp/blob/main/src/uv_docs/server.py
 from fastmcp import Client
-import asyncio
+import anyio
 from fastmcp.client.client import CallToolResult
 
 
@@ -18,4 +18,4 @@ async def main():
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    anyio.run(main)
