@@ -63,11 +63,11 @@ class DiffGenerator:
                     )
                 )
             else:
-                # Add separator and file header, only add \n\n prefix for non-first files
-                separator = "" if i == 0 else "\n\n===="
-                full_extended_patch = f"{separator}\n## File: '{file.filename.strip()}'\n\n{extended_patch.rstrip()}\n"
+                # Add separator and file header
+                separator = "" if i == 0 else "\n---"
+                full_extended_patch = f"{separator}{"" if i == 0 else "\n\n"}## File: '{file.filename.strip()}'\n{extended_patch.rstrip()}\n"
                 if i == 0:
-                    full_extended_patch = f"====\n{full_extended_patch}"
+                    full_extended_patch = f"\n{full_extended_patch}"
             extended_diffs.append(full_extended_patch)
         return extended_diffs
 
@@ -117,7 +117,7 @@ class DiffGenerator:
         if not file:
             return ""
 
-        separator = "====" if is_first_file else "\n\n===="
+        separator = "" if is_first_file else "\n\n---"
 
         # Handle deleted files
         if hasattr(file, "edit_type") and file.edit_type == EDIT_TYPE.DELETED:
