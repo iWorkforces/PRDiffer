@@ -176,9 +176,7 @@ class RequestCoalescingService:
                     and key in self._pending_requests
                     and self._pending_requests[key] is new_request
                 ):
-                    exc = TimeoutError(
-                        f"Request timed out after {timeout} seconds"
-                    )
+                    exc = TimeoutError(f"Request timed out after {timeout} seconds")
                     new_request.exception = exc
                     new_request.event.set()
                     del self._pending_requests[key]
