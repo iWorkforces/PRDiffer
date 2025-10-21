@@ -1,6 +1,7 @@
 """PR operation handler component for GitHub PR-related operations."""
 
-from typing import Dict, Any, Optional
+import re
+from typing import Dict, Any, Optional, Tuple
 
 from ..interfaces.protocols import PROperationHandlerProtocol
 from ccpragents.domain.entities.pr_diff import PRDiff
@@ -34,47 +35,56 @@ class PROperationHandler(PROperationHandlerProtocol):
         self._repository_cache_service = repository_cache_service
         self._logger = logger or get_logger()
 
-    async def get_pr_diff(
-        self,
-        pr_url: str,
-        use_cache: bool = True,
-        repo_owner: Optional[str] = None,
-        repo_name: Optional[str] = None,
-        pr_number: Optional[int] = None,
-    ) -> Dict[str, Any]:
+    def _parse_pr_url(self, pr_url: str) -> Tuple[str, str, int]:
+        """Parse GitHub PR URL to extract repository and PR information.
+
+        Args:
+            pr_url: GitHub PR URL (e.g., https://github.com/owner/repo/pull/123)
+
+        Returns:
+            Tuple of (repo_owner, repo_name, pr_number)
+
+        Raises:
+            ValueError: If URL format is invalid
+        """
+        pattern = r"https://github\.com/([^/]+)/([^/]+)/pull/(\d+)"
+        match = re.match(pattern, pr_url)
+
+        if not match:
+            raise ValueError(
+                f"Invalid GitHub PR URL format. Expected format: "
+                f"https://github.com/owner/repo/pull/123, got: {pr_url}"
+            )
+
+        repo_owner = match.group(1)
+        repo_name = match.group(2)
+        pr_number = int(match.group(3))
+
+        return repo_owner, repo_name, pr_number
+
+    async def get_pr_diff(self, pr_url: str) -> Dict[str, Any]:
         """Get PR diff information.
 
         Args:
-            pr_url: GitHub PR URL
-            use_cache: Whether to use caching (currently ignored - caching is automatic)
-            repo_owner: Repository owner (extracted from URL if not provided)
-            repo_name: Repository name (extracted from URL if not provided)
-            pr_number: PR number (extracted from URL if not provided)
+            pr_url: GitHub PR URL (e.g., https://github.com/owner/repo/pull/123)
 
         Returns:
             Dictionary containing PR diff data
 
+        Raises:
+            ValueError: If URL format is invalid
+            RuntimeError: If PR diff fetch fails
+
         Note:
-            The use_cache parameter is kept for API compatibility but caching is
-            automatic and always enabled based on commit SHA invalidation.
+            Caching is automatic and always enabled based on commit SHA invalidation.
         """
         try:
-            # Validate input parameters
+            # Validate input
             if not pr_url:
                 raise ValueError("PR URL parameter is required")
 
-            if not isinstance(use_cache, bool):
-                raise ValueError("use_cache parameter must be a boolean")
-
-            # Use provided repo details or parse from URL
-            if not all([repo_owner, repo_name, pr_number]):
-                # This would need URL parsing logic - delegated to URL validator
-                raise ValueError("Repository details must be provided")
-
-            # After validation, these values are guaranteed to be non-None
-            assert repo_owner is not None
-            assert repo_name is not None
-            assert pr_number is not None
+            # Parse URL to extract repository details
+            repo_owner, repo_name, pr_number = self._parse_pr_url(pr_url)
 
             # Try to get repository from cache first
             repository: Optional[PRDiffRepositoryInterface] = (
@@ -105,11 +115,11 @@ class PROperationHandler(PROperationHandlerProtocol):
             # At this point, repository is guaranteed to be non-None
             assert repository is not None
 
+            # Execute use case with automatic caching
             use_case: GetPRDiffUseCase = GetPRDiffUseCase(
                 repository, cache_service=self._cache_service
             )
-            # Note: Caching is automatic based on commit SHA, use_cache parameter ignored
-            pr_diff: PRDiff = await use_case.execute()  # Async execution
+            pr_diff: PRDiff = await use_case.execute()
 
             # Cache the repository after it's been used (now it should be initialized)
             if hasattr(repository, "_initialized") and getattr(
@@ -125,7 +135,12 @@ class PROperationHandler(PROperationHandlerProtocol):
                     )
 
             response = pr_diff.model_dump()
-            self._logger.info("Successfully fetched PR diff")
+            self._logger.info(
+                "Successfully fetched PR diff",
+                repo_owner=repo_owner,
+                repo_name=repo_name,
+                pr_number=pr_number,
+            )
             return response
 
         except ValueError as e:
@@ -134,7 +149,6 @@ class PROperationHandler(PROperationHandlerProtocol):
                 "Validation error in PR diff request",
                 pr_url=pr_url,
                 error=str(e),
-                use_cache=use_cache,
             )
             raise ValueError(f"Invalid request: {e}")
 
@@ -144,7 +158,6 @@ class PROperationHandler(PROperationHandlerProtocol):
                 "Failed to fetch PR diff",
                 pr_url=pr_url,
                 error=str(e),
-                use_cache=use_cache,
             )
             # Re-raise with consistent error format
             raise RuntimeError(f"Failed to fetch PR diff: {e}")

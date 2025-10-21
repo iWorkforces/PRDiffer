@@ -91,22 +91,11 @@ class MetricsTrackerProtocol(Protocol):
 class PROperationHandlerProtocol(Protocol):
     """Protocol for handling PR-related operations."""
 
-    async def get_pr_diff(
-        self,
-        pr_url: str,
-        use_cache: bool = True,
-        repo_owner: Optional[str] = None,
-        repo_name: Optional[str] = None,
-        pr_number: Optional[int] = None,
-    ) -> Dict[str, Any]:
+    async def get_pr_diff(self, pr_url: str) -> Dict[str, Any]:
         """Get PR diff information.
 
         Args:
-            pr_url: GitHub PR URL
-            use_cache: Whether to use caching (currently ignored - caching is automatic)
-            repo_owner: Repository owner (extracted from URL if not provided)
-            repo_name: Repository name (extracted from URL if not provided)
-            pr_number: PR number (extracted from URL if not provided)
+            pr_url: GitHub PR URL (e.g., https://github.com/owner/repo/pull/123)
 
         Returns:
             Dictionary containing PR diff data
