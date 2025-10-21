@@ -10,7 +10,7 @@ CCPRAgents is an MCP (Model Context Protocol) server that provides GitHub PR dif
 
 ### Environment Setup
 ```bash
-# Install dependencies (requires Python 3.13+)
+# Install dependencies (requires Python 3.14+)
 uv install
 
 # Install development dependencies
@@ -44,7 +44,46 @@ TRANSPORT=sse PORT=9102 uv run python ccpragents/server.py
 ./start-lint.sh --stats
 ```
 
-### Testing
+### Type Checking
+```bash
+# Run type checking with mypy
+./start-type-check.sh --check
+
+# Run with detailed statistics
+./start-type-check.sh --stats
+
+# Generate HTML coverage report
+./start-type-check.sh --coverage
+
+# Show mypy configuration
+./start-type-check.sh --config
+```
+
+### Unit Testing
+```bash
+# Run all tests
+./start-unittest.sh --run
+
+# Run tests with coverage analysis
+./start-unittest.sh --coverage
+
+# Run tests in parallel (faster)
+./start-unittest.sh --parallel
+
+# Run specific test file
+./start-unittest.sh --file tests/test_validator.py
+
+# Run tests matching pattern
+./start-unittest.sh --pattern validator
+
+# Watch mode (re-run on changes)
+./start-unittest.sh --watch
+
+# Show test statistics
+./start-unittest.sh --stats
+```
+
+### Integration Testing
 ```bash
 # Run basic MCP server test
 uv run python tests/test_mcp_server.py
@@ -62,11 +101,15 @@ The codebase follows Clean Architecture with these layers:
   - `GetPRDiffUseCase`: Fetches and caches PR diff data
 - **Repository Interfaces**: Abstract data access contracts
   - `PRDiffRepositoryInterface`: Contract for PR diff retrieval
-- **Service Interfaces**: Abstract service contracts
-  - `CacheServiceInterface`: Caching abstraction
-  - `SettingsServiceInterface`: Configuration abstraction
-  - `LoggerServiceInterface`: Logging abstraction
+- **Service Interfaces** (`domain/services/`): Abstract service contracts
+  - `CacheServiceInterface`: Caching abstraction with commit-based invalidation
+  - `SettingsServiceInterface`: Configuration management abstraction
+  - `LoggerServiceInterface`: Structured logging abstraction
   - `RepositoryCacheServiceInterface`: Repository instance caching
+  - `DiffServiceInterface`: Diff generation and manipulation
+  - `GitHubAPIServiceInterface`: GitHub API operations
+  - `PatternMatchingServiceInterface`: File pattern matching
+  - `RetryServiceInterface`: Retry logic with exponential backoff
 
 ### Infrastructure Layer (`ccpragents/infrastructure/`)
 
@@ -98,6 +141,22 @@ The codebase follows Clean Architecture with these layers:
   - `SettingsService`: Dynaconf-based configuration with manual caching
   - `CacheService`: In-memory commit-based caching
   - `RepositoryCacheService`: Repository instance caching
+  - `RequestCoalescingService`: Deduplicates concurrent requests for same resources
+  - `AsyncParallelExecutor`: Native async parallel processing using anyio task groups
+- **Async Infrastructure**:
+  - `RequestCoalescingService` (`request_coalescing.py`):
+    - Prevents duplicate API calls when multiple concurrent requests arrive for same resource
+    - Uses anyio primitives (Lock, Event) for thread-safe request coalescing
+    - Timeout protection (configurable, default 30s)
+    - Waiter tracking and statistics
+    - Atomic state management with proper cleanup
+  - `AsyncParallelExecutor` (`async_parallel_executor.py`):
+    - Native async parallel processing using anyio task groups instead of ThreadPoolExecutor
+    - Multiple error handling strategies: IGNORE, RAISE, COLLECT, CONTINUE
+    - BatchResult dataclass for tracking successful/failed operations
+    - Execution modes: execute_batch, execute_batch_with_context, execute_mapped_batch, execute_with_progress
+    - Semaphore-based concurrency control with configurable limits
+    - Better performance than thread-based approach for I/O-bound operations
 - **Logging** (`logging/`):
   - `ConsoleLogger`: Structured console output with ANSI colors
 
@@ -131,6 +190,50 @@ The codebase follows Clean Architecture with these layers:
 - Settings service implements manual caching instead of `@lru_cache` due to Dynaconf object hashability issues
 - GitHub settings include file filtering (`ignore_patterns`, `valid_extensions`) stored as tuples for hashability
 
+#### Key Settings Groups
+
+**GitHub API Settings**:
+```toml
+github.rate_limit = 5000
+github.timeout = 30
+github.max_retries = 3
+github.retry_delay = 1
+```
+
+**Smart Retry Settings** (NEW):
+```toml
+github.retry_on_404 = false   # Don't retry 404 errors (file not found)
+github.retry_on_403 = true    # Retry 403 errors (might be rate limiting)
+github.retry_on_500 = true    # Retry 5xx server errors
+github.retry_log_level = "DEBUG"
+github.permanent_failure_log_level = "INFO"
+```
+
+**Circuit Breaker and Adaptive Retry** (NEW):
+```toml
+github.circuit_breaker_enabled = true
+github.circuit_breaker_failure_threshold = 5
+github.circuit_breaker_timeout = 60
+github.adaptive_retry_enabled = true
+github.max_adaptive_delay = 30
+github.api_health_tracking = true
+github.context_aware_retry = true
+```
+
+**Parallel Diff Processing** (NEW):
+```toml
+github.diff_parallel_enabled = true
+github.diff_parallel_threshold = 3    # Minimum files to trigger parallel processing
+github.diff_max_workers = 4           # Maximum worker threads
+github.diff_worker_timeout = 30.0     # Timeout per file in seconds
+```
+
+**File Filtering**:
+```toml
+github.ignore_patterns = ["*.lock", "node_modules/", "dist/", "build/"]
+github.valid_extensions = [".py", ".js", ".ts", ".md", ".yml"]
+```
+
 ### PR Diff Processing Pipeline
 
 1. **File Retrieval**: Gets PR files via PyGithub API
@@ -147,9 +250,80 @@ The codebase follows Clean Architecture with these layers:
 - **Diff Generation**: Full-file context diffs using `DiffUtils` with multiple encoding support
 - **Authentication**: Handles authentication via settings, parameters, or `GITHUB_TOKEN` environment variable
 - **Merge Base Handling**: Uses merge base commits for accurate diff comparison (handles parallel merges)
+
+### Async Infrastructure
+
+The project uses **anyio** as the async compatibility layer, providing backend-agnostic async operations:
+
+**Migration Note**: The codebase was migrated from `asyncio` to `anyio` for better abstraction and compatibility with multiple async backends (asyncio, trio, etc.)
+
+#### Anyio Primitives Usage
+
+- **Async Framework**: Uses `anyio` instead of raw `asyncio` for better portability and cleaner APIs
+- **Concurrency Primitives**:
+  - `anyio.Semaphore`: Controls concurrent operations with configurable limits
+    - Used in `AsyncParallelExecutor` for concurrency control
+    - Example: `self._semaphore = anyio.Semaphore(max_concurrent)`
+  - `anyio.Lock`: Provides mutual exclusion for shared resources
+    - Used in `RequestCoalescingService` for atomic state updates
+    - Example: `async with self._lock: ...`
+  - `anyio.Event`: Enables async event signaling between tasks
+    - Used in request coalescing for result notification
+    - Example: `event.set()` and `await event.wait()`
+  - `anyio.create_task_group()`: Manages parallel task execution with structured concurrency
+    - Used in `AsyncParallelExecutor.execute_batch()` for parallel processing
+    - Example: `async with anyio.create_task_group() as tg: tg.start_soon(task)`
+- **Timeout Handling**: Uses `anyio.fail_after()` context manager for timeout protection
+  - Example: `with anyio.fail_after(timeout): result = await operation()`
+  - Raises `TimeoutError` when timeout expires
+
+#### Request Coalescing
+
+- **Purpose**: Prevents duplicate API calls when multiple concurrent requests arrive for the same resource
+- **Implementation**: `RequestCoalescingService` uses anyio primitives for thread-safe deduplication
+- **Key Features**:
+  - Atomic state management with `anyio.Lock`
+  - Result sharing via `anyio.Event`
+  - Timeout protection (configurable, default 30s)
+  - Waiter counting and statistics
+  - Proper cleanup on success, failure, and timeout
+- **Usage Pattern**:
+  ```python
+  result = await coalescing_service.coalesce(
+      key="owner/repo/pr/123",
+      fetch_func=lambda: fetch_from_api(),
+      timeout=30.0
+  )
+  ```
+
+#### Parallel Execution Strategies
+
+The project provides **both** thread-based and async-based parallel execution:
+
+1. **AsyncParallelExecutor** (Preferred for async operations):
+   - Native async using anyio task groups
+   - Better performance for I/O-bound operations
+   - Multiple error handling strategies
+   - Semaphore-based concurrency control
+   - Execution modes: batch, context-based, mapped, with progress
+
+2. **ParallelExecutor** (Legacy, thread-based):
+   - ThreadPoolExecutor for synchronous operations
+   - Used in `github/parallel_executor.py`
+   - Suitable for CPU-bound or blocking operations
+
+#### Testing Compatibility
+
+- **pytest-asyncio**: Compatible with pytest async testing
+- **Backend Selection**: anyio uses asyncio backend by default
+- **Mock Support**: Easy to mock anyio primitives for testing
+- **Deterministic Testing**: Structured concurrency aids testing
+
+#### Additional Async Features
+
 - **Rate Limiting**: Implements rate limiting and timeout configurations with circuit breaker pattern
-- **Parallel Processing**: Thread pool execution for concurrent file processing
 - **API Health Tracking**: Monitors API performance and error rates
+- **Graceful Shutdown**: Proper cleanup of async resources
 - **Supports both authenticated and anonymous access**
 
 ### Transport Configuration
@@ -258,6 +432,26 @@ The settings service uses manual caching instead of `@lru_cache` because:
 - **DiffUtils**: Core diff generation with encoding detection and patch extension
 - **CircuitBreaker**: Prevents cascading failures by temporarily disabling failing operations
 - **APIHealthTracker**: Monitors API performance metrics and error rates
+- **CacheDecorator** (`utils/cache_decorator.py`): Method-level caching utility
+  - **CachingMixin**: Base class providing caching capabilities to any class
+    - Handles unhashable parameters (lists, dicts, sets) through conversion
+    - TTL (time-to-live) support with automatic expiration
+    - LRU (Least Recently Used) eviction with configurable size limits
+    - Cache statistics tracking (hits, misses, hit rate)
+    - Thread-safe with proper cleanup
+  - **@cached_method** decorator: Caches method results with TTL support
+    - Automatic conversion of unhashable types to hashable forms
+    - Configurable TTL per method
+    - Optional key prefix for cache namespacing
+    - Cache invalidation support
+  - **@conditional_cache** decorator: Caches based on condition function
+    - Only cache results that meet specific criteria
+    - Example: Cache only non-None results
+  - **Use Cases**:
+    - Expensive computations with complex parameters
+    - API responses that don't change frequently
+    - Settings/configuration values with unhashable data
+    - Methods that receive lists, dicts, or other mutable types
 
 ### Security Components
 - **InputValidator**: Comprehensive input validation and sanitization (infrastructure/security/input_validator.py)

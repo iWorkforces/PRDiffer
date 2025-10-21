@@ -58,6 +58,100 @@ The infrastructure layer contains external integrations, data access implementat
 - GitHub, MCP, cache, and application settings sections
 - File filtering patterns and extensions
 
+### Request Coalescing Service (`request_coalescing.py`)
+
+**RequestCoalescingService**
+- Deduplicates concurrent requests for the same resource
+- Uses anyio primitives (Lock, Event) for thread-safe operation
+- Prevents duplicate GitHub API calls when multiple concurrent requests arrive
+- Implements singleton pattern via `get_request_coalescing_service()`
+
+**Key Features:**
+- **Atomic State Management**: Uses `anyio.Lock` for thread-safe request tracking
+- **Result Sharing**: Uses `anyio.Event` to notify waiting requests when result is available
+- **Timeout Protection**: Configurable timeout (default 30s) prevents indefinite waiting
+- **Waiter Tracking**: Counts concurrent waiters for each request
+- **Statistics**: Provides metrics on pending requests and total waiters
+- **Proper Cleanup**: Ensures cleanup on success, failure, and timeout
+
+**Request Flow:**
+1. Request arrives with unique key (e.g., "owner/repo/pr/123")
+2. Check if request already in progress
+   - If yes: Wait for existing request to complete
+   - If no: Create new request and execute fetch function
+3. Share result with all waiting requests
+4. Clean up request tracking
+
+**Usage Pattern:**
+```python
+coalescing_service = get_request_coalescing_service()
+result = await coalescing_service.coalesce(
+    key="owner/repo/pr/123",
+    fetch_func=lambda: fetch_from_github_api(),
+    timeout=30.0
+)
+```
+
+**Benefits:**
+- Reduces GitHub API calls under high concurrency
+- Prevents rate limit exhaustion from duplicate requests
+- Improves response time for concurrent requests
+- Provides observability through statistics
+
+### Async Parallel Executor (`async_parallel_executor.py`)
+
+**AsyncParallelExecutor**
+- Native async parallel processing using anyio task groups
+- Replaces ThreadPoolExecutor for better async performance
+- Multiple error handling strategies
+- Implements singleton pattern via `get_async_parallel_executor()`
+
+**Key Features:**
+- **Anyio Task Groups**: Uses `anyio.create_task_group()` for structured concurrency
+- **Semaphore Control**: Limits concurrent operations with `anyio.Semaphore`
+- **Error Strategies**: IGNORE, RAISE, COLLECT, CONTINUE
+- **BatchResult**: Tracks successful and failed operations separately
+- **Progress Tracking**: Optional progress callbacks for long-running operations
+- **Multiple Execution Modes**: batch, context-based, mapped, with progress
+
+**Error Handling Strategies:**
+1. **IGNORE** (default): Log errors, return only successful results
+2. **RAISE**: Raise first exception encountered
+3. **COLLECT**: Return both successful results and errors
+4. **CONTINUE**: Continue processing, return detailed batch results
+
+**Execution Modes:**
+```python
+executor = AsyncParallelExecutor(max_concurrent=10, timeout=30.0)
+
+# Basic batch processing
+results = await executor.execute_batch(async_func, items)
+
+# With shared context
+results = await executor.execute_batch_with_context(async_func, items, context)
+
+# Mapped execution (different functions for different item types)
+results = await executor.execute_mapped_batch(func_map, items, default_func)
+
+# With progress tracking
+results = await executor.execute_with_progress(
+    async_func, items,
+    progress_callback=lambda done, total: print(f"{done}/{total}")
+)
+```
+
+**Performance Benefits:**
+- Better than ThreadPoolExecutor for I/O-bound async operations
+- No thread context switching overhead
+- Efficient resource usage with semaphore-based control
+- Structured concurrency ensures proper cleanup
+
+**Use Cases:**
+- Parallel file content fetching from GitHub API
+- Batch processing of PR files
+- Concurrent diff generation for multiple files
+- Any async I/O operations that benefit from parallelization
+
 ### Logging System (`logging/`)
 
 **Architecture:**
@@ -113,9 +207,28 @@ The infrastructure layer contains external integrations, data access implementat
 
 ## External Dependencies
 
-- **PyGithub**: GitHub API client library
-- **Dynaconf**: Configuration management with TOML support  
-- **python-dotenv**: Environment variable loading
-- **Standard Library**: `difflib`, `re`, `logging`, `datetime`
+- **PyGithub**: GitHub API client library for GitHub integration
+- **Dynaconf**: Configuration management with TOML support and environment overrides
+- **anyio**: Async compatibility layer providing backend-agnostic async operations
+- **asyncer**: Additional async utilities and helpers
+- **python-dotenv**: Environment variable loading from .env files
+- **FastMCP**: MCP (Model Context Protocol) framework for server implementation
+- **Standard Library**: `difflib`, `re`, `logging`, `datetime`, `asyncio`
+
+## Key Technologies
+
+### Async Framework Migration
+The infrastructure layer has been migrated from raw `asyncio` to `anyio` for:
+- **Better Portability**: Works with multiple async backends (asyncio, trio, etc.)
+- **Cleaner APIs**: More intuitive async primitives and structured concurrency
+- **Testing Support**: Better integration with pytest-asyncio
+- **Future Compatibility**: Easier migration to alternative async frameworks if needed
+
+### Anyio Primitives in Use
+- **anyio.Semaphore**: Concurrent operation control in AsyncParallelExecutor
+- **anyio.Lock**: Mutual exclusion in RequestCoalescingService
+- **anyio.Event**: Async event signaling for request result notification
+- **anyio.create_task_group()**: Parallel task execution with structured concurrency
+- **anyio.fail_after()**: Timeout protection for async operations
 
 This infrastructure layer provides robust external integrations while maintaining clean separation from domain logic through well-defined interfaces.
