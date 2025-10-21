@@ -1,6 +1,6 @@
 [project]
 name = "ccpragents"
-version = "0.2.0"
+version = "0.2.1"
 description = "MCP Server For GitHub PR’s Review Process With Full Contexts"
 readme = "README.md"
 authors = [
@@ -8,7 +8,7 @@ authors = [
 ]
 requires-python = ">=3.14.0"
 dependencies = [
-    "fastmcp>=2.12.5",
+    "fastmcp>=2.13.0rc2",
     "pydantic>=2.12.3",
     "fastapi[standard]>=0.119.1",
     "uvicorn>=0.38.0",
@@ -16,7 +16,7 @@ dependencies = [
     "asyncio>=4.0.0",
     "python-dotenv>=1.1.1",
     "dynaconf>=3.2.12",
-    "mcp>=1.16.0",
+    "mcp>=1.18.0",
     "standard>=1.0.3",
     "uvloop>=0.22.1",
     "httptools>=0.7.1",
