@@ -1,7 +1,7 @@
 [default]
 # Application settings
 app.debug = false
-app.log_level = "INFO"
+app.log_level = "WARNING"
 app.max_files_allowed = 50
 app.incremental_mode = false
 
@@ -73,7 +73,7 @@ github.diff_max_workers = 4          # Maximum worker threads for parallel proce
 github.diff_worker_timeout = 30.0    # Timeout per file in seconds
 
 # Cache settings
-cache.ttl = 300  # 5 minutes
+cache.ttl = 600  # 10 minutes
 cache.max_size = 1000
 cache.enabled = true
 
@@ -87,36 +87,3 @@ mcp.path = "/mcp"
 file_processing.max_file_size_mb = 5
 file_processing.chunk_size_kb = 64
 file_processing.concurrent_downloads = 3
-
-[development]
-app.debug = true
-app.log_level = "DEBUG"
-github.rate_limit = 1000  # Lower limit for development
-cache.ttl = 60  # 1 minute for faster development
-# Development uses more verbose retry logging for debugging
-github.retry_log_level = "INFO"
-github.permanent_failure_log_level = "WARNING"
-# Development uses fewer workers for easier debugging
-github.diff_max_workers = 2
-
-[production]
-app.debug = false
-app.log_level = "WARNING"
-github.rate_limit = 5000
-cache.ttl = 600  # 10 minutes for production
-# Production uses minimal retry logging to reduce noise
-github.retry_log_level = "DEBUG"
-github.permanent_failure_log_level = "INFO"
-
-[testing]
-app.debug = true
-app.log_level = "DEBUG"
-github.rate_limit = 500  # Very low limit for testing
-cache.enabled = false  # Disable cache for testing
-# Testing uses detailed logging for debugging
-github.retry_log_level = "DEBUG"
-github.permanent_failure_log_level = "DEBUG"
-# Testing can use parallel processing with limited workers for predictability
-github.diff_parallel_enabled = true
-github.diff_max_workers = 2
-github.diff_parallel_threshold = 5  # Higher threshold to test both sequential and parallel paths
