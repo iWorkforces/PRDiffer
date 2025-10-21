@@ -1,0 +1,59 @@
+#!/bin/bash
+
+# CCPRAgents - Pre-Push Git Hook
+# This hook runs type checking and linting before allowing a push
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+echo -e "${BLUE}🔒 Pre-Push Hook: Running validation checks...${NC}"
+echo -e "${BLUE}===========================================${NC}"
+echo ""
+
+# Get the root directory of the git repository
+REPO_ROOT=$(git rev-parse --show-toplevel)
+
+# Change to the repository root
+cd "$REPO_ROOT" || exit 1
+
+# Step 1: Run type checking
+echo -e "${BLUE}Step 1/2: Running type check...${NC}"
+echo ""
+
+if ! ./start-type-check.sh; then
+    echo ""
+    echo -e "${RED}❌ Type checking failed!${NC}"
+    echo -e "${YELLOW}💡 Please fix type errors before pushing${NC}"
+    echo -e "${YELLOW}💡 Run: ./start-type-check.sh${NC}"
+    exit 1
+fi
+
+echo ""
+echo -e "${GREEN}✅ Type checking passed${NC}"
+echo ""
+
+# Step 2: Run linting
+echo -e "${BLUE}Step 2/2: Running linting (check, fix, format)...${NC}"
+echo ""
+
+if ! ./start-lint.sh --all; then
+    echo ""
+    echo -e "${RED}❌ Linting failed!${NC}"
+    echo -e "${YELLOW}💡 Please fix linting issues before pushing${NC}"
+    echo -e "${YELLOW}💡 Run: ./start-lint.sh --all${NC}"
+    exit 1
+fi
+
+echo ""
+echo -e "${GREEN}✅ Linting passed${NC}"
+echo ""
+
+# All checks passed
+echo -e "${GREEN}🎉 All validation checks passed! Proceeding with push...${NC}"
+echo ""
+
+exit 0
