@@ -89,9 +89,7 @@ class AsyncParallelExecutor:
         failed_items = []
         results: List[Tuple[Any, Optional[Any], Optional[Exception]]] = []
 
-        async def process_with_semaphore(
-            item: Any, index: int
-        ) -> None:
+        async def process_with_semaphore(item: Any, index: int) -> None:
             """Process item with concurrency limit, storing result at index."""
             async with self._semaphore:
                 try:
@@ -289,9 +287,7 @@ class AsyncParallelExecutor:
         failed_items = []
         results: List[Tuple[Any, Optional[Any], Optional[Exception]]] = []
 
-        async def process_with_progress(
-            item: Any, index: int
-        ) -> None:
+        async def process_with_progress(item: Any, index: int) -> None:
             """Process item and update progress atomically."""
             async with self._semaphore:
                 result = None
