@@ -156,6 +156,92 @@ result = circuit_breaker.execute(risky_operation, arg1, arg2)
 - **Health Integration**: Uses API health data to inform retry decisions
 - **Circuit Integration**: Works with circuit breaker for coordinated failure handling
 
+### Cache Decorator (`cache_decorator.py`)
+
+**CachingMixin & Decorators**
+- Provides method-level caching with support for unhashable parameters
+- No domain interface (general-purpose utility, not domain-specific)
+- Handles complex object types that can't be cached with standard `@lru_cache`
+- TTL support with automatic expiration and LRU eviction
+
+**Key Components:**
+
+1. **CachingMixin** - Base class for adding caching capabilities
+   - Configurable cache size limit (default: 1000 entries)
+   - Configurable default TTL (default: 300 seconds = 5 minutes)
+   - Cache statistics tracking (hits, misses, hit rate)
+   - Automatic cleanup of expired entries
+   - LRU eviction when cache size limit is reached
+
+2. **@cached_method** decorator - Caches method results with TTL
+   - Automatic conversion of unhashable types to hashable forms
+   - Handles lists, dicts, sets, and custom objects
+   - Circular reference detection and protection
+   - Configurable TTL per method
+   - Optional key prefix for cache namespacing
+   - Individual method cache clearing support
+
+3. **@conditional_cache** decorator - Conditional caching
+   - Only caches results that meet specific criteria
+   - Example: Cache only non-None results
+   - Useful for operations that may fail or return invalid data
+
+**Unhashable Parameter Handling:**
+The cache decorator solves the common problem where `@lru_cache` fails with unhashable types:
+- **Lists** → Converted to tuples
+- **Dicts** → Converted to sorted tuples of key-value pairs
+- **Sets** → Converted to sorted tuples
+- **Custom Objects** → Uses type name and ID
+- **Circular References** → Detected and handled safely
+
+**Usage Pattern:**
+```python
+from ccpragents.infrastructure.utils.cache_decorator import CachingMixin, cached_method
+
+class MyService(CachingMixin):
+    def __init__(self):
+        super().__init__(max_cache_size=500, default_ttl=600)
+
+    @cached_method(ttl=300)
+    def expensive_operation(self, params: List[str]) -> str:
+        # Lists are automatically converted to tuples for caching
+        return do_expensive_work(params)
+
+    @conditional_cache(lambda result: result is not None, ttl=600)
+    def maybe_expensive(self, key: str) -> Optional[str]:
+        # Only cache non-None results
+        return might_return_none(key)
+```
+
+**Cache Statistics:**
+```python
+service = MyService()
+stats = service.get_cache_stats()
+# Returns: {
+#   "size": 42,
+#   "hits": 120,
+#   "misses": 30,
+#   "hit_rate": 0.8,
+#   "total_requests": 150,
+#   "max_size": 500,
+#   "default_ttl": 600
+# }
+```
+
+**Use Cases:**
+- Settings service with Dynaconf objects (unhashable)
+- GitHub API responses with complex nested structures
+- Configuration values containing lists or dicts
+- Expensive computations with mutable parameters
+- Methods that receive unhashable objects as parameters
+
+**Performance Benefits:**
+- Avoids repeated expensive computations
+- Reduces GitHub API calls for unchanged data
+- Automatic cleanup prevents memory leaks
+- LRU eviction keeps memory usage bounded
+- TTL ensures data freshness
+
 ## Architecture Integration
 
 ### Dependency Flow
@@ -167,13 +253,14 @@ GitHubPRDiffRepository
 ```
 
 ### Domain Interface Compliance
-All utilities implement domain service interfaces:
+Most utilities implement domain service interfaces:
 - `RetryHandler` → `RetryServiceInterface`
 - `PatternMatcher` → `PatternMatchingServiceInterface`
 - `DiffUtils` → `DiffServiceInterface`
 - `CircuitBreaker` → `CircuitBreakerServiceInterface`
 - `APIHealthTracker` → `APIHealthServiceInterface`
 - `AdvancedRetryHandler` → `AdvancedRetryServiceInterface`
+- `CacheDecorator` → No domain interface (general-purpose utility)
 
 ### Factory Pattern
 Each utility provides a factory function for easy instantiation:
@@ -245,7 +332,8 @@ ccpragents/infrastructure/utils/
 ├── diff_utils.py           # Diff generation and content utilities
 ├── circuit_breaker.py      # Circuit breaker pattern implementation
 ├── api_health_tracker.py   # API performance monitoring
-└── advanced_retry_handler.py # Advanced retry strategies
+├── advanced_retry_handler.py # Advanced retry strategies
+└── cache_decorator.py      # Method-level caching with unhashable parameter support
 ```
 
 ## Common Use Cases

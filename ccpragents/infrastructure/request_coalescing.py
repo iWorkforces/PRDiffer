@@ -4,9 +4,9 @@ This module provides request coalescing to prevent duplicate API calls
 for the same resource when multiple concurrent requests arrive.
 """
 
-import asyncio
+import anyio
 from typing import Dict, Any, Optional, Callable, Awaitable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from ccpragents.infrastructure.logging.console_logger import get_logger
 
@@ -16,9 +16,11 @@ class CoalescedRequest:
     """Data class representing a coalesced request."""
 
     key: str
-    future: asyncio.Future
-    created_at: datetime
-    request_count: int
+    event: anyio.Event = field(default_factory=anyio.Event)
+    result: Optional[Any] = None
+    exception: Optional[BaseException] = None
+    created_at: datetime = field(default_factory=datetime.now)
+    request_count: int = 1
 
 
 class RequestCoalescingService:
@@ -36,7 +38,7 @@ class RequestCoalescingService:
             logger: Logger instance for logging operations
         """
         self._pending_requests: Dict[str, CoalescedRequest] = {}
-        self._lock = asyncio.Lock()
+        self._lock = anyio.Lock()
         self._logger = logger or get_logger()
 
     async def coalesce(
@@ -59,7 +61,7 @@ class RequestCoalescingService:
             The result from the fetch function
 
         Raises:
-            asyncio.TimeoutError: If the fetch function times out
+            TimeoutError: If the fetch function times out
             Exception: Any exception raised by the fetch function
         """
         # Phase 1: Check for existing request and increment waiter count atomically
@@ -77,14 +79,19 @@ class RequestCoalescingService:
         # Phase 2: Wait for existing request with timeout (outside lock)
         if existing_request is not None:
             try:
-                result = await asyncio.wait_for(
-                    existing_request.future, timeout=timeout
-                )
+                # Wait for the event to be set
+                with anyio.fail_after(timeout):
+                    await existing_request.event.wait()
+
+                # Check if there was an exception
+                if existing_request.exception is not None:
+                    raise existing_request.exception
+
                 self._logger.debug(
                     f"Request coalesced for key '{key}' - returning cached result"
                 )
-                return result
-            except asyncio.TimeoutError:
+                return existing_request.result
+            except TimeoutError:
                 self._logger.error(f"Coalesced request timed out for key '{key}'")
                 raise
             except Exception as e:
@@ -97,31 +104,29 @@ class RequestCoalescingService:
                         self._pending_requests[key].request_count -= 1
 
         # Phase 3: Create new request (double-check pattern with proper locking)
-        new_future: Optional[asyncio.Future[Any]] = None
         new_request: Optional[CoalescedRequest] = None
         async with self._lock:
             # Double-check after acquiring lock
             if key in self._pending_requests:
-                # Another thread created the request while we were waiting for lock
+                # Another task created the request while we were waiting for lock
                 pending = self._pending_requests[key]
                 pending.request_count += 1
                 existing_request = pending
             else:
                 # We're the first - create the request
-                new_future = asyncio.Future()
-                new_request = CoalescedRequest(
-                    key=key,
-                    future=new_future,
-                    created_at=datetime.now(),
-                    request_count=1,
-                )
+                new_request = CoalescedRequest(key=key)
                 self._pending_requests[key] = new_request
                 self._logger.debug(f"Starting new request for key '{key}'")
 
-        # Phase 4: If another thread created the request, wait for it
+        # Phase 4: If another task created the request, wait for it
         if existing_request is not None:
             try:
-                return await asyncio.wait_for(existing_request.future, timeout=timeout)
+                with anyio.fail_after(timeout):
+                    await existing_request.event.wait()
+
+                if existing_request.exception is not None:
+                    raise existing_request.exception
+                return existing_request.result
             finally:
                 # Decrement waiter count
                 async with self._lock:
@@ -129,14 +134,13 @@ class RequestCoalescingService:
                         self._pending_requests[key].request_count -= 1
 
         # Phase 5: Execute the fetch function (we own the request)
-        # At this point, new_future and new_request must be set (we're in the else branch)
-        assert new_future is not None, "new_future should be set when owning request"
         assert new_request is not None, "new_request should be set when owning request"
 
         cleanup_done = False
         try:
             # Execute with timeout protection
-            result = await asyncio.wait_for(fetch_func(), timeout=timeout)
+            with anyio.fail_after(timeout):
+                result = await fetch_func()
 
             # Set result while holding lock to ensure atomicity
             async with self._lock:
@@ -146,7 +150,8 @@ class RequestCoalescingService:
                 ):
                     waiter_count = self._pending_requests[key].request_count
                     # Set result before removing from dict to avoid race
-                    new_future.set_result(result)
+                    new_request.result = result
+                    new_request.event.set()
                     del self._pending_requests[key]
                     cleanup_done = True
                     self._logger.info(
@@ -154,7 +159,8 @@ class RequestCoalescingService:
                     )
                 else:
                     # Edge case: request was somehow replaced or removed
-                    new_future.set_result(result)
+                    new_request.result = result
+                    new_request.event.set()
                     cleanup_done = True
                     self._logger.warning(
                         f"Request completed for key '{key}' but state was modified"
@@ -162,7 +168,7 @@ class RequestCoalescingService:
 
             return result
 
-        except asyncio.TimeoutError:
+        except TimeoutError:
             # Handle timeout
             async with self._lock:
                 if (
@@ -170,10 +176,11 @@ class RequestCoalescingService:
                     and key in self._pending_requests
                     and self._pending_requests[key] is new_request
                 ):
-                    exc = asyncio.TimeoutError(
+                    exc = TimeoutError(
                         f"Request timed out after {timeout} seconds"
                     )
-                    new_future.set_exception(exc)
+                    new_request.exception = exc
+                    new_request.event.set()
                     del self._pending_requests[key]
                     cleanup_done = True
             self._logger.error(
@@ -189,7 +196,8 @@ class RequestCoalescingService:
                     and key in self._pending_requests
                     and self._pending_requests[key] is new_request
                 ):
-                    new_future.set_exception(e)
+                    new_request.exception = e
+                    new_request.event.set()
                     del self._pending_requests[key]
                     cleanup_done = True
             self._logger.error(f"Request failed for key '{key}': {e}")
