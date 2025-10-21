@@ -1,5 +1,5 @@
 import time
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, cast
 from ccpragents.domain.entities.pr_diff import PRDiff
 from ccpragents.domain.services import CacheServiceInterface
 from .logging.console_logger import get_logger
@@ -51,7 +51,8 @@ class CacheService(CacheServiceInterface):
             self.logger.info(
                 "Cache hit", cache_key=cache_key, commit_sha=current_commit_sha
             )
-            return cached_result
+            # Cast to PRDiff since we know the type from set() method
+            return cast(PRDiff, cached_result)
         else:
             self.logger.info(
                 "Cache miss or invalid",

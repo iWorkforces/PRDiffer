@@ -115,10 +115,10 @@ class SettingsService(SettingsServiceInterface, CachingMixin):
     def clear_cache(self) -> None:
         """Clear all cached settings.
 
-        This method is provided by CachingMixin but we need to explicitly
-        override it here to satisfy the SettingsServiceInterface abstract requirement.
+        Implementation delegates to CachingMixin's clear_cache method.
         """
-        super().clear_cache()  # Call the CachingMixin implementation
+        # Directly call CachingMixin's implementation instead of using super()
+        CachingMixin.clear_cache(self)
 
 
 # Global settings service instance

@@ -39,7 +39,7 @@ class PatternMatcher(PatternMatchingServiceInterface):
             - pattern_type: 'regex' for compiled regex, 'string' for string patterns
             - pattern: The compiled regex or original string pattern
         """
-        compiled = []
+        compiled: List[Tuple[str, Union[str, re.Pattern]]] = []
         for pattern in patterns:
             if "*" in pattern and not pattern.startswith("*."):
                 # Convert wildcard pattern to regex

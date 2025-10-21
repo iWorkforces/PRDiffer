@@ -52,8 +52,8 @@ class FileProcessor:
         self._logger = logger or get_logger()
 
         # Cache for PR files to avoid repeated API calls
-        self._pr_files_cache = None
-        self._pr_cache_timestamp = 0
+        self._pr_files_cache: Optional[PaginatedList[File]] = None
+        self._pr_cache_timestamp: float = 0.0
 
     def get_pr_files(self, pull_request) -> PaginatedList[File]:
         """Get all files from the pull request with caching.

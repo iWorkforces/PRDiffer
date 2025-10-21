@@ -114,7 +114,9 @@ class FastMCPServer:
         # Rate limiting configuration
         self._rate_limit_requests = 100  # Max requests per minute
         self._rate_limit_window = 60  # 60 second window
-        self._request_timestamps = []  # Track request timestamps for rate limiting
+        self._request_timestamps: list[
+            float
+        ] = []  # Track request timestamps for rate limiting
 
         # Request tracking for structured logging
         self._request_counter = 0

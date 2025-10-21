@@ -1,8 +1,16 @@
 """Server configuration component for setup and configuration management."""
 
 import logging
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List, TypedDict
 from ..interfaces.protocols import ServerConfigurationProtocol
+
+
+class ValidationResult(TypedDict):
+    """Type definition for configuration validation results."""
+
+    valid: bool
+    warnings: List[str]
+    errors: List[str]
 
 
 class ServerConfiguration(ServerConfigurationProtocol):
@@ -98,13 +106,17 @@ Available Tools:
 Usage: Call tools with GitHub PR URLs (e.g., "https://github.com/owner/repo/pull/123")
 """
 
-    def validate_configuration(self) -> Dict[str, Any]:
+    def validate_configuration(self) -> ValidationResult:
         """Validate server configuration.
 
         Returns:
-            Dictionary with validation results
+            ValidationResult dictionary with validation results
         """
-        validation_results = {"valid": True, "warnings": [], "errors": []}
+        validation_results: ValidationResult = {
+            "valid": True,
+            "warnings": [],
+            "errors": [],
+        }
 
         try:
             # Check required settings

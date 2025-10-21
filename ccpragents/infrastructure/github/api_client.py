@@ -1,6 +1,6 @@
 """GitHub API client for repository and pull request operations."""
 
-from typing import Optional, Dict, List
+from typing import Optional, Dict, List, cast
 from github import Github
 from github.Auth import Token
 from github.Repository import Repository
@@ -130,11 +130,12 @@ class GitHubAPIService(GitHubAPIServiceInterface):
             return None
 
         try:
-            return self._retry_handler.execute_with_retry(
+            result = self._retry_handler.execute_with_retry(
                 self._github_client.get_repo,
                 repo_full_name,
                 context=OperationContext.REPOSITORY_ACCESS,
             )
+            return cast(Optional[Repository], result)
         except Exception as e:
             self._logger.error(f"Failed to get repository {repo_full_name}: {e}")
             return None
@@ -152,9 +153,10 @@ class GitHubAPIService(GitHubAPIServiceInterface):
             PullRequest instance if found, None otherwise
         """
         try:
-            return self._retry_handler.execute_with_retry(
+            result = self._retry_handler.execute_with_retry(
                 repository.get_pull, pr_number, context=OperationContext.PULL_REQUEST
             )
+            return cast(Optional[PullRequest], result)
         except Exception as e:
             self._logger.error(f"Failed to get pull request #{pr_number}: {e}")
             return None

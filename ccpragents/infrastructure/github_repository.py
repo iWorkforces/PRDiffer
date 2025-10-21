@@ -4,7 +4,9 @@ This is the refactored version using composition with extracted components.
 """
 
 import os
-from typing import Optional
+from typing import Optional, Dict
+from github.Repository import Repository
+from github.PullRequest import PullRequest
 from ccpragents.domain.entities.pr_diff import PRDiff
 from ccpragents.domain.repositories import PRDiffRepositoryInterface
 from ccpragents.infrastructure.settings import SettingsService, get_settings_service
@@ -13,6 +15,7 @@ from ccpragents.infrastructure.logging.console_logger import get_logger
 from ccpragents.infrastructure.github.api_client import get_github_api_client
 from ccpragents.infrastructure.github.file_processor import get_file_processor
 from ccpragents.infrastructure.github.diff_generator import get_diff_generator
+from ccpragents.infrastructure.github.parallel_executor import get_parallel_executor
 from ccpragents.infrastructure.utils.pattern_matcher import get_pattern_matcher
 from ccpragents.infrastructure.utils.diff_utils import get_diff_utils
 
@@ -77,7 +80,7 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
             "permanent_failure_log_level", "INFO"
         )
 
-        # Get Phase 3 advance: d retry configuration
+        # Get Phase 3 advanced retry configuration
         self.circuit_breaker_enabled = github_settings.get(
             "circuit_breaker_enabled", True
         )
@@ -94,6 +97,12 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
         self.api_health_tracking = github_settings.get("api_health_tracking", True)
         self.context_aware_retry = github_settings.get("context_aware_retry", True)
         self.use_advanced_retry = github_settings.get("use_advanced_retry", True)
+
+        # Get diff parallel processing configuration
+        self.diff_parallel_enabled = github_settings.get("diff_parallel_enabled", True)
+        self.diff_parallel_threshold = github_settings.get("diff_parallel_threshold", 3)
+        self.diff_max_workers = github_settings.get("diff_max_workers", 4)
+        self.diff_worker_timeout = github_settings.get("diff_worker_timeout", 30.0)
 
         # Initialize logger
         self.logger = get_logger()
@@ -132,12 +141,24 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
             max_files_allowed=self.max_files_allowed,
         )
 
-        self._diff_generator = get_diff_generator(diff_utils=self._diff_utils)
+        # Initialize parallel executor for diff generation if enabled
+        self._parallel_executor = None
+        if self.diff_parallel_enabled:
+            self._parallel_executor = get_parallel_executor(
+                max_workers=self.diff_max_workers, timeout=self.diff_worker_timeout
+            )
+
+        self._diff_generator = get_diff_generator(
+            diff_utils=self._diff_utils,
+            parallel_executor=self._parallel_executor,
+            parallel_enabled=self.diff_parallel_enabled,
+            parallel_threshold=self.diff_parallel_threshold,
+        )
 
         # Lazy initialization for GitHub objects
-        self._repository = None
-        self._pull_request = None
-        self._initialized = False
+        self._repository: Optional[Repository] = None
+        self._pull_request: Optional[PullRequest] = None
+        self._initialized: bool = False
 
     @property
     def repo_owner(self) -> str:
@@ -317,7 +338,7 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
 
 
 # Global instance cache for singleton pattern
-_repository_cache: dict = {}
+_repository_cache: Dict[str, "GitHubPRDiffRepository"] = {}
 
 
 def get_github_repository(

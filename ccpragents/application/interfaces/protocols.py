@@ -95,7 +95,7 @@ class PROperationHandlerProtocol(Protocol):
         """Get PR diff information.
 
         Args:
-            pr_url: GitHub PR URL
+            pr_url: GitHub PR URL (e.g., https://github.com/owner/repo/pull/123)
 
         Returns:
             Dictionary containing PR diff data

@@ -331,9 +331,9 @@ class UnifiedRetryHandler(RetryServiceInterface):
         Returns:
             float: Delay in seconds before next retry
         """
-        base_delay = self.retry_delay * (2**attempt)
-        jitter = random.uniform(0, base_delay * 0.1)  # 10% jitter
-        return base_delay + jitter
+        base_delay: float = self.retry_delay * (2**attempt)
+        jitter: float = random.uniform(0, base_delay * 0.1)  # 10% jitter
+        return float(base_delay + jitter)
 
     def _calculate_adaptive_delay(
         self,
@@ -362,10 +362,10 @@ class UnifiedRetryHandler(RetryServiceInterface):
 
         # Adaptive delay based on API health
         if self.adaptive_retry_enabled and self._health_tracker:
-            adaptive_delay = self._health_tracker.get_recommended_delay(
+            adaptive_delay: float = self._health_tracker.get_recommended_delay(
                 delay_with_jitter, self.max_adaptive_delay
             )
-            return adaptive_delay
+            return float(adaptive_delay)
 
         # Rate limit errors get longer delays
         if self._is_rate_limit_error(error):
