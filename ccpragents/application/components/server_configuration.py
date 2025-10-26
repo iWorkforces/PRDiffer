@@ -136,10 +136,13 @@ Usage: Call tools with GitHub PR URLs (e.g., "https://github.com/owner/repo/pull
                     validation_results["valid"] = False
 
             # Check GitHub configuration if available
-            github_token = self._settings_service.get("github.token", None)
+            import os
+
+            github_token = os.getenv("GITHUB_TOKEN")
             if not github_token:
                 validation_results["warnings"].append(
-                    "No GitHub token configured, API rate limits may apply"
+                    "No GITHUB_TOKEN environment variable set, API rate limits may apply. "
+                    "Set GITHUB_TOKEN=your_token or add to .env file"
                 )
 
             self._logger.info(

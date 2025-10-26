@@ -36,7 +36,7 @@ The infrastructure layer contains external integrations, data access implementat
 5. **Extended Diff**: `_pr_generate_extended_diff()` formats with headers and context
 
 **GitHub API Strategies:**
-- **Authentication**: Settings → parameters → `GITHUB_TOKEN` env variable fallback
+- **Authentication**: parameters → `GITHUB_TOKEN` env variable (settings no longer used for tokens)
 - **Merge Base Handling**: Uses `repo.compare()` to find proper base commit (handles parallel merges)
 - **Rate Limiting**: Configurable limits with graceful degradation
 - **Content Encoding**: Multiple encoding attempts (UTF-8, iso-8859-1, latin-1, ascii, utf-16)

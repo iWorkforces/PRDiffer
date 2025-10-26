@@ -1,5 +1,5 @@
 import time
-from typing import Optional, Callable
+from typing import Optional, Callable, Literal, cast
 from fastmcp import FastMCP
 from ccpragents.domain.entities.pr_diff import PRDiff
 from ccpragents.domain.usecases import GetPRDiffUseCase
@@ -384,19 +384,44 @@ class FastMCPServer:
     def run(self):
         """Start the FastMCP server with configured transport and port.
 
-        The server reads configuration from the settings service:
-        - mcp.transport: The transport protocol (default: "stdio")
-        - mcp.port: The port number for non-stdio transports (default: 9102)
-        - mcp.host: The host address for non-stdio transports (default: "127.0.0.1")
-        - mcp.path: The path for non-stdio transports (default: "/mcp")
+        Configuration priority (highest to lowest):
+        1. Environment variables (MCP_TRANSPORT, MCP_PORT, MCP_HOST, MCP_PATH)
+        2. Settings file (settings.toml)
+        3. Defaults (stdio transport, port 9102, host 127.0.0.1, path /mcp)
 
-        Supported transports include "stdio", "sse", and other FastMCP transport options.
+        Supported transports include "stdio", "http", "sse", and "streamable-http".
         """
-        # Get MCP settings from configuration
-        transport = self._settings_service.get("mcp.transport", "stdio")
-        port = self._settings_service.get("mcp.port", 9102)
-        host = self._settings_service.get("mcp.host", "127.0.0.1")
-        path = self._settings_service.get("mcp.path", "/mcp")
+        import os
+
+        # Type alias for valid transport modes
+        TransportMode = Literal["stdio", "http", "sse", "streamable-http"]
+
+        # Get MCP settings from environment variables first, then fall back to settings service
+        transport_raw = os.getenv("MCP_TRANSPORT") or self._settings_service.get(
+            "mcp.transport", "stdio"
+        )
+        port = int(os.getenv("MCP_PORT", "0")) or self._settings_service.get(
+            "mcp.port", 9102
+        )
+        host = os.getenv("MCP_HOST") or self._settings_service.get(
+            "mcp.host", "127.0.0.1"
+        )
+        path = os.getenv("MCP_PATH") or self._settings_service.get("mcp.path", "/mcp")
+
+        # Validate and cast transport to the correct type
+        valid_transports: tuple[TransportMode, ...] = (
+            "stdio",
+            "http",
+            "sse",
+            "streamable-http",
+        )
+        if transport_raw not in valid_transports:
+            self._logger.warning(
+                f"Invalid transport '{transport_raw}', defaulting to 'stdio'"
+            )
+            transport: TransportMode = "stdio"
+        else:
+            transport = cast(TransportMode, transport_raw)
 
         if transport == "stdio":
             self._logger.info("Running MCP server with stdio transport")

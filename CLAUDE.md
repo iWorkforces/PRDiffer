@@ -248,7 +248,7 @@ github.valid_extensions = [".py", ".js", ".ts", ".md", ".yml"]
 - **Retry Logic**: Configurable exponential backoff with jitter via `RetryHandler` utility
 - **Pattern Matching**: Advanced file filtering using `PatternMatcher` with pre-compiled regex patterns
 - **Diff Generation**: Full-file context diffs using `DiffUtils` with multiple encoding support
-- **Authentication**: Handles authentication via settings, parameters, or `GITHUB_TOKEN` environment variable
+- **Authentication**: Handles authentication via parameters or `GITHUB_TOKEN` environment variable
 - **Merge Base Handling**: Uses merge base commits for accurate diff comparison (handles parallel merges)
 
 ### Async Infrastructure
