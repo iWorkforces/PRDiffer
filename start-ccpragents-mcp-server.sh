@@ -120,9 +120,39 @@ else
 fi
 echo ""
 
+# Check if GITHUB_TOKEN environment variable is set
+echo -e "${BLUE}Checking GitHub authentication...${NC}"
+if [ -z "$GITHUB_TOKEN" ]; then
+    echo -e "${RED}❌ GITHUB_TOKEN environment variable is not set${NC}"
+    echo ""
+    echo -e "${YELLOW}GitHub authentication is required to run CCPRAgents MCP Server.${NC}"
+    echo ""
+    echo -e "${CYAN}To set up authentication, choose one of these options:${NC}"
+    echo ""
+    echo -e "${PURPLE}Option 1: Set environment variable${NC}"
+    echo -e "  export GITHUB_TOKEN=\"your_github_personal_access_token\""
+    echo ""
+    echo -e "${PURPLE}Option 2: Create a .env file${NC}"
+    echo -e "  echo \"GITHUB_TOKEN=your_github_personal_access_token\" > .env"
+    echo ""
+    echo -e "${CYAN}To generate a GitHub Personal Access Token:${NC}"
+    echo -e "  1. Go to: ${BLUE}https://github.com/settings/tokens${NC}"
+    echo -e "  2. Click 'Generate new token (classic)'"
+    echo -e "  3. Select scopes: repo, read:org, read:user"
+    echo -e "  4. Generate and copy the token"
+    echo -e "  5. Set it using one of the options above"
+    echo ""
+    echo -e "${YELLOW}For more information, see the Authentication section in README.md${NC}"
+    echo ""
+    exit 1
+else
+    echo -e "${GREEN}✅ GITHUB_TOKEN is set${NC}"
+fi
+echo ""
+
 # Display startup information
 echo -e "${BLUE}Starting CCPRAgents MCP Server...${NC}"
-echo -e "${CYAN}Command: uv run python ccpragents/server.py --link-mode=copy${NC}"
+echo -e "${CYAN}Command: uv run python ccpragents/server.py --transport http${NC}"
 echo ""
 
 # Start the server
@@ -130,7 +160,7 @@ echo -e "${YELLOW}Press Ctrl+C to stop the server gracefully${NC}"
 echo ""
 
 # Start the server in the background and capture its PID
-uv run python ccpragents/server.py --link-mode=copy &
+uv run python ccpragents/server.py --transport http &
 SERVER_PID=$!
 
 # Wait for the server process to complete

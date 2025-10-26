@@ -384,19 +384,26 @@ class FastMCPServer:
     def run(self):
         """Start the FastMCP server with configured transport and port.
 
-        The server reads configuration from the settings service:
-        - mcp.transport: The transport protocol (default: "stdio")
-        - mcp.port: The port number for non-stdio transports (default: 9102)
-        - mcp.host: The host address for non-stdio transports (default: "127.0.0.1")
-        - mcp.path: The path for non-stdio transports (default: "/mcp")
+        Configuration priority (highest to lowest):
+        1. Environment variables (MCP_TRANSPORT, MCP_PORT, MCP_HOST, MCP_PATH)
+        2. Settings file (settings.toml)
+        3. Defaults (stdio transport, port 9102, host 127.0.0.1, path /mcp)
 
         Supported transports include "stdio", "sse", and other FastMCP transport options.
         """
-        # Get MCP settings from configuration
-        transport = self._settings_service.get("mcp.transport", "stdio")
-        port = self._settings_service.get("mcp.port", 9102)
-        host = self._settings_service.get("mcp.host", "127.0.0.1")
-        path = self._settings_service.get("mcp.path", "/mcp")
+        import os
+
+        # Get MCP settings from environment variables first, then fall back to settings service
+        transport = os.getenv("MCP_TRANSPORT") or self._settings_service.get(
+            "mcp.transport", "stdio"
+        )
+        port = int(os.getenv("MCP_PORT", "0")) or self._settings_service.get(
+            "mcp.port", 9102
+        )
+        host = os.getenv("MCP_HOST") or self._settings_service.get(
+            "mcp.host", "127.0.0.1"
+        )
+        path = os.getenv("MCP_PATH") or self._settings_service.get("mcp.path", "/mcp")
 
         if transport == "stdio":
             self._logger.info("Running MCP server with stdio transport")

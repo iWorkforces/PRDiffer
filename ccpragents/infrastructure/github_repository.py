@@ -57,10 +57,9 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
         github_settings = self.settings_service.get_github_settings()
         app_settings = self.settings_service.get_app_settings()
 
-        # Get GitHub token from settings, parameter, or environment variable
-        self.github_token = (
-            github_token or github_settings.get("token") or os.getenv("GITHUB_TOKEN")
-        )
+        # Get GitHub token from parameter or environment variable
+        # Priority: parameter > GITHUB_TOKEN environment variable
+        self.github_token = github_token or os.getenv("GITHUB_TOKEN")
 
         # Get configuration values
         self.rate_limit = github_settings.get("rate_limit", 5000)

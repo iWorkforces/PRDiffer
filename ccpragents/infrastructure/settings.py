@@ -58,8 +58,11 @@ class SettingsService(SettingsServiceInterface, CachingMixin):
     def get_github_settings(self) -> Dict[str, Any]:
         """Get GitHub-related settings with caching.
 
+        Note: GitHub token authentication is now exclusively managed via the
+        GITHUB_TOKEN environment variable. It is no longer read from settings files.
+
         Returns:
-            Dict[str, Any]: GitHub configuration including token, rate limits, etc.
+            Dict[str, Any]: GitHub configuration including rate limits, timeouts, etc.
         """
 
         # Get settings from current environment, fall back to default environment if not found
@@ -72,7 +75,6 @@ class SettingsService(SettingsServiceInterface, CachingMixin):
             return value or default
 
         return {
-            "token": self.get("github_token") or self.get("github.token"),
             "rate_limit": get_with_fallback("github.rate_limit", 5000),
             "timeout": get_with_fallback("github.timeout", 30),
             "max_retries": get_with_fallback("github.max_retries", 3),
