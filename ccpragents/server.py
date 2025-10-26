@@ -108,9 +108,17 @@ def main() -> None:
     if args.path:
         os.environ["MCP_PATH"] = args.path
 
-    print("🚀 Starting MCP Server For Fetching GitHub PR's Diff...")
-    print(f"📦 Version: {__version__}")
-    print(f"🔧 Transport: {os.environ.get('MCP_TRANSPORT', 'stdio')}")
+    # Get the transport mode to determine where to print messages
+    transport_mode = os.environ.get('MCP_TRANSPORT', 'stdio')
+
+    # In stdio mode, ALL output must go to stderr to avoid corrupting JSON-RPC protocol
+    # Only JSON-RPC messages should go to stdout in stdio mode
+    import sys
+    output_stream = sys.stderr if transport_mode == 'stdio' else sys.stdout
+
+    print("🚀 Starting MCP Server For Fetching GitHub PR's Diff...", file=output_stream)
+    print(f"📦 Version: {__version__}", file=output_stream)
+    print(f"🔧 Transport: {transport_mode}", file=output_stream)
 
     # Load environment variables from .env file (if present)
     load_dotenv()
