@@ -1,5 +1,5 @@
 import time
-from typing import Optional, Callable
+from typing import Optional, Callable, Literal, cast
 from fastmcp import FastMCP
 from ccpragents.domain.entities.pr_diff import PRDiff
 from ccpragents.domain.usecases import GetPRDiffUseCase
@@ -389,12 +389,15 @@ class FastMCPServer:
         2. Settings file (settings.toml)
         3. Defaults (stdio transport, port 9102, host 127.0.0.1, path /mcp)
 
-        Supported transports include "stdio", "sse", and other FastMCP transport options.
+        Supported transports include "stdio", "http", "sse", and "streamable-http".
         """
         import os
 
+        # Type alias for valid transport modes
+        TransportMode = Literal["stdio", "http", "sse", "streamable-http"]
+
         # Get MCP settings from environment variables first, then fall back to settings service
-        transport = os.getenv("MCP_TRANSPORT") or self._settings_service.get(
+        transport_raw = os.getenv("MCP_TRANSPORT") or self._settings_service.get(
             "mcp.transport", "stdio"
         )
         port = int(os.getenv("MCP_PORT", "0")) or self._settings_service.get(
@@ -404,6 +407,21 @@ class FastMCPServer:
             "mcp.host", "127.0.0.1"
         )
         path = os.getenv("MCP_PATH") or self._settings_service.get("mcp.path", "/mcp")
+
+        # Validate and cast transport to the correct type
+        valid_transports: tuple[TransportMode, ...] = (
+            "stdio",
+            "http",
+            "sse",
+            "streamable-http",
+        )
+        if transport_raw not in valid_transports:
+            self._logger.warning(
+                f"Invalid transport '{transport_raw}', defaulting to 'stdio'"
+            )
+            transport: TransportMode = "stdio"
+        else:
+            transport = cast(TransportMode, transport_raw)
 
         if transport == "stdio":
             self._logger.info("Running MCP server with stdio transport")
