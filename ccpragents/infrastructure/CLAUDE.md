@@ -54,9 +54,73 @@ The infrastructure layer contains external integrations, data access implementat
 - `clear_cache()`: Manual cache clearing
 
 **Configuration Structure:**
-- `[default]`, `[development]`, `[production]`, `[testing]` environments
+- Uses `[default]` section (supports optional environment overrides like `[development]`, `[production]`, `[testing]` if needed)
 - GitHub, MCP, cache, and application settings sections
 - File filtering patterns and extensions
+
+### Cache Services
+
+**CacheService (`cache_service.py`)**
+- Provides in-memory caching for PR diff data with commit-based invalidation
+- Implements MD5-based key hashing to reduce memory usage for long repository names
+- Maintains reverse mapping for debugging and statistics
+- Singleton pattern via `get_cache_service()`
+
+**Key Features:**
+- **Commit-Based Invalidation**: Cache keys include commit SHA to automatically invalidate stale data
+- **MD5 Hashing**: Converts variable-length keys to fixed 32-character hashes
+- **Reverse Mapping**: Optional hash→original mapping for debugging (configurable)
+- **Environment-Aware**: Hashing enabled in production, disabled in development for easier debugging
+- **Dual Logging**: Logs both original key and hash for maximum visibility
+
+**Configuration** (in `settings.toml`):
+```toml
+cache.use_hashed_keys = true           # Enable/disable hashing
+cache.hash_algorithm = "md5"            # Hash algorithm (md5, sha256, sha256_short)
+cache.store_key_mapping = true          # Store hash→original mapping
+```
+
+**Key Methods:**
+- `get_cache_key(owner, name, pr_number)`: Generate original cache key (external API)
+- `_hash_key(key)`: Internal MD5 hashing function
+- `_get_internal_key(original_key)`: Convert to internal key (hashed or original)
+- `_get_original_key(internal_key)`: Reverse lookup via mapping
+- `get(cache_key, commit_sha)`: Retrieve cached data with commit validation
+- `set(cache_key, commit_sha, data)`: Store data with commit SHA
+- `invalidate(cache_key)`: Remove from cache and mapping
+- `clear()`: Clear all cache and mapping data
+- `get_stats()`: Statistics with original keys (if mapping enabled)
+
+**Implementation Details:**
+- **External API**: Always uses original keys (`owner/repo/pr/number` format)
+- **Internal Storage**: Uses MD5 hash when hashing is enabled
+- **Logging Format**: `Cache set [cache_key=owner/repo/pr/123 hash=a7b3c4d5... commit_sha=abc123]`
+- **Memory Trade-off**: Hash (32 bytes) + mapping overhead vs. variable-length original keys
+- **Hash Consistency**: Same key always produces same hash (MD5 deterministic)
+
+**Benefits of Hashing:**
+- **Memory Efficiency**: Fixed-length keys reduce memory for repos with long names
+- **Consistent Size**: All keys are exactly 32 characters (MD5)
+- **Fast Lookup**: MD5 hashing is very fast (microseconds)
+- **Collision Resistant**: MD5 sufficient for cache keys (not cryptographic use)
+
+**Debugging Support:**
+- **Original Keys in Stats**: `get_stats()` returns human-readable keys when mapping enabled
+- **Dual Logging**: Both original and hash logged for traceability
+- **Reverse Mapping**: Can always trace hash back to original key
+- **Configurable**: Can disable hashing via `cache.use_hashed_keys = false` if needed for debugging
+
+**RepositoryCacheService (`repository_cache_service.py`)**
+- Caches GitHubPRDiffRepository instances to avoid repeated GitHub API initialization
+- Uses tuple-based cache keys `(repo_owner, repo_name, pr_number)`
+- Tuple keys are already efficient (hashable, compact) - no hashing needed
+- Implements TTL-based expiration and LRU eviction
+
+**Note**: RepositoryCacheService does not use key hashing because:
+1. Tuple keys are already memory-efficient and hashable
+2. No long string keys that would benefit from hashing
+3. Logs display individual fields, not combined keys
+4. Different use case (caching objects vs. caching data)
 
 ### Request Coalescing Service (`request_coalescing.py`)
 

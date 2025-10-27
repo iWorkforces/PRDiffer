@@ -93,7 +93,7 @@ The FastMCP server implementation that:
 ## Configuration Management
 
 ### Settings Structure
-Configuration is managed through `settings.toml` with environment overrides:
+Configuration is managed through `settings.toml` with support for environment-specific overrides:
 ```toml
 [default]
   [default.app]
@@ -106,11 +106,6 @@ Configuration is managed through `settings.toml` with environment overrides:
   timeout = 30
   ignore_patterns = ["*.lock", "node_modules/"]
   valid_extensions = [".py", ".js", ".ts", ".md"]
-
-[development]
-  [development.app]
-  debug = true
-  log_level = "DEBUG"
 ```
 
 ### Environment Variables

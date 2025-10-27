@@ -77,6 +77,11 @@ cache.ttl = 600  # 10 minutes
 cache.max_size = 1000
 cache.enabled = true
 
+# Cache key hashing settings
+cache.use_hashed_keys = true           # Enable/disable key hashing (reduces memory for long repo names)
+cache.hash_algorithm = "md5"            # Hash algorithm: md5 (32 chars), sha256 (64 chars)
+cache.store_key_mapping = true          # Store hash→original mapping for debugging and stats
+
 # MCP Server settings
 mcp.transport = "http" # it coul be one of ["stdio", "http", "sse", "streamable-http"]
 mcp.port = 9102
