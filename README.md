@@ -441,13 +441,16 @@ Optimized for handling large PRs:
 
 ### Debug Mode
 
-Enable debug logging by modifying `settings.toml`:
+Enable debug logging by adding an environment override to `settings.toml`:
 
 ```toml
+# Example: Add this section to enable debug mode for development environment
 [development]
 app.debug = true
 app.log_level = "DEBUG"
 ```
+
+Then set `ENV_FOR_DYNACONF=development` when running the server.
 
 ## Contributing
 

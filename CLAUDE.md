@@ -186,7 +186,7 @@ The codebase follows Clean Architecture with these layers:
 
 ### Settings Configuration
 
-- Uses `settings.toml` with environment-specific overrides (`[development]`, `[production]`, `[testing]`)
+- Uses `settings.toml` with Dynaconf for configuration management (supports environment-specific overrides via `[development]`, `[production]`, `[testing]` sections if needed)
 - Settings service implements manual caching instead of `@lru_cache` due to Dynaconf object hashability issues
 - GitHub settings include file filtering (`ignore_patterns`, `valid_extensions`) stored as tuples for hashability
 
@@ -385,8 +385,28 @@ The MCP server implements comprehensive security validation through the `InputVa
 - **Automatic Invalidation**: Cache is automatically invalidated when new commits are pushed to the PR
 - **Memory Cache**: In-memory caching with commit SHA tracking for freshness
 - **Cache Service**: Singleton `CacheService` with commit-based invalidation logic
+- **Key Hashing**: MD5-based cache key hashing to reduce memory usage for long repository names (configurable)
 
-**Cache Key Structure**: `"owner/repo/pr/number"`
+**Cache Key Structure**:
+
+- **Original Format**: `"owner/repo/pr/number"` (human-readable, used by external API)
+- **Internal Storage**: MD5 hash (32 hex chars) when hashing is enabled
+- **Reverse Mapping**: Optional hash→original mapping for debugging and stats
+
+**Cache Key Hashing Configuration** (in `settings.toml`):
+
+```toml
+cache.use_hashed_keys = true           # Enable/disable hashing (default: true)
+cache.hash_algorithm = "md5"            # Hash algorithm: md5, sha256
+cache.store_key_mapping = true          # Store reverse mapping for debugging
+```
+
+**Hashing Behavior**:
+
+- **Enabled by default**: All environments use hashed keys for memory efficiency
+- **Dual logging**: Both original key and hash are logged for debugging visibility
+- **Reverse mapping**: Original keys retrievable via `get_stats()` when mapping is enabled
+
 **Cache Data**: `{"commit_sha": str, "data": PRDiff, "timestamp": float}`
 
 **Cache Flow**:
@@ -395,6 +415,12 @@ The MCP server implements comprehensive security validation through the `InputVa
 2. On subsequent requests: Check current commit SHA vs cached SHA
 3. If SHAs match: Return cached data (cache hit)
 4. If SHAs differ: Fetch fresh data and update cache (cache miss)
+
+**Log Output Example** (with hashing enabled):
+
+```
+Cache set [cache_key=karcher-digital/iotc-device-management/pr/163 hash=a7b3c4d5... commit_sha=919da4e...]
+```
 
 **Caching is Automatic**: Caching is always enabled and uses commit-based invalidation to ensure fresh data is returned when PRs change.
 
@@ -468,23 +494,3 @@ The settings service uses manual caching instead of `@lru_cache` because:
   - Parameters sanitized to prevent injection attacks
   - Security exceptions caught and logged safely
   - Failed security validations tracked in metrics
-- The final response of subagent named `pr-review-generator` should be aliged with desired output with yaml format:
-```yaml
-code_suggestions:
-- relevant_file: |
-    [File path from the diff]
-    language: |
-    [Programming language (e.g., Python, JavaScript, Java)]
-    existing_code: |
-    [Relevant code snippet from the PR's "+" lines]
-    suggestion_content: |
-    [Detailed suggestion explaining the issue and recommended fix]
-    improved_code: |
-    [High quality code snippet after applying the suggestion]
-    suggestion_score: |
-    [Score from 6 to 10 based on impact, relevance, and accuracy]
-    suggestion_reason_why: |
-    [Detailed explanation for the suggestion score, focusing on impact, relevance, and accuracy]
-    label: |
-    [Suggestion type: Functionality, Security, Performance, Code Quality, Error Handling, Architecture, API Design, Data Handling, Observability, Compatibility, Validation, Dependencies]
-```
