@@ -54,7 +54,7 @@ echo ""
 # Check if uv is installed, install if not present
 if ! command -v uv &> /dev/null; then
     echo -e "${YELLOW}⚠️  uv is not installed, installing automatically...${NC}"
-    
+
     # Detect OS and install uv accordingly
     if [[ "$OSTYPE" == "linux-gnu"* ]]; then
         # Linux
@@ -76,14 +76,14 @@ if ! command -v uv &> /dev/null; then
         echo -e "${YELLOW}Please install uv manually: https://docs.astral.sh/uv/getting-started/installation/${NC}"
         exit 1
     fi
-    
+
     # Verify installation
     if ! command -v uv &> /dev/null; then
         echo -e "${RED}❌ uv installation failed${NC}"
         echo -e "${YELLOW}Please install uv manually: https://docs.astral.sh/uv/getting-started/installation/${NC}"
         exit 1
     fi
-    
+
     echo -e "${GREEN}✅ uv installed successfully${NC}"
 else
     echo -e "${GREEN}✅ uv is available${NC}"
