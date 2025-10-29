@@ -1,5 +1,5 @@
 import time
-from typing import Optional, Callable, Literal, cast
+from typing import Optional, Callable, Literal, cast, TypeAlias
 from fastmcp import FastMCP
 from ccpragents.domain.entities.pr_diff import PRDiff
 from ccpragents.domain.usecases import GetPRDiffUseCase
@@ -34,6 +34,9 @@ from .components.metrics_tracker import MetricsTracker
 from .components.pr_operation_handler import PROperationHandler
 from .components.health_monitor import HealthMonitor
 from .components.server_configuration import ServerConfiguration
+
+# Type alias for valid MCP transport modes
+TransportMode: TypeAlias = Literal["stdio", "http", "sse", "streamable-http"]
 
 
 class FastMCPServer:
@@ -392,9 +395,6 @@ class FastMCPServer:
         Supported transports include "stdio", "http", "sse", and "streamable-http".
         """
         import os
-
-        # Type alias for valid transport modes
-        TransportMode = Literal["stdio", "http", "sse", "streamable-http"]
 
         # Get MCP settings from environment variables first, then fall back to settings service
         transport_raw = os.getenv("MCP_TRANSPORT") or self._settings_service.get(
