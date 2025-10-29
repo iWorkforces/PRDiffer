@@ -32,7 +32,6 @@ class GitHubAPIService(GitHubAPIServiceInterface):
         retry_on_500: bool = True,
         retry_log_level: str = "DEBUG",
         permanent_failure_log_level: str = "INFO",
-        # Phase 3 parameters
         circuit_breaker_enabled: bool = True,
         circuit_breaker_failure_threshold: int = 5,
         circuit_breaker_timeout: float = 60.0,

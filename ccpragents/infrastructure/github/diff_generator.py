@@ -140,7 +140,7 @@ class DiffGenerator:
         if hasattr(file, "edit_type") and file.edit_type == EDIT_TYPE.DELETED:
             return f"{separator}\n## File '{file.filename.strip()}' was deleted\n"
 
-        return f"{separator}\n## Full file path: '{file.filename.strip()}'\n"
+        return f"{separator}\n## Full file path: `{file.filename.strip()}`\n"
 
     def _parse_hunks_from_patch(self, patch_lines: List[str]) -> List[Dict]:
         """Parse hunks from patch lines.
@@ -345,7 +345,7 @@ class DiffGenerator:
             else:
                 # Add separator and file header
                 separator = "" if is_first_file else "\n---"
-                full_extended_patch = f"{separator}{'' if is_first_file else '\n\n'}## Full file path: '{file.filename.strip()}'\n{extended_patch.rstrip()}\n"
+                full_extended_patch = f"{separator}{'' if is_first_file else '\n\n'}## Full file path: `{file.filename.strip()}`\n{extended_patch.rstrip()}\n"
                 if is_first_file:
                     full_extended_patch = f"\n{full_extended_patch}"
 
@@ -398,7 +398,7 @@ class DiffGenerator:
             else:
                 # Add separator and file header
                 separator = "" if i == 0 else "\n---"
-                full_extended_patch = f"{separator}{'' if i == 0 else '\n\n'}## Full file path: '{file.filename.strip()}'\n{extended_patch.rstrip()}\n"
+                full_extended_patch = f"{separator}{'' if i == 0 else '\n\n'}## Full file path: `{file.filename.strip()}`\n{extended_patch.rstrip()}\n"
                 if i == 0:
                     full_extended_patch = f"\n{full_extended_patch}"
             extended_diffs.append(full_extended_patch)
