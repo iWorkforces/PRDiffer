@@ -27,7 +27,7 @@ echo ""
 check_uv() {
     if ! command -v uv &> /dev/null; then
         echo -e "${YELLOW}📦 uv not found, installing...${NC}"
-        
+
         # Install uv using the official installer
         if command -v curl &> /dev/null; then
             echo -e "${CYAN}Installing uv via curl...${NC}"
@@ -40,19 +40,19 @@ check_uv() {
             echo -e "${YELLOW}Visit: https://docs.astral.sh/uv/getting-started/installation/${NC}"
             exit 1
         fi
-        
+
         # Source the shell profile to make uv available
         if [ -f "$HOME/.bashrc" ]; then
             source "$HOME/.bashrc"
         elif [ -f "$HOME/.zshrc" ]; then
             source "$HOME/.zshrc"
         fi
-        
+
         # Add uv to PATH for this session if not already available
         if ! command -v uv &> /dev/null && [ -f "$HOME/.cargo/bin/uv" ]; then
             export PATH="$HOME/.cargo/bin:$PATH"
         fi
-        
+
         # Verify installation
         if ! command -v uv &> /dev/null; then
             echo -e "${RED}❌ Failed to install uv${NC}"
