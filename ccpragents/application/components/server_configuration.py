@@ -62,7 +62,7 @@ class ServerConfiguration(ServerConfigurationProtocol):
         try:
             return {
                 "name": "ccpragents",
-                "version": "0.1.3",
+                "version": "0.3.3",
                 "description": "GitHub PR Diff Fetcher MCP Server",
                 "transport": self._settings_service.get("mcp.transport", "stdio"),
                 "port": self._settings_service.get("mcp.port", 9102),
@@ -93,18 +93,14 @@ class ServerConfiguration(ServerConfigurationProtocol):
             String containing MCP server instructions
         """
         return """
-CCPRAgents MCP - GitHub Pull Request Analysis Tools
+        ccpragents MCP server - GitHub Pull Request Analysis Tools
 
-Available Tools:
-• get_pr_diff(pr_url, use_cache=True) - Fetch complete PR diff data
-• describe_pr(pr_url, commit_messages, diff_content) - Generate PR descriptions
-• approve_pr(pr_url, commit_messages, diff_content) - Generate PR approvals
-• review_pr(pr_url, commit_messages, diff_content) - Review PRs for quality
-• update_pr_changelog(pr_url, commit_messages, diff_content) - Generate changelog entries
-• health() - Get server health and metrics
+        Available Tools:
+            • get_pr_diff(pr_url) - Fetch complete GitHub PR code diff
+            • health() - Get server health and metrics
 
-Usage: Call tools with GitHub PR URLs (e.g., "https://github.com/owner/repo/pull/123")
-"""
+        Usage: Call tools with GitHub PR URLs (e.g., "https://github.com/owner/repo/pull/123")
+        """
 
     def validate_configuration(self) -> ValidationResult:
         """Validate server configuration.
