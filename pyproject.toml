@@ -20,14 +20,14 @@ classifiers = [
 dependencies = [
     "fastmcp>=2.13.0.2",
     "pydantic>=2.12.3",
-    "fastapi[standard]>=0.120.2",
+    "fastapi[standard]>=0.120.3",
     "uvicorn>=0.38.0",
     "pygithub>=2.8.1",
     "asyncer>=0.0.10",
     "anyio>=4.11.0",
     "python-dotenv>=1.2.1",
     "dynaconf>=3.2.12",
-    "mcp>=1.19.0",
+    "mcp>=1.20.0",
     "standard>=1.0.3",
     "uvloop>=0.22.1",
     "httptools>=0.7.1",
@@ -53,7 +53,7 @@ packages = ["ccpragents"]
 
 [dependency-groups]
 dev = [
-    "ruff>=0.14.2",
+    "ruff>=0.14.3",
     "pytest>=8.4.2",
     "pytest-asyncio>=1.2.0",
     "pytest-cov>=7.0.0",
