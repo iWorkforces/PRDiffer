@@ -1,2 +1,0 @@
-todo: instead of return code diff, write the code diff to a file with cacheKey.txt to folder .claude/memories/pull_requests/cache_key.md
-pr code review agent will read this file instead of json,
