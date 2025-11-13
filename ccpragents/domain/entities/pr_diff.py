@@ -23,9 +23,11 @@ class PRDiff(BaseModel):
     """
 
     # Repository and PR identification
-    repo_owner: str = Field(..., description="Repository owner/organization name")
-    repo_name: str = Field(..., description="Repository name")
-    pr_number: int = Field(..., gt=0, description="Pull request number")
+    repo_owner: Optional[str] = Field(
+        None, description="Repository owner/organization name"
+    )
+    repo_name: Optional[str] = Field(None, description="Repository name")
+    pr_number: Optional[int] = Field(None, gt=0, description="Pull request number")
 
     # PR metadata
     pr_title: str = Field("", description="Pull request title")

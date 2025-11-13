@@ -2,6 +2,8 @@
 
 from typing import Optional
 
+from ccpragents.domain.services.pr_diff_service import PRDiffServiceInterface
+
 from .mcp_server import FastMCPServer
 from ccpragents.domain.services.settings import SettingsServiceInterface
 from ccpragents.domain.services.cache import CacheServiceInterface
@@ -20,6 +22,7 @@ def create_mcp_server(
     settings_service: Optional[SettingsServiceInterface] = None,
     cache_service: Optional[CacheServiceInterface] = None,
     repository_cache_service: Optional[RepositoryCacheServiceInterface] = None,
+    pr_diff_service: Optional[PRDiffServiceInterface] = None,
     logger: Optional[LoggerServiceInterface] = None,
 ) -> FastMCPServer:
     """Create FastMCPServer with all dependencies properly injected.
@@ -88,6 +91,10 @@ def create_mcp_server(
         get_request_coalescing_service,
     )
 
+    # Create PR diff service if not provided
+    if pr_diff_service is None:
+        pr_diff_service = infrastructure_factory.create_pr_diff_service()
+
     input_validator_instance = InputValidator()
     request_coalescing_instance = get_request_coalescing_service()
 
@@ -96,6 +103,7 @@ def create_mcp_server(
         settings_service=settings_service,
         cache_service=cache_service,
         repository_cache_service=repository_cache_service,
+        pr_diff_service=pr_diff_service,
         github_repository_class=github_repository_class,
         logger=logger,
         # Injected components from infrastructure factory
@@ -141,10 +149,15 @@ def create_mcp_server_legacy(
 
         logger_service = get_logger()
 
+    # Create infrastructure factory to get PR diff service
+    infrastructure_factory = get_infrastructure_factory()
+    pr_diff_service = infrastructure_factory.create_pr_diff_service()
+
     return FastMCPServer(
         settings_service=settings_service,
         cache_service=cache_service,
         repository_cache_service=repository_cache_service,
+        pr_diff_service=pr_diff_service,
         github_repository_class=github_repository_class,
         logger=logger_service,
     )

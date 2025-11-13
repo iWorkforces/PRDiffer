@@ -103,12 +103,12 @@ class GitHubPRDiffService(PRDiffServiceInterface):
 
             logger = logging.getLogger(__name__)
             logger.error(
-                "Failed to get PR diff",
-                repo_owner=repo_owner,
-                repo_name=repo_name,
-                pr_number=pr_number,
-                error=str(e),
-                error_type=type(e).__name__,
+                "Failed to get PR diff - repo: %s/%s, pr: %s, error: %s (%s)",
+                repo_owner,
+                repo_name,
+                pr_number,
+                str(e),
+                type(e).__name__,
             )
             return None
 
@@ -156,12 +156,12 @@ class GitHubPRDiffService(PRDiffServiceInterface):
 
             logger = logging.getLogger(__name__)
             logger.error(
-                "Failed to get latest commit SHA",
-                repo_owner=repo_owner,
-                repo_name=repo_name,
-                pr_number=pr_number,
-                error=str(e),
-                error_type=type(e).__name__,
+                "Failed to get latest commit SHA - repo: %s/%s, pr: %s, error: %s (%s)",
+                repo_owner,
+                repo_name,
+                pr_number,
+                str(e),
+                type(e).__name__,
             )
             return None
 
@@ -188,10 +188,10 @@ class GitHubPRDiffService(PRDiffServiceInterface):
 
             logger = logging.getLogger(__name__)
             logger.error(
-                "Failed to validate repository access",
-                repo_owner=repo_owner,
-                repo_name=repo_name,
-                error=str(e),
-                error_type=type(e).__name__,
+                "Failed to validate repository access - repo: %s/%s, error: %s (%s)",
+                repo_owner,
+                repo_name,
+                str(e),
+                type(e).__name__,
             )
             return False

@@ -2,7 +2,8 @@ import time
 from typing import Optional, Callable, Literal, cast, TypeAlias
 from fastmcp import FastMCP
 from ccpragents.domain.entities.pr_diff import PRDiff
-from ccpragents.domain.usecases.pr_diff_usecases import GetPRDiffUseCase, GetPRDiffUseCaseLegacy
+from ccpragents.domain.usecases.pr_diff_usecases import GetPRDiffUseCase
+from ccpragents.domain.services.pr_diff_service import PRDiffServiceInterface
 from ccpragents.domain.services.settings import SettingsServiceInterface
 from ccpragents.domain.services.cache import CacheServiceInterface
 from ccpragents.domain.services.repository_cache import RepositoryCacheServiceInterface
@@ -48,6 +49,7 @@ class FastMCPServer:
         settings_service: SettingsServiceInterface,
         cache_service: CacheServiceInterface,
         repository_cache_service: RepositoryCacheServiceInterface,
+        pr_diff_service: PRDiffServiceInterface,
         logger: LoggerServiceInterface,
         github_repository_class: Callable[[str, str, int], PRDiffRepositoryInterface],
         # Infrastructure dependencies injected via factory
@@ -67,6 +69,7 @@ class FastMCPServer:
             settings_service: Settings service instance implementing SettingsServiceInterface
             cache_service: Cache service instance implementing CacheServiceInterface
             repository_cache_service: Repository cache service instance implementing RepositoryCacheServiceInterface
+            pr_diff_service: PR diff service instance implementing PRDiffServiceInterface
             logger: Logger instance implementing LoggerServiceInterface
             github_repository_class: GitHub repository class callable that creates PRDiffRepositoryInterface instances
             url_validator: URL validator component implementing URLValidatorProtocol
@@ -81,6 +84,7 @@ class FastMCPServer:
         self._settings_service = settings_service
         self._cache_service = cache_service
         self._repository_cache_service = repository_cache_service
+        self._pr_diff_service = pr_diff_service
         self._logger = logger
         self._github_repository_class = github_repository_class
 
@@ -269,10 +273,13 @@ class FastMCPServer:
                             pr_number=pr_number,
                         )
 
-                    use_case = GetPRDiffUseCaseLegacy(
-                        repository, cache_service=self._cache_service
+                    use_case = GetPRDiffUseCase(
+                        pr_diff_service=self._pr_diff_service,
+                        cache_service=self._cache_service,
                     )
-                    result = await use_case.execute()
+                    result = await use_case.execute(
+                        repo_owner=repo_owner, repo_name=repo_name, pr_number=pr_number
+                    )
 
                     # Cache the repository after it's been used
                     if hasattr(repository, "_initialized") and getattr(
