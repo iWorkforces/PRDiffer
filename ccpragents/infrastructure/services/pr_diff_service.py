@@ -13,11 +13,6 @@ from ccpragents.domain.entities.file_patch import FilePatchInfo, EDIT_TYPE
 from ccpragents.infrastructure.github.api_client import GitHubAPIClient
 from ccpragents.infrastructure.github.diff_generator import DiffGenerator
 from ccpragents.infrastructure.github.file_processor import FileProcessor
-from ccpragents.domain.services import (
-    GitHubAPIServiceInterface,
-    DiffServiceInterface,
-    PatternMatchingServiceInterface
-)
 
 
 class GitHubPRDiffService(PRDiffServiceInterface):
@@ -262,11 +257,14 @@ class GitHubPRDiffService(PRDiffServiceInterface):
                 diff_content_parts = []
                 for file_patch in diff_files:
                     if file_patch.patch:
-                        diff_content_parts.append(f"## File: {file_patch.filename}\n{file_patch.patch}")
+                        diff_content_parts.append(
+                            f"## File: {file_patch.filename}\n{file_patch.patch}"
+                        )
                 return "\n\n".join(diff_content_parts)
 
         except Exception as e:
             import logging
+
             logger = logging.getLogger(__name__)
             logger.error(f"Failed to generate diff content: {e}")
             return ""
@@ -295,6 +293,7 @@ class GitHubPRDiffService(PRDiffServiceInterface):
             return None
         except Exception as e:
             import logging
+
             logger = logging.getLogger(__name__)
             logger.error(f"Failed to get base commit SHA: {e}")
             return None
@@ -317,10 +316,16 @@ class GitHubPRDiffService(PRDiffServiceInterface):
                 commit_list = pull_request.get_commits()
                 commit_messages = [commit.commit.message for commit in commit_list]
                 if commit_messages:
-                    return "\n".join([f"{i + 1}. {message}" for i, message in enumerate(commit_messages)])
+                    return "\n".join(
+                        [
+                            f"{i + 1}. {message}"
+                            for i, message in enumerate(commit_messages)
+                        ]
+                    )
                 return None
         except Exception as e:
             import logging
+
             logger = logging.getLogger(__name__)
             logger.error(f"Failed to get commit messages: {e}")
             return None

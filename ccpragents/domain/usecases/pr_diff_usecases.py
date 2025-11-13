@@ -56,7 +56,9 @@ class GetPRDiffUseCase:
             return cached_result
 
         # Cache miss, fetch from service and cache the result
-        result = await self._pr_diff_service.get_pr_diff(repo_owner, repo_name, pr_number)
+        result = await self._pr_diff_service.get_pr_diff(
+            repo_owner, repo_name, pr_number
+        )
         if result:
             self._cache_service.set(cache_key, current_commit_sha, result)
         return result

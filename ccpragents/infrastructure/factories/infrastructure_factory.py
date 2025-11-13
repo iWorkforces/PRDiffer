@@ -36,7 +36,10 @@ from ccpragents.infrastructure.github.api_client import GitHubAPIClient
 from ccpragents.infrastructure.utils.diff_utils import DiffUtils
 from ccpragents.infrastructure.utils.pattern_matcher import PatternMatcher
 from ccpragents.infrastructure.utils.retry_handler import RetryHandler
-from ccpragents.infrastructure.github.diff_generator import get_diff_generator
+from ccpragents.infrastructure.github.diff_generator import (
+    DiffGenerator,
+    get_diff_generator,
+)
 from ccpragents.infrastructure.github.file_processor import FileProcessor
 
 # Infrastructure service implementations
@@ -138,7 +141,7 @@ class InfrastructureFactory(InfrastructureFactoryInterface):
             diff_utils=diff_service,
         )
 
-    def create_diff_generator(self) -> 'DiffGenerator':
+    def create_diff_generator(self) -> DiffGenerator:
         """Create diff generator instance."""
         diff_service = self.create_diff_service()
 
