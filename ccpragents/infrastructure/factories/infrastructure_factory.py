@@ -36,6 +36,8 @@ from ccpragents.infrastructure.github.api_client import GitHubAPIClient
 from ccpragents.infrastructure.utils.diff_utils import DiffUtils
 from ccpragents.infrastructure.utils.pattern_matcher import PatternMatcher
 from ccpragents.infrastructure.utils.retry_handler import RetryHandler
+from ccpragents.infrastructure.github.diff_generator import get_diff_generator
+from ccpragents.infrastructure.github.file_processor import FileProcessor
 
 # Infrastructure service implementations
 from ccpragents.infrastructure.services.pr_diff_service import GitHubPRDiffService
@@ -98,7 +100,53 @@ class InfrastructureFactory(InfrastructureFactoryInterface):
 
     def create_pr_diff_service(self) -> PRDiffServiceInterface:
         """Create PR diff service instance."""
-        return GitHubPRDiffService()
+        # Create dependencies
+        github_api_service = self.create_github_api_service()
+        diff_service = self.create_diff_service()
+        pattern_matching_service = self.create_pattern_matching_service()
+
+        # Create file processor
+        file_processor = FileProcessor(
+            github_api_service=github_api_service,
+            pattern_matcher=pattern_matching_service,
+            diff_utils=diff_service,
+        )
+
+        # Create diff generator
+        diff_generator = get_diff_generator(
+            diff_utils=diff_service,
+            parallel_executor=None,  # Use sequential processing for simplicity
+            parallel_enabled=False,
+        )
+
+        # Create PR diff service with dependencies
+        return GitHubPRDiffService(
+            github_api_client=github_api_service,
+            diff_generator=diff_generator,
+            file_processor=file_processor,
+        )
+
+    def create_file_processor(self) -> FileProcessor:
+        """Create file processor instance."""
+        github_api_service = self.create_github_api_service()
+        diff_service = self.create_diff_service()
+        pattern_matching_service = self.create_pattern_matching_service()
+
+        return FileProcessor(
+            github_api_service=github_api_service,
+            pattern_matcher=pattern_matching_service,
+            diff_utils=diff_service,
+        )
+
+    def create_diff_generator(self) -> 'DiffGenerator':
+        """Create diff generator instance."""
+        diff_service = self.create_diff_service()
+
+        return get_diff_generator(
+            diff_utils=diff_service,
+            parallel_executor=None,
+            parallel_enabled=False,
+        )
 
     def create_file_processing_service(self) -> FileProcessingServiceInterface:
         """Create file processing service instance."""

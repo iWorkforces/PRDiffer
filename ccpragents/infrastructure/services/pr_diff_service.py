@@ -11,16 +11,30 @@ from ccpragents.domain.services.pr_diff_service import PRDiffServiceInterface
 from ccpragents.domain.entities.pr_diff import PRDiff
 from ccpragents.domain.entities.file_patch import FilePatchInfo, EDIT_TYPE
 from ccpragents.infrastructure.github.api_client import GitHubAPIClient
+from ccpragents.infrastructure.github.diff_generator import DiffGenerator
+from ccpragents.infrastructure.github.file_processor import FileProcessor
+from ccpragents.domain.services import (
+    GitHubAPIServiceInterface,
+    DiffServiceInterface,
+    PatternMatchingServiceInterface
+)
 
 
 class GitHubPRDiffService(PRDiffServiceInterface):
     """Concrete implementation of PRDiffServiceInterface using GitHub API."""
 
-    def __init__(self, github_api_client: Optional[GitHubAPIClient] = None):
-        """Initialize the service with GitHub API client.
+    def __init__(
+        self,
+        github_api_client: Optional[GitHubAPIClient] = None,
+        diff_generator: Optional[DiffGenerator] = None,
+        file_processor: Optional[FileProcessor] = None,
+    ):
+        """Initialize the service with GitHub API client and diff generation components.
 
         Args:
             github_api_client: Optional GitHub API client (created if None)
+            diff_generator: Optional diff generator (created if None)
+            file_processor: Optional file processor (created if None)
         """
         self._github_api = github_api_client or GitHubAPIClient()
 
@@ -29,6 +43,10 @@ class GitHubPRDiffService(PRDiffServiceInterface):
         timeout = int(os.getenv("GITHUB_TIMEOUT", "30"))
 
         self._github_api.initialize_client(github_token=github_token, timeout=timeout)
+
+        # Initialize diff generation components
+        self._diff_generator = diff_generator
+        self._file_processor = file_processor
 
     async def get_pr_diff(
         self,
@@ -62,46 +80,14 @@ class GitHubPRDiffService(PRDiffServiceInterface):
             if not pull_request:
                 return None
 
-            # Get the files in the PR and convert to FilePatchInfo
-            github_files = pull_request.get_files()
-            files = self._convert_github_files_to_file_patch_info(github_files)
+            # Generate diff content and commit messages
+            diff_content = self._generate_diff_content(repository, pull_request)
+            commit_messages = self._get_commit_messages(pull_request)
 
-            # Get the latest commit SHA
-            latest_commit_sha = await self.get_latest_commit_sha(
-                repo_owner, repo_name, pr_number
-            )
-
-            # Create PRDiff entity
+            # Create simplified PRDiff entity with only diff_content and commit_messages
             pr_diff = PRDiff(
-                repo_owner=repo_owner,
-                repo_name=repo_name,
-                pr_number=pr_number,
-                pr_title=pull_request.title or "",
-                pr_body=pull_request.body or "",
-                author=pull_request.user.login if pull_request.user else "",
-                created_at=pull_request.created_at.isoformat()
-                if pull_request.created_at
-                else "",
-                updated_at=pull_request.updated_at.isoformat()
-                if pull_request.updated_at
-                else "",
-                merged_at=pull_request.merged_at.isoformat()
-                if pull_request.merged_at
-                else "",
-                closed_at=pull_request.closed_at.isoformat()
-                if pull_request.closed_at
-                else "",
-                state="merged"
-                if pull_request.merged
-                else ("closed" if pull_request.closed_at else "open"),
-                draft=pull_request.draft or False,
-                mergeable=pull_request.mergeable,
-                additions=pull_request.additions or 0,
-                deletions=pull_request.deletions or 0,
-                changed_files=pull_request.changed_files or 0,
-                commit_sha=latest_commit_sha or "",
-                files=files,
-                commits=[],
+                diff_content=diff_content,
+                commit_messages=commit_messages,
             )
 
             return pr_diff
@@ -226,6 +212,118 @@ class GitHubPRDiffService(PRDiffServiceInterface):
         }
 
         return status_mapping.get(status, EDIT_TYPE.UNKNOWN)
+
+    def _generate_diff_content(self, repository, pull_request) -> str:
+        """Generate diff content for the pull request.
+
+        Args:
+            repository: GitHub repository instance
+            pull_request: GitHub pull request instance
+
+        Returns:
+            str: Combined diff content for all files, empty string on error
+        """
+        try:
+            # Get the latest commit SHA for the PR
+            commits = list(pull_request.get_commits())
+            if not commits:
+                return ""
+
+            latest_commit_sha = commits[-1].sha
+            if not latest_commit_sha:
+                return ""
+
+            # Get the base commit SHA (merge base)
+            base_commit_sha = self._get_base_commit_sha(repository, pull_request)
+            if not base_commit_sha:
+                return ""
+
+            # Get and process files
+            github_files = pull_request.get_files()
+            if not github_files:
+                return ""
+
+            # Process files to create FilePatchInfo objects with content
+            if self._file_processor:
+                # Use the proper file processor if available
+                diff_files = self._file_processor.process_files_to_patches(
+                    list(github_files), repository, latest_commit_sha, base_commit_sha
+                )
+            else:
+                # Fallback to simple conversion
+                diff_files = self._convert_github_files_to_file_patch_info(github_files)
+
+            # Generate extended diff content
+            if self._diff_generator and diff_files:
+                extended_diffs = self._diff_generator.generate_extended_diff(diff_files)
+                return "\n".join(extended_diffs)
+            else:
+                # Fallback: create simple diff from patches
+                diff_content_parts = []
+                for file_patch in diff_files:
+                    if file_patch.patch:
+                        diff_content_parts.append(f"## File: {file_patch.filename}\n{file_patch.patch}")
+                return "\n\n".join(diff_content_parts)
+
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Failed to generate diff content: {e}")
+            return ""
+
+    def _get_base_commit_sha(self, repository, pull_request) -> Optional[str]:
+        """Get the base commit SHA for the pull request.
+
+        Args:
+            repository: GitHub repository instance
+            pull_request: GitHub pull request instance
+
+        Returns:
+            Optional[str]: Base commit SHA, None on error
+        """
+        try:
+            # Try to get the merge base
+            base_branch = pull_request.base.sha
+            if base_branch:
+                return base_branch
+
+            # Fallback: use the base branch reference
+            base_ref = repository.get_git_ref(f"heads/{pull_request.base.ref}")
+            if base_ref:
+                return base_ref.object.sha
+
+            return None
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Failed to get base commit SHA: {e}")
+            return None
+
+    def _get_commit_messages(self, pull_request) -> Optional[str]:
+        """Get formatted commit messages from the pull request.
+
+        Args:
+            pull_request: GitHub pull request instance
+
+        Returns:
+            Optional[str]: Formatted commit messages, None on error
+        """
+        try:
+            if self._diff_generator:
+                # Use the diff generator if available
+                return self._diff_generator.get_commit_messages(pull_request)
+            else:
+                # Fallback: manual implementation
+                commit_list = pull_request.get_commits()
+                commit_messages = [commit.commit.message for commit in commit_list]
+                if commit_messages:
+                    return "\n".join([f"{i + 1}. {message}" for i, message in enumerate(commit_messages)])
+                return None
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Failed to get commit messages: {e}")
+            return None
 
     def validate_repository_access(
         self,
