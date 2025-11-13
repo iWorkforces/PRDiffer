@@ -6,7 +6,7 @@ using GitHub API operations.
 
 from typing import Optional
 
-from ccpragents.domain.services.pr_diff import PRDiffServiceInterface
+from ccpragents.domain.services.pr_diff_service import PRDiffServiceInterface
 from ccpragents.domain.entities.pr_diff import PRDiff
 from ccpragents.infrastructure.github.api_client import GitHubAPIClient
 

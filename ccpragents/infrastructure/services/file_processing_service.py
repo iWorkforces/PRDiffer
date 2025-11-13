@@ -7,8 +7,10 @@ using GitHub API operations and utility services.
 from typing import List, Optional
 import asyncio
 
-from ccpragents.domain.services.file_processing import FileProcessingServiceInterface
 from ccpragents.domain.entities.file_patch import FilePatchInfo
+from ccpragents.domain.services.file_processing_service import (
+    FileProcessingServiceInterface,
+)
 from ccpragents.infrastructure.github.api_client import GitHubAPIClient
 from ccpragents.infrastructure.utils.diff_utils import DiffUtils
 from ccpragents.infrastructure.utils.pattern_matcher import PatternMatcher

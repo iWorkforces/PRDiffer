@@ -2,10 +2,10 @@
 
 from .cache import CacheServiceInterface
 from .diff import DiffServiceInterface
-from .file_processing import FileProcessingServiceInterface
+from .file_processing_service import FileProcessingServiceInterface
 from .logger import LoggerServiceInterface, LogLevel
 from .pattern_matching import PatternMatchingServiceInterface
-from .pr_diff import PRDiffServiceInterface
+from .pr_diff_service import PRDiffServiceInterface
 from .repository_cache import RepositoryCacheServiceInterface
 from .retry import RetryServiceInterface
 from .settings import SettingsServiceInterface

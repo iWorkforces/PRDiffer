@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, ConfigDict
 from typing import Optional, List
 from enum import StrEnum
 from datetime import datetime
@@ -67,11 +67,10 @@ class PRDiff(BaseModel):
         None, description="Formatted commit messages"
     )
 
-    class Config:
-        """Pydantic configuration."""
-
-        json_encoders = {datetime: lambda v: v.isoformat() if v else None}
-        validate_assignment = True
+    model_config = ConfigDict(
+        validate_assignment=True,
+        json_encoders={datetime: lambda v: v.isoformat() if v else None}
+    )
 
     @field_validator("repo_owner", "repo_name")
     def validate_repository_identifiers(cls, v):

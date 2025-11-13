@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from ccpragents import __version__
-from ccpragents.application.mcp_server import FastMCPServer
+from ccpragents.application.factory import create_mcp_server
 from ccpragents.infrastructure.settings import get_settings_service
 from ccpragents.infrastructure.cache_service import get_cache_service
 from ccpragents.infrastructure.repository_cache_service import (
@@ -130,13 +130,13 @@ def main() -> None:
     repository_cache_service = get_repository_cache_service()
     logger = get_logger()
 
-    # Create server with dependency injection
-    server: FastMCPServer = FastMCPServer(
+    # Create server using factory pattern for proper dependency injection
+    server = create_mcp_server(
+        github_repository_class=GitHubPRDiffRepository,
         settings_service=settings_service,
         cache_service=cache_service,
         repository_cache_service=repository_cache_service,
         logger=logger,
-        github_repository_class=GitHubPRDiffRepository,
     )
     server.run()
 

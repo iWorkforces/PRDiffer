@@ -65,7 +65,7 @@ def create_mcp_server(
 
     # Create PR operation handler with all its dependencies
     pr_operation_handler = infrastructure_factory.create_pr_operation_handler(
-        github_api_service=infrastructure_factory.create_github_api_service(),
+        github_repository_class=github_repository_class,
         cache_service=cache_service,
         repository_cache_service=repository_cache_service,
         diff_service=infrastructure_factory.create_diff_service(),

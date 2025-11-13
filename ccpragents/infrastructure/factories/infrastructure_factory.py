@@ -4,15 +4,17 @@ from ccpragents.domain.factories.infrastructure_factory import (
     InfrastructureFactoryInterface,
 )
 from ccpragents.domain.services.cache import CacheServiceInterface
+from ccpragents.domain.services.file_processing_service import (
+    FileProcessingServiceInterface,
+)
 from ccpragents.domain.services.logger import LoggerServiceInterface
+from ccpragents.domain.services.pr_diff_service import PRDiffServiceInterface
 from ccpragents.domain.services.settings import SettingsServiceInterface
 from ccpragents.domain.services.repository_cache import RepositoryCacheServiceInterface
 from ccpragents.domain.services.github_api import GitHubAPIServiceInterface
 from ccpragents.domain.services.diff import DiffServiceInterface
 from ccpragents.domain.services.pattern_matching import PatternMatchingServiceInterface
 from ccpragents.domain.services.retry import RetryServiceInterface
-from ccpragents.domain.services.pr_diff import PRDiffServiceInterface
-from ccpragents.domain.services.file_processing import FileProcessingServiceInterface
 
 from ccpragents.application.interfaces.protocols import (
     URLValidatorProtocol,
@@ -79,7 +81,16 @@ class InfrastructureFactory(InfrastructureFactoryInterface):
 
     def create_pattern_matching_service(self) -> PatternMatchingServiceInterface:
         """Create pattern matching service instance."""
-        return PatternMatcher()
+        settings_service = get_settings_service()
+        github_settings = settings_service.get_github_settings()
+
+        ignore_patterns = github_settings.get("ignore_patterns", [])
+        valid_extensions = github_settings.get("valid_extensions", [])
+
+        return PatternMatcher(
+            ignore_patterns=list(ignore_patterns) if ignore_patterns else [],
+            valid_extensions=list(valid_extensions) if valid_extensions else []
+        )
 
     def create_retry_service(self) -> RetryServiceInterface:
         """Create retry service instance."""
@@ -113,7 +124,7 @@ class InfrastructureFactory(InfrastructureFactoryInterface):
 
     def create_pr_operation_handler(
         self,
-        github_api_service: GitHubAPIServiceInterface,
+        github_repository_class,
         cache_service: CacheServiceInterface,
         repository_cache_service: RepositoryCacheServiceInterface,
         diff_service: DiffServiceInterface,
@@ -123,12 +134,9 @@ class InfrastructureFactory(InfrastructureFactoryInterface):
     ) -> PROperationHandlerProtocol:
         """Create PR operation handler component."""
         return PROperationHandler(
-            github_api_service=github_api_service,
+            github_repository_class=github_repository_class,
             cache_service=cache_service,
             repository_cache_service=repository_cache_service,
-            diff_service=diff_service,
-            pattern_matching_service=pattern_matching_service,
-            retry_service=retry_service,
             logger=logger,
         )
 
