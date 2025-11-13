@@ -69,7 +69,7 @@ class PRDiff(BaseModel):
 
     model_config = ConfigDict(
         validate_assignment=True,
-        json_encoders={datetime: lambda v: v.isoformat() if v else None}
+        json_encoders={datetime: lambda v: v.isoformat() if v else None},
     )
 
     @field_validator("repo_owner", "repo_name")

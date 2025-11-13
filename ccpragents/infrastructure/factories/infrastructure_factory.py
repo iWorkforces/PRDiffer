@@ -89,7 +89,7 @@ class InfrastructureFactory(InfrastructureFactoryInterface):
 
         return PatternMatcher(
             ignore_patterns=list(ignore_patterns) if ignore_patterns else [],
-            valid_extensions=list(valid_extensions) if valid_extensions else []
+            valid_extensions=list(valid_extensions) if valid_extensions else [],
         )
 
     def create_retry_service(self) -> RetryServiceInterface:
