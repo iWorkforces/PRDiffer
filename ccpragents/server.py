@@ -36,7 +36,7 @@ Examples:
   ccpragents --transport http --port 9102
 
   # Run with SSE transport
-  ccpragents --transport sse --port 8080 --host 0.0.0.0
+  ccpragents --transport sse --port 9102 --host 0.0.0.0
 
 Environment Variables:
   GITHUB_TOKEN    GitHub personal access token for API authentication
