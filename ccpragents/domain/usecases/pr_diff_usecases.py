@@ -43,7 +43,7 @@ class GetPRDiffUseCase:
         cache_key = self._cache_service.get_cache_key(repo_owner, repo_name, pr_number)
 
         # Get current commit SHA to check cache validity
-        current_commit_sha = self._pr_diff_service.get_latest_commit_sha(
+        current_commit_sha = await self._pr_diff_service.get_latest_commit_sha(
             repo_owner, repo_name, pr_number
         )
 

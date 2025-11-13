@@ -47,7 +47,7 @@ class PRDiffRepositoryInterface(ABC):
         pass
 
     @abstractmethod
-    def get_latest_commit_sha(self) -> str:
+    async def get_latest_commit_sha(self) -> str:
         """Get the latest head commit SHA for the pull request.
 
         Returns:

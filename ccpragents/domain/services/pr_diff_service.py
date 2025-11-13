@@ -40,7 +40,7 @@ class PRDiffServiceInterface(ABC):
         pass
 
     @abstractmethod
-    def get_latest_commit_sha(
+    async def get_latest_commit_sha(
         self,
         repo_owner: str,
         repo_name: str,
