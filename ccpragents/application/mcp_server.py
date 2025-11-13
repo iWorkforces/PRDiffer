@@ -2,7 +2,7 @@ import time
 from typing import Optional, Callable, Literal, cast, TypeAlias
 from fastmcp import FastMCP
 from ccpragents.domain.entities.pr_diff import PRDiff
-from ccpragents.domain.usecases import GetPRDiffUseCase
+from ccpragents.domain.usecases.pr_diff_usecases import GetPRDiffUseCase, GetPRDiffUseCaseLegacy
 from ccpragents.domain.services.settings import SettingsServiceInterface
 from ccpragents.domain.services.cache import CacheServiceInterface
 from ccpragents.domain.services.repository_cache import RepositoryCacheServiceInterface
@@ -269,7 +269,7 @@ class FastMCPServer:
                             pr_number=pr_number,
                         )
 
-                    use_case: GetPRDiffUseCase = GetPRDiffUseCase(
+                    use_case = GetPRDiffUseCaseLegacy(
                         repository, cache_service=self._cache_service
                     )
                     result = await use_case.execute()
