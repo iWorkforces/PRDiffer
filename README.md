@@ -71,7 +71,7 @@ ccpragents --help
 ccpragents --transport http
 
 # Run with custom port and host
-ccpragents --transport http --port 8080 --host 0.0.0.0
+ccpragents --transport http --port 9102 --host 0.0.0.0
 ```
 
 ### Using with Claude Code (Recommended)
@@ -80,10 +80,10 @@ The easiest way to add CCPRAgents to Claude Code is using the `claude mcp add` c
 
 ```bash
 # Add to current project (local scope - only available in this directory)
-claude mcp add --transport stdio ccpragents --env GITHUB_TOKEN=your_github_token -- ccpragents
+claude mcp add --transport stdio ccpragents http://127.0.0.1:9102/mcp
 
 # Or add globally (user scope - available in all projects)
-claude mcp add --transport stdio ccpragents --scope user --env GITHUB_TOKEN=your_github_token -- ccpragents
+claude mcp add --transport http ccpragents http://127.0.0.1:9102/mcp
 ```
 
 **Understanding Scopes:**

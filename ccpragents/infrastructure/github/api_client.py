@@ -15,7 +15,7 @@ from ccpragents.infrastructure.utils.retry_handler import (
 from ccpragents.infrastructure.logging.console_logger import get_logger
 
 
-class GitHubAPIService(GitHubAPIServiceInterface):
+class GitHubAPIClient(GitHubAPIServiceInterface):
     """GitHub API client implementation for repository operations.
 
     This class provides GitHub API interactions with proper error handling,
@@ -289,7 +289,7 @@ def get_github_api_client(
     api_health_tracking: bool = True,
     context_aware_retry: bool = True,
     use_advanced_retry: bool = True,
-) -> GitHubAPIService:
+) -> GitHubAPIClient:
     """Get a configured GitHub API client instance.
 
     Args:
@@ -313,7 +313,7 @@ def get_github_api_client(
         Returns:
             GitHubAPIClient: Configured GitHub API client instance
     """
-    return GitHubAPIService(
+    return GitHubAPIClient(
         max_retries=max_retries,
         retry_delay=retry_delay,
         timeout=timeout,

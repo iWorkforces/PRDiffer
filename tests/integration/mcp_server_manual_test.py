@@ -12,7 +12,7 @@ async def main():
         print(f"Available tools: {tools}")
         result: CallToolResult = await client.call_tool(
             "get_pr_diff",
-            {"pr_url": "https://github.com/CCWorkforce/CCPRAgentsMCP/pull/8"},
+            {"pr_url": "https://github.com/karcher-digital/iotc-documentation/pull/42"},
         )
         print(f"Result: {result.content}")
 

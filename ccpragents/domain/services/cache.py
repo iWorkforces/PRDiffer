@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from typing import Optional, Dict, Any
+
 from ccpragents.domain.entities.pr_diff import PRDiff
 
 
@@ -33,7 +34,7 @@ class CacheServiceInterface(ABC):
             current_commit_sha: The current head commit SHA from GitHub
 
         Returns:
-            Optional[PRDiff]: Cached data if valid, None otherwise
+            Optional["PRDiff"]: Cached data if valid, None otherwise
         """
         pass
 

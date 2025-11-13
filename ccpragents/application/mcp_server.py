@@ -2,15 +2,14 @@ import time
 from typing import Optional, Callable, Literal, cast, TypeAlias
 from fastmcp import FastMCP
 from ccpragents.domain.entities.pr_diff import PRDiff
-from ccpragents.domain.usecases import GetPRDiffUseCase
+from ccpragents.domain.usecases.pr_diff_usecases import GetPRDiffUseCase
+from ccpragents.domain.services.pr_diff_service import PRDiffServiceInterface
 from ccpragents.domain.services.settings import SettingsServiceInterface
 from ccpragents.domain.services.cache import CacheServiceInterface
 from ccpragents.domain.services.repository_cache import RepositoryCacheServiceInterface
 from ccpragents.domain.services.logger import LoggerServiceInterface
 from ccpragents.domain.repositories.pr_diff_repository import PRDiffRepositoryInterface
 
-from ccpragents.infrastructure.security.input_validator import InputValidator
-from ccpragents.infrastructure.request_coalescing import get_request_coalescing_service
 from ccpragents.domain.exceptions import (
     InvalidURLError,
     InvalidRepositoryError,
@@ -28,12 +27,6 @@ from .interfaces.protocols import (
     ServerConfigurationProtocol,
 )
 
-from .components.url_validator import URLValidator
-from .components.rate_limiter import RateLimiter
-from .components.metrics_tracker import MetricsTracker
-from .components.pr_operation_handler import PROperationHandler
-from .components.health_monitor import HealthMonitor
-from .components.server_configuration import ServerConfiguration
 
 # Type alias for valid MCP transport modes
 TransportMode: TypeAlias = Literal["stdio", "http", "sse", "streamable-http"]
@@ -56,15 +49,19 @@ class FastMCPServer:
         settings_service: SettingsServiceInterface,
         cache_service: CacheServiceInterface,
         repository_cache_service: RepositoryCacheServiceInterface,
+        pr_diff_service: PRDiffServiceInterface,
         logger: LoggerServiceInterface,
         github_repository_class: Callable[[str, str, int], PRDiffRepositoryInterface],
-        # New component dependencies (optional for backward compatibility)
-        url_validator: Optional[URLValidatorProtocol] = None,
-        rate_limiter: Optional[RateLimiterProtocol] = None,
-        metrics_tracker: Optional[MetricsTrackerProtocol] = None,
-        pr_operation_handler: Optional[PROperationHandlerProtocol] = None,
-        health_monitor: Optional[HealthMonitorProtocol] = None,
-        server_configuration: Optional[ServerConfigurationProtocol] = None,
+        # Infrastructure dependencies injected via factory
+        url_validator: URLValidatorProtocol,
+        rate_limiter: RateLimiterProtocol,
+        metrics_tracker: MetricsTrackerProtocol,
+        pr_operation_handler: PROperationHandlerProtocol,
+        health_monitor: HealthMonitorProtocol,
+        server_configuration: ServerConfigurationProtocol,
+        # Security and request coalescing services from infrastructure
+        input_validator: Optional[Callable] = None,
+        request_coalescing_service: Optional[Callable] = None,
     ):
         """Initialize the FastMCP server with dependency injection.
 
@@ -72,46 +69,54 @@ class FastMCPServer:
             settings_service: Settings service instance implementing SettingsServiceInterface
             cache_service: Cache service instance implementing CacheServiceInterface
             repository_cache_service: Repository cache service instance implementing RepositoryCacheServiceInterface
+            pr_diff_service: PR diff service instance implementing PRDiffServiceInterface
             logger: Logger instance implementing LoggerServiceInterface
             github_repository_class: GitHub repository class callable that creates PRDiffRepositoryInterface instances
+            url_validator: URL validator component implementing URLValidatorProtocol
+            rate_limiter: Rate limiter component implementing RateLimiterProtocol
+            metrics_tracker: Metrics tracker component implementing MetricsTrackerProtocol
+            pr_operation_handler: PR operation handler component implementing PROperationHandlerProtocol
+            health_monitor: Health monitor component implementing HealthMonitorProtocol
+            server_configuration: Server configuration component implementing ServerConfigurationProtocol
+            input_validator: Optional input validator factory function (for backward compatibility)
+            request_coalescing_service: Optional request coalescing service factory function (for backward compatibility)
         """
         self._settings_service = settings_service
         self._cache_service = cache_service
         self._repository_cache_service = repository_cache_service
+        self._pr_diff_service = pr_diff_service
         self._logger = logger
         self._github_repository_class = github_repository_class
 
-        # Initialize security validator
-        self._input_validator = InputValidator()
+        # Infrastructure dependencies injected via factory
+        self._url_validator = url_validator
+        self._rate_limiter = rate_limiter
+        self._metrics_tracker = metrics_tracker
+        self._pr_operation_handler = pr_operation_handler
+        self._health_monitor = health_monitor
+        self._server_configuration = server_configuration
 
-        # Initialize request coalescing service
-        self._request_coalescing = get_request_coalescing_service()
+        # Initialize security validator - should be injected for Clean Architecture
+        if input_validator is None:
+            # Fallback to direct instantiation only for backward compatibility
+            from ccpragents.infrastructure.security.input_validator import (
+                InputValidator,
+            )
 
-        # Initialize components (use injected ones or create defaults for backward compatibility)
-        # Cast logger to standard logging.Logger for component compatibility
-        logger_impl = self._logger if hasattr(self._logger, "info") else None
+            self._input_validator = InputValidator()
+        else:
+            self._input_validator = input_validator
 
-        self._url_validator = url_validator or URLValidator()
-        self._rate_limiter = rate_limiter or RateLimiter(logger=logger_impl)
-        self._metrics_tracker = metrics_tracker or MetricsTracker(logger=logger_impl)
-        self._server_configuration = server_configuration or ServerConfiguration(
-            settings_service, logger=logger_impl
-        )
+        # Initialize request coalescing service - should be injected for Clean Architecture
+        if request_coalescing_service is None:
+            # Fallback to direct instantiation only for backward compatibility
+            from ccpragents.infrastructure.request_coalescing import (
+                get_request_coalescing_service,
+            )
 
-        # Initialize PR operation handler (create if not provided)
-        self._pr_operation_handler = pr_operation_handler or PROperationHandler(
-            github_repository_class=github_repository_class,
-            cache_service=cache_service,
-            repository_cache_service=repository_cache_service,
-            logger=logger_impl,
-        )
-
-        # Initialize health monitor (create if not provided)
-        self._health_monitor = health_monitor or HealthMonitor(
-            metrics_tracker=self._metrics_tracker,
-            rate_limiter=self._rate_limiter,
-            logger=logger_impl,
-        )
+            self._request_coalescing = get_request_coalescing_service()
+        else:
+            self._request_coalescing = request_coalescing_service
 
         # Legacy fields for backward compatibility (will be removed in future versions)
         # Rate limiting configuration
@@ -268,10 +273,13 @@ class FastMCPServer:
                             pr_number=pr_number,
                         )
 
-                    use_case: GetPRDiffUseCase = GetPRDiffUseCase(
-                        repository, cache_service=self._cache_service
+                    use_case = GetPRDiffUseCase(
+                        pr_diff_service=self._pr_diff_service,
+                        cache_service=self._cache_service,
                     )
-                    result = await use_case.execute()
+                    result = await use_case.execute(
+                        repo_owner=repo_owner, repo_name=repo_name, pr_number=pr_number
+                    )
 
                     # Cache the repository after it's been used
                     if hasattr(repository, "_initialized") and getattr(

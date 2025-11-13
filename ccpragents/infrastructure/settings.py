@@ -1,4 +1,5 @@
-from typing import Optional, Dict, Any, cast
+from typing import Optional, Dict, Any, cast, List
+import os
 from dynaconf import Dynaconf
 from ccpragents.domain.services import SettingsServiceInterface
 from ccpragents.infrastructure.utils.cache_decorator import CachingMixin, cached_method
@@ -111,6 +112,140 @@ class SettingsService(SettingsServiceInterface, CachingMixin):
             "logging_enabled": self.get("app.logging_enabled", True),
             "log_format": self.get("app.log_format", "simple"),
         }
+
+    def validate_setting(self, key: str, value: Any) -> bool:
+        """Validate a single setting value.
+
+        Args:
+            key: Configuration key to validate
+            value: Value to validate
+
+        Returns:
+            bool: True if valid, False otherwise
+        """
+        try:
+            # Basic type and range validation for common settings
+            if key.endswith(".rate_limit"):
+                return isinstance(value, int) and 1 <= value <= 100000
+            elif key.endswith(".timeout"):
+                return isinstance(value, int) and 1 <= value <= 300
+            elif key.endswith(".max_retries"):
+                return isinstance(value, int) and 0 <= value <= 20
+            elif key.endswith(".retry_delay"):
+                return isinstance(value, (int, float)) and 0.1 <= value <= 30.0
+            elif key.endswith(".debug") or key.endswith(".enabled"):
+                return isinstance(value, bool)
+            elif key.endswith(".port"):
+                return isinstance(value, int) and 1 <= value <= 65535
+            elif key.endswith(".log_level"):
+                return value in ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
+            elif key.endswith(".ignore_patterns") or key.endswith(".valid_extensions"):
+                return isinstance(value, (list, tuple)) and all(
+                    isinstance(item, str) for item in value
+                )
+
+            # Default validation - just check that value is not None for required settings
+            required_keys = [
+                "app.debug",
+                "app.log_level",
+                "github.rate_limit",
+                "github.timeout",
+            ]
+            if key in required_keys:
+                return value is not None
+
+            return True  # Allow any value for unvalidated keys
+
+        except Exception:
+            return False
+
+    def get_configuration_warnings(self) -> List[str]:
+        """Get configuration warnings for potential issues.
+
+        Returns:
+            List[str]: List of configuration warnings
+        """
+        warnings = []
+
+        try:
+            # Check for common configuration issues
+            rate_limit = self.get("github.rate_limit", 5000)
+            if rate_limit > 5000:
+                warnings.append(
+                    f"High rate limit ({rate_limit}) may cause API throttling"
+                )
+
+            timeout = self.get("github.timeout", 30)
+            if timeout < 10:
+                warnings.append(
+                    f"Low timeout ({timeout}s) may cause premature failures"
+                )
+
+            max_retries = self.get("github.max_retries", 3)
+            if max_retries > 10:
+                warnings.append(
+                    f"High retry count ({max_retries}) may increase latency"
+                )
+
+            # Check for missing environment variables
+            github_token = os.getenv("GITHUB_TOKEN")
+            if not github_token:
+                warnings.append(
+                    "GITHUB_TOKEN environment variable not set - using anonymous access"
+                )
+
+            # Check cache settings
+            use_hashed_keys = self.get("cache.use_hashed_keys", True)
+            if not use_hashed_keys:
+                warnings.append("Cache key hashing disabled - may use more memory")
+
+        except Exception as e:
+            warnings.append(f"Error checking configuration: {e}")
+
+        return warnings
+
+    def is_development_mode(self) -> bool:
+        """Check if running in development mode.
+
+        Returns:
+            bool: True if in development mode
+        """
+        return (
+            self.get("app.debug", False)
+            or os.getenv("ENV_FOR_DYNACONF") == "development"
+        )
+
+    def get_environment_info(self) -> Dict[str, Any]:
+        """Get environment and configuration information.
+
+        Returns:
+            Dict[str, Any]: Environment and configuration details
+        """
+        return {
+            "environment": os.getenv("ENV_FOR_DYNACONF", "default"),
+            "debug_mode": self.is_development_mode(),
+            "configuration_files": self._get_loaded_config_files(),
+            "warnings": self.get_configuration_warnings(),
+            "python_version": os.sys.version.split()[0],
+            "platform": os.sys.platform,
+        }
+
+    def _get_loaded_config_files(self) -> List[str]:
+        """Get list of loaded configuration files.
+
+        Returns:
+            List[str]: List of configuration file paths
+        """
+        try:
+            # Try to get loaded files from Dynaconf
+            if hasattr(self.settings, "_loaded_files"):
+                return list(self.settings._loaded_files)
+            elif hasattr(self.settings, "settings_files"):
+                return list(self.settings.settings_files)
+            else:
+                return []
+        except Exception:
+            return []
 
     # Explicitly override clear_cache to satisfy the abstract method requirement
     # Even though CachingMixin provides this, we need to make it explicit for ABC
