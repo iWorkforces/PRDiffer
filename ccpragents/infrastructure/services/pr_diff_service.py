@@ -4,6 +4,7 @@ This module provides the concrete implementation of PRDiffServiceInterface
 using GitHub API operations.
 """
 
+import os
 from typing import Optional
 
 from ccpragents.domain.services.pr_diff_service import PRDiffServiceInterface
@@ -21,6 +22,12 @@ class GitHubPRDiffService(PRDiffServiceInterface):
             github_api_client: Optional GitHub API client (created if None)
         """
         self._github_api = github_api_client or GitHubAPIClient()
+
+        # Initialize the GitHub client with environment variables and settings
+        github_token = os.getenv("GITHUB_TOKEN")
+        timeout = int(os.getenv("GITHUB_TIMEOUT", "30"))
+
+        self._github_api.initialize_client(github_token=github_token, timeout=timeout)
 
     async def get_pr_diff(
         self,
@@ -46,7 +53,7 @@ class GitHubPRDiffService(PRDiffServiceInterface):
         """
         try:
             # Use the GitHub API client to get repository and PR
-            repository = self._github_api.get_repository(repo_owner, repo_name)
+            repository = self._github_api.get_repository(f"{repo_owner}/{repo_name}")
             if not repository:
                 return None
 
@@ -55,7 +62,7 @@ class GitHubPRDiffService(PRDiffServiceInterface):
                 return None
 
             # Get the files in the PR
-            files = self._github_api.get_pr_files(pull_request)
+            files = pull_request.get_files()
 
             # Get the latest commit SHA
             latest_commit_sha = self.get_latest_commit_sha(
@@ -112,7 +119,7 @@ class GitHubPRDiffService(PRDiffServiceInterface):
             )
             return None
 
-    def get_latest_commit_sha(
+    async def get_latest_commit_sha(
         self,
         repo_owner: str,
         repo_name: str,
@@ -133,7 +140,7 @@ class GitHubPRDiffService(PRDiffServiceInterface):
             AuthenticationError: If authentication fails
         """
         try:
-            repository = self._github_api.get_repository(repo_owner, repo_name)
+            repository = self._github_api.get_repository(f"{repo_owner}/{repo_name}")
             if not repository:
                 return None
 
@@ -180,7 +187,7 @@ class GitHubPRDiffService(PRDiffServiceInterface):
             bool: True if repository is accessible, False otherwise
         """
         try:
-            repository = self._github_api.get_repository(repo_owner, repo_name)
+            repository = self._github_api.get_repository(f"{repo_owner}/{repo_name}")
             return repository is not None
         except Exception as e:
             # Log the error and return False for graceful degradation
