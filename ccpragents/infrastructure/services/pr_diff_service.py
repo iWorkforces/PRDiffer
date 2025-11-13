@@ -9,6 +9,7 @@ from typing import Optional
 
 from ccpragents.domain.services.pr_diff_service import PRDiffServiceInterface
 from ccpragents.domain.entities.pr_diff import PRDiff
+from ccpragents.domain.entities.file_patch import FilePatchInfo, EDIT_TYPE
 from ccpragents.infrastructure.github.api_client import GitHubAPIClient
 
 
@@ -61,11 +62,12 @@ class GitHubPRDiffService(PRDiffServiceInterface):
             if not pull_request:
                 return None
 
-            # Get the files in the PR
-            files = pull_request.get_files()
+            # Get the files in the PR and convert to FilePatchInfo
+            github_files = pull_request.get_files()
+            files = self._convert_github_files_to_file_patch_info(github_files)
 
             # Get the latest commit SHA
-            latest_commit_sha = self.get_latest_commit_sha(
+            latest_commit_sha = await self.get_latest_commit_sha(
                 repo_owner, repo_name, pr_number
             )
 
@@ -171,6 +173,59 @@ class GitHubPRDiffService(PRDiffServiceInterface):
                 type(e).__name__,
             )
             return None
+
+    def _convert_github_files_to_file_patch_info(self, github_files):
+        """Convert GitHub File objects to FilePatchInfo domain entities.
+
+        Args:
+            github_files: List of GitHub File objects from PyGithub
+
+        Returns:
+            List of FilePatchInfo objects
+        """
+        file_patch_infos = []
+
+        for github_file in github_files:
+            # Map GitHub file status to EDIT_TYPE
+            edit_type = self._map_github_status_to_edit_type(github_file.status)
+
+            # Get file content if available (for now, we'll use empty strings)
+            # In a full implementation, we would fetch the actual file content
+            base_file = ""
+            head_file = ""
+
+            # Create FilePatchInfo object
+            file_patch_info = FilePatchInfo(
+                filename=github_file.filename,
+                base_file=base_file,
+                head_file=head_file,
+                patch=github_file.patch or "",
+                edit_type=edit_type,
+                num_plus_lines=github_file.additions or 0,
+                num_minus_lines=github_file.deletions or 0,
+            )
+
+            file_patch_infos.append(file_patch_info)
+
+        return file_patch_infos
+
+    def _map_github_status_to_edit_type(self, status: str) -> EDIT_TYPE:
+        """Map GitHub file status to EDIT_TYPE enum.
+
+        Args:
+            status: GitHub file status (added, removed, modified, renamed)
+
+        Returns:
+            EDIT_TYPE enum value
+        """
+        status_mapping = {
+            "added": EDIT_TYPE.ADDED,
+            "removed": EDIT_TYPE.DELETED,
+            "modified": EDIT_TYPE.MODIFIED,
+            "renamed": EDIT_TYPE.RENAMED,
+        }
+
+        return status_mapping.get(status, EDIT_TYPE.UNKNOWN)
 
     def validate_repository_access(
         self,
