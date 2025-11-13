@@ -2,6 +2,12 @@
 
 # CCProxy - Code Linting Script
 # This script uses ruff to scan and fix all Python files for linting issues
+#
+# Prerequisite: ruff must be available in your environment.
+# Recommended:
+#   uv add --dev ruff    # project-local dev dependency
+#   # or
+#   uv tool install ruff # or pip install ruff in your venv
 
 set -e
 
@@ -95,7 +101,11 @@ check_ruff() {
     fi
 
     echo -e "${GREEN}✅ ruff is available${NC}"
-    echo -e "${CYAN}Version: $(uv run ruff --version)${NC}"
+    if command -v uv &> /dev/null; then
+        echo -e "${CYAN}Version: $(uv run ruff --version)${NC}"
+    else
+        echo -e "${CYAN}Version: $(ruff --version)${NC}"
+    fi
 }
 
 # Function to upgrade ruff to latest version
@@ -119,7 +129,11 @@ upgrade_ruff() {
     fi
 
     echo -e "${GREEN}✅ ruff upgraded to latest version${NC}"
-    echo -e "${CYAN}Version: $(uv run ruff --version)${NC}"
+    if command -v uv &> /dev/null; then
+        echo -e "${CYAN}Version: $(uv run ruff --version)${NC}"
+    else
+        echo -e "${CYAN}Version: $(ruff --version)${NC}"
+    fi
     echo ""
 }
 
@@ -175,7 +189,13 @@ run_check() {
     echo ""
 
     # Run ruff check with detailed output
-    if uv run ruff check . --output-format=full; then
+    if command -v uv &> /dev/null; then
+        RUN_RUFF="uv run ruff"
+    else
+        RUN_RUFF="ruff"
+    fi
+
+    if $RUN_RUFF check . --output-format=full; then
         echo ""
         echo -e "${GREEN}✅ No linting issues found!${NC}"
         return 0
@@ -193,12 +213,12 @@ run_check_stats() {
 
     # Get statistics by rule
     echo -e "${CYAN}Issues by rule:${NC}"
-    uv run ruff check . --output-format=concise | cut -d: -f4 | cut -d' ' -f2 | sort | uniq -c | sort -nr || true
+    ${RUN_RUFF:-ruff} check . --output-format=concise | cut -d: -f4 | cut -d' ' -f2 | sort | uniq -c | sort -nr || true
     echo ""
 
     # Get statistics by file
     echo -e "${CYAN}Files with issues:${NC}"
-    uv run ruff check . --output-format=concise | cut -d: -f1 | sort | uniq -c | sort -nr | head -10 || true
+    ${RUN_RUFF:-ruff} check . --output-format=concise | cut -d: -f1 | sort | uniq -c | sort -nr | head -10 || true
     echo ""
 }
 
@@ -208,7 +228,7 @@ run_fix() {
     echo ""
 
     # Run ruff with --fix flag
-    if uv run ruff check . --fix; then
+    if $RUN_RUFF check . --fix; then
         echo ""
         echo -e "${GREEN}✅ Automatic fixes applied successfully${NC}"
     else
@@ -219,7 +239,7 @@ run_fix() {
     # Show remaining issues
     echo ""
     echo -e "${BLUE}🔍 Checking for remaining issues...${NC}"
-    if uv run ruff check . --output-format=concise; then
+    if $RUN_RUFF check . --output-format=concise; then
         echo -e "${GREEN}✅ All fixable issues have been resolved${NC}"
     else
         echo -e "${YELLOW}⚠️  Some issues require manual attention${NC}"
@@ -270,7 +290,11 @@ run_format() {
     echo ""
 
     # Run ruff format (ignore failures, whitespace will be stripped anyway)
-    uv run ruff format . || true
+    if command -v uv &> /dev/null; then
+        uv run ruff format . || true
+    else
+        ruff format . || true
+    fi
 
     # Remove trailing whitespace in all Python files
     find_python_files
@@ -350,7 +374,11 @@ install_ruff() {
     fi
 
     echo -e "${GREEN}✅ ruff installation completed${NC}"
-    echo -e "${CYAN}Version: $(uv run ruff --version)${NC}"
+    if command -v uv &> /dev/null; then
+        echo -e "${CYAN}Version: $(uv run ruff --version)${NC}"
+    else
+        echo -e "${CYAN}Version: $(ruff --version)${NC}"
+    fi
 }
 
 # Function to list files
