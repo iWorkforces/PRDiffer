@@ -2,11 +2,11 @@
 
 from .pr_diff_application_service import (
     PRDiffApplicationService,
-    PRDiffApplicationServiceInterface
+    PRDiffApplicationServiceInterface,
 )
 from .health_check_application_service import (
     HealthCheckApplicationService,
-    HealthCheckApplicationServiceInterface
+    HealthCheckApplicationServiceInterface,
 )
 
 __all__ = [

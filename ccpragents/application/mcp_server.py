@@ -26,12 +26,6 @@ from .interfaces.protocols import (
     ServerConfigurationProtocol,
 )
 
-from .components.url_validator import URLValidator
-from .components.rate_limiter import RateLimiter
-from .components.metrics_tracker import MetricsTracker
-from .components.pr_operation_handler import PROperationHandler
-from .components.health_monitor import HealthMonitor
-from .components.server_configuration import ServerConfiguration
 
 # Type alias for valid MCP transport modes
 TransportMode: TypeAlias = Literal["stdio", "http", "sse", "streamable-http"]
@@ -101,7 +95,10 @@ class FastMCPServer:
         # Initialize security validator - should be injected for Clean Architecture
         if input_validator is None:
             # Fallback to direct instantiation only for backward compatibility
-            from ccpragents.infrastructure.security.input_validator import InputValidator
+            from ccpragents.infrastructure.security.input_validator import (
+                InputValidator,
+            )
+
             self._input_validator = InputValidator()
         else:
             self._input_validator = input_validator
@@ -109,7 +106,10 @@ class FastMCPServer:
         # Initialize request coalescing service - should be injected for Clean Architecture
         if request_coalescing_service is None:
             # Fallback to direct instantiation only for backward compatibility
-            from ccpragents.infrastructure.request_coalescing import get_request_coalescing_service
+            from ccpragents.infrastructure.request_coalescing import (
+                get_request_coalescing_service,
+            )
+
             self._request_coalescing = get_request_coalescing_service()
         else:
             self._request_coalescing = request_coalescing_service

@@ -5,12 +5,11 @@ operations, coordinating between use cases, infrastructure services,
 and presentation logic.
 """
 
-from typing import Optional, List, Dict, Any
+from typing import List, Dict, Any
 from abc import ABC, abstractmethod
 
 from ccpragents.domain.entities.pr_diff import PRDiff
 from ccpragents.domain.entities.file_patch import FilePatchInfo
-from ccpragents.domain.usecases import GetPRDiffUseCase
 from ccpragents.domain.services.logger import LoggerServiceInterface
 from ccpragents.domain.services.settings import SettingsServiceInterface
 
@@ -111,7 +110,7 @@ class PRDiffApplicationService(PRDiffApplicationServiceInterface):
             repo_owner=repo_owner,
             repo_name=repo_name,
             pr_number=pr_number,
-            pr_url=pr_url
+            pr_url=pr_url,
         )
 
         try:
@@ -137,9 +136,9 @@ class PRDiffApplicationService(PRDiffApplicationServiceInterface):
                         edit_type="modified",
                         num_plus_lines=1,
                         num_minus_lines=1,
-                        language="python"
+                        language="python",
                     )
-                ]
+                ],
             )
 
             self._logger.info(
@@ -148,7 +147,7 @@ class PRDiffApplicationService(PRDiffApplicationServiceInterface):
                 repo_name=repo_name,
                 pr_number=pr_number,
                 files_count=len(pr_diff.files),
-                total_changes=pr_diff.get_total_changes()
+                total_changes=pr_diff.get_total_changes(),
             )
 
             return pr_diff
@@ -160,7 +159,7 @@ class PRDiffApplicationService(PRDiffApplicationServiceInterface):
                 repo_name=repo_name,
                 pr_number=pr_number,
                 error=str(e),
-                error_type=type(e).__name__
+                error_type=type(e).__name__,
             )
             raise
 
@@ -181,12 +180,9 @@ class PRDiffApplicationService(PRDiffApplicationServiceInterface):
                 "Failed to get PR diff summary",
                 pr_url=pr_url,
                 error=str(e),
-                error_type=type(e).__name__
+                error_type=type(e).__name__,
             )
-            return {
-                "error": f"Failed to get PR diff summary: {e}",
-                "pr_url": pr_url
-            }
+            return {"error": f"Failed to get PR diff summary: {e}", "pr_url": pr_url}
 
     async def get_file_analysis(self, pr_url: str) -> List[Dict[str, Any]]:
         """Get analysis of all files in the PR.
@@ -205,7 +201,7 @@ class PRDiffApplicationService(PRDiffApplicationServiceInterface):
                 "Failed to get file analysis",
                 pr_url=pr_url,
                 error=str(e),
-                error_type=type(e).__name__
+                error_type=type(e).__name__,
             )
             return []
 

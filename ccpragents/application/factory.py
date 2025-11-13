@@ -7,7 +7,6 @@ from ccpragents.domain.services.settings import SettingsServiceInterface
 from ccpragents.domain.services.cache import CacheServiceInterface
 from ccpragents.domain.services.repository_cache import RepositoryCacheServiceInterface
 from ccpragents.domain.services.logger import LoggerServiceInterface
-from ccpragents.domain.repositories.pr_diff_repository import PRDiffRepositoryInterface
 
 # Infrastructure factory
 from ccpragents.infrastructure.factories import get_infrastructure_factory
@@ -52,7 +51,9 @@ def create_mcp_server(
         cache_service = infrastructure_factory.create_cache_service()
 
     if repository_cache_service is None:
-        repository_cache_service = infrastructure_factory.create_repository_cache_service()
+        repository_cache_service = (
+            infrastructure_factory.create_repository_cache_service()
+        )
 
     # Create application layer components via infrastructure factory
     url_validator = infrastructure_factory.create_url_validator(logger)
@@ -83,7 +84,9 @@ def create_mcp_server(
     # Create infrastructure services that need to be injected
     # Import infrastructure services for injection
     from ccpragents.infrastructure.security.input_validator import InputValidator
-    from ccpragents.infrastructure.request_coalescing import get_request_coalescing_service
+    from ccpragents.infrastructure.request_coalescing import (
+        get_request_coalescing_service,
+    )
 
     input_validator_instance = InputValidator()
     request_coalescing_instance = get_request_coalescing_service()
@@ -130,10 +133,12 @@ def create_mcp_server_legacy(
     # Convert logging.Logger to LoggerServiceInterface for backward compatibility
     if logger is None:
         from ccpragents.infrastructure.logging.console_logger import get_logger
+
         logger_service = get_logger()
     else:
         # For legacy compatibility, if a logging.Logger is passed, use get_logger instead
         from ccpragents.infrastructure.logging.console_logger import get_logger
+
         logger_service = get_logger()
 
     return FastMCPServer(

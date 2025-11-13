@@ -8,6 +8,8 @@ dependency for use cases.
 from abc import ABC, abstractmethod
 from typing import Optional
 
+from ccpragents.domain.entities.pr_diff import PRDiff
+
 
 class PRDiffServiceInterface(ABC):
     """Abstract interface for PR diff operations at the domain level."""
@@ -18,7 +20,7 @@ class PRDiffServiceInterface(ABC):
         repo_owner: str,
         repo_name: str,
         pr_number: int,
-    ) -> Optional["PRDiff"]:
+    ) -> Optional[PRDiff]:
         """Get PR diff data for the specified repository and PR.
 
         Args:

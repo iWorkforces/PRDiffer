@@ -6,7 +6,6 @@ using GitHub API operations and utility services.
 
 from typing import List, Optional
 import asyncio
-from concurrent.futures import ThreadPoolExecutor
 
 from ccpragents.domain.services.file_processing import FileProcessingServiceInterface
 from ccpragents.domain.entities.file_patch import FilePatchInfo
@@ -89,11 +88,12 @@ class GitHubFileProcessingService(FileProcessingServiceInterface):
             for file_result in processed_files:
                 if isinstance(file_result, Exception):
                     import logging
+
                     logger = logging.getLogger(__name__)
                     logger.error(
                         "Failed to process file",
                         error=str(file_result),
-                        error_type=type(file_result).__name__
+                        error_type=type(file_result).__name__,
                     )
                 elif file_result:
                     result.append(file_result)
@@ -103,6 +103,7 @@ class GitHubFileProcessingService(FileProcessingServiceInterface):
         except Exception as e:
             # Log the error and return empty list for graceful degradation
             import logging
+
             logger = logging.getLogger(__name__)
             logger.error(
                 "Failed to process PR files",
@@ -110,11 +111,13 @@ class GitHubFileProcessingService(FileProcessingServiceInterface):
                 repo_name=repo_name,
                 pr_number=pr_number,
                 error=str(e),
-                error_type=type(e).__name__
+                error_type=type(e).__name__,
             )
             return []
 
-    async def _process_single_file(self, repository, pr_file) -> Optional[FilePatchInfo]:
+    async def _process_single_file(
+        self, repository, pr_file
+    ) -> Optional[FilePatchInfo]:
         """Process a single file and create FilePatchInfo.
 
         Args:
@@ -142,7 +145,7 @@ class GitHubFileProcessingService(FileProcessingServiceInterface):
             head_content = ""
 
             # Try to get file content if it's not a deletion
-            if pr_file.status != 'removed':
+            if pr_file.status != "removed":
                 head_content = self._github_api.get_file_content(repository, filename)
 
             # Generate diff
@@ -165,12 +168,13 @@ class GitHubFileProcessingService(FileProcessingServiceInterface):
 
         except Exception as e:
             import logging
+
             logger = logging.getLogger(__name__)
             logger.error(
                 "Failed to process single file",
-                filename=getattr(pr_file, 'filename', 'unknown'),
+                filename=getattr(pr_file, "filename", "unknown"),
                 error=str(e),
-                error_type=type(e).__name__
+                error_type=type(e).__name__,
             )
             return None
 
@@ -227,10 +231,13 @@ class GitHubFileProcessingService(FileProcessingServiceInterface):
                 return None
 
             # Get file content at specific commit
-            return self._github_api.get_file_content_at_commit(repository, file_path, commit_sha)
+            return self._github_api.get_file_content_at_commit(
+                repository, file_path, commit_sha
+            )
 
         except Exception as e:
             import logging
+
             logger = logging.getLogger(__name__)
             logger.error(
                 "Failed to get file content",
@@ -239,7 +246,7 @@ class GitHubFileProcessingService(FileProcessingServiceInterface):
                 file_path=file_path,
                 commit_sha=commit_sha,
                 error=str(e),
-                error_type=type(e).__name__
+                error_type=type(e).__name__,
             )
             return None
 
@@ -268,12 +275,13 @@ class GitHubFileProcessingService(FileProcessingServiceInterface):
             )
         except Exception as e:
             import logging
+
             logger = logging.getLogger(__name__)
             logger.error(
                 "Failed to generate file diff",
                 filename=filename,
                 error=str(e),
-                error_type=type(e).__name__
+                error_type=type(e).__name__,
             )
             # Return empty diff on failure
             return f"--- a/{filename}\n+++ b/{filename}\n@@ -0,0 +0,0 @@\n"
@@ -291,11 +299,12 @@ class GitHubFileProcessingService(FileProcessingServiceInterface):
             return self._diff_utility.is_binary_file(content)
         except Exception as e:
             import logging
+
             logger = logging.getLogger(__name__)
             logger.error(
                 "Failed to check if file is binary",
                 error=str(e),
-                error_type=type(e).__name__
+                error_type=type(e).__name__,
             )
             # Default to treating as text file on error
             return False
@@ -314,12 +323,13 @@ class GitHubFileProcessingService(FileProcessingServiceInterface):
             return self._diff_utility.detect_language(filename, content)
         except Exception as e:
             import logging
+
             logger = logging.getLogger(__name__)
             logger.error(
                 "Failed to detect file language",
                 filename=filename,
                 error=str(e),
-                error_type=type(e).__name__
+                error_type=type(e).__name__,
             )
             return None
 
@@ -333,9 +343,9 @@ class GitHubFileProcessingService(FileProcessingServiceInterface):
             str: Corresponding edit type
         """
         status_mapping = {
-            'added': 'ADDED',
-            'removed': 'DELETED',
-            'modified': 'MODIFIED',
-            'renamed': 'RENAMED',
+            "added": "ADDED",
+            "removed": "DELETED",
+            "modified": "MODIFIED",
+            "renamed": "RENAMED",
         }
-        return status_mapping.get(status, 'UNKNOWN')
+        return status_mapping.get(status, "UNKNOWN")

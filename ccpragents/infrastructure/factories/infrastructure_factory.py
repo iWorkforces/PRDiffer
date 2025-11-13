@@ -1,6 +1,8 @@
 """Concrete infrastructure factory implementation."""
 
-from ccpragents.domain.factories.infrastructure_factory import InfrastructureFactoryInterface
+from ccpragents.domain.factories.infrastructure_factory import (
+    InfrastructureFactoryInterface,
+)
 from ccpragents.domain.services.cache import CacheServiceInterface
 from ccpragents.domain.services.logger import LoggerServiceInterface
 from ccpragents.domain.services.settings import SettingsServiceInterface
@@ -25,7 +27,9 @@ from ccpragents.application.interfaces.protocols import (
 from ccpragents.infrastructure.settings import get_settings_service
 from ccpragents.infrastructure.logging.console_logger import get_logger
 from ccpragents.infrastructure.cache_service import get_cache_service
-from ccpragents.infrastructure.repository_cache_service import get_repository_cache_service
+from ccpragents.infrastructure.repository_cache_service import (
+    get_repository_cache_service,
+)
 from ccpragents.infrastructure.github.api_client import GitHubAPIClient
 from ccpragents.infrastructure.utils.diff_utils import DiffUtils
 from ccpragents.infrastructure.utils.pattern_matcher import PatternMatcher
@@ -33,7 +37,9 @@ from ccpragents.infrastructure.utils.retry_handler import RetryHandler
 
 # Infrastructure service implementations
 from ccpragents.infrastructure.services.pr_diff_service import GitHubPRDiffService
-from ccpragents.infrastructure.services.file_processing_service import GitHubFileProcessingService
+from ccpragents.infrastructure.services.file_processing_service import (
+    GitHubFileProcessingService,
+)
 
 # Application components
 from ccpragents.application.components.url_validator import URLValidator
@@ -87,15 +93,21 @@ class InfrastructureFactory(InfrastructureFactoryInterface):
         """Create file processing service instance."""
         return GitHubFileProcessingService()
 
-    def create_url_validator(self, logger: LoggerServiceInterface) -> URLValidatorProtocol:
+    def create_url_validator(
+        self, logger: LoggerServiceInterface
+    ) -> URLValidatorProtocol:
         """Create URL validator component."""
         return URLValidator()
 
-    def create_rate_limiter(self, logger: LoggerServiceInterface) -> RateLimiterProtocol:
+    def create_rate_limiter(
+        self, logger: LoggerServiceInterface
+    ) -> RateLimiterProtocol:
         """Create rate limiter component."""
         return RateLimiter(logger=logger)
 
-    def create_metrics_tracker(self, logger: LoggerServiceInterface) -> MetricsTrackerProtocol:
+    def create_metrics_tracker(
+        self, logger: LoggerServiceInterface
+    ) -> MetricsTrackerProtocol:
         """Create metrics tracker component."""
         return MetricsTracker(logger=logger)
 

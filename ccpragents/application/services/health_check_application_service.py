@@ -4,7 +4,7 @@ This service provides health monitoring and metrics collection for the
 application, aggregating information from various infrastructure services.
 """
 
-from typing import Dict, Any, List
+from typing import Dict, Any
 from datetime import datetime
 from abc import ABC, abstractmethod
 
@@ -90,9 +90,13 @@ class HealthCheckApplicationService(HealthCheckApplicationServiceInterface):
 
             # Determine overall health
             cache_healthy = cache_status.get("status") == "healthy"
-            deps_healthy = all(dep.get("status") == "healthy" for dep in service_deps.values())
+            deps_healthy = all(
+                dep.get("status") == "healthy" for dep in service_deps.values()
+            )
 
-            overall_status = "healthy" if (cache_healthy and deps_healthy) else "unhealthy"
+            overall_status = (
+                "healthy" if (cache_healthy and deps_healthy) else "unhealthy"
+            )
 
             health_info = {
                 "status": overall_status,
@@ -109,16 +113,14 @@ class HealthCheckApplicationService(HealthCheckApplicationServiceInterface):
                 "Health check completed",
                 status=overall_status,
                 cache_status=cache_status.get("status"),
-                dependencies_status="healthy" if deps_healthy else "unhealthy"
+                dependencies_status="healthy" if deps_healthy else "unhealthy",
             )
 
             return health_info
 
         except Exception as e:
             self._logger.error(
-                "Health check failed",
-                error=str(e),
-                error_type=type(e).__name__
+                "Health check failed", error=str(e), error_type=type(e).__name__
             )
 
             return {
@@ -159,7 +161,7 @@ class HealthCheckApplicationService(HealthCheckApplicationServiceInterface):
             cpu_usage = psutil.cpu_percent(interval=1)
 
             # Get disk usage
-            disk = psutil.disk_usage('/')
+            disk = psutil.disk_usage("/")
             disk_info = {
                 "total_gb": round(disk.total / 1024 / 1024 / 1024, 2),
                 "free_gb": round(disk.free / 1024 / 1024 / 1024, 2),
@@ -188,7 +190,7 @@ class HealthCheckApplicationService(HealthCheckApplicationServiceInterface):
             self._logger.error(
                 "Failed to get system metrics",
                 error=str(e),
-                error_type=type(e).__name__
+                error_type=type(e).__name__,
             )
 
             return {
@@ -287,9 +289,7 @@ class HealthCheckApplicationService(HealthCheckApplicationServiceInterface):
 
         except Exception as e:
             self._logger.error(
-                "Failed to get cache status",
-                error=str(e),
-                error_type=type(e).__name__
+                "Failed to get cache status", error=str(e), error_type=type(e).__name__
             )
 
             return {

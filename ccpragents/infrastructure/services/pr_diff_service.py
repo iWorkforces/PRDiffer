@@ -58,7 +58,9 @@ class GitHubPRDiffService(PRDiffServiceInterface):
             files = self._github_api.get_pr_files(pull_request)
 
             # Get the latest commit SHA
-            latest_commit_sha = self.get_latest_commit_sha(repo_owner, repo_name, pr_number)
+            latest_commit_sha = self.get_latest_commit_sha(
+                repo_owner, repo_name, pr_number
+            )
 
             # Create PRDiff entity
             pr_diff = PRDiff(
@@ -68,11 +70,21 @@ class GitHubPRDiffService(PRDiffServiceInterface):
                 pr_title=pull_request.title or "",
                 pr_body=pull_request.body or "",
                 author=pull_request.user.login if pull_request.user else "",
-                created_at=pull_request.created_at.isoformat() if pull_request.created_at else "",
-                updated_at=pull_request.updated_at.isoformat() if pull_request.updated_at else "",
-                merged_at=pull_request.merged_at.isoformat() if pull_request.merged_at else "",
-                closed_at=pull_request.closed_at.isoformat() if pull_request.closed_at else "",
-                state="merged" if pull_request.merged else ("closed" if pull_request.closed_at else "open"),
+                created_at=pull_request.created_at.isoformat()
+                if pull_request.created_at
+                else "",
+                updated_at=pull_request.updated_at.isoformat()
+                if pull_request.updated_at
+                else "",
+                merged_at=pull_request.merged_at.isoformat()
+                if pull_request.merged_at
+                else "",
+                closed_at=pull_request.closed_at.isoformat()
+                if pull_request.closed_at
+                else "",
+                state="merged"
+                if pull_request.merged
+                else ("closed" if pull_request.closed_at else "open"),
                 draft=pull_request.draft or False,
                 mergeable=pull_request.mergeable,
                 additions=pull_request.additions or 0,
@@ -88,6 +100,7 @@ class GitHubPRDiffService(PRDiffServiceInterface):
         except Exception as e:
             # Log the error and return None for graceful degradation
             import logging
+
             logger = logging.getLogger(__name__)
             logger.error(
                 "Failed to get PR diff",
@@ -95,7 +108,7 @@ class GitHubPRDiffService(PRDiffServiceInterface):
                 repo_name=repo_name,
                 pr_number=pr_number,
                 error=str(e),
-                error_type=type(e).__name__
+                error_type=type(e).__name__,
             )
             return None
 
@@ -140,6 +153,7 @@ class GitHubPRDiffService(PRDiffServiceInterface):
         except Exception as e:
             # Log the error and return None for graceful degradation
             import logging
+
             logger = logging.getLogger(__name__)
             logger.error(
                 "Failed to get latest commit SHA",
@@ -147,7 +161,7 @@ class GitHubPRDiffService(PRDiffServiceInterface):
                 repo_name=repo_name,
                 pr_number=pr_number,
                 error=str(e),
-                error_type=type(e).__name__
+                error_type=type(e).__name__,
             )
             return None
 
@@ -171,12 +185,13 @@ class GitHubPRDiffService(PRDiffServiceInterface):
         except Exception as e:
             # Log the error and return False for graceful degradation
             import logging
+
             logger = logging.getLogger(__name__)
             logger.error(
                 "Failed to validate repository access",
                 repo_owner=repo_owner,
                 repo_name=repo_name,
                 error=str(e),
-                error_type=type(e).__name__
+                error_type=type(e).__name__,
             )
             return False

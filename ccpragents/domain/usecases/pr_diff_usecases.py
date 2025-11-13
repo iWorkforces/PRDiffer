@@ -1,4 +1,6 @@
+from typing import Optional
 from ccpragents.domain.entities.pr_diff import PRDiff
+from ccpragents.domain.repositories.pr_diff_repository import PRDiffRepositoryInterface
 from ccpragents.domain.services import CacheServiceInterface
 from ccpragents.domain.services import PRDiffServiceInterface
 

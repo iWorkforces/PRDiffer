@@ -4,7 +4,7 @@ This component handles MCP protocol-specific operations while delegating
 business logic to the application layer.
 """
 
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 from abc import ABC, abstractmethod
 
 from ccpragents.domain.services.logger import LoggerServiceInterface
@@ -27,7 +27,9 @@ class MCPProtocolHandlerInterface(ABC):
         pass
 
     @abstractmethod
-    def register_tool(self, tool_name: str, tool_function: callable, description: str) -> None:
+    def register_tool(
+        self, tool_name: str, tool_function: callable, description: str
+    ) -> None:
         """Register an MCP tool.
 
         Args:
@@ -78,17 +80,13 @@ class MCPProtocolHandler(MCPProtocolHandlerInterface):
 
         tool_function = self._tools[tool_name]
         self._logger.info(
-            "Executing MCP tool",
-            tool_name=tool_name,
-            parameters=parameters
+            "Executing MCP tool", tool_name=tool_name, parameters=parameters
         )
 
         try:
             result = await tool_function(**parameters)
             self._logger.info(
-                "MCP tool execution completed",
-                tool_name=tool_name,
-                success=True
+                "MCP tool execution completed", tool_name=tool_name, success=True
             )
             return result
         except Exception as e:
@@ -96,11 +94,13 @@ class MCPProtocolHandler(MCPProtocolHandlerInterface):
                 "MCP tool execution failed",
                 tool_name=tool_name,
                 error=str(e),
-                error_type=type(e).__name__
+                error_type=type(e).__name__,
             )
             raise
 
-    def register_tool(self, tool_name: str, tool_function: callable, description: str) -> None:
+    def register_tool(
+        self, tool_name: str, tool_function: callable, description: str
+    ) -> None:
         """Register an MCP tool.
 
         Args:
@@ -112,9 +112,7 @@ class MCPProtocolHandler(MCPProtocolHandlerInterface):
         self._tool_descriptions[tool_name] = description
 
         self._logger.info(
-            "Registered MCP tool",
-            tool_name=tool_name,
-            description=description
+            "Registered MCP tool", tool_name=tool_name, description=description
         )
 
     def get_server_info(self) -> Dict[str, Any]:
@@ -127,5 +125,5 @@ class MCPProtocolHandler(MCPProtocolHandlerInterface):
             "name": "ccpragents",
             "version": "0.1.3",
             "tools": list(self._tool_descriptions.keys()),
-            "tool_descriptions": self._tool_descriptions
+            "tool_descriptions": self._tool_descriptions,
         }

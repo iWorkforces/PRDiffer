@@ -14,7 +14,9 @@ class MCPRequestValidatorInterface(ABC):
     """Abstract interface for MCP request validation."""
 
     @abstractmethod
-    def validate_tool_parameters(self, tool_name: str, parameters: Dict[str, Any]) -> bool:
+    def validate_tool_parameters(
+        self, tool_name: str, parameters: Dict[str, Any]
+    ) -> bool:
         """Validate parameters for an MCP tool call.
 
         Args:
@@ -50,7 +52,9 @@ class MCPRequestValidator(MCPRequestValidatorInterface):
         """
         self._logger = logger
 
-    def validate_tool_parameters(self, tool_name: str, parameters: Dict[str, Any]) -> bool:
+    def validate_tool_parameters(
+        self, tool_name: str, parameters: Dict[str, Any]
+    ) -> bool:
         """Validate parameters for an MCP tool call.
 
         Args:
@@ -65,7 +69,7 @@ class MCPRequestValidator(MCPRequestValidatorInterface):
             self._logger.warning(
                 "Invalid MCP parameters format",
                 tool_name=tool_name,
-                parameters_type=type(parameters).__name__
+                parameters_type=type(parameters).__name__,
             )
             return False
 
@@ -75,10 +79,7 @@ class MCPRequestValidator(MCPRequestValidatorInterface):
         elif tool_name == "health":
             return True  # Health tool has no parameters
         else:
-            self._logger.warning(
-                "Unknown MCP tool",
-                tool_name=tool_name
-            )
+            self._logger.warning("Unknown MCP tool", tool_name=tool_name)
             return False
 
     def _validate_get_pr_diff_parameters(self, parameters: Dict[str, Any]) -> bool:
@@ -94,7 +95,7 @@ class MCPRequestValidator(MCPRequestValidatorInterface):
         if "pr_url" not in parameters:
             self._logger.warning(
                 "Missing required parameter for get_pr_diff",
-                required_parameter="pr_url"
+                required_parameter="pr_url",
             )
             return False
 
@@ -106,16 +107,13 @@ class MCPRequestValidator(MCPRequestValidatorInterface):
                 "Invalid parameter type for get_pr_diff",
                 parameter_name="pr_url",
                 expected_type="str",
-                actual_type=type(pr_url).__name__
+                actual_type=type(pr_url).__name__,
             )
             return False
 
         # Basic format validation (detailed validation done by domain layer)
         if not pr_url or not pr_url.strip():
-            self._logger.warning(
-                "Empty pr_url parameter",
-                pr_url=pr_url
-            )
+            self._logger.warning("Empty pr_url parameter", pr_url=pr_url)
             return False
 
         return True

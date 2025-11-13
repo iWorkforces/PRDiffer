@@ -20,7 +20,7 @@ class DiffCompilationServiceInterface(ABC):
         files: List[FilePatchInfo],
         commit_messages: Optional[List[str]] = None,
         pr_title: Optional[str] = None,
-        pr_body: Optional[str] = None
+        pr_body: Optional[str] = None,
     ) -> str:
         """Compile a complete PR diff from file patches.
 
@@ -76,7 +76,7 @@ class DiffCompilationServiceInterface(ABC):
         repository_name: str,
         pr_number: int,
         files: List[FilePatchInfo],
-        stats_only: bool = False
+        stats_only: bool = False,
     ) -> Dict[str, any]:
         """Generate a summary of the diff.
 
@@ -123,7 +123,9 @@ class DiffCompilationServiceInterface(ABC):
         pass
 
     @abstractmethod
-    def extract_changed_lines(self, file_patch: FilePatchInfo, context_lines: int = 3) -> List[str]:
+    def extract_changed_lines(
+        self, file_patch: FilePatchInfo, context_lines: int = 3
+    ) -> List[str]:
         """Extract changed lines with context from a file patch.
 
         Args:

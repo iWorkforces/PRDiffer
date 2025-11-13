@@ -14,7 +14,9 @@ class GitHubFileServiceInterface(ABC):
     """Abstract interface for GitHub file operations."""
 
     @abstractmethod
-    async def get_pr_files(self, repository: Repository, pull_request_number: int) -> List[ContentFile]:
+    async def get_pr_files(
+        self, repository: Repository, pull_request_number: int
+    ) -> List[ContentFile]:
         """Get all files changed in a pull request.
 
         Args:
@@ -32,7 +34,9 @@ class GitHubFileServiceInterface(ABC):
         pass
 
     @abstractmethod
-    async def get_file_content(self, repository: Repository, file_path: str, ref: str) -> Optional[str]:
+    async def get_file_content(
+        self, repository: Repository, file_path: str, ref: str
+    ) -> Optional[str]:
         """Get the content of a specific file.
 
         Args:
@@ -52,10 +56,7 @@ class GitHubFileServiceInterface(ABC):
 
     @abstractmethod
     async def batch_get_file_content(
-        self,
-        repository: Repository,
-        file_paths: List[str],
-        ref: str
+        self, repository: Repository, file_paths: List[str], ref: str
     ) -> Dict[str, Optional[str]]:
         """Get content for multiple files efficiently.
 
@@ -75,10 +76,7 @@ class GitHubFileServiceInterface(ABC):
 
     @abstractmethod
     async def get_file_at_commit(
-        self,
-        repository: Repository,
-        file_path: str,
-        commit_sha: str
+        self, repository: Repository, file_path: str, commit_sha: str
     ) -> Optional[str]:
         """Get file content at a specific commit.
 

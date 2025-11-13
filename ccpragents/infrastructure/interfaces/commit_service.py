@@ -7,7 +7,6 @@ infrastructure layer, abstracting away the specific implementation details.
 from abc import ABC, abstractmethod
 from typing import Optional, List, Dict
 from github.Repository import Repository
-from github.PullRequest import PullRequest
 from github.Commit import Commit
 
 
@@ -15,7 +14,9 @@ class CommitServiceInterface(ABC):
     """Abstract interface for commit operations."""
 
     @abstractmethod
-    async def get_pr_commits(self, repository: Repository, pr_number: int) -> List[Commit]:
+    async def get_pr_commits(
+        self, repository: Repository, pr_number: int
+    ) -> List[Commit]:
         """Get all commits in a pull request.
 
         Args:
@@ -33,7 +34,9 @@ class CommitServiceInterface(ABC):
         pass
 
     @abstractmethod
-    async def get_latest_commit_sha(self, repository: Repository, pr_number: int) -> Optional[str]:
+    async def get_latest_commit_sha(
+        self, repository: Repository, pr_number: int
+    ) -> Optional[str]:
         """Get the latest commit SHA for a pull request.
 
         Args:
@@ -52,10 +55,7 @@ class CommitServiceInterface(ABC):
 
     @abstractmethod
     async def get_merge_base(
-        self,
-        repository: Repository,
-        base_ref: str,
-        head_ref: str
+        self, repository: Repository, base_ref: str, head_ref: str
     ) -> Optional[str]:
         """Get the merge base commit between two references.
 
@@ -76,10 +76,7 @@ class CommitServiceInterface(ABC):
 
     @abstractmethod
     async def compare_commits(
-        self,
-        repository: Repository,
-        base_sha: str,
-        head_sha: str
+        self, repository: Repository, base_sha: str, head_sha: str
     ) -> Dict[str, any]:
         """Compare two commits and get the diff.
 
@@ -99,7 +96,9 @@ class CommitServiceInterface(ABC):
         pass
 
     @abstractmethod
-    async def get_commit_messages(self, repository: Repository, pr_number: int) -> List[str]:
+    async def get_commit_messages(
+        self, repository: Repository, pr_number: int
+    ) -> List[str]:
         """Get commit messages for all commits in a PR.
 
         Args:

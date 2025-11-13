@@ -1,11 +1,14 @@
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator
 from typing import Optional, List
 from enum import StrEnum
 from datetime import datetime
 
+from ccpragents.domain.entities.file_patch import FilePatchInfo
+
 
 class PRState(StrEnum):
     """Pull request state enumeration."""
+
     OPEN = "open"
     CLOSED = "closed"
     MERGED = "merged"
@@ -35,8 +38,12 @@ class PRDiff(BaseModel):
     # Timestamps
     created_at: str = Field("", description="PR creation timestamp (ISO format)")
     updated_at: str = Field("", description="PR last update timestamp (ISO format)")
-    merged_at: Optional[str] = Field(None, description="PR merge timestamp (ISO format)")
-    closed_at: Optional[str] = Field(None, description="PR close timestamp (ISO format)")
+    merged_at: Optional[str] = Field(
+        None, description="PR merge timestamp (ISO format)"
+    )
+    closed_at: Optional[str] = Field(
+        None, description="PR close timestamp (ISO format)"
+    )
 
     # Statistics
     additions: int = Field(0, ge=0, description="Number of lines added")
@@ -47,34 +54,39 @@ class PRDiff(BaseModel):
     commit_sha: str = Field("", description="Latest commit SHA")
 
     # File changes (aggregate root for FilePatchInfo objects)
-    files: List["FilePatchInfo"] = Field(default_factory=list, description="List of file changes")
-    commits: List[str] = Field(default_factory=list, description="List of commit SHAs in PR")
+    files: List[FilePatchInfo] = Field(
+        default_factory=list, description="List of file changes"
+    )
+    commits: List[str] = Field(
+        default_factory=list, description="List of commit SHAs in PR"
+    )
 
     # Diff content (for backward compatibility)
     diff_content: str = Field("", description="Combined diff content for all files")
-    commit_messages: Optional[str] = Field(None, description="Formatted commit messages")
+    commit_messages: Optional[str] = Field(
+        None, description="Formatted commit messages"
+    )
 
     class Config:
         """Pydantic configuration."""
-        json_encoders = {
-            datetime: lambda v: v.isoformat() if v else None
-        }
+
+        json_encoders = {datetime: lambda v: v.isoformat() if v else None}
         validate_assignment = True
 
-    @validator('repo_owner', 'repo_name')
+    @field_validator("repo_owner", "repo_name")
     def validate_repository_identifiers(cls, v):
         """Validate repository owner and name."""
         if not v or not v.strip():
-            raise ValueError('Repository identifiers cannot be empty')
+            raise ValueError("Repository identifiers cannot be empty")
         if len(v.strip()) > 100:
-            raise ValueError('Repository identifiers cannot exceed 100 characters')
+            raise ValueError("Repository identifiers cannot exceed 100 characters")
         return v.strip()
 
-    @validator('pr_title')
+    @field_validator("pr_title")
     def validate_pr_title(cls, v):
         """Validate PR title."""
         if v and len(v.strip()) > 500:
-            raise ValueError('PR title cannot exceed 500 characters')
+            raise ValueError("PR title cannot exceed 500 characters")
         return v.strip() if v else v
 
     def get_total_changes(self) -> int:
@@ -116,7 +128,9 @@ class PRDiff(BaseModel):
         language_counts = {}
         for file in self.files:
             if file.language:
-                language_counts[file.language] = language_counts.get(file.language, 0) + 1
+                language_counts[file.language] = (
+                    language_counts.get(file.language, 0) + 1
+                )
         return language_counts
 
     def is_ready_for_review(self) -> bool:

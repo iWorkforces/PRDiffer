@@ -6,7 +6,6 @@ dependency inversion principle.
 """
 
 from abc import ABC, abstractmethod
-from typing import Optional
 
 from ccpragents.domain.services.cache import CacheServiceInterface
 from ccpragents.domain.services.logger import LoggerServiceInterface
@@ -77,17 +76,23 @@ class InfrastructureFactoryInterface(ABC):
 
     # Application layer component factories
     @abstractmethod
-    def create_url_validator(self, logger: LoggerServiceInterface) -> URLValidatorProtocol:
+    def create_url_validator(
+        self, logger: LoggerServiceInterface
+    ) -> URLValidatorProtocol:
         """Create URL validator component."""
         pass
 
     @abstractmethod
-    def create_rate_limiter(self, logger: LoggerServiceInterface) -> RateLimiterProtocol:
+    def create_rate_limiter(
+        self, logger: LoggerServiceInterface
+    ) -> RateLimiterProtocol:
         """Create rate limiter component."""
         pass
 
     @abstractmethod
-    def create_metrics_tracker(self, logger: LoggerServiceInterface) -> MetricsTrackerProtocol:
+    def create_metrics_tracker(
+        self, logger: LoggerServiceInterface
+    ) -> MetricsTrackerProtocol:
         """Create metrics tracker component."""
         pass
 

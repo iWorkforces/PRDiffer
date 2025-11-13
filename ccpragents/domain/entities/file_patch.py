@@ -1,11 +1,11 @@
 from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Optional, List
-import re
 
 
 class EDIT_TYPE(StrEnum):
     """File edit type enumeration."""
+
     ADDED = "added"
     DELETED = "deleted"
     MODIFIED = "modified"
@@ -58,8 +58,8 @@ class FilePatchInfo:
         Returns:
             Optional[str]: File extension (e.g., '.py', '.js') or None
         """
-        if '.' in self.filename:
-            return '.' + self.filename.split('.')[-1].lower()
+        if "." in self.filename:
+            return "." + self.filename.split(".")[-1].lower()
         return None
 
     def _detect_binary_file(self) -> bool:
@@ -70,11 +70,33 @@ class FilePatchInfo:
         """
         # Check common binary extensions
         binary_extensions = {
-            '.jpg', '.jpeg', '.png', '.gif', '.bmp', '.ico',
-            '.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx',
-            '.zip', '.tar', '.gz', '.7z', '.rar',
-            '.exe', '.dll', '.so', '.dylib',
-            '.mp3', '.mp4', '.avi', '.mov', '.wmv',
+            ".jpg",
+            ".jpeg",
+            ".png",
+            ".gif",
+            ".bmp",
+            ".ico",
+            ".pdf",
+            ".doc",
+            ".docx",
+            ".xls",
+            ".xlsx",
+            ".ppt",
+            ".pptx",
+            ".zip",
+            ".tar",
+            ".gz",
+            ".7z",
+            ".rar",
+            ".exe",
+            ".dll",
+            ".so",
+            ".dylib",
+            ".mp3",
+            ".mp4",
+            ".avi",
+            ".mov",
+            ".wmv",
         }
 
         if self._file_extension in binary_extensions:
@@ -84,7 +106,7 @@ class FilePatchInfo:
         if self.head_file:
             try:
                 # Try to decode as text
-                self.head_file.encode('utf-8').decode('utf-8')
+                self.head_file.encode("utf-8").decode("utf-8")
                 return False
             except UnicodeDecodeError:
                 return True
@@ -156,8 +178,11 @@ class FilePatchInfo:
         Returns:
             bool: True if change is significant
         """
-        return (self.total_changes > 50 or
-                self.edit_type in [EDIT_TYPE.ADDED, EDIT_TYPE.DELETED, EDIT_TYPE.RENAMED])
+        return self.total_changes > 50 or self.edit_type in [
+            EDIT_TYPE.ADDED,
+            EDIT_TYPE.DELETED,
+            EDIT_TYPE.RENAMED,
+        ]
 
     def get_summary(self) -> dict:
         """Get a summary of the file change.
@@ -234,7 +259,7 @@ class FilePatchInfo:
                 "context_lines": 0,
                 "addition_lines": 0,
                 "deletion_lines": 0,
-                "diff_lines": []
+                "diff_lines": [],
             }
 
         # Parse diff to extract statistics
@@ -246,13 +271,13 @@ class FilePatchInfo:
 
         for line in self.patch.splitlines():
             diff_lines.append(line)
-            if line.startswith('@@'):
+            if line.startswith("@@"):
                 hunks += 1
-            elif line.startswith(' '):
+            elif line.startswith(" "):
                 context_lines += 1
-            elif line.startswith('+') and not line.startswith('+++'):
+            elif line.startswith("+") and not line.startswith("+++"):
                 addition_lines += 1
-            elif line.startswith('-') and not line.startswith('---'):
+            elif line.startswith("-") and not line.startswith("---"):
                 deletion_lines += 1
 
         return {
@@ -261,7 +286,7 @@ class FilePatchInfo:
             "addition_lines": addition_lines,
             "deletion_lines": deletion_lines,
             "diff_lines": diff_lines,
-            "total_diff_lines": len(diff_lines)
+            "total_diff_lines": len(diff_lines),
         }
 
     def format_for_display(self, max_context_lines: int = 10) -> str:
@@ -284,5 +309,5 @@ class FilePatchInfo:
         header_lines = min(max_context_lines // 2, len(lines))
         footer_lines = max_context_lines - header_lines
 
-        displayed_lines = lines[:header_lines] + ['...'] + lines[-footer_lines:]
-        return '\n'.join(displayed_lines)
+        displayed_lines = lines[:header_lines] + ["..."] + lines[-footer_lines:]
+        return "\n".join(displayed_lines)
