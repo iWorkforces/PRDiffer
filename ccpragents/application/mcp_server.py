@@ -292,7 +292,9 @@ class FastMCPServer:
                             repo_name=repo_name,
                             pr_number=pr_number,
                         )
-                        raise ValueError("Failed to get PR diff - use case returned None")
+                        raise ValueError(
+                            "Failed to get PR diff - use case returned None"
+                        )
 
                     # Cache the repository after it's been used
                     if hasattr(repository, "_initialized") and getattr(

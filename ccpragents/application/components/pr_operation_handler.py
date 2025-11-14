@@ -5,7 +5,6 @@ from typing import Dict, Any, Optional, Tuple
 
 from ..interfaces.protocols import PROperationHandlerProtocol
 from ccpragents.domain.entities.pr_diff import PRDiff
-from ccpragents.domain.usecases import GetPRDiffUseCase
 from ccpragents.domain.services.cache import CacheServiceInterface
 from ccpragents.domain.services.repository_cache import RepositoryCacheServiceInterface
 from ccpragents.domain.repositories.pr_diff_repository import PRDiffRepositoryInterface
@@ -122,7 +121,7 @@ class PROperationHandler(PROperationHandlerProtocol):
             )
 
             # Initialize the repository with settings if it has an initialize method
-            if hasattr(repository, 'initialize'):
+            if hasattr(repository, "initialize"):
                 await repository.initialize()
 
             # Execute the repository directly (since we don't have a PRDiffService)

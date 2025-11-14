@@ -4,7 +4,7 @@ This module provides the concrete implementation of FileProcessingServiceInterfa
 using GitHub API operations and utility services.
 """
 
-from typing import List, Optional, Union
+from typing import List, Optional
 import asyncio
 
 from ccpragents.domain.entities.file_patch import EDIT_TYPE, FilePatchInfo
@@ -38,7 +38,9 @@ class GitHubFileProcessingService(FileProcessingServiceInterface):
         self._logger = logger
         self._github_api = github_api_client or GitHubAPIClient()
         self._diff_utility = diff_utility or DiffUtils()
-        self._pattern_matcher = pattern_matcher or PatternMatcher(ignore_patterns=[], valid_extensions=[])
+        self._pattern_matcher = pattern_matcher or PatternMatcher(
+            ignore_patterns=[], valid_extensions=[]
+        )
 
     async def process_pr_files(
         self,
@@ -147,7 +149,9 @@ class GitHubFileProcessingService(FileProcessingServiceInterface):
 
             # Try to get file content if it's not a deletion
             if pr_file.status != "removed":
-                head_content = self._github_api.get_file_content(repository, filename, "main")
+                head_content = self._github_api.get_file_content(
+                    repository, filename, "main"
+                )
 
             # Generate diff
             diff_content = self._diff_utility.build_full_file_patch(
@@ -229,9 +233,7 @@ class GitHubFileProcessingService(FileProcessingServiceInterface):
                 return None
 
             # Get file content at specific commit
-            return self._github_api.get_file_content(
-                repository, file_path, commit_sha
-            )
+            return self._github_api.get_file_content(repository, file_path, commit_sha)
 
         except Exception as e:
             self._logger.error(

@@ -9,7 +9,6 @@ from typing import List, Dict, Any
 from abc import ABC, abstractmethod
 
 from ccpragents.domain.entities.pr_diff import PRDiff
-from ccpragents.domain.entities.file_patch import FilePatchInfo
 from ccpragents.domain.services.logger import LoggerServiceInterface
 from ccpragents.domain.services.settings import SettingsServiceInterface
 
@@ -155,7 +154,10 @@ class PRDiffApplicationService(PRDiffApplicationServiceInterface):
         """
         try:
             pr_diff = await self.get_pr_diff(pr_url)
-            return {"diff_content": pr_diff.diff_content, "commit_messages": pr_diff.commit_messages}
+            return {
+                "diff_content": pr_diff.diff_content,
+                "commit_messages": pr_diff.commit_messages,
+            }
         except Exception as e:
             self._logger.error(
                 "Failed to get PR diff summary",
@@ -175,7 +177,6 @@ class PRDiffApplicationService(PRDiffApplicationServiceInterface):
             List[Dict[str, Any]]: List of file analysis results
         """
         try:
-            pr_diff = await self.get_pr_diff(pr_url)
             # Return empty list since PRDiff doesn't have files attribute
             return []
         except Exception as e:
