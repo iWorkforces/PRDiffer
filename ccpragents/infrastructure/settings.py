@@ -1,5 +1,6 @@
 from typing import Optional, Dict, Any, cast, List
 import os
+import sys
 from dynaconf import Dynaconf
 from ccpragents.domain.services import SettingsServiceInterface
 from ccpragents.infrastructure.utils.cache_decorator import CachingMixin, cached_method
@@ -226,8 +227,8 @@ class SettingsService(SettingsServiceInterface, CachingMixin):
             "debug_mode": self.is_development_mode(),
             "configuration_files": self._get_loaded_config_files(),
             "warnings": self.get_configuration_warnings(),
-            "python_version": os.sys.version.split()[0],
-            "platform": os.sys.platform,
+            "python_version": sys.version.split()[0],
+            "platform": sys.platform,
         }
 
     def _get_loaded_config_files(self) -> List[str]:

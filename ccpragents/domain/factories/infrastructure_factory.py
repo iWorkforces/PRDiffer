@@ -15,6 +15,7 @@ from ccpragents.domain.services.github_api import GitHubAPIServiceInterface
 from ccpragents.domain.services.diff import DiffServiceInterface
 from ccpragents.domain.services.pattern_matching import PatternMatchingServiceInterface
 from ccpragents.domain.services.retry import RetryServiceInterface
+from ccpragents.domain.services.pr_diff_service import PRDiffServiceInterface
 
 # Interface imports for infrastructure components
 from ccpragents.application.interfaces.protocols import (
@@ -74,6 +75,11 @@ class InfrastructureFactoryInterface(ABC):
         """Create retry service instance."""
         pass
 
+    @abstractmethod
+    def create_pr_diff_service(self) -> PRDiffServiceInterface:
+        """Create PR diff service instance."""
+        pass
+
     # Application layer component factories
     @abstractmethod
     def create_url_validator(
@@ -99,7 +105,7 @@ class InfrastructureFactoryInterface(ABC):
     @abstractmethod
     def create_pr_operation_handler(
         self,
-        github_api_service: GitHubAPIServiceInterface,
+        github_repository_class,
         cache_service: CacheServiceInterface,
         repository_cache_service: RepositoryCacheServiceInterface,
         diff_service: DiffServiceInterface,

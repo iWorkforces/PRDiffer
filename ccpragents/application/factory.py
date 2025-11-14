@@ -151,13 +151,41 @@ def create_mcp_server_legacy(
 
     # Create infrastructure factory to get PR diff service
     infrastructure_factory = get_infrastructure_factory()
+
+    # Create all required infrastructure components
     pr_diff_service = infrastructure_factory.create_pr_diff_service()
+    url_validator = infrastructure_factory.create_url_validator(logger_service)
+    rate_limiter = infrastructure_factory.create_rate_limiter(logger_service)
+    metrics_tracker = infrastructure_factory.create_metrics_tracker(logger_service)
+    pr_operation_handler = infrastructure_factory.create_pr_operation_handler(
+        github_repository_class=github_repository_class,
+        cache_service=cache_service,
+        repository_cache_service=repository_cache_service,
+        diff_service=infrastructure_factory.create_diff_service(),
+        pattern_matching_service=infrastructure_factory.create_pattern_matching_service(),
+        retry_service=infrastructure_factory.create_retry_service(),
+        logger=logger_service,
+    )
+    health_monitor = infrastructure_factory.create_health_monitor(
+        metrics_tracker=metrics_tracker,
+        rate_limiter=rate_limiter,
+        logger=logger_service,
+    )
+    server_configuration = infrastructure_factory.create_server_configuration(
+        settings_service, logger_service
+    )
 
     return FastMCPServer(
         settings_service=settings_service,
         cache_service=cache_service,
         repository_cache_service=repository_cache_service,
         pr_diff_service=pr_diff_service,
-        github_repository_class=github_repository_class,
         logger=logger_service,
+        github_repository_class=github_repository_class,
+        url_validator=url_validator,
+        rate_limiter=rate_limiter,
+        metrics_tracker=metrics_tracker,
+        pr_operation_handler=pr_operation_handler,
+        health_monitor=health_monitor,
+        server_configuration=server_configuration,
     )

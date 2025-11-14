@@ -8,6 +8,7 @@ import os
 from typing import Optional
 
 from ccpragents.domain.services.pr_diff_service import PRDiffServiceInterface
+from ccpragents.domain.services.github_api import GitHubAPIServiceInterface
 from ccpragents.domain.entities.pr_diff import PRDiff
 from ccpragents.domain.entities.file_patch import FilePatchInfo, EDIT_TYPE
 from ccpragents.infrastructure.github.api_client import GitHubAPIClient
@@ -20,7 +21,7 @@ class GitHubPRDiffService(PRDiffServiceInterface):
 
     def __init__(
         self,
-        github_api_client: Optional[GitHubAPIClient] = None,
+        github_api_client: Optional[GitHubAPIServiceInterface] = None,
         diff_generator: Optional[DiffGenerator] = None,
         file_processor: Optional[FileProcessor] = None,
     ):
@@ -281,14 +282,15 @@ class GitHubPRDiffService(PRDiffServiceInterface):
         """
         try:
             # Try to get the merge base
-            base_branch = pull_request.base.sha
+            base_branch: Optional[str] = pull_request.base.sha
             if base_branch:
                 return base_branch
 
             # Fallback: use the base branch reference
             base_ref = repository.get_git_ref(f"heads/{pull_request.base.ref}")
             if base_ref:
-                return base_ref.object.sha
+                base_sha: Optional[str] = base_ref.object.sha
+                return base_sha
 
             return None
         except Exception as e:

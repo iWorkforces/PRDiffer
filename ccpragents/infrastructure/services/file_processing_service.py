@@ -4,13 +4,14 @@ This module provides the concrete implementation of FileProcessingServiceInterfa
 using GitHub API operations and utility services.
 """
 
-from typing import List, Optional
+from typing import List, Optional, Union
 import asyncio
 
-from ccpragents.domain.entities.file_patch import FilePatchInfo
+from ccpragents.domain.entities.file_patch import EDIT_TYPE, FilePatchInfo
 from ccpragents.domain.services.file_processing_service import (
     FileProcessingServiceInterface,
 )
+from ccpragents.domain.services.logger import LoggerServiceInterface
 from ccpragents.infrastructure.github.api_client import GitHubAPIClient
 from ccpragents.infrastructure.utils.diff_utils import DiffUtils
 from ccpragents.infrastructure.utils.pattern_matcher import PatternMatcher
@@ -21,6 +22,7 @@ class GitHubFileProcessingService(FileProcessingServiceInterface):
 
     def __init__(
         self,
+        logger: LoggerServiceInterface,
         github_api_client: Optional[GitHubAPIClient] = None,
         diff_utility: Optional[DiffUtils] = None,
         pattern_matcher: Optional[PatternMatcher] = None,
@@ -28,13 +30,15 @@ class GitHubFileProcessingService(FileProcessingServiceInterface):
         """Initialize the service with required utilities.
 
         Args:
+            logger: Logger service for structured logging
             github_api_client: Optional GitHub API client (created if None)
             diff_utility: Optional diff utility (created if None)
             pattern_matcher: Optional pattern matcher (created if None)
         """
+        self._logger = logger
         self._github_api = github_api_client or GitHubAPIClient()
         self._diff_utility = diff_utility or DiffUtils()
-        self._pattern_matcher = pattern_matcher or PatternMatcher()
+        self._pattern_matcher = pattern_matcher or PatternMatcher(ignore_patterns=[], valid_extensions=[])
 
     async def process_pr_files(
         self,
@@ -61,7 +65,7 @@ class GitHubFileProcessingService(FileProcessingServiceInterface):
         """
         try:
             # Get repository and PR
-            repository = self._github_api.get_repository(repo_owner, repo_name)
+            repository = self._github_api.get_repository(f"{repo_owner}/{repo_name}")
             if not repository:
                 return []
 
@@ -70,7 +74,7 @@ class GitHubFileProcessingService(FileProcessingServiceInterface):
                 return []
 
             # Get PR files
-            pr_files = self._github_api.get_pr_files(pull_request)
+            pr_files = list(pull_request.get_files())
 
             # Filter files if max_files is specified
             if max_files and len(pr_files) > max_files:
@@ -86,28 +90,23 @@ class GitHubFileProcessingService(FileProcessingServiceInterface):
             processed_files = await asyncio.gather(*file_tasks, return_exceptions=True)
 
             # Filter out any exceptions and return successful results
-            result = []
+            result: List[FilePatchInfo] = []
             for file_result in processed_files:
                 if isinstance(file_result, Exception):
-                    import logging
-
-                    logger = logging.getLogger(__name__)
-                    logger.error(
+                    self._logger.error(
                         "Failed to process file",
                         error=str(file_result),
                         error_type=type(file_result).__name__,
                     )
-                elif file_result:
+                elif isinstance(file_result, FilePatchInfo):
+                    # Type narrowing: file_result is confirmed to be FilePatchInfo
                     result.append(file_result)
 
             return result
 
         except Exception as e:
             # Log the error and return empty list for graceful degradation
-            import logging
-
-            logger = logging.getLogger(__name__)
-            logger.error(
+            self._logger.error(
                 "Failed to process PR files",
                 repo_owner=repo_owner,
                 repo_name=repo_name,
@@ -148,18 +147,18 @@ class GitHubFileProcessingService(FileProcessingServiceInterface):
 
             # Try to get file content if it's not a deletion
             if pr_file.status != "removed":
-                head_content = self._github_api.get_file_content(repository, filename)
+                head_content = self._github_api.get_file_content(repository, filename, "main")
 
             # Generate diff
             diff_content = self._diff_utility.build_full_file_patch(
-                base_content, head_content, filename
+                base_content, head_content
             )
 
             # Create FilePatchInfo
             file_patch = FilePatchInfo(
                 filename=filename,
                 patch=diff_content,
-                edit_type=self._get_edit_type(pr_file.status),
+                edit_type=EDIT_TYPE(self._get_edit_type(pr_file.status)),
                 num_plus_lines=pr_file.additions or 0,
                 num_minus_lines=pr_file.deletions or 0,
                 language=self.get_file_language(filename, head_content),
@@ -169,10 +168,7 @@ class GitHubFileProcessingService(FileProcessingServiceInterface):
             return file_patch
 
         except Exception as e:
-            import logging
-
-            logger = logging.getLogger(__name__)
-            logger.error(
+            self._logger.error(
                 "Failed to process single file",
                 filename=getattr(pr_file, "filename", "unknown"),
                 error=str(e),
@@ -228,20 +224,17 @@ class GitHubFileProcessingService(FileProcessingServiceInterface):
             AuthenticationError: If authentication fails
         """
         try:
-            repository = self._github_api.get_repository(repo_owner, repo_name)
+            repository = self._github_api.get_repository(f"{repo_owner}/{repo_name}")
             if not repository:
                 return None
 
             # Get file content at specific commit
-            return self._github_api.get_file_content_at_commit(
+            return self._github_api.get_file_content(
                 repository, file_path, commit_sha
             )
 
         except Exception as e:
-            import logging
-
-            logger = logging.getLogger(__name__)
-            logger.error(
+            self._logger.error(
                 "Failed to get file content",
                 repo_owner=repo_owner,
                 repo_name=repo_name,
@@ -273,13 +266,10 @@ class GitHubFileProcessingService(FileProcessingServiceInterface):
         """
         try:
             return self._diff_utility.build_full_file_patch(
-                original_content, new_content, filename
+                original_content, new_content
             )
         except Exception as e:
-            import logging
-
-            logger = logging.getLogger(__name__)
-            logger.error(
+            self._logger.error(
                 "Failed to generate file diff",
                 filename=filename,
                 error=str(e),
@@ -300,10 +290,7 @@ class GitHubFileProcessingService(FileProcessingServiceInterface):
         try:
             return self._diff_utility.is_binary_file(content)
         except Exception as e:
-            import logging
-
-            logger = logging.getLogger(__name__)
-            logger.error(
+            self._logger.error(
                 "Failed to check if file is binary",
                 error=str(e),
                 error_type=type(e).__name__,
@@ -324,10 +311,7 @@ class GitHubFileProcessingService(FileProcessingServiceInterface):
         try:
             return self._diff_utility.detect_language(filename, content)
         except Exception as e:
-            import logging
-
-            logger = logging.getLogger(__name__)
-            logger.error(
+            self._logger.error(
                 "Failed to detect file language",
                 filename=filename,
                 error=str(e),

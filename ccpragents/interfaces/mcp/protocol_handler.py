@@ -4,7 +4,7 @@ This component handles MCP protocol-specific operations while delegating
 business logic to the application layer.
 """
 
-from typing import Any, Dict
+from typing import Any, Callable, Dict
 from abc import ABC, abstractmethod
 
 from ccpragents.domain.services.logger import LoggerServiceInterface
@@ -28,7 +28,7 @@ class MCPProtocolHandlerInterface(ABC):
 
     @abstractmethod
     def register_tool(
-        self, tool_name: str, tool_function: callable, description: str
+        self, tool_name: str, tool_function: Callable[..., Any], description: str
     ) -> None:
         """Register an MCP tool.
 
@@ -59,7 +59,7 @@ class MCPProtocolHandler(MCPProtocolHandlerInterface):
             logger: Logger service for structured logging
         """
         self._logger = logger
-        self._tools: Dict[str, callable] = {}
+        self._tools: Dict[str, Callable[..., Any]] = {}
         self._tool_descriptions: Dict[str, str] = {}
 
     async def handle_tool_call(self, tool_name: str, parameters: Dict[str, Any]) -> Any:
@@ -99,7 +99,7 @@ class MCPProtocolHandler(MCPProtocolHandlerInterface):
             raise
 
     def register_tool(
-        self, tool_name: str, tool_function: callable, description: str
+        self, tool_name: str, tool_function: Callable[..., Any], description: str
     ) -> None:
         """Register an MCP tool.
 

@@ -9,6 +9,8 @@ from ccpragents.domain.services.cache import CacheServiceInterface
 from ccpragents.domain.services.repository_cache import RepositoryCacheServiceInterface
 from ccpragents.domain.services.logger import LoggerServiceInterface
 from ccpragents.domain.repositories.pr_diff_repository import PRDiffRepositoryInterface
+from ccpragents.infrastructure.security.input_validator import InputValidator
+from ccpragents.infrastructure.request_coalescing import RequestCoalescingService
 
 from ccpragents.domain.exceptions import (
     InvalidURLError,
@@ -60,8 +62,8 @@ class FastMCPServer:
         health_monitor: HealthMonitorProtocol,
         server_configuration: ServerConfigurationProtocol,
         # Security and request coalescing services from infrastructure
-        input_validator: Optional[Callable] = None,
-        request_coalescing_service: Optional[Callable] = None,
+        input_validator: Optional[InputValidator] = None,
+        request_coalescing_service: Optional[RequestCoalescingService] = None,
     ):
         """Initialize the FastMCP server with dependency injection.
 
@@ -202,7 +204,7 @@ class FastMCPServer:
         """
 
         @self.mcp.tool()
-        async def get_pr_diff(pr_url: str):
+        async def get_pr_diff(pr_url: str) -> PRDiff:
             """Get the diff content for a specific GitHub pull request.
 
             Automatic commit-based caching ensures fresh data is returned when the PR changes.
@@ -280,6 +282,17 @@ class FastMCPServer:
                     result = await use_case.execute(
                         repo_owner=repo_owner, repo_name=repo_name, pr_number=pr_number
                     )
+
+                    # Handle case where use case returns None
+                    if result is None:
+                        self._logger.error(
+                            "Use case returned None for PR diff",
+                            request_id=request_id,
+                            repo_owner=repo_owner,
+                            repo_name=repo_name,
+                            pr_number=pr_number,
+                        )
+                        raise ValueError("Failed to get PR diff - use case returned None")
 
                     # Cache the repository after it's been used
                     if hasattr(repository, "_initialized") and getattr(

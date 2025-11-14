@@ -3,7 +3,7 @@
 import difflib
 import re
 import threading
-from typing import Union
+from typing import Union, Optional
 from ccpragents.domain.services import DiffServiceInterface
 
 
@@ -138,6 +138,111 @@ class DiffUtils(DiffServiceInterface):
             return patch_str
 
         return extended_patch_str
+
+    def is_binary_file(self, content: bytes) -> bool:
+        """Determine if a file is binary based on its content.
+
+        Args:
+            content: File content as bytes
+
+        Returns:
+            bool: True if the file is binary, False otherwise
+        """
+        # Check common binary extensions patterns in content
+        if not content:
+            return False
+
+        # Try to decode as text
+        try:
+            # Try UTF-8 first
+            content.decode('utf-8')
+            return False
+        except UnicodeDecodeError:
+            pass
+
+        # Check for common binary patterns
+        binary_indicators = [
+            b'\x00',  # Null bytes
+            b'\x00\x00',  # Multiple null bytes
+        ]
+
+        for indicator in binary_indicators:
+            if indicator in content:
+                return True
+
+        return False
+
+    def detect_language(self, filename: str, content: str) -> Optional[str]:
+        """Detect the programming language of a file.
+
+        Args:
+            filename: Name of the file
+            content: File content
+
+        Returns:
+            Optional[str]: Detected language, or None if undetermined
+        """
+        if not filename:
+            return None
+
+        # Extract file extension
+        if '.' not in filename:
+            return None
+
+        extension = filename.lower().split('.')[-1]
+
+        # Language mapping based on file extensions
+        language_mapping = {
+            'py': 'python',
+            'js': 'javascript',
+            'ts': 'typescript',
+            'jsx': 'javascript',
+            'tsx': 'typescript',
+            'java': 'java',
+            'cpp': 'c++',
+            'c': 'c',
+            'h': 'c',
+            'hpp': 'c++',
+            'cs': 'c#',
+            'php': 'php',
+            'rb': 'ruby',
+            'go': 'go',
+            'rs': 'rust',
+            'swift': 'swift',
+            'kt': 'kotlin',
+            'scala': 'scala',
+            'html': 'html',
+            'htm': 'html',
+            'css': 'css',
+            'scss': 'scss',
+            'less': 'less',
+            'json': 'json',
+            'xml': 'xml',
+            'yaml': 'yaml',
+            'yml': 'yaml',
+            'toml': 'toml',
+            'ini': 'ini',
+            'cfg': 'config',
+            'conf': 'config',
+            'txt': 'text',
+            'md': 'markdown',
+            'markdown': 'markdown',
+            'sql': 'sql',
+            'sh': 'bash',
+            'bash': 'bash',
+            'zsh': 'bash',
+            'fish': 'bash',
+            'ps1': 'powershell',
+            'bat': 'batch',
+            'cmd': 'batch',
+            'dockerfile': 'docker',
+            'makefile': 'makefile',
+            'cmake': 'cmake',
+            'gradle': 'gradle',
+            'pom': 'xml',  # Maven
+        }
+
+        return language_mapping.get(extension)
 
     def extract_hunk_headers(self, match: re.Match) -> tuple:
         """Extract and parse hunk header information from regex match.

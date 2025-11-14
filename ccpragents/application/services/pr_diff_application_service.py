@@ -118,27 +118,8 @@ class PRDiffApplicationService(PRDiffApplicationServiceInterface):
             # This would require the infrastructure factory to be properly integrated
             # For now, return a placeholder PRDiff
             pr_diff = PRDiff(
-                repo_owner=repo_owner,
-                repo_name=repo_name,
-                pr_number=pr_number,
-                pr_title="Sample PR Title",
-                pr_body="Sample PR description",
-                author="sample-author",
-                state="open",
-                additions=10,
-                deletions=5,
-                changed_files=3,
-                commit_sha="abc123def456",
-                files=[
-                    FilePatchInfo(
-                        filename="src/main.py",
-                        patch="@@ -1,3 +1,3 @@\n old content\n+new content\n",
-                        edit_type="modified",
-                        num_plus_lines=1,
-                        num_minus_lines=1,
-                        language="python",
-                    )
-                ],
+                commit_messages="Sample commit message",
+                diff_content="Sample diff content",
             )
 
             self._logger.info(
@@ -146,8 +127,8 @@ class PRDiffApplicationService(PRDiffApplicationServiceInterface):
                 repo_owner=repo_owner,
                 repo_name=repo_name,
                 pr_number=pr_number,
-                files_count=len(pr_diff.files),
-                total_changes=pr_diff.get_total_changes(),
+                files_count=0,
+                total_changes=0,
             )
 
             return pr_diff
@@ -174,7 +155,7 @@ class PRDiffApplicationService(PRDiffApplicationServiceInterface):
         """
         try:
             pr_diff = await self.get_pr_diff(pr_url)
-            return pr_diff.get_summary()
+            return {"diff_content": pr_diff.diff_content, "commit_messages": pr_diff.commit_messages}
         except Exception as e:
             self._logger.error(
                 "Failed to get PR diff summary",
@@ -195,7 +176,8 @@ class PRDiffApplicationService(PRDiffApplicationServiceInterface):
         """
         try:
             pr_diff = await self.get_pr_diff(pr_url)
-            return [file.get_summary() for file in pr_diff.files]
+            # Return empty list since PRDiff doesn't have files attribute
+            return []
         except Exception as e:
             self._logger.error(
                 "Failed to get file analysis",

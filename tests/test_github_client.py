@@ -2,7 +2,9 @@
 """Simple test script to verify GitHub client initialization and functionality."""
 
 import asyncio
+from typing import Optional
 from ccpragents.infrastructure.services.pr_diff_service import GitHubPRDiffService
+from ccpragents.domain.entities.pr_diff import PRDiff
 
 
 async def test_github_client():
@@ -32,16 +34,12 @@ async def test_github_client():
 
     # Test getting PR diff
     try:
-        result = await service.get_pr_diff("karcher-digital", "iotc-documentation", 42)
+        pr_diff_result: Optional[PRDiff] = await service.get_pr_diff("karcher-digital", "iotc-documentation", 42)
 
-        if result:
-            print(f"✓ Successfully got PR diff: {type(result)}")
-            print(f"  - Repository: {result.repo_owner}/{result.repo_name}")
-            print(f"  - PR Number: {result.pr_number}")
-            print(f"  - Files: {len(result.files)}")
-            print(
-                f"  - Diff content length: {len(result.diff_content) if result.diff_content else 0}"
-            )
+        if pr_diff_result:
+            print(f"✓ Successfully got PR diff: {type(pr_diff_result)}")
+            print(f"  - Diff content length: {len(pr_diff_result.diff_content) if pr_diff_result.diff_content else 0}")
+            print(f"  - Commit messages: {len(pr_diff_result.commit_messages) if pr_diff_result.commit_messages else 0}")
         else:
             print("✗ Failed to get PR diff (returned None)")
 

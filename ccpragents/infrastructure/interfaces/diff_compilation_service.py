@@ -5,7 +5,7 @@ at the infrastructure layer.
 """
 
 from abc import ABC, abstractmethod
-from typing import Optional, List, Dict
+from typing import Any, Optional, List, Dict
 from ccpragents.domain.entities.file_patch import FilePatchInfo
 
 
@@ -77,7 +77,7 @@ class DiffCompilationServiceInterface(ABC):
         pr_number: int,
         files: List[FilePatchInfo],
         stats_only: bool = False,
-    ) -> Dict[str, any]:
+    ) -> Dict[str, Any]:
         """Generate a summary of the diff.
 
         Args:
@@ -87,7 +87,7 @@ class DiffCompilationServiceInterface(ABC):
             stats_only: If True, only include statistics
 
         Returns:
-            Dict[str, any]: Diff summary with statistics and metadata
+            Dict[str, Any]: Diff summary with statistics and metadata
 
         Raises:
             CompilationError: If summary generation fails
