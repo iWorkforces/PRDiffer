@@ -4,9 +4,6 @@ from ccpragents.domain.factories.infrastructure_factory import (
     InfrastructureFactoryInterface,
 )
 from ccpragents.domain.services.cache import CacheServiceInterface
-from ccpragents.domain.services.file_processing_service import (
-    FileProcessingServiceInterface,
-)
 from ccpragents.domain.services.logger import LoggerServiceInterface
 from ccpragents.domain.services.pr_diff_service import PRDiffServiceInterface
 from ccpragents.domain.services.settings import SettingsServiceInterface
@@ -44,9 +41,6 @@ from ccpragents.infrastructure.github.file_processor import FileProcessor
 
 # Infrastructure service implementations
 from ccpragents.infrastructure.services.pr_diff_service import GitHubPRDiffService
-from ccpragents.infrastructure.services.file_processing_service import (
-    GitHubFileProcessingService,
-)
 
 # Application components
 from ccpragents.application.components.url_validator import URLValidator
@@ -107,6 +101,7 @@ class InfrastructureFactory(InfrastructureFactoryInterface):
         github_api_service = self.create_github_api_service()
         diff_service = self.create_diff_service()
         pattern_matching_service = self.create_pattern_matching_service()
+        logger_service = self.create_logger_service()
 
         # Create file processor
         file_processor = FileProcessor(
@@ -127,6 +122,7 @@ class InfrastructureFactory(InfrastructureFactoryInterface):
             github_api_client=github_api_service,
             diff_generator=diff_generator,
             file_processor=file_processor,
+            logger=logger_service,
         )
 
     def create_file_processor(self) -> FileProcessor:
@@ -150,11 +146,6 @@ class InfrastructureFactory(InfrastructureFactoryInterface):
             parallel_executor=None,
             parallel_enabled=False,
         )
-
-    def create_file_processing_service(self) -> FileProcessingServiceInterface:
-        """Create file processing service instance."""
-        logger = self.create_logger_service()
-        return GitHubFileProcessingService(logger=logger)
 
     def create_url_validator(
         self, logger: LoggerServiceInterface

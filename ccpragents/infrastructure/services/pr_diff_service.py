@@ -9,11 +9,13 @@ from typing import Optional
 
 from ccpragents.domain.services.pr_diff_service import PRDiffServiceInterface
 from ccpragents.domain.services.github_api import GitHubAPIServiceInterface
+from ccpragents.domain.services.logger import LoggerServiceInterface
 from ccpragents.domain.entities.pr_diff import PRDiff
 from ccpragents.domain.entities.file_patch import FilePatchInfo, EDIT_TYPE
 from ccpragents.infrastructure.github.api_client import GitHubAPIClient
 from ccpragents.infrastructure.github.diff_generator import DiffGenerator
 from ccpragents.infrastructure.github.file_processor import FileProcessor
+from ccpragents.infrastructure.logging.console_logger import get_logger
 
 
 class GitHubPRDiffService(PRDiffServiceInterface):
@@ -24,6 +26,7 @@ class GitHubPRDiffService(PRDiffServiceInterface):
         github_api_client: Optional[GitHubAPIServiceInterface] = None,
         diff_generator: Optional[DiffGenerator] = None,
         file_processor: Optional[FileProcessor] = None,
+        logger: Optional[LoggerServiceInterface] = None,
     ):
         """Initialize the service with GitHub API client and diff generation components.
 
@@ -33,6 +36,7 @@ class GitHubPRDiffService(PRDiffServiceInterface):
             file_processor: Optional file processor (created if None)
         """
         self._github_api = github_api_client or GitHubAPIClient()
+        self._logger = logger or get_logger()
 
         # Initialize the GitHub client with environment variables and settings
         github_token = os.getenv("GITHUB_TOKEN")
@@ -86,20 +90,25 @@ class GitHubPRDiffService(PRDiffServiceInterface):
                 commit_messages=commit_messages,
             )
 
+            self._logger.info(
+                "Generated diff content",
+                repo_owner=repo_owner,
+                repo_name=repo_name,
+                pr_number=pr_number,
+            )
+            self._logger.info(f"Diff content:\n{diff_content}")
+
             return pr_diff
 
         except Exception as e:
             # Log the error and return None for graceful degradation
-            import logging
-
-            logger = logging.getLogger(__name__)
-            logger.error(
-                "Failed to get PR diff - repo: %s/%s, pr: %s, error: %s (%s)",
-                repo_owner,
-                repo_name,
-                pr_number,
-                str(e),
-                type(e).__name__,
+            self._logger.error(
+                "Failed to get PR diff",
+                repo_owner=repo_owner,
+                repo_name=repo_name,
+                pr_number=pr_number,
+                error=str(e),
+                error_type=type(e).__name__,
             )
             return None
 
@@ -143,16 +152,13 @@ class GitHubPRDiffService(PRDiffServiceInterface):
 
         except Exception as e:
             # Log the error and return None for graceful degradation
-            import logging
-
-            logger = logging.getLogger(__name__)
-            logger.error(
-                "Failed to get latest commit SHA - repo: %s/%s, pr: %s, error: %s (%s)",
-                repo_owner,
-                repo_name,
-                pr_number,
-                str(e),
-                type(e).__name__,
+            self._logger.error(
+                "Failed to get latest commit SHA",
+                repo_owner=repo_owner,
+                repo_name=repo_name,
+                pr_number=pr_number,
+                error=str(e),
+                error_type=type(e).__name__,
             )
             return None
 

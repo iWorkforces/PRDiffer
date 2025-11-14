@@ -104,7 +104,7 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
         self.diff_worker_timeout = github_settings.get("diff_worker_timeout", 30.0)
 
         # Initialize logger
-        self.logger = get_logger()
+        self._logger = get_logger()
 
         # Initialize composed components
         self._github_api_client = get_github_api_client(
@@ -190,8 +190,8 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
         try:
             self._repository = self._github_api_client.get_repository(repo_full_name)
         except Exception as e:
-            self.logger.error(f"Failed to access repository {repo_full_name}: {e}")
-            self.logger.info(
+            self._logger.error(f"Failed to access repository {repo_full_name}: {e}")
+            self._logger.info(
                 f"Repository {repo_full_name} might not exist or you may not have access to it"
             )
             self._repository = None
@@ -202,10 +202,10 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
                     self._repository, self._pr_number
                 )
             except Exception as e:
-                self.logger.error(
+                self._logger.error(
                     f"Failed to get pull request #{self._pr_number} from repository {repo_full_name}: {e}"
                 )
-                self.logger.info(
+                self._logger.info(
                     f"Pull request #{self._pr_number} might not exist or be inaccessible"
                 )
                 self._pull_request = None
@@ -286,8 +286,8 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
         )
         diff_content = "\n".join(extended_diffs)
 
-        self.logger.info(f"Generated diff content for {len(diff_files)} files")
-        self.logger.info(f"Diff content:\n{diff_content}")
+        self._logger.info(f"Generated diff content for {len(diff_files)} files")
+        self._logger.info(f"Diff content:\n{diff_content}")
 
         # Get commit messages
         commit_messages = self._diff_generator.get_commit_messages(self._pull_request)
@@ -310,13 +310,13 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
             merge_base_commit = compare.merge_base_commit
             base_sha = merge_base_commit.sha
         except Exception as e:
-            self.logger.error(f"Failed to get merge base commit: {e}")
+            self._logger.error(f"Failed to get merge base commit: {e}")
             assert self._pull_request is not None, "Pull request should be initialized"
             base_sha = self._pull_request.base.sha
 
         assert self._pull_request is not None, "Pull request should be initialized"
         if base_sha != self._pull_request.base.sha:
-            self.logger.info(
+            self._logger.info(
                 f"Using merge base commit {base_sha} instead of base commit {self._pull_request.base.sha}"
             )
 
@@ -328,7 +328,7 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
         try:
             original_names = [file.filename for file in original_files]
             filtered_names = [file.filename for file in filtered_files]
-            self.logger.info(
+            self._logger.info(
                 "Filtered out [ignore] files for pull request:",
                 extra={"files": original_names, "filtered_files": filtered_names},
             )
