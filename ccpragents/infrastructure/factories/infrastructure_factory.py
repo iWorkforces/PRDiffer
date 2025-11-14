@@ -101,6 +101,7 @@ class InfrastructureFactory(InfrastructureFactoryInterface):
         github_api_service = self.create_github_api_service()
         diff_service = self.create_diff_service()
         pattern_matching_service = self.create_pattern_matching_service()
+        logger_service = self.create_logger_service()
 
         # Create file processor
         file_processor = FileProcessor(
@@ -121,6 +122,7 @@ class InfrastructureFactory(InfrastructureFactoryInterface):
             github_api_client=github_api_service,
             diff_generator=diff_generator,
             file_processor=file_processor,
+            logger=logger_service,
         )
 
     def create_file_processor(self) -> FileProcessor:
