@@ -5,7 +5,7 @@ infrastructure layer, abstracting away the specific implementation details.
 """
 
 from abc import ABC, abstractmethod
-from typing import Optional, List, Dict
+from typing import Any, Optional, List, Dict
 from github.Repository import Repository
 from github.Commit import Commit
 
@@ -77,7 +77,7 @@ class CommitServiceInterface(ABC):
     @abstractmethod
     async def compare_commits(
         self, repository: Repository, base_sha: str, head_sha: str
-    ) -> Dict[str, any]:
+    ) -> Dict[str, Any]:
         """Compare two commits and get the diff.
 
         Args:
@@ -86,7 +86,7 @@ class CommitServiceInterface(ABC):
             head_sha: Head commit SHA
 
         Returns:
-            Dict[str, any]: Comparison result with files changed, commits, etc.
+            Dict[str, Any]: Comparison result with files changed, commits, etc.
 
         Raises:
             RepositoryNotFoundError: If repository doesn't exist

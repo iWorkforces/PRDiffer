@@ -5,7 +5,6 @@ from typing import Dict, Any, Optional, Tuple
 
 from ..interfaces.protocols import PROperationHandlerProtocol
 from ccpragents.domain.entities.pr_diff import PRDiff
-from ccpragents.domain.usecases import GetPRDiffUseCase
 from ccpragents.domain.services.cache import CacheServiceInterface
 from ccpragents.domain.services.repository_cache import RepositoryCacheServiceInterface
 from ccpragents.domain.repositories.pr_diff_repository import PRDiffRepositoryInterface
@@ -87,15 +86,15 @@ class PROperationHandler(PROperationHandlerProtocol):
             repo_owner, repo_name, pr_number = self._parse_pr_url(pr_url)
 
             # Try to get repository from cache first
-            repository: Optional[PRDiffRepositoryInterface] = (
+            cached_repository: Optional[PRDiffRepositoryInterface] = (
                 self._repository_cache_service.retrieve(
                     repo_owner, repo_name, pr_number
                 )
             )
 
-            if repository is None:
+            if cached_repository is None:
                 # Create new repository instance
-                repository = self._github_repository_class(
+                cached_repository = self._github_repository_class(
                     repo_owner, repo_name, pr_number
                 )
                 self._logger.debug(
@@ -112,14 +111,31 @@ class PROperationHandler(PROperationHandlerProtocol):
                     pr_number=pr_number,
                 )
 
-            # At this point, repository is guaranteed to be non-None
-            assert repository is not None
+            # At this point, cached_repository is guaranteed to be non-None
+            assert cached_repository is not None
 
             # Execute use case with automatic caching
-            use_case: GetPRDiffUseCase = GetPRDiffUseCase(
-                repository, cache_service=self._cache_service
+            # Create repository instance for this specific PR
+            repository: PRDiffRepositoryInterface = self._github_repository_class(
+                repo_owner, repo_name, pr_number
             )
-            pr_diff: PRDiff = await use_case.execute()
+
+            # Initialize the repository with settings if it has an initialize method
+            if hasattr(repository, "initialize"):
+                await repository.initialize()
+
+            # Execute the repository directly (since we don't have a PRDiffService)
+            pr_diff: Optional[PRDiff] = await repository.get_pr_diff()
+
+            # Handle case where repository returns None
+            if pr_diff is None:
+                self._logger.error(
+                    "Repository returned None for PR diff",
+                    repo_owner=repo_owner,
+                    repo_name=repo_name,
+                    pr_number=pr_number,
+                )
+                raise ValueError("Failed to get PR diff - repository returned None")
 
             # Cache the repository after it's been used (now it should be initialized)
             if hasattr(repository, "_initialized") and getattr(

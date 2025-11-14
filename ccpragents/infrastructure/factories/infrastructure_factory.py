@@ -153,7 +153,8 @@ class InfrastructureFactory(InfrastructureFactoryInterface):
 
     def create_file_processing_service(self) -> FileProcessingServiceInterface:
         """Create file processing service instance."""
-        return GitHubFileProcessingService()
+        logger = self.create_logger_service()
+        return GitHubFileProcessingService(logger=logger)
 
     def create_url_validator(
         self, logger: LoggerServiceInterface
