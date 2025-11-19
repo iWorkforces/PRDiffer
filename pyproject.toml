@@ -1,6 +1,6 @@
 [project]
 name = "ccpragents"
-version = "0.3.5"
+version = "0.3.6"
 description = "MCP Server For GitHub PR's Review Process With Full Contexts"
 readme = "README.md"
 license = { text = "MIT" }
@@ -31,7 +31,6 @@ dependencies = [
     "standard>=1.0.3",
     "uvloop>=0.22.1",
     "httptools>=0.7.1",
-    "locust==2.42.3",
     "starlette>=0.49.3",
 ]
 
@@ -54,7 +53,7 @@ packages = ["ccpragents"]
 [dependency-groups]
 dev = [
     "ruff>=0.14.5",
-    "pytest>=8.4.2",
+    "pytest>=9.0.1",
     "pytest-asyncio>=1.3.0",
     "pytest-cov>=7.0.0",
     "pytest-xdist>=3.8.0",
