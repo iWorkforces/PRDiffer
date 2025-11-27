@@ -219,12 +219,23 @@ class FileProcessor:
         # Separate files by status to optimize API calls
         head_files = []  # Files to fetch from head commit
         base_files = []  # Files to fetch from base commit
+        # Track mapping from current filename to base filename for renamed files
+        renamed_file_mapping: Dict[str, str] = {}
 
         for file in files:
             if file.status in ["added", "modified", "renamed"]:
                 head_files.append(file.filename)
-            if file.status in ["removed", "modified", "renamed"]:
+            if file.status in ["removed", "modified"]:
                 base_files.append(file.filename)
+            elif file.status == "renamed":
+                # For renamed files, use previous_filename to fetch from base commit
+                previous_name = getattr(file, "previous_filename", None)
+                if previous_name:
+                    base_files.append(previous_name)
+                    renamed_file_mapping[file.filename] = previous_name
+                else:
+                    # Fallback to current filename if previous_filename not available
+                    base_files.append(file.filename)
 
         # Batch load content only for files that exist in each commit
         head_contents = (
@@ -252,7 +263,12 @@ class FileProcessor:
             elif file.status == "removed":
                 new_file_content = ""  # Removed files don't exist in head
                 original_file_content = base_contents.get(file.filename, "")
-            else:  # modified, renamed, or other statuses
+            elif file.status == "renamed":
+                # For renamed files, use the previous filename to get base content
+                new_file_content = head_contents.get(file.filename, "")
+                base_key = renamed_file_mapping.get(file.filename, file.filename)
+                original_file_content = base_contents.get(base_key, "")
+            else:  # modified or other statuses
                 new_file_content = head_contents.get(file.filename, "")
                 original_file_content = base_contents.get(file.filename, "")
 
@@ -298,12 +314,23 @@ class FileProcessor:
         # Separate files by status to optimize API calls
         head_files = []  # Files to fetch from head commit
         base_files = []  # Files to fetch from base commit
+        # Track mapping from current filename to base filename for renamed files
+        renamed_file_mapping: Dict[str, str] = {}
 
         for file in files:
             if file.status in ["added", "modified", "renamed"]:
                 head_files.append(file.filename)
-            if file.status in ["removed", "modified", "renamed"]:
+            if file.status in ["removed", "modified"]:
                 base_files.append(file.filename)
+            elif file.status == "renamed":
+                # For renamed files, use previous_filename to fetch from base commit
+                previous_name = getattr(file, "previous_filename", None)
+                if previous_name:
+                    base_files.append(previous_name)
+                    renamed_file_mapping[file.filename] = previous_name
+                else:
+                    # Fallback to current filename if previous_filename not available
+                    base_files.append(file.filename)
 
         # Fetch head and base contents in parallel
         head_contents: Dict[str, str] = {}
@@ -390,7 +417,12 @@ class FileProcessor:
             elif file.status == "removed":
                 new_file_content = ""  # Removed files don't exist in head
                 original_file_content = base_contents.get(file.filename, "")
-            else:  # modified, renamed, or other statuses
+            elif file.status == "renamed":
+                # For renamed files, use the previous filename to get base content
+                new_file_content = head_contents.get(file.filename, "")
+                base_key = renamed_file_mapping.get(file.filename, file.filename)
+                original_file_content = base_contents.get(base_key, "")
+            else:  # modified or other statuses
                 new_file_content = head_contents.get(file.filename, "")
                 original_file_content = base_contents.get(file.filename, "")
 
@@ -450,8 +482,19 @@ class FileProcessor:
                 original_file_content = self._github_api_service.get_file_content(
                     repository, file.filename, base_sha
                 )
+            elif file.status == "renamed":
+                # Renamed files: fetch from head with new name, from base with old name
+                new_file_content = self._github_api_service.get_file_content(
+                    repository, file.filename, head_sha
+                )
+                # Use previous_filename for base commit if available
+                previous_name = getattr(file, "previous_filename", None)
+                base_filename = previous_name if previous_name else file.filename
+                original_file_content = self._github_api_service.get_file_content(
+                    repository, base_filename, base_sha
+                )
             else:
-                # Modified, renamed, or other statuses: fetch from both commits
+                # Modified or other statuses: fetch from both commits
                 new_file_content = self._github_api_service.get_file_content(
                     repository, file.filename, head_sha
                 )
