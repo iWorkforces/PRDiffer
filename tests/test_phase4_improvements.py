@@ -249,7 +249,7 @@ class TestAsyncParallelExecutor:
             AsyncParallelExecutor,
         )
 
-        async def multiply_by_factor(x: int, context: dict) -> int:
+        async def multiply_by_factor(x: int, context: dict[str, int]) -> int:
             return x * context["factor"]
 
         executor = AsyncParallelExecutor()
