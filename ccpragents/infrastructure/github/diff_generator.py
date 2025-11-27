@@ -245,9 +245,6 @@ class DiffGenerator:
         if not (has_additions or has_deletions):
             return ""  # No changes in this hunk
 
-        # Handle new file case (start1=0 or no old content)
-        is_new_file = hunk["start1"] == 0 and not hunk["old_lines"]
-
         # Handle deletion-only case (file deleted or only lines removed)
         is_deletion_only = has_deletions and not has_additions
 

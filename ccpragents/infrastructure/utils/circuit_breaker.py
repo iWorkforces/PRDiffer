@@ -11,7 +11,7 @@ Thread Safety:
 
 import time
 import threading
-from typing import Optional
+from typing import Dict, List, Optional
 from enum import StrEnum
 
 import anyio
@@ -448,10 +448,6 @@ class GlobalCircuitBreakerRegistry:
             if endpoint in self._breakers:
                 del self._breakers[endpoint]
                 self._logger.debug(f"Removed circuit breaker for endpoint: {endpoint}")
-
-
-# Type alias for Dict[str, CircuitBreaker]
-from typing import Dict, List
 
 
 # Global registry instance (singleton)
