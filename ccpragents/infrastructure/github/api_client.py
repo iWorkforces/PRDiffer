@@ -3,6 +3,7 @@
 import time
 from collections import OrderedDict
 from typing import Optional, Dict, List, Any, cast
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from github import Github
 from github.Auth import Token
 from github.Repository import Repository
@@ -332,6 +333,71 @@ class GitHubAPIClient(GitHubAPIServiceInterface):
 
         return results
 
+    def get_files_content_batch_parallel(
+        self,
+        repository: Repository,
+        file_paths: List[str],
+        branch: str,
+        max_workers: int = 4,
+    ) -> Dict[str, str]:
+        """Batch retrieve file contents in parallel from a specific branch.
+
+        Uses ThreadPoolExecutor for concurrent file fetching, which significantly
+        improves performance when fetching many files.
+
+        Args:
+            repository: GitHub repository instance
+            file_paths: List of file paths to retrieve
+            branch: Branch or commit SHA
+            max_workers: Maximum number of concurrent workers (default: 4)
+
+        Returns:
+            Dict mapping file paths to their content (empty string on error)
+        """
+        results: Dict[str, str] = {}
+        files_to_fetch = []
+
+        # Check cache first for each file (with TTL validation)
+        for file_path in file_paths:
+            cache_key = (file_path, branch)
+            cached_content = self._cache_get(cache_key)
+            if cached_content is not None:
+                results[file_path] = cached_content
+            else:
+                files_to_fetch.append(file_path)
+
+        if not files_to_fetch:
+            return results
+
+        # Fetch remaining files in parallel
+        start_time = time.time()
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            future_to_path = {
+                executor.submit(
+                    self.get_file_content, repository, file_path, branch
+                ): file_path
+                for file_path in files_to_fetch
+            }
+
+            for future in as_completed(future_to_path):
+                file_path = future_to_path[future]
+                try:
+                    content = future.result()
+                    results[file_path] = content
+                except Exception as e:
+                    self._logger.warning(
+                        f"Parallel fetch failed for '{file_path}': {e}"
+                    )
+                    results[file_path] = ""
+
+        elapsed = time.time() - start_time
+        self._logger.debug(
+            f"Parallel batch fetch: {len(files_to_fetch)} files in {elapsed:.2f}s "
+            f"({elapsed / len(files_to_fetch) * 1000:.1f}ms/file avg)"
+        )
+
+        return results
+
     def _extract_file_content(self, content: ContentFile) -> str:
         """Extract file content from ContentFile object.
 
@@ -356,7 +422,9 @@ class GitHubAPIClient(GitHubAPIServiceInterface):
             Dict containing cache statistics including hits, misses, evictions
         """
         total_requests = self._cache_hits + self._cache_misses
-        hit_rate = (self._cache_hits / total_requests * 100) if total_requests > 0 else 0
+        hit_rate = (
+            (self._cache_hits / total_requests * 100) if total_requests > 0 else 0
+        )
 
         return {
             "cache_size": len(self._file_content_cache),

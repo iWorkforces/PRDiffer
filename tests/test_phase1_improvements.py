@@ -12,15 +12,13 @@ This module tests all Phase 1 improvements including:
 import time
 import threading
 import pytest
-from unittest.mock import Mock, patch, MagicMock
-from collections import OrderedDict
+from unittest.mock import Mock, patch
 
 # Import components to test
 from ccpragents.infrastructure.security.input_validator import InputValidator
 from ccpragents.infrastructure.utils.circuit_breaker import (
     CircuitBreaker,
     CircuitState,
-    CircuitBreakerOpenException,
 )
 from ccpragents.infrastructure.utils.retry_handler import RetryHandler
 from ccpragents.domain.entities.pr_diff import PRDiff
@@ -610,7 +608,9 @@ class TestErrorMessageSanitization:
         class UnknownInternalError(Exception):
             pass
 
-        exc = UnknownInternalError("Internal: database connection string is postgres://user:pass@host")
+        exc = UnknownInternalError(
+            "Internal: database connection string is postgres://user:pass@host"
+        )
         safe_message = server._create_safe_error_message(exc)
 
         assert safe_message == "Request processing failed"
@@ -634,14 +634,16 @@ class TestErrorMessageSanitization:
             server = FastMCPServer(**mock_dependencies)
 
         # InvalidURLError
-        exc = InvalidURLError("URL contains malicious pattern: $(whoami)")
-        safe_message = server._create_safe_error_message(exc)
+        invalid_url_exc = InvalidURLError("URL contains malicious pattern: $(whoami)")
+        safe_message = server._create_safe_error_message(invalid_url_exc)
         assert safe_message == "Invalid GitHub PR URL format"
         assert "whoami" not in safe_message
 
         # SuspiciousOperationError
-        exc = SuspiciousOperationError("Detected SQL injection: DROP TABLE users")
-        safe_message = server._create_safe_error_message(exc)
+        suspicious_exc = SuspiciousOperationError(
+            "Detected SQL injection: DROP TABLE users"
+        )
+        safe_message = server._create_safe_error_message(suspicious_exc)
         assert safe_message == "Request contains suspicious patterns"
         assert "DROP TABLE" not in safe_message
 

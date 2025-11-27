@@ -1,7 +1,7 @@
 """File processing service for GitHub repositories."""
 
 import time
-from typing import List, Optional
+from typing import List, Optional, Dict
 from github.File import File
 from github.PaginatedList import PaginatedList
 from github.Repository import Repository
@@ -266,6 +266,149 @@ class FileProcessor:
                 file, original_file_content, new_file_content, patch
             )
             diff_files.append(file_patch)
+
+        return diff_files
+
+    def _process_files_with_content_parallel(
+        self,
+        files: List[File],
+        repository: Repository,
+        head_sha: str,
+        base_sha: str,
+        max_workers: int = 4,
+    ) -> List[FilePatchInfo]:
+        """Process files with parallel content loading for better performance.
+
+        Fetches head and base content concurrently using ThreadPoolExecutor,
+        significantly improving performance for PRs with many files.
+
+        Args:
+            files: List of files to process
+            repository: GitHub repository instance
+            head_sha: Head commit SHA
+            base_sha: Base commit SHA
+            max_workers: Maximum number of concurrent workers (default: 4)
+
+        Returns:
+            List of FilePatchInfo objects with content loaded
+        """
+        start_time = time.time()
+        diff_files = []
+
+        # Separate files by status to optimize API calls
+        head_files = []  # Files to fetch from head commit
+        base_files = []  # Files to fetch from base commit
+
+        for file in files:
+            if file.status in ["added", "modified", "renamed"]:
+                head_files.append(file.filename)
+            if file.status in ["removed", "modified", "renamed"]:
+                base_files.append(file.filename)
+
+        # Fetch head and base contents in parallel
+        head_contents: Dict[str, str] = {}
+        base_contents: Dict[str, str] = {}
+
+        from concurrent.futures import Future
+
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            futures: List[Optional[Future[Dict[str, str]]]] = []
+
+            # Submit head content fetch if needed
+            if head_files:
+                if hasattr(
+                    self._github_api_service, "get_files_content_batch_parallel"
+                ):
+                    futures.append(
+                        executor.submit(
+                            self._github_api_service.get_files_content_batch_parallel,
+                            repository,
+                            head_files,
+                            head_sha,
+                            max_workers,
+                        )
+                    )
+                else:
+                    futures.append(
+                        executor.submit(
+                            self._github_api_service.get_files_content_batch,
+                            repository,
+                            head_files,
+                            head_sha,
+                        )
+                    )
+            else:
+                futures.append(None)
+
+            # Submit base content fetch if needed
+            if base_files:
+                if hasattr(
+                    self._github_api_service, "get_files_content_batch_parallel"
+                ):
+                    futures.append(
+                        executor.submit(
+                            self._github_api_service.get_files_content_batch_parallel,
+                            repository,
+                            base_files,
+                            base_sha,
+                            max_workers,
+                        )
+                    )
+                else:
+                    futures.append(
+                        executor.submit(
+                            self._github_api_service.get_files_content_batch,
+                            repository,
+                            base_files,
+                            base_sha,
+                        )
+                    )
+            else:
+                futures.append(None)
+
+            # Collect results
+            if futures[0] is not None:
+                try:
+                    head_contents = futures[0].result()
+                except Exception as e:
+                    self._logger.error(f"Failed to fetch head contents: {e}")
+                    head_contents = {}
+
+            if futures[1] is not None:
+                try:
+                    base_contents = futures[1].result()
+                except Exception as e:
+                    self._logger.error(f"Failed to fetch base contents: {e}")
+                    base_contents = {}
+
+        # Process each file with loaded content
+        for file in files:
+            # Get content based on file status to avoid 404 errors
+            if file.status == "added":
+                new_file_content = head_contents.get(file.filename, "")
+                original_file_content = ""  # Added files don't exist in base
+            elif file.status == "removed":
+                new_file_content = ""  # Removed files don't exist in head
+                original_file_content = base_contents.get(file.filename, "")
+            else:  # modified, renamed, or other statuses
+                new_file_content = head_contents.get(file.filename, "")
+                original_file_content = base_contents.get(file.filename, "")
+
+            patch = file.patch
+            if not patch:
+                patch = self._generate_patch_from_content(
+                    file.filename, new_file_content, original_file_content
+                )
+
+            file_patch = self._create_file_patch_with_content(
+                file, original_file_content, new_file_content, patch
+            )
+            diff_files.append(file_patch)
+
+        elapsed = time.time() - start_time
+        self._logger.debug(
+            f"Parallel content processing: {len(files)} files in {elapsed:.2f}s"
+        )
 
         return diff_files
 

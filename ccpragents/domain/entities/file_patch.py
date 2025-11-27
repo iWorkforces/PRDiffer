@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 from enum import StrEnum
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 
 
 class EDIT_TYPE(StrEnum):
@@ -40,6 +40,11 @@ class FilePatchInfo:
     # Analysis results
     ai_file_summary: Optional[str] = None
     tokens: int = -1
+
+    # Phase 3: Extended metadata for API enhancement
+    diff_metadata: Optional[Dict[str, Any]] = None
+    code_smell_indicators: Optional[List[str]] = None
+    suggested_review_priority: str = "normal"  # "high", "normal", "low"
 
     # Computed properties (not stored, computed from other fields)
     _file_extension: Optional[str] = field(init=False, default=None, compare=False)
@@ -201,7 +206,102 @@ class FilePatchInfo:
             "is_binary": self.is_binary,
             "is_significant": self.is_significant_change,
             "file_extension": self.file_extension,
+            "review_priority": self.suggested_review_priority,
+            "code_smell_indicators": self.code_smell_indicators,
         }
+
+    def calculate_review_priority(self) -> str:
+        """Calculate suggested review priority based on file characteristics.
+
+        Priority levels:
+        - "high": Security-sensitive files, large changes, config files
+        - "normal": Standard code changes
+        - "low": Documentation, tests, assets
+
+        Returns:
+            str: Suggested review priority ("high", "normal", "low")
+        """
+        # High priority patterns
+        high_priority_patterns = [
+            "security",
+            "auth",
+            "password",
+            "token",
+            "secret",
+            "config",
+            ".env",
+            "credential",
+        ]
+
+        # Low priority patterns
+        low_priority_patterns = [
+            "test",
+            ".md",
+            "readme",
+            "doc",
+            "changelog",
+            ".txt",
+            "license",
+        ]
+
+        filename_lower = self.filename.lower()
+
+        # Check high priority patterns
+        for pattern in high_priority_patterns:
+            if pattern in filename_lower:
+                return "high"
+
+        # High priority for large changes
+        if self.total_changes > 100 or self.change_percentage > 50:
+            return "high"
+
+        # Check low priority patterns
+        for pattern in low_priority_patterns:
+            if pattern in filename_lower:
+                return "low"
+
+        return "normal"
+
+    def detect_code_smells(self) -> List[str]:
+        """Detect potential code smell indicators in the diff.
+
+        Returns:
+            List[str]: List of detected code smell indicators
+        """
+        indicators: List[str] = []
+
+        if not self.patch:
+            return indicators
+
+        patch_lower = self.patch.lower()
+
+        # Check for common code smells
+        code_smell_patterns = {
+            "TODO": "Contains TODO comments",
+            "FIXME": "Contains FIXME comments",
+            "HACK": "Contains HACK comments",
+            "XXX": "Contains XXX markers",
+            "console.log": "Contains debug console.log",
+            "print(": "Contains debug print statements",
+            "debugger": "Contains debugger statements",
+            "sleep(": "Contains sleep/delay calls",
+            "password": "Contains potential hardcoded password",
+            "api_key": "Contains potential hardcoded API key",
+        }
+
+        for pattern, indicator in code_smell_patterns.items():
+            if pattern.lower() in patch_lower:
+                indicators.append(indicator)
+
+        # Large file check
+        if self.total_changes > 500:
+            indicators.append("Very large change set - consider splitting")
+
+        # File deletion/addition check
+        if self.edit_type == EDIT_TYPE.DELETED:
+            indicators.append("File deleted - verify intended")
+
+        return indicators
 
     def validate(self) -> List[str]:
         """Validate the file patch information.

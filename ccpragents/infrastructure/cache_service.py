@@ -281,7 +281,9 @@ class CacheService(CacheServiceInterface):
                 - hit_rate_percent: Cache hit rate percentage
         """
         total_requests = self._cache_hits + self._cache_misses
-        hit_rate = (self._cache_hits / total_requests * 100) if total_requests > 0 else 0
+        hit_rate = (
+            (self._cache_hits / total_requests * 100) if total_requests > 0 else 0
+        )
 
         base_stats = {
             "size": len(self.cache),

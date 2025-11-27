@@ -234,6 +234,252 @@ class CircuitBreakerOpenException(Exception):
         super().__init__(self.message)
 
 
+class GlobalCircuitBreakerRegistry:
+    """Global registry for circuit breakers shared across all API clients.
+
+    This singleton class manages circuit breakers for different endpoints,
+    allowing shared state across the application for better failure coordination.
+
+    Features:
+    - Per-endpoint circuit breakers for targeted failure handling
+    - Global circuit breaker for system-wide protection
+    - Configurable default thresholds
+    - Statistics aggregation across all breakers
+    """
+
+    _instance: Optional["GlobalCircuitBreakerRegistry"] = None
+    _lock = threading.Lock()
+    _initialized: bool = False
+
+    def __new__(
+        cls,
+        default_failure_threshold: int = 5,
+        default_timeout: float = 60.0,
+    ) -> "GlobalCircuitBreakerRegistry":
+        """Singleton pattern implementation."""
+        if cls._instance is None:
+            with cls._lock:
+                if cls._instance is None:
+                    instance = super().__new__(cls)
+                    instance._initialized = False
+                    cls._instance = instance
+        return cls._instance
+
+    def __init__(
+        self,
+        default_failure_threshold: int = 5,
+        default_timeout: float = 60.0,
+    ):
+        """Initialize the global circuit breaker registry.
+
+        Args:
+            default_failure_threshold: Default failures before opening circuit
+            default_timeout: Default timeout for open circuits
+        """
+        if self._initialized:
+            return
+
+        self._default_failure_threshold = default_failure_threshold
+        self._default_timeout = default_timeout
+        self._breakers: Dict[str, CircuitBreaker] = {}
+        self._registry_lock = threading.Lock()
+        self._logger = get_logger()
+
+        # Global circuit breaker for system-wide protection
+        self._global_breaker = CircuitBreaker(
+            failure_threshold=default_failure_threshold
+            * 2,  # Higher threshold for global
+            timeout=default_timeout,
+            logger=self._logger,
+        )
+
+        self._initialized = True
+
+    def get_breaker(self, endpoint: str) -> CircuitBreaker:
+        """Get or create a circuit breaker for a specific endpoint.
+
+        Args:
+            endpoint: Identifier for the endpoint (e.g., "github_api", "repo_content")
+
+        Returns:
+            CircuitBreaker: Circuit breaker for the endpoint
+        """
+        with self._registry_lock:
+            if endpoint not in self._breakers:
+                self._breakers[endpoint] = CircuitBreaker(
+                    failure_threshold=self._default_failure_threshold,
+                    timeout=self._default_timeout,
+                    logger=self._logger,
+                )
+                self._logger.debug(f"Created circuit breaker for endpoint: {endpoint}")
+            return self._breakers[endpoint]
+
+    @property
+    def global_breaker(self) -> CircuitBreaker:
+        """Get the global circuit breaker."""
+        return self._global_breaker
+
+    def can_execute(self, endpoint: Optional[str] = None) -> bool:
+        """Check if execution is allowed for an endpoint.
+
+        Checks both the endpoint-specific breaker and the global breaker.
+
+        Args:
+            endpoint: Specific endpoint to check (optional)
+
+        Returns:
+            bool: True if execution is allowed
+        """
+        # Check global breaker first
+        if not self._global_breaker.can_execute():
+            return False
+
+        # Check endpoint-specific breaker if provided
+        if endpoint:
+            breaker = self.get_breaker(endpoint)
+            if not breaker.can_execute():
+                return False
+
+        return True
+
+    async def can_execute_async(self, endpoint: Optional[str] = None) -> bool:
+        """Async version of can_execute.
+
+        Args:
+            endpoint: Specific endpoint to check (optional)
+
+        Returns:
+            bool: True if execution is allowed
+        """
+        # Check global breaker first
+        if not await self._global_breaker.can_execute_async():
+            return False
+
+        # Check endpoint-specific breaker if provided
+        if endpoint:
+            breaker = self.get_breaker(endpoint)
+            if not await breaker.can_execute_async():
+                return False
+
+        return True
+
+    def record_success(self, endpoint: Optional[str] = None) -> None:
+        """Record a successful operation.
+
+        Args:
+            endpoint: Specific endpoint that succeeded (optional)
+        """
+        self._global_breaker.record_success()
+        if endpoint:
+            self.get_breaker(endpoint).record_success()
+
+    async def record_success_async(self, endpoint: Optional[str] = None) -> None:
+        """Async version of record_success.
+
+        Args:
+            endpoint: Specific endpoint that succeeded (optional)
+        """
+        await self._global_breaker.record_success_async()
+        if endpoint:
+            await self.get_breaker(endpoint).record_success_async()
+
+    def record_failure(self, endpoint: Optional[str] = None) -> None:
+        """Record a failed operation.
+
+        Args:
+            endpoint: Specific endpoint that failed (optional)
+        """
+        self._global_breaker.record_failure()
+        if endpoint:
+            self.get_breaker(endpoint).record_failure()
+
+    async def record_failure_async(self, endpoint: Optional[str] = None) -> None:
+        """Async version of record_failure.
+
+        Args:
+            endpoint: Specific endpoint that failed (optional)
+        """
+        await self._global_breaker.record_failure_async()
+        if endpoint:
+            await self.get_breaker(endpoint).record_failure_async()
+
+    def get_all_stats(self) -> Dict[str, dict]:
+        """Get statistics for all circuit breakers.
+
+        Returns:
+            Dict mapping endpoint names to their statistics
+        """
+        with self._registry_lock:
+            stats = {"global": self._global_breaker.get_stats()}
+            for endpoint, breaker in self._breakers.items():
+                stats[endpoint] = breaker.get_stats()
+            return stats
+
+    def get_open_breakers(self) -> List[str]:
+        """Get list of endpoints with open circuit breakers.
+
+        Returns:
+            List of endpoint names with open circuits
+        """
+        with self._registry_lock:
+            open_breakers = []
+            if self._global_breaker.state == CircuitState.OPEN:
+                open_breakers.append("global")
+            for endpoint, breaker in self._breakers.items():
+                if breaker.state == CircuitState.OPEN:
+                    open_breakers.append(endpoint)
+            return open_breakers
+
+    def reset_all(self) -> None:
+        """Reset all circuit breakers to closed state."""
+        with self._registry_lock:
+            self._global_breaker._transition_to_closed()
+            for breaker in self._breakers.values():
+                breaker._transition_to_closed()
+            self._logger.info("All circuit breakers reset to CLOSED")
+
+    def clear_endpoint(self, endpoint: str) -> None:
+        """Remove a specific endpoint's circuit breaker.
+
+        Args:
+            endpoint: Endpoint to remove
+        """
+        with self._registry_lock:
+            if endpoint in self._breakers:
+                del self._breakers[endpoint]
+                self._logger.debug(f"Removed circuit breaker for endpoint: {endpoint}")
+
+
+# Type alias for Dict[str, CircuitBreaker]
+from typing import Dict, List
+
+
+# Global registry instance (singleton)
+_global_circuit_breaker_registry: Optional[GlobalCircuitBreakerRegistry] = None
+
+
+def get_global_circuit_breaker_registry(
+    default_failure_threshold: int = 5,
+    default_timeout: float = 60.0,
+) -> GlobalCircuitBreakerRegistry:
+    """Get the global circuit breaker registry singleton.
+
+    Args:
+        default_failure_threshold: Default failures before opening circuit
+        default_timeout: Default timeout for open circuits
+
+    Returns:
+        GlobalCircuitBreakerRegistry: The global registry instance
+    """
+    global _global_circuit_breaker_registry
+    if _global_circuit_breaker_registry is None:
+        _global_circuit_breaker_registry = GlobalCircuitBreakerRegistry(
+            default_failure_threshold=default_failure_threshold,
+            default_timeout=default_timeout,
+        )
+    return _global_circuit_breaker_registry
+
+
 def get_circuit_breaker(
     failure_threshold: int = 5, timeout: float = 60.0
 ) -> CircuitBreaker:
@@ -247,3 +493,18 @@ def get_circuit_breaker(
         CircuitBreaker: Configured circuit breaker instance
     """
     return CircuitBreaker(failure_threshold=failure_threshold, timeout=timeout)
+
+
+def get_circuit_breaker_for_endpoint(endpoint: str) -> CircuitBreaker:
+    """Get a circuit breaker for a specific endpoint from the global registry.
+
+    This is a convenience function that uses the global registry.
+
+    Args:
+        endpoint: Endpoint identifier (e.g., "github_api", "repo_content")
+
+    Returns:
+        CircuitBreaker: Circuit breaker for the endpoint
+    """
+    registry = get_global_circuit_breaker_registry()
+    return registry.get_breaker(endpoint)
