@@ -110,6 +110,39 @@ Abstract interface for repository instance caching.
 - `size() -> int` - Get cache size
 - `stats() -> Dict[str, Any]` - Get cache statistics
 
+### Domain Service Interfaces
+
+#### PRDiffServiceInterface (`pr_diff_service.py`)
+Abstract interface for PR diff operations at the domain level. This interface abstracts away infrastructure-specific GitHub API details and provides a clean dependency for use cases.
+
+**Key Methods:**
+- `get_pr_diff(repo_owner: str, repo_name: str, pr_number: int) -> Optional[PRDiff]` - Get complete PR diff data
+- `get_latest_commit_sha(repo_owner: str, repo_name: str, pr_number: int) -> Optional[str]` - Get latest commit SHA
+- `validate_repository_access(repo_owner: str, repo_name: str) -> bool` - Validate repository accessibility
+
+**Expected Exceptions:**
+- `RepositoryNotFoundError` - Repository or PR doesn't exist
+- `AuthenticationError` - Authentication failure
+- `RateLimitError` - Rate limit exceeded
+- `ValidationError` - Invalid input parameters
+
+**Usage Pattern:**
+```python
+pr_diff_service = factory.create_pr_diff_service()
+
+# Get PR diff
+pr_diff = await pr_diff_service.get_pr_diff("owner", "repo", 123)
+if pr_diff:
+    print(pr_diff.diff_content)
+    print(pr_diff.commit_messages)
+
+# Validate access
+if pr_diff_service.validate_repository_access("owner", "repo"):
+    print("Repository accessible")
+```
+
+**Implementation:** `GitHubPRDiffService` in `infrastructure/services/pr_diff_service.py`
+
 ## Design Principles
 
 ### Dependency Inversion Principle
@@ -305,7 +338,8 @@ ccpragents/domain/services/
 ├── retry.py                # Retry service interface
 ├── pattern_matching.py     # Pattern matching service interface
 ├── diff.py                 # Diff service interface
-└── repository_cache.py     # Repository cache service interface
+├── repository_cache.py     # Repository cache service interface
+└── pr_diff_service.py      # PR diff operations service interface
 ```
 
 ## Benefits of Interface-Driven Design

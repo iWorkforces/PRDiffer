@@ -2,6 +2,24 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+# OpenSpec Instructions
+
+These instructions are for AI assistants working in this project.
+
+Always open `@/openspec/AGENTS.md` when the request:
+
+- Mentions planning or proposals (words like proposal, spec, change, plan)
+- Introduces new capabilities, breaking changes, architecture shifts, or big performance/security work
+- Sounds ambiguous and you need the authoritative spec before coding
+
+Use `@/openspec/AGENTS.md` to learn:
+
+- How to create and apply change proposals
+- Spec format and conventions
+- Project structure and guidelines
+
+Keep this managed block so 'openspec update' can refresh the instructions.
+
 ## Project Overview
 
 CCPRAgents is an MCP (Model Context Protocol) server that provides GitHub PR diff analysis capabilities. It's built using FastMCP framework and follows Clean Architecture principles with domain-driven design.
@@ -110,6 +128,9 @@ The codebase follows Clean Architecture with these layers:
   - `GitHubAPIServiceInterface`: GitHub API operations
   - `PatternMatchingServiceInterface`: File pattern matching
   - `RetryServiceInterface`: Retry logic with exponential backoff
+  - `PRDiffServiceInterface`: PR diff operations abstraction
+- **Factory Interfaces** (`domain/factories/`): Dependency injection abstractions
+  - `InfrastructureFactoryInterface`: Abstract factory for creating infrastructure services
 
 ### Infrastructure Layer (`ccpragents/infrastructure/`)
 
@@ -159,6 +180,14 @@ The codebase follows Clean Architecture with these layers:
     - Better performance than thread-based approach for I/O-bound operations
 - **Logging** (`logging/`):
   - `ConsoleLogger`: Structured console output with ANSI colors
+- **Factory Implementation** (`factories/`):
+  - `InfrastructureFactory`: Concrete implementation of `InfrastructureFactoryInterface`
+  - Creates all infrastructure service instances with proper dependency injection
+  - Provides singleton access for shared services (settings, logger, cache)
+- **Service Implementations** (`services/`):
+  - `GitHubPRDiffService`: Concrete implementation of `PRDiffServiceInterface`
+  - Provides PR diff operations using GitHub API with graceful error handling
+  - Orchestrates diff generation workflow with DiffGenerator and FileProcessor
 
 ### Application Layer (`ccpragents/application/`)
 
