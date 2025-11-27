@@ -3,7 +3,7 @@
 import re
 import time
 from typing import List, Dict, Optional, AsyncGenerator, Callable, Any
-from ccpragents.domain.entities.file_patch import FilePatchInfo, EDIT_TYPE
+from ccpragents.domain.entities.file_patch import FilePatchInfo
 from ccpragents.domain.services import DiffServiceInterface
 from ccpragents.infrastructure.logging.console_logger import get_logger
 import anyio
@@ -107,8 +107,6 @@ class DiffGenerator:
         """
         # Generate file header
         patch_with_lines_str = self._generate_file_header(file, is_first_file)
-        if file and hasattr(file, "edit_type") and file.edit_type == EDIT_TYPE.DELETED:
-            return patch_with_lines_str
 
         # Process all hunks in the patch
         patch_lines = patch.splitlines()
@@ -136,10 +134,6 @@ class DiffGenerator:
             return ""
 
         separator = "" if is_first_file else "\n\n---"
-
-        # Handle deleted files
-        if hasattr(file, "edit_type") and file.edit_type == EDIT_TYPE.DELETED:
-            return f"{separator}\n## File '{file.filename.strip()}' was deleted\n"
 
         return f"{separator}\n## Full file path: `{file.filename.strip()}`\n"
 

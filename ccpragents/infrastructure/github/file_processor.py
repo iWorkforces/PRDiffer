@@ -225,7 +225,7 @@ class FileProcessor:
         for file in files:
             if file.status in ["added", "modified", "renamed"]:
                 head_files.append(file.filename)
-            if file.status in ["removed", "modified"]:
+            if file.status == "modified":
                 base_files.append(file.filename)
             elif file.status == "renamed":
                 # For renamed files, use previous_filename to fetch from base commit
@@ -261,8 +261,9 @@ class FileProcessor:
                 new_file_content = head_contents.get(file.filename, "")
                 original_file_content = ""  # Added files don't exist in base
             elif file.status == "removed":
-                new_file_content = ""  # Removed files don't exist in head
-                original_file_content = base_contents.get(file.filename, "")
+                # Skip deleted files - nothing to compare
+                self._logger.info(f"Skipping deleted file: {file.filename}")
+                continue
             elif file.status == "renamed":
                 # For renamed files, use the previous filename to get base content
                 new_file_content = head_contents.get(file.filename, "")
@@ -328,7 +329,7 @@ class FileProcessor:
         for file in files:
             if file.status in ["added", "modified", "renamed"]:
                 head_files.append(file.filename)
-            if file.status in ["removed", "modified"]:
+            if file.status == "modified":
                 base_files.append(file.filename)
             elif file.status == "renamed":
                 # For renamed files, use previous_filename to fetch from base commit
@@ -423,8 +424,9 @@ class FileProcessor:
                 new_file_content = head_contents.get(file.filename, "")
                 original_file_content = ""  # Added files don't exist in base
             elif file.status == "removed":
-                new_file_content = ""  # Removed files don't exist in head
-                original_file_content = base_contents.get(file.filename, "")
+                # Skip deleted files - nothing to compare
+                self._logger.info(f"Skipping deleted file: {file.filename}")
+                continue
             elif file.status == "renamed":
                 # For renamed files, use the previous filename to get base content
                 new_file_content = head_contents.get(file.filename, "")
@@ -493,11 +495,9 @@ class FileProcessor:
                 )
                 original_file_content = ""  # Added files don't exist in base
             elif file.status == "removed":
-                # Removed files: only fetch from base commit
-                new_file_content = ""  # Removed files don't exist in head
-                original_file_content = self._github_api_service.get_file_content(
-                    repository, file.filename, base_sha
-                )
+                # Skip deleted files - nothing to compare
+                self._logger.info(f"Skipping deleted file: {file.filename}")
+                return None
             elif file.status == "renamed":
                 # Renamed files: fetch from head with new name, from base with old name
                 new_file_content = self._github_api_service.get_file_content(
