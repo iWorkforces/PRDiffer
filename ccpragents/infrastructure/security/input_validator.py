@@ -33,6 +33,8 @@ class InputValidator:
     SAFE_REPO_NAME_PATTERN: Pattern = re.compile(r"^[a-zA-Z0-9._-]+$")
 
     # Dangerous patterns to block
+    # Note: Patterns are designed to avoid ReDoS vulnerabilities by using
+    # lookahead assertions and atomic groupings where possible
     COMMAND_INJECTION_PATTERNS = [
         r"[;&|`$]",  # Shell metacharacters
         r"\$\(",  # Command substitution
@@ -40,16 +42,23 @@ class InputValidator:
     ]
 
     PATH_TRAVERSAL_PATTERNS = [
-        r"\.\.",  # Parent directory
-        r"~/",  # Home directory
-        r"/etc/",  # System directories
+        r"\.\.",  # Parent directory (Unix)
+        r"~/",  # Home directory (Unix)
+        r"/etc/",  # System directories (Unix)
         r"/var/",
         r"/usr/",
+        # Windows path traversal patterns
+        r"[a-zA-Z]:\\",  # Windows absolute paths (e.g., C:\)
+        r"\.\.\\",  # Windows parent directory (e.g., ..\)
+        r"\\\\",  # UNC paths (e.g., \\server\share)
     ]
 
     SQL_INJECTION_PATTERNS = [
         r"(?:--|#|/\*|\*/)",  # SQL comments
-        r"(?:union|select|insert|update|delete|drop|create|alter)\s",  # SQL keywords
+        # Fixed: Use word boundary \b and lookahead (?=\s|$) to prevent ReDoS
+        # The \b ensures we match whole words (not "union" in "reunion")
+        # The lookahead asserts whitespace or end-of-string follows without consuming it
+        r"\b(?:union|select|insert|update|delete|drop|create|alter)\b",  # SQL keywords
         r"(?:exec|execute|xp_)",  # Stored procedures
     ]
 

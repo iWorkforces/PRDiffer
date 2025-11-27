@@ -1,7 +1,7 @@
 """File processing service for GitHub repositories."""
 
 import time
-from typing import List, Optional
+from typing import List, Optional, Dict
 from github.File import File
 from github.PaginatedList import PaginatedList
 from github.Repository import Repository
@@ -219,12 +219,23 @@ class FileProcessor:
         # Separate files by status to optimize API calls
         head_files = []  # Files to fetch from head commit
         base_files = []  # Files to fetch from base commit
+        # Track mapping from current filename to base filename for renamed files
+        renamed_file_mapping: Dict[str, str] = {}
 
         for file in files:
             if file.status in ["added", "modified", "renamed"]:
                 head_files.append(file.filename)
-            if file.status in ["removed", "modified", "renamed"]:
+            if file.status == "modified":
                 base_files.append(file.filename)
+            elif file.status == "renamed":
+                # For renamed files, use previous_filename to fetch from base commit
+                previous_name = getattr(file, "previous_filename", None)
+                if previous_name:
+                    base_files.append(previous_name)
+                    renamed_file_mapping[file.filename] = previous_name
+                else:
+                    # Fallback to current filename if previous_filename not available
+                    base_files.append(file.filename)
 
         # Batch load content only for files that exist in each commit
         head_contents = (
@@ -250,9 +261,23 @@ class FileProcessor:
                 new_file_content = head_contents.get(file.filename, "")
                 original_file_content = ""  # Added files don't exist in base
             elif file.status == "removed":
-                new_file_content = ""  # Removed files don't exist in head
-                original_file_content = base_contents.get(file.filename, "")
-            else:  # modified, renamed, or other statuses
+                # Skip deleted files - nothing to compare
+                self._logger.info(f"Skipping deleted file: {file.filename}")
+                continue
+            elif file.status == "renamed":
+                # For renamed files, use the previous filename to get base content
+                new_file_content = head_contents.get(file.filename, "")
+                base_key = renamed_file_mapping.get(file.filename, file.filename)
+                original_file_content = base_contents.get(base_key, "")
+
+                # Skip rename-only files (no content changes)
+                if self._is_rename_only(file, original_file_content, new_file_content):
+                    previous_name = getattr(file, "previous_filename", "?")
+                    self._logger.info(
+                        f"Skipping rename-only file: {previous_name} -> {file.filename}"
+                    )
+                    continue
+            else:  # modified or other statuses
                 new_file_content = head_contents.get(file.filename, "")
                 original_file_content = base_contents.get(file.filename, "")
 
@@ -266,6 +291,174 @@ class FileProcessor:
                 file, original_file_content, new_file_content, patch
             )
             diff_files.append(file_patch)
+
+        return diff_files
+
+    def _process_files_with_content_parallel(
+        self,
+        files: List[File],
+        repository: Repository,
+        head_sha: str,
+        base_sha: str,
+        max_workers: int = 4,
+    ) -> List[FilePatchInfo]:
+        """Process files with parallel content loading for better performance.
+
+        Fetches head and base content concurrently using ThreadPoolExecutor,
+        significantly improving performance for PRs with many files.
+
+        Args:
+            files: List of files to process
+            repository: GitHub repository instance
+            head_sha: Head commit SHA
+            base_sha: Base commit SHA
+            max_workers: Maximum number of concurrent workers (default: 4)
+
+        Returns:
+            List of FilePatchInfo objects with content loaded
+        """
+        start_time = time.time()
+        diff_files = []
+
+        # Separate files by status to optimize API calls
+        head_files = []  # Files to fetch from head commit
+        base_files = []  # Files to fetch from base commit
+        # Track mapping from current filename to base filename for renamed files
+        renamed_file_mapping: Dict[str, str] = {}
+
+        for file in files:
+            if file.status in ["added", "modified", "renamed"]:
+                head_files.append(file.filename)
+            if file.status == "modified":
+                base_files.append(file.filename)
+            elif file.status == "renamed":
+                # For renamed files, use previous_filename to fetch from base commit
+                previous_name = getattr(file, "previous_filename", None)
+                if previous_name:
+                    base_files.append(previous_name)
+                    renamed_file_mapping[file.filename] = previous_name
+                else:
+                    # Fallback to current filename if previous_filename not available
+                    base_files.append(file.filename)
+
+        # Fetch head and base contents in parallel
+        head_contents: Dict[str, str] = {}
+        base_contents: Dict[str, str] = {}
+
+        from concurrent.futures import Future
+
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            futures: List[Optional[Future[Dict[str, str]]]] = []
+
+            # Submit head content fetch if needed
+            if head_files:
+                if hasattr(
+                    self._github_api_service, "get_files_content_batch_parallel"
+                ):
+                    futures.append(
+                        executor.submit(
+                            self._github_api_service.get_files_content_batch_parallel,
+                            repository,
+                            head_files,
+                            head_sha,
+                            max_workers,
+                        )
+                    )
+                else:
+                    futures.append(
+                        executor.submit(
+                            self._github_api_service.get_files_content_batch,
+                            repository,
+                            head_files,
+                            head_sha,
+                        )
+                    )
+            else:
+                futures.append(None)
+
+            # Submit base content fetch if needed
+            if base_files:
+                if hasattr(
+                    self._github_api_service, "get_files_content_batch_parallel"
+                ):
+                    futures.append(
+                        executor.submit(
+                            self._github_api_service.get_files_content_batch_parallel,
+                            repository,
+                            base_files,
+                            base_sha,
+                            max_workers,
+                        )
+                    )
+                else:
+                    futures.append(
+                        executor.submit(
+                            self._github_api_service.get_files_content_batch,
+                            repository,
+                            base_files,
+                            base_sha,
+                        )
+                    )
+            else:
+                futures.append(None)
+
+            # Collect results
+            if futures[0] is not None:
+                try:
+                    head_contents = futures[0].result()
+                except Exception as e:
+                    self._logger.error(f"Failed to fetch head contents: {e}")
+                    head_contents = {}
+
+            if futures[1] is not None:
+                try:
+                    base_contents = futures[1].result()
+                except Exception as e:
+                    self._logger.error(f"Failed to fetch base contents: {e}")
+                    base_contents = {}
+
+        # Process each file with loaded content
+        for file in files:
+            # Get content based on file status to avoid 404 errors
+            if file.status == "added":
+                new_file_content = head_contents.get(file.filename, "")
+                original_file_content = ""  # Added files don't exist in base
+            elif file.status == "removed":
+                # Skip deleted files - nothing to compare
+                self._logger.info(f"Skipping deleted file: {file.filename}")
+                continue
+            elif file.status == "renamed":
+                # For renamed files, use the previous filename to get base content
+                new_file_content = head_contents.get(file.filename, "")
+                base_key = renamed_file_mapping.get(file.filename, file.filename)
+                original_file_content = base_contents.get(base_key, "")
+
+                # Skip rename-only files (no content changes)
+                if self._is_rename_only(file, original_file_content, new_file_content):
+                    previous_name = getattr(file, "previous_filename", "?")
+                    self._logger.info(
+                        f"Skipping rename-only file: {previous_name} -> {file.filename}"
+                    )
+                    continue
+            else:  # modified or other statuses
+                new_file_content = head_contents.get(file.filename, "")
+                original_file_content = base_contents.get(file.filename, "")
+
+            patch = file.patch
+            if not patch:
+                patch = self._generate_patch_from_content(
+                    file.filename, new_file_content, original_file_content
+                )
+
+            file_patch = self._create_file_patch_with_content(
+                file, original_file_content, new_file_content, patch
+            )
+            diff_files.append(file_patch)
+
+        elapsed = time.time() - start_time
+        self._logger.debug(
+            f"Parallel content processing: {len(files)} files in {elapsed:.2f}s"
+        )
 
         return diff_files
 
@@ -302,13 +495,29 @@ class FileProcessor:
                 )
                 original_file_content = ""  # Added files don't exist in base
             elif file.status == "removed":
-                # Removed files: only fetch from base commit
-                new_file_content = ""  # Removed files don't exist in head
-                original_file_content = self._github_api_service.get_file_content(
-                    repository, file.filename, base_sha
+                # Skip deleted files - nothing to compare
+                self._logger.info(f"Skipping deleted file: {file.filename}")
+                return None
+            elif file.status == "renamed":
+                # Renamed files: fetch from head with new name, from base with old name
+                new_file_content = self._github_api_service.get_file_content(
+                    repository, file.filename, head_sha
                 )
+                # Use previous_filename for base commit if available
+                previous_name = getattr(file, "previous_filename", None)
+                base_filename = previous_name if previous_name else file.filename
+                original_file_content = self._github_api_service.get_file_content(
+                    repository, base_filename, base_sha
+                )
+
+                # Skip rename-only files (no content changes)
+                if self._is_rename_only(file, original_file_content, new_file_content):
+                    self._logger.info(
+                        f"Skipping rename-only file: {previous_name} -> {file.filename}"
+                    )
+                    return None
             else:
-                # Modified, renamed, or other statuses: fetch from both commits
+                # Modified or other statuses: fetch from both commits
                 new_file_content = self._github_api_service.get_file_content(
                     repository, file.filename, head_sha
                 )
@@ -442,6 +651,44 @@ class FileProcessor:
         except Exception:
             self._logger.error(f"Failed to generate patch for file: {filename}")
             return ""
+
+    def _is_rename_only(
+        self, file: File, original_content: str = "", new_content: str = ""
+    ) -> bool:
+        """Check if a renamed file has no content changes.
+
+        Uses GitHub API metadata as primary check, falls back to content comparison.
+
+        Args:
+            file: GitHub file object with status == "renamed"
+            original_content: Base file content (for fallback comparison)
+            new_content: Head file content (for fallback comparison)
+
+        Returns:
+            True if file is renamed without content changes, False otherwise
+        """
+        # Primary check: GitHub API metadata
+        if hasattr(file, "additions") and hasattr(file, "deletions"):
+            if file.additions == 0 and file.deletions == 0:
+                self._logger.debug(
+                    f"Rename-only detected via API metadata: {file.filename}"
+                )
+                return True
+            # Has changes - not rename-only
+            return False
+
+        # Fallback: Content comparison (when API metadata unavailable)
+        if original_content and new_content:
+            # Normalize trailing whitespace and compare
+            is_identical = original_content.rstrip() == new_content.rstrip()
+            if is_identical:
+                self._logger.debug(
+                    f"Rename-only detected via content comparison: {file.filename}"
+                )
+            return is_identical
+
+        # If no content available, cannot determine - assume has changes (conservative)
+        return False
 
 
 def get_file_processor(

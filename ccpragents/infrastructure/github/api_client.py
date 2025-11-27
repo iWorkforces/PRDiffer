@@ -1,6 +1,9 @@
 """GitHub API client for repository and pull request operations."""
 
-from typing import Optional, Dict, List, cast
+import time
+from collections import OrderedDict
+from typing import Optional, Dict, List, Any, cast
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from github import Github
 from github.Auth import Token
 from github.Repository import Repository
@@ -13,6 +16,11 @@ from ccpragents.infrastructure.utils.retry_handler import (
     OperationContext,
 )
 from ccpragents.infrastructure.logging.console_logger import get_logger
+
+
+# Default cache settings
+DEFAULT_FILE_CONTENT_CACHE_MAX_SIZE = 1000
+DEFAULT_FILE_CONTENT_CACHE_TTL = 600  # 10 minutes
 
 
 class GitHubAPIClient(GitHubAPIServiceInterface):
@@ -41,6 +49,8 @@ class GitHubAPIClient(GitHubAPIServiceInterface):
         context_aware_retry: bool = True,
         use_advanced_retry: bool = True,
         logger=None,
+        file_content_cache_max_size: int = DEFAULT_FILE_CONTENT_CACHE_MAX_SIZE,
+        file_content_cache_ttl: int = DEFAULT_FILE_CONTENT_CACHE_TTL,
     ):
         """Initialize the GitHub API client.
 
@@ -62,12 +72,18 @@ class GitHubAPIClient(GitHubAPIServiceInterface):
             context_aware_retry: Enable context-aware retry strategies
             use_advanced_retry: Use advanced retry handler (Phase 3)
             logger: Logger instance for logging operations
+            file_content_cache_max_size: Maximum number of entries in file content cache
+            file_content_cache_ttl: TTL for file content cache entries in seconds
         """
         self._github_client: Optional[Github] = None
         self._max_retries = max_retries
         self._retry_delay = retry_delay
         self._timeout = timeout
         self._logger = logger or get_logger()
+
+        # File content cache configuration (LRU with TTL)
+        self._cache_max_size = file_content_cache_max_size
+        self._cache_ttl = file_content_cache_ttl
 
         # Choose retry handler based on configuration
         if use_advanced_retry:
@@ -98,7 +114,12 @@ class GitHubAPIClient(GitHubAPIServiceInterface):
                 retry_log_level=retry_log_level,
                 permanent_failure_log_level=permanent_failure_log_level,
             )
-        self._file_content_cache: Dict[tuple, str] = {}
+
+        # LRU cache using OrderedDict: stores (content, timestamp) tuples
+        self._file_content_cache: OrderedDict[tuple, Dict[str, Any]] = OrderedDict()
+        self._cache_hits = 0
+        self._cache_misses = 0
+        self._cache_evictions = 0
 
     def initialize_client(
         self, github_token: Optional[str] = None, timeout: int = 30
@@ -160,10 +181,78 @@ class GitHubAPIClient(GitHubAPIServiceInterface):
             self._logger.error(f"Failed to get pull request #{pr_number}: {e}")
             return None
 
+    def _is_cache_entry_valid(self, cache_key: tuple) -> bool:
+        """Check if a cache entry exists and is not expired.
+
+        Args:
+            cache_key: The cache key tuple (file_path, branch)
+
+        Returns:
+            bool: True if entry exists and is valid, False otherwise
+        """
+        if cache_key not in self._file_content_cache:
+            return False
+
+        entry = self._file_content_cache[cache_key]
+        age = time.time() - float(entry["timestamp"])
+        return bool(age < self._cache_ttl)
+
+    def _evict_oldest_entries(self) -> None:
+        """Evict oldest entries when cache exceeds max size (LRU eviction)."""
+        while len(self._file_content_cache) >= self._cache_max_size:
+            # OrderedDict.popitem(last=False) removes oldest entry
+            evicted_key, _ = self._file_content_cache.popitem(last=False)
+            self._cache_evictions += 1
+            self._logger.debug(
+                f"Cache eviction (LRU): {evicted_key[0][:50]}... "
+                f"[size={len(self._file_content_cache)}/{self._cache_max_size}]"
+            )
+
+    def _cache_set(self, cache_key: tuple, content: str) -> None:
+        """Add or update a cache entry with LRU eviction.
+
+        Args:
+            cache_key: The cache key tuple (file_path, branch)
+            content: The file content to cache
+        """
+        # If key exists, remove it first to update its position (move to end)
+        if cache_key in self._file_content_cache:
+            del self._file_content_cache[cache_key]
+        else:
+            # New entry - check if we need to evict
+            self._evict_oldest_entries()
+
+        # Add entry at the end (most recently used)
+        self._file_content_cache[cache_key] = {
+            "content": content,
+            "timestamp": time.time(),
+        }
+
+    def _cache_get(self, cache_key: tuple) -> Optional[str]:
+        """Get a cache entry, updating its LRU position if valid.
+
+        Args:
+            cache_key: The cache key tuple (file_path, branch)
+
+        Returns:
+            Optional[str]: Cached content if valid, None otherwise
+        """
+        if not self._is_cache_entry_valid(cache_key):
+            if cache_key in self._file_content_cache:
+                # Entry expired, remove it
+                del self._file_content_cache[cache_key]
+            self._cache_misses += 1
+            return None
+
+        # Move to end (mark as recently used)
+        self._file_content_cache.move_to_end(cache_key)
+        self._cache_hits += 1
+        return str(self._file_content_cache[cache_key]["content"])
+
     def get_file_content(
         self, repository: Repository, file_path: str, branch: str
     ) -> str:
-        """Get file content from a specific branch with caching.
+        """Get file content from a specific branch with LRU caching and TTL.
 
         Args:
             repository: GitHub repository instance
@@ -173,10 +262,11 @@ class GitHubAPIClient(GitHubAPIServiceInterface):
         Returns:
             str: File content as string, empty string on error
         """
-        # Check cache first
+        # Check cache first (with TTL validation)
         cache_key = (file_path, branch)
-        if cache_key in self._file_content_cache:
-            return self._file_content_cache[cache_key]
+        cached_content = self._cache_get(cache_key)
+        if cached_content is not None:
+            return cached_content
 
         try:
             content = self._retry_handler.execute_with_retry(
@@ -198,8 +288,8 @@ class GitHubAPIClient(GitHubAPIServiceInterface):
                 # Single file content
                 file_content = self._extract_file_content(content)
 
-            # Cache the result
-            self._file_content_cache[cache_key] = file_content
+            # Cache the result with LRU eviction
+            self._cache_set(cache_key, file_content)
             return file_content
 
         except Exception as e:
@@ -208,7 +298,7 @@ class GitHubAPIClient(GitHubAPIServiceInterface):
             )
             file_content = ""
             # Cache even failures to avoid repeated API calls
-            self._file_content_cache[cache_key] = file_content
+            self._cache_set(cache_key, file_content)
             return file_content
 
     def get_files_content_batch(
@@ -224,14 +314,15 @@ class GitHubAPIClient(GitHubAPIServiceInterface):
         Returns:
             Dict mapping file paths to their content (empty string on error)
         """
-        results = {}
+        results: Dict[str, str] = {}
         files_to_fetch = []
 
-        # Check cache first for each file
+        # Check cache first for each file (with TTL validation)
         for file_path in file_paths:
             cache_key = (file_path, branch)
-            if cache_key in self._file_content_cache:
-                results[file_path] = self._file_content_cache[cache_key]
+            cached_content = self._cache_get(cache_key)
+            if cached_content is not None:
+                results[file_path] = cached_content
             else:
                 files_to_fetch.append(file_path)
 
@@ -239,6 +330,71 @@ class GitHubAPIClient(GitHubAPIServiceInterface):
         for file_path in files_to_fetch:
             content = self.get_file_content(repository, file_path, branch)
             results[file_path] = content
+
+        return results
+
+    def get_files_content_batch_parallel(
+        self,
+        repository: Repository,
+        file_paths: List[str],
+        branch: str,
+        max_workers: int = 4,
+    ) -> Dict[str, str]:
+        """Batch retrieve file contents in parallel from a specific branch.
+
+        Uses ThreadPoolExecutor for concurrent file fetching, which significantly
+        improves performance when fetching many files.
+
+        Args:
+            repository: GitHub repository instance
+            file_paths: List of file paths to retrieve
+            branch: Branch or commit SHA
+            max_workers: Maximum number of concurrent workers (default: 4)
+
+        Returns:
+            Dict mapping file paths to their content (empty string on error)
+        """
+        results: Dict[str, str] = {}
+        files_to_fetch = []
+
+        # Check cache first for each file (with TTL validation)
+        for file_path in file_paths:
+            cache_key = (file_path, branch)
+            cached_content = self._cache_get(cache_key)
+            if cached_content is not None:
+                results[file_path] = cached_content
+            else:
+                files_to_fetch.append(file_path)
+
+        if not files_to_fetch:
+            return results
+
+        # Fetch remaining files in parallel
+        start_time = time.time()
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            future_to_path = {
+                executor.submit(
+                    self.get_file_content, repository, file_path, branch
+                ): file_path
+                for file_path in files_to_fetch
+            }
+
+            for future in as_completed(future_to_path):
+                file_path = future_to_path[future]
+                try:
+                    content = future.result()
+                    results[file_path] = content
+                except Exception as e:
+                    self._logger.warning(
+                        f"Parallel fetch failed for '{file_path}': {e}"
+                    )
+                    results[file_path] = ""
+
+        elapsed = time.time() - start_time
+        self._logger.debug(
+            f"Parallel batch fetch: {len(files_to_fetch)} files in {elapsed:.2f}s "
+            f"({elapsed / len(files_to_fetch) * 1000:.1f}ms/file avg)"
+        )
 
         return results
 
@@ -259,15 +415,29 @@ class GitHubAPIClient(GitHubAPIServiceInterface):
         """Clear the file content cache."""
         self._file_content_cache.clear()
 
-    def get_cache_stats(self) -> Dict:
-        """Get cache statistics.
+    def get_cache_stats(self) -> Dict[str, Any]:
+        """Get cache statistics including LRU and TTL metrics.
 
         Returns:
-            Dict containing cache statistics
+            Dict containing cache statistics including hits, misses, evictions
         """
+        total_requests = self._cache_hits + self._cache_misses
+        hit_rate = (
+            (self._cache_hits / total_requests * 100) if total_requests > 0 else 0
+        )
+
         return {
             "cache_size": len(self._file_content_cache),
-            "cache_keys": list(self._file_content_cache.keys()),
+            "cache_max_size": self._cache_max_size,
+            "cache_ttl_seconds": self._cache_ttl,
+            "cache_hits": self._cache_hits,
+            "cache_misses": self._cache_misses,
+            "cache_evictions": self._cache_evictions,
+            "cache_hit_rate_percent": round(hit_rate, 2),
+            "cache_keys": [
+                (k[0][:50] + "..." if len(k[0]) > 50 else k[0], k[1][:8])
+                for k in self._file_content_cache.keys()
+            ],
         }
 
 

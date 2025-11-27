@@ -2,10 +2,11 @@
 
 import re
 import time
-from typing import List, Dict, Optional
-from ccpragents.domain.entities.file_patch import FilePatchInfo, EDIT_TYPE
+from typing import List, Dict, Optional, AsyncGenerator, Callable, Any
+from ccpragents.domain.entities.file_patch import FilePatchInfo
 from ccpragents.domain.services import DiffServiceInterface
 from ccpragents.infrastructure.logging.console_logger import get_logger
+import anyio
 
 
 class DiffGenerator:
@@ -106,8 +107,6 @@ class DiffGenerator:
         """
         # Generate file header
         patch_with_lines_str = self._generate_file_header(file, is_first_file)
-        if file and hasattr(file, "edit_type") and file.edit_type == EDIT_TYPE.DELETED:
-            return patch_with_lines_str
 
         # Process all hunks in the patch
         patch_lines = patch.splitlines()
@@ -135,10 +134,6 @@ class DiffGenerator:
             return ""
 
         separator = "" if is_first_file else "\n\n---"
-
-        # Handle deleted files
-        if hasattr(file, "edit_type") and file.edit_type == EDIT_TYPE.DELETED:
-            return f"{separator}\n## File '{file.filename.strip()}' was deleted\n"
 
         return f"{separator}\n## Full file path: `{file.filename.strip()}`\n"
 
@@ -223,6 +218,12 @@ class DiffGenerator:
     def _format_hunk_with_line_numbers(self, hunk: Dict) -> str:
         """Format a hunk with line numbers.
 
+        Handles edge cases:
+        - New files (start1=0): Uses start2 for line numbers
+        - Files with only deletions: Shows old content appropriately
+        - Empty hunks: Returns empty string
+        - No newline at EOF: Already filtered in _add_line_to_hunk
+
         Args:
             hunk: Hunk dictionary with header, new_lines, old_lines, start positions
 
@@ -238,16 +239,45 @@ class DiffGenerator:
         if not (has_additions or has_deletions):
             return ""  # No changes in this hunk
 
-        # Format new content section
-        output = output.rstrip() + "\n__new hunk__\n"
-        for i, line_new in enumerate(hunk["new_lines"]):
-            output += f"{hunk['start2'] + i} {line_new}\n"
+        # Handle deletion-only case (file deleted or only lines removed)
+        is_deletion_only = has_deletions and not has_additions
+
+        # Calculate starting line number for new content
+        # For new files with start2=0, use 1 as the starting line
+        new_start_line = max(1, hunk["start2"])
+
+        # Format new content section (unless deletion-only)
+        if not is_deletion_only:
+            output = output.rstrip() + "\n__new hunk__\n"
+            line_num = new_start_line
+            for line_new in hunk["new_lines"]:
+                # Skip deleted lines in new hunk display
+                if not line_new.startswith("-"):
+                    output += f"{line_num} {line_new}\n"
+                    line_num += 1
+        elif is_deletion_only and hunk["new_lines"]:
+            # Show context lines even for deletion-only hunks
+            output = output.rstrip() + "\n__new hunk__\n"
+            line_num = new_start_line
+            for line_new in hunk["new_lines"]:
+                if not line_new.startswith("-"):
+                    output += f"{line_num} {line_new}\n"
+                    line_num += 1
 
         # Format old content section if there are deletions
         if has_deletions:
             output = output.rstrip() + "\n__old hunk__\n"
+            # Calculate starting line number for old content
+            # For new files, there's no old content to number
+            old_start_line = max(1, hunk["start1"])
+            line_num = old_start_line
             for line_old in hunk["old_lines"]:
-                output += f"{line_old}\n"
+                # Add line numbers to old hunk for better context
+                if line_old.startswith("-"):
+                    output += f"{line_num} {line_old}\n"
+                else:
+                    output += f"{line_num} {line_old}\n"
+                line_num += 1
 
         return output
 
@@ -266,18 +296,33 @@ class DiffGenerator:
                 - start2: Starting line number in new file
 
         Note:
-            Handles edge cases like '@@ -0,0 +1 @@' for new files
+            Handles edge cases:
+            - '@@ -0,0 +1 @@' for new files (no original content)
+            - '@@ -1 +0,0 @@' for deleted files (no new content)
+            - '@@ -1,3 +1,3 @@' for standard modifications
+            - Missing size values default to 1
         """
         res = list(match.groups())
-        for i in range(len(res)):
+
+        # Convert None values to appropriate defaults
+        # Groups: (start1, size1, start2, size2, section_header)
+        # Pattern: @@ -(start1)(?:,(size1))? +(start2)(?:,(size2))? @@
+        for i in range(4):  # Only process numeric fields
             if res[i] is None:
-                res[i] = 0
+                # Size defaults to 1 if not specified (e.g., @@ -1 +1 @@)
+                res[i] = "1" if i in (1, 3) else "0"
+
         try:
-            start1, size1, start2, size2 = map(int, res[:4])
-        except (ValueError, IndexError):  # '@@ -0,0 +1 @@' case
-            start1, size1, size2 = map(int, res[:3])
-            start2 = 0
-        section_header = res[4]
+            start1 = int(res[0])
+            size1 = int(res[1])
+            start2 = int(res[2])
+            size2 = int(res[3])
+        except (ValueError, IndexError) as e:
+            # Fallback for unexpected formats
+            self._logger.warning(f"Unexpected hunk header format: {e}")
+            start1, size1, start2, size2 = 0, 0, 0, 0
+
+        section_header = res[4] if len(res) > 4 else ""
         return section_header, size1, size2, start1, start2
 
     def get_commit_messages(self, pull_request) -> str:
@@ -462,6 +507,148 @@ class DiffGenerator:
         )
 
         return extended_diffs
+
+    async def generate_extended_diff_stream(
+        self,
+        diff_files: List[FilePatchInfo],
+        add_line_numbers_to_hunks: bool = False,
+        batch_size: int = 10,
+        on_progress: Optional[Callable[[int, int], Any]] = None,
+    ) -> AsyncGenerator[str, None]:
+        """Generate extended diffs as an async stream for memory-efficient processing.
+
+        Yields diff strings one file at a time instead of building a complete list,
+        which is more memory-efficient for large PRs.
+
+        Args:
+            diff_files: List of FilePatchInfo objects to process
+            add_line_numbers_to_hunks: Whether to add line numbers to hunks
+            batch_size: Number of files to process in each batch (for progress reporting)
+            on_progress: Optional callback for progress updates (files_done, total_files)
+
+        Yields:
+            Extended diff strings, one per file
+        """
+        total_files = len(diff_files)
+        processed_count = 0
+        start_time = time.time()
+
+        self._logger.debug(
+            f"Starting streaming diff generation for {total_files} files"
+        )
+
+        for i, file in enumerate(diff_files):
+            original_file_content_str = file.base_file
+            new_file_content_str = file.head_file
+            patch = file.patch
+
+            if not patch:
+                processed_count += 1
+                continue
+
+            try:
+                # Extend each patch with extra lines of context
+                extended_patch = self._diff_utils.extend_patch(
+                    original_file_content_str, patch, new_file_str=new_file_content_str
+                )
+
+                if not extended_patch:
+                    self._logger.warning(
+                        f"Failed to extend patch for file: {file.filename}"
+                    )
+                    processed_count += 1
+                    continue
+
+                is_first_file = i == 0
+
+                if add_line_numbers_to_hunks:
+                    full_extended_patch = (
+                        self._decouple_and_convert_to_hunks_with_lines_numbers(
+                            extended_patch, file, is_first_file=is_first_file
+                        )
+                    )
+                else:
+                    # Add separator and file header
+                    separator = "" if is_first_file else "\n---"
+                    full_extended_patch = f"{separator}{'' if is_first_file else '\n\n'}## Full file path: `{file.filename.strip()}`\n{extended_patch.rstrip()}\n"
+                    if is_first_file:
+                        full_extended_patch = f"\n{full_extended_patch}"
+
+                processed_count += 1
+
+                # Report progress at batch boundaries
+                if on_progress and processed_count % batch_size == 0:
+                    on_progress(processed_count, total_files)
+
+                # Yield control to allow other async operations
+                await anyio.sleep(0)
+
+                yield full_extended_patch
+
+            except Exception as e:
+                self._logger.error(
+                    f"Error processing file {file.filename} in stream: {e}"
+                )
+                processed_count += 1
+                continue
+
+        # Final progress callback
+        if on_progress:
+            on_progress(processed_count, total_files)
+
+        elapsed_time = time.time() - start_time
+        self._logger.debug(
+            f"Streaming diff generation completed: {processed_count}/{total_files} files "
+            f"in {elapsed_time:.2f}s"
+        )
+
+    async def generate_single_diff(
+        self,
+        file: FilePatchInfo,
+        add_line_numbers_to_hunks: bool = False,
+        is_first_file: bool = False,
+    ) -> Optional[str]:
+        """Generate extended diff for a single file asynchronously.
+
+        This method is useful for processing files individually in async contexts.
+
+        Args:
+            file: FilePatchInfo object to process
+            add_line_numbers_to_hunks: Whether to add line numbers to hunks
+            is_first_file: Whether this is the first file in the diff
+
+        Returns:
+            Extended diff string, or None if processing fails
+        """
+        patch = file.patch
+        if not patch:
+            return None
+
+        try:
+            # Yield control before CPU-intensive work
+            await anyio.sleep(0)
+
+            extended_patch = self._diff_utils.extend_patch(
+                file.base_file, patch, new_file_str=file.head_file
+            )
+
+            if not extended_patch:
+                return None
+
+            if add_line_numbers_to_hunks:
+                return self._decouple_and_convert_to_hunks_with_lines_numbers(
+                    extended_patch, file, is_first_file=is_first_file
+                )
+            else:
+                separator = "" if is_first_file else "\n---"
+                full_extended_patch = f"{separator}{'' if is_first_file else '\n\n'}## Full file path: `{file.filename.strip()}`\n{extended_patch.rstrip()}\n"
+                if is_first_file:
+                    full_extended_patch = f"\n{full_extended_patch}"
+                return full_extended_patch
+
+        except Exception as e:
+            self._logger.error(f"Error generating single diff for {file.filename}: {e}")
+            return None
 
 
 def get_diff_generator(

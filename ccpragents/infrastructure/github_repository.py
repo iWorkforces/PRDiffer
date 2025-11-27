@@ -18,6 +18,7 @@ from ccpragents.infrastructure.github.diff_generator import get_diff_generator
 from ccpragents.infrastructure.github.parallel_executor import get_parallel_executor
 from ccpragents.infrastructure.utils.pattern_matcher import get_pattern_matcher
 from ccpragents.infrastructure.utils.diff_utils import get_diff_utils
+from ccpragents.infrastructure.security.input_validator import InputValidator
 
 
 class GitHubPRDiffRepository(PRDiffRepositoryInterface):
@@ -105,6 +106,9 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
 
         # Initialize logger
         self._logger = get_logger()
+
+        # Initialize security validator for safe logging
+        self._input_validator = InputValidator()
 
         # Initialize composed components
         self._github_api_client = get_github_api_client(
@@ -287,7 +291,13 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
         diff_content = "\n".join(extended_diffs)
 
         self._logger.info(f"Generated diff content for {len(diff_files)} files")
-        self._logger.info(f"Diff content:\n{diff_content}")
+        # Sanitize diff content for logging - truncate to prevent log flooding
+        # and sanitize to prevent log injection
+        safe_diff_preview = self._input_validator.sanitize_for_logging(
+            diff_content[:1000] if len(diff_content) > 1000 else diff_content,
+            max_length=1000,
+        )
+        self._logger.debug(f"Diff content preview:\n{safe_diff_preview}")
 
         # Get commit messages
         commit_messages = self._diff_generator.get_commit_messages(self._pull_request)
@@ -323,11 +333,31 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
         head_sha = self._pull_request.head.sha
         return base_sha, head_sha
 
+    def _sanitize_filename_for_logging(self, filename: str) -> str:
+        """Sanitize a filename for safe logging.
+
+        This prevents log injection attacks through malicious file names.
+
+        Args:
+            filename: The filename to sanitize
+
+        Returns:
+            str: A sanitized filename safe for logging
+        """
+        return self._input_validator.sanitize_for_logging(filename, max_length=200)
+
     def _log_filtered_files(self, original_files, filtered_files):
-        """Log information about filtered files."""
+        """Log information about filtered files with sanitized names."""
         try:
-            original_names = [file.filename for file in original_files]
-            filtered_names = [file.filename for file in filtered_files]
+            # Sanitize file names before logging to prevent log injection
+            original_names = [
+                self._sanitize_filename_for_logging(file.filename)
+                for file in original_files
+            ]
+            filtered_names = [
+                self._sanitize_filename_for_logging(file.filename)
+                for file in filtered_files
+            ]
             self._logger.info(
                 "Filtered out [ignore] files for pull request:",
                 extra={"files": original_names, "filtered_files": filtered_names},

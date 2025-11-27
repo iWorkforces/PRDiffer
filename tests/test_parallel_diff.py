@@ -53,7 +53,6 @@ def test_sequential_processing():
     assert all("test_file_" in r for r in result), "Results should contain filenames"
 
     print("✅ Sequential processing test passed")
-    return True
 
 
 def test_parallel_processing():
@@ -83,7 +82,6 @@ def test_parallel_processing():
         assert f"test_file_{i}.py" in r, f"File order not preserved at index {i}"
 
     print("✅ Parallel processing test passed")
-    return True
 
 
 def test_adaptive_strategy():
@@ -110,7 +108,6 @@ def test_adaptive_strategy():
     assert len(result_large) == 5, "Large set should process all files"
 
     print("✅ Adaptive strategy test passed")
-    return True
 
 
 def test_output_consistency():
@@ -148,7 +145,6 @@ def test_output_consistency():
         assert seq == par, f"Results differ at index {i}"
 
     print("✅ Output consistency test passed")
-    return True
 
 
 def main():
@@ -171,11 +167,8 @@ def main():
         try:
             print(f"\n📋 Running: {test_name}")
             print("-" * 60)
-            if test_func():
-                passed += 1
-            else:
-                failed += 1
-                print(f"❌ {test_name} failed")
+            test_func()
+            passed += 1
         except Exception as e:
             failed += 1
             print(f"❌ {test_name} failed with error: {e}")

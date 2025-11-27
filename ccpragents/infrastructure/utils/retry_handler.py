@@ -3,14 +3,24 @@
 This module provides a unified retry handler that combines basic retry logic with
 optional advanced features like circuit breaker, health tracking, and context-aware strategies.
 It replaces both the basic RetryHandler and AdvancedRetryHandler with a single configurable class.
+
+The handler supports both synchronous and asynchronous operations:
+- execute_with_retry(): Synchronous version using time.sleep()
+- execute_with_retry_async(): Async version using anyio.sleep() (non-blocking)
 """
 
 import time
 import random
 import threading
-from typing import Any, Callable, Optional, Dict
+from typing import Any, Callable, Optional, Dict, Coroutine, TypeVar
+
+import anyio
+
 from enum import StrEnum
 from ccpragents.domain.services import RetryServiceInterface
+
+
+T = TypeVar("T")
 
 
 class OperationContext(StrEnum):
@@ -239,6 +249,99 @@ class UnifiedRetryHandler(RetryServiceInterface):
         # This should not be reached, but just in case
         if last_exception:
             raise last_exception
+
+    async def execute_with_retry_async(
+        self,
+        func: Callable[..., Coroutine[Any, Any, T]],
+        *args,
+        context: Optional[OperationContext] = None,
+        **kwargs,
+    ) -> T:
+        """Execute an async function with retry logic and exponential backoff (non-blocking).
+
+        This is the async version of execute_with_retry(). It uses anyio.sleep() instead
+        of time.sleep() to avoid blocking the event loop during retry delays.
+
+        Args:
+            func: Async function to execute with retry logic
+            *args: Positional arguments for the function
+            context: Optional operation context for context-aware retry (only used with advanced features)
+            **kwargs: Keyword arguments for the function
+
+        Returns:
+            Result of the successful function call
+
+        Raises:
+            Exception: If all retry attempts fail, error is not retryable, or circuit breaker is open
+        """
+        # Check circuit breaker if enabled
+        if self._circuit_breaker and self.circuit_breaker_enabled:
+            if not self._circuit_breaker.can_execute():
+                from ccpragents.infrastructure.utils.circuit_breaker import (
+                    CircuitBreakerOpenException,
+                )
+
+                raise CircuitBreakerOpenException(
+                    f"Circuit breaker is open. State: {self._circuit_breaker.state.value}"
+                )
+
+        # Get context-specific configuration if context-aware retry is enabled
+        config = self._get_context_config(context)
+        max_retries = config["max_retries"]
+        base_delay = config["retry_delay"]
+        backoff_multiplier = config.get("backoff_multiplier", 2.0)
+
+        last_exception: Optional[Exception] = None
+        start_time = time.time() if self._health_tracker else None
+
+        for attempt in range(max_retries):
+            try:
+                result = await func(*args, **kwargs)
+
+                # Record success if health tracking is enabled
+                if self._health_tracker and start_time:
+                    self._record_success(start_time)
+
+                return result
+
+            except Exception as e:
+                last_exception = e
+
+                # Record failure if health tracking is enabled
+                if self._health_tracker:
+                    self._record_failure(e)
+
+                # Check if this error should be retried
+                should_retry = self._should_retry_error(e, context)
+                is_last_attempt = attempt == max_retries - 1
+
+                if not should_retry or is_last_attempt:
+                    # Log permanent failure or final attempt
+                    self._log_permanent_failure(e, should_retry, is_last_attempt)
+                    raise
+
+                # Calculate delay (adaptive if enabled, basic otherwise)
+                if self.adaptive_retry_enabled:
+                    delay = self._calculate_adaptive_delay(
+                        attempt, e, base_delay, backoff_multiplier
+                    )
+                else:
+                    delay = self._calculate_backoff(
+                        attempt, self._is_rate_limit_error(e)
+                    )
+
+                # Log the retry attempt
+                self._log_retry_attempt(attempt, delay, e, context)
+
+                # Use anyio.sleep() for non-blocking delay (async-compatible)
+                await anyio.sleep(delay)
+
+        # This should not be reached, but just in case
+        if last_exception:
+            raise last_exception
+
+        # Type checker requires a return, though this is unreachable
+        raise RuntimeError("Unexpected state: no result and no exception")
 
     def _get_context_config(self, context: Optional[OperationContext]) -> Dict:
         """Get configuration for specific operation context.

@@ -20,6 +20,7 @@ class CacheService(CacheServiceInterface):
         - cache.use_hashed_keys: Enable/disable hashing (default: True)
         - cache.hash_algorithm: Hash algorithm to use (default: md5)
         - cache.store_key_mapping: Store reverse mapping (default: True)
+        - cache.ttl: Time-to-live for cache entries in seconds (default: 600)
         """
         self.cache: Dict[str, Dict[str, Any]] = {}
         self.logger = get_logger()
@@ -32,14 +33,20 @@ class CacheService(CacheServiceInterface):
         self._use_hashed_keys = settings.get("cache.use_hashed_keys", True)
         self._hash_algorithm = settings.get("cache.hash_algorithm", "md5")
         self._store_key_mapping = settings.get("cache.store_key_mapping", True)
+        self._ttl = settings.get("cache.ttl", 600)  # Default 10 minutes
 
         # Reverse mapping: hashed_key -> original_key (for debugging and stats)
         self._key_mapping: Dict[str, str] = {}
 
+        # Cache statistics
+        self._cache_hits = 0
+        self._cache_misses = 0
+        self._cache_expirations = 0
+
         if self._use_hashed_keys:
             self.logger.info(
                 f"Cache key hashing enabled (algorithm={self._hash_algorithm}, "
-                f"mapping={self._store_key_mapping})"
+                f"mapping={self._store_key_mapping}, ttl={self._ttl}s)"
             )
 
     def get_cache_key(self, repo_owner: str, repo_name: str, pr_number: int) -> str:
@@ -119,19 +126,36 @@ class CacheService(CacheServiceInterface):
             return self._key_mapping.get(internal_key, internal_key)
         return internal_key
 
+    def _is_entry_expired(self, cached_data: Dict[str, Any]) -> bool:
+        """Check if a cache entry has expired based on TTL.
+
+        Args:
+            cached_data: The cached data dictionary containing timestamp
+
+        Returns:
+            bool: True if entry is expired, False otherwise
+        """
+        timestamp = cached_data.get("timestamp")
+        if timestamp is None:
+            return False  # No timestamp means no TTL check (backward compatibility)
+
+        age = time.time() - float(timestamp)
+        return bool(age > self._ttl)
+
     def get(self, cache_key: str, current_commit_sha: str) -> Optional[PRDiff]:
-        """Get cached PR diff data if it exists and commit SHA matches.
+        """Get cached PR diff data if it exists, commit SHA matches, and not expired.
 
         Args:
             cache_key: The cache key to look up (original format)
             current_commit_sha: The current head commit SHA from GitHub
 
         Returns:
-            Optional[PRDiff]: Cached data if valid, None otherwise
+            Optional[PRDiff]: Cached data if valid and not expired, None otherwise
         """
         internal_key, hash_display = self._get_internal_key(cache_key)
 
         if internal_key not in self.cache:
+            self._cache_misses += 1
             self.logger.debug(
                 f"Cache miss [cache_key={cache_key}"
                 + (f" hash={hash_display}" if hash_display else "")
@@ -140,10 +164,28 @@ class CacheService(CacheServiceInterface):
             return None
 
         cached_data = self.cache[internal_key]
+
+        # Check TTL expiration first
+        if self._is_entry_expired(cached_data):
+            self._cache_expirations += 1
+            self._cache_misses += 1
+            # Remove expired entry
+            del self.cache[internal_key]
+            if self._use_hashed_keys and self._store_key_mapping:
+                self._key_mapping.pop(internal_key, None)
+            self.logger.info(
+                "Cache entry expired (TTL)",
+                cache_key=cache_key,
+                hash=hash_display if self._use_hashed_keys else None,
+                ttl_seconds=self._ttl,
+            )
+            return None
+
         cached_commit_sha = cached_data.get("commit_sha")
         cached_result = cached_data.get("data")
 
         if cached_commit_sha == current_commit_sha and cached_result:
+            self._cache_hits += 1
             self.logger.info(
                 "Cache hit",
                 cache_key=cache_key,
@@ -153,8 +195,9 @@ class CacheService(CacheServiceInterface):
             # Cast to PRDiff since we know the type from set() method
             return cast(PRDiff, cached_result)
         else:
+            self._cache_misses += 1
             self.logger.info(
-                "Cache miss or invalid",
+                "Cache miss (commit SHA mismatch)",
                 cache_key=cache_key,
                 hash=hash_display if self._use_hashed_keys else None,
                 cached_sha=cached_commit_sha,
@@ -231,24 +274,37 @@ class CacheService(CacheServiceInterface):
                 - total_entries: Total number of entries
                 - hashing_enabled: Whether key hashing is active
                 - mapping_size: Size of reverse mapping (if enabled)
+                - ttl_seconds: TTL setting for cache entries
+                - cache_hits: Number of cache hits
+                - cache_misses: Number of cache misses
+                - cache_expirations: Number of expired entries removed
+                - hit_rate_percent: Cache hit rate percentage
         """
+        total_requests = self._cache_hits + self._cache_misses
+        hit_rate = (
+            (self._cache_hits / total_requests * 100) if total_requests > 0 else 0
+        )
+
+        base_stats = {
+            "size": len(self.cache),
+            "total_entries": len(self.cache),
+            "ttl_seconds": self._ttl,
+            "cache_hits": self._cache_hits,
+            "cache_misses": self._cache_misses,
+            "cache_expirations": self._cache_expirations,
+            "hit_rate_percent": round(hit_rate, 2),
+            "hashing_enabled": self._use_hashed_keys,
+        }
+
         if self._use_hashed_keys and self._store_key_mapping:
             # Return original keys for better readability
             original_keys = [self._get_original_key(k) for k in self.cache.keys()]
-            return {
-                "size": len(self.cache),
-                "keys": original_keys,
-                "total_entries": len(self.cache),
-                "hashing_enabled": True,
-                "mapping_size": len(self._key_mapping),
-            }
+            base_stats["keys"] = original_keys
+            base_stats["mapping_size"] = len(self._key_mapping)
         else:
-            return {
-                "size": len(self.cache),
-                "keys": list(self.cache.keys()),
-                "total_entries": len(self.cache),
-                "hashing_enabled": self._use_hashed_keys,
-            }
+            base_stats["keys"] = list(self.cache.keys())
+
+        return base_stats
 
 
 # Global cache service instance

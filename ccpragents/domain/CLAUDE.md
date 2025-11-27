@@ -42,6 +42,34 @@ The domain layer contains the core business logic and entities, following Domain
 - Accepts dependencies via constructor injection (Repository + CacheService)
 - Supports optional caching with commit-based invalidation
 
+### Service Interfaces (`services/`)
+
+Abstract interfaces for domain services. See `services/CLAUDE.md` for detailed documentation.
+
+**Key Interfaces:**
+- `CacheServiceInterface` - Caching operations
+- `LoggerServiceInterface` - Structured logging
+- `SettingsServiceInterface` - Configuration management
+- `GitHubAPIServiceInterface` - GitHub API operations
+- `PRDiffServiceInterface` - PR diff operations
+- `RetryServiceInterface` - Retry logic
+- `PatternMatchingServiceInterface` - File pattern matching
+- `DiffServiceInterface` - Diff generation
+- `RepositoryCacheServiceInterface` - Repository instance caching
+
+### Factory Interfaces (`factories/`)
+
+Abstract factory interfaces for creating infrastructure services while maintaining dependency inversion.
+
+**InfrastructureFactoryInterface** (`infrastructure_factory.py`)
+- Provides methods to create all infrastructure services
+- Enables application layer to obtain service instances without coupling to implementations
+- Creates core services (cache, logger, settings)
+- Creates GitHub integration services (API client, diff service, pattern matcher)
+- Creates application components (URL validator, rate limiter, metrics tracker)
+
+**Implementation:** `InfrastructureFactory` in `infrastructure/factories/`
+
 ## Development Guidelines
 
 ### When Modifying Entities

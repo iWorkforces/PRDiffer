@@ -17,9 +17,12 @@ ccpragents/
 │   ├── entities/               # Core business objects
 │   ├── repositories/           # Repository interfaces
 │   ├── services/               # Domain service interfaces
-│   └── usecases/               # Business use cases
+│   ├── usecases/               # Business use cases
+│   └── factories/              # Factory interfaces for dependency inversion
 ├── application/                # Application layer - orchestration
-│   └── mcp_server.py          # FastMCP server implementation
+│   ├── mcp_server.py          # FastMCP server implementation
+│   ├── components/            # Application components
+│   └── interfaces/            # Protocol definitions
 └── infrastructure/            # Infrastructure layer - external integrations
     ├── github_repository.py   # GitHub API repository implementation
     ├── settings.py            # Configuration management
@@ -27,7 +30,10 @@ ccpragents/
     ├── repository_cache_service.py  # Repository instance caching
     ├── github/               # GitHub-specific components
     ├── utils/                # Utility components
-    └── logging/              # Logging infrastructure
+    ├── logging/              # Logging infrastructure
+    ├── security/             # Security and input validation
+    ├── factories/            # Factory implementations
+    └── services/             # Service implementations (PRDiffService)
 ```
 
 ## Architecture Layers
@@ -45,7 +51,9 @@ The innermost layer containing:
   - `GitHubAPIServiceInterface` - GitHub API abstraction
   - `PatternMatchingServiceInterface` - Pattern matching abstraction
   - `RetryServiceInterface` - Retry logic abstraction
+  - `PRDiffServiceInterface` - PR diff operations abstraction
 - **Use Cases**: `GetPRDiffUseCase` - business logic orchestration
+- **Factory Interfaces**: `InfrastructureFactoryInterface` - dependency injection
 - **No External Dependencies**: Pure business logic with no framework coupling
 
 ### Application Layer (`application/`)
@@ -61,6 +69,9 @@ The outermost layer containing:
 - **Framework Dependencies**: FastMCP, PyGithub, Dynaconf
 - **Configuration**: Settings management and environment handling
 - **Cross-Cutting Concerns**: Logging, caching, retry logic
+- **Factory Implementation**: `InfrastructureFactory` - creates service instances
+- **Service Implementations**: `GitHubPRDiffService` - PR diff operations
+- **Security Components**: `InputValidator` - input validation and sanitization
 
 ## Dependency Flow
 

@@ -3,8 +3,14 @@
 import difflib
 import re
 import threading
-from typing import Union, Optional
+from typing import Union, Optional, List
 from ccpragents.domain.services import DiffServiceInterface
+
+
+# Default configuration for large file processing
+DEFAULT_LARGE_FILE_THRESHOLD = 5000  # Lines
+DEFAULT_DIFF_CHUNK_SIZE = 1000  # Lines per chunk
+DEFAULT_MAX_DIFF_SIZE = 100000  # Maximum diff size (100K lines)
 
 
 class DiffUtils(DiffServiceInterface):
@@ -83,6 +89,142 @@ class DiffUtils(DiffServiceInterface):
         # keep a leading blank line to match previous formatting between hunks
         return "\n".join(["", header] + body_lines)
 
+    def build_full_file_patch_chunked(
+        self,
+        original_file_str: str,
+        new_file_str: str,
+        chunk_size: int = DEFAULT_DIFF_CHUNK_SIZE,
+        large_file_threshold: int = DEFAULT_LARGE_FILE_THRESHOLD,
+    ) -> str:
+        """Build a unified diff with chunked processing for large files.
+
+        For files larger than large_file_threshold, splits processing into
+        chunks to avoid O(N²) complexity issues with difflib.SequenceMatcher.
+
+        Args:
+            original_file_str: Original file content
+            new_file_str: New file content
+            chunk_size: Number of lines per chunk (default: 1000)
+            large_file_threshold: Threshold for chunked processing (default: 5000 lines)
+
+        Returns:
+            str: Unified diff patch, or "[LARGE FILE - DIFF TRUNCATED]" if too large
+        """
+        orig_lines = original_file_str.splitlines()
+        new_lines = new_file_str.splitlines()
+
+        # Check if file is too large
+        max_lines = max(len(orig_lines), len(new_lines))
+        if max_lines > DEFAULT_MAX_DIFF_SIZE:
+            return "[LARGE FILE - DIFF TRUNCATED: File exceeds maximum diff size]"
+
+        # Use standard processing for small files
+        if max_lines <= large_file_threshold:
+            return self.build_full_file_patch(original_file_str, new_file_str)
+
+        # Chunked processing for large files
+        self._get_logger().info(
+            f"Using chunked diff processing for large file ({max_lines} lines)"
+        )
+
+        hunks = []
+        chunk_index = 0
+
+        while chunk_index * chunk_size < max_lines:
+            start_line = chunk_index * chunk_size
+            end_line = min((chunk_index + 1) * chunk_size, max_lines)
+
+            # Get chunks from both files
+            orig_chunk = orig_lines[start_line:end_line]
+            new_chunk = new_lines[start_line:end_line]
+
+            # Generate hunk for this chunk
+            hunk = self._build_chunk_hunk(
+                orig_chunk, new_chunk, start_line + 1, start_line + 1
+            )
+            if hunk:
+                hunks.append(hunk)
+
+            chunk_index += 1
+
+        return "\n".join(hunks) if hunks else ""
+
+    def _build_chunk_hunk(
+        self,
+        orig_lines: List[str],
+        new_lines: List[str],
+        orig_start: int,
+        new_start: int,
+    ) -> str:
+        """Build a diff hunk for a chunk of lines.
+
+        Args:
+            orig_lines: Original lines in this chunk
+            new_lines: New lines in this chunk
+            orig_start: Starting line number in original file
+            new_start: Starting line number in new file
+
+        Returns:
+            str: Unified diff hunk for this chunk
+        """
+        if not orig_lines and not new_lines:
+            return ""
+
+        orig_count = len(orig_lines)
+        new_count = len(new_lines)
+
+        header = f"@@ -{orig_start},{orig_count} +{new_start},{new_count} @@"
+        body_lines = []
+
+        sm = difflib.SequenceMatcher(None, orig_lines, new_lines)
+        for tag, i1, i2, j1, j2 in sm.get_opcodes():
+            if tag == "equal":
+                for k in range(i1, i2):
+                    body_lines.append(" " + orig_lines[k])
+            elif tag == "delete":
+                for k in range(i1, i2):
+                    body_lines.append("-" + orig_lines[k])
+            elif tag == "insert":
+                for k in range(j1, j2):
+                    body_lines.append("+" + new_lines[k])
+            elif tag == "replace":
+                for k in range(i1, i2):
+                    body_lines.append("-" + orig_lines[k])
+                for k in range(j1, j2):
+                    body_lines.append("+" + new_lines[k])
+
+        # Only return hunk if there are actual changes
+        if any(line.startswith("+") or line.startswith("-") for line in body_lines):
+            return "\n".join(["", header] + body_lines)
+        return ""
+
+    def is_large_file(
+        self, content: str, threshold: int = DEFAULT_LARGE_FILE_THRESHOLD
+    ) -> bool:
+        """Check if a file is considered large based on line count.
+
+        Args:
+            content: File content
+            threshold: Line count threshold (default: 5000)
+
+        Returns:
+            bool: True if file exceeds threshold
+        """
+        return len(content.splitlines()) > threshold
+
+    def get_file_line_count(self, content: str) -> int:
+        """Get the number of lines in file content.
+
+        Args:
+            content: File content
+
+        Returns:
+            int: Number of lines
+        """
+        if not content:
+            return 0
+        return len(content.splitlines())
+
     def decode_if_bytes(self, content: Union[str, bytes, bytearray]) -> str:
         """Decode bytes content to string with fallback encoding support.
 
@@ -119,7 +261,8 @@ class DiffUtils(DiffServiceInterface):
             new_file_str: New file content (after changes), defaults to empty string
 
         Returns:
-            str: Extended patch with full file context, original patch on failure
+            str: Extended patch with full file context, original patch on failure,
+                 or "[BINARY FILE]" marker if binary content detected
         """
         original_file_str = self.decode_if_bytes(original_file_str)
         new_file_str = self.decode_if_bytes(new_file_str)
@@ -128,16 +271,59 @@ class DiffUtils(DiffServiceInterface):
         original_file_str = original_file_str or ""
         new_file_str = new_file_str or ""
 
+        # Pre-check for binary content before attempting diff generation
+        if self._is_binary_content(original_file_str) or self._is_binary_content(
+            new_file_str
+        ):
+            self._get_logger().debug("Skipping diff for binary file content")
+            return "[BINARY FILE - DIFF NOT AVAILABLE]"
+
         try:
-            # Build a single full-file unified-diff hunk
-            extended_patch_str = self.build_full_file_patch(
-                original_file_str, new_file_str
+            # Use chunked processing for large files to avoid O(N²) complexity
+            max_lines = max(
+                len(original_file_str.splitlines()), len(new_file_str.splitlines())
             )
+            if max_lines > DEFAULT_LARGE_FILE_THRESHOLD:
+                extended_patch_str = self.build_full_file_patch_chunked(
+                    original_file_str, new_file_str
+                )
+            else:
+                # Build a single full-file unified-diff hunk
+                extended_patch_str = self.build_full_file_patch(
+                    original_file_str, new_file_str
+                )
         except Exception as e:
             self._get_logger().warning(f"Failed to extend patch: {e}")
             return patch_str
 
         return extended_patch_str
+
+    def _is_binary_content(self, content: str) -> bool:
+        """Check if string content appears to be binary.
+
+        Args:
+            content: String content to check
+
+        Returns:
+            bool: True if content appears to be binary
+        """
+        if not content:
+            return False
+
+        # Check for null bytes (common in binary files)
+        if "\x00" in content:
+            return True
+
+        # Check for high ratio of non-printable characters
+        # Sample first 8KB for efficiency
+        sample = content[:8192]
+        non_printable = sum(1 for c in sample if ord(c) < 32 and c not in "\n\r\t")
+
+        # If more than 30% non-printable, likely binary
+        if len(sample) > 0 and non_printable / len(sample) > 0.3:
+            return True
+
+        return False
 
     def is_binary_file(self, content: bytes) -> bool:
         """Determine if a file is binary based on its content.

@@ -229,6 +229,54 @@ results = await executor.execute_with_progress(
 - Log level filtering based on settings
 - Timestamp formatting and stderr routing for errors
 
+### Factory Implementation (`factories/`)
+
+**InfrastructureFactory** (`infrastructure_factory.py`)
+Concrete implementation of `InfrastructureFactoryInterface` from the domain layer.
+
+**Purpose:**
+- Creates all infrastructure service instances
+- Implements dependency injection patterns
+- Provides singleton access for shared services
+- Wires dependencies for complex services
+
+**Key Factory Methods:**
+- `create_settings_service()` - Uses `get_settings_service()` singleton
+- `create_logger_service()` - Uses `get_logger()` singleton
+- `create_cache_service()` - Uses `get_cache_service()` singleton
+- `create_pr_diff_service()` - Creates `GitHubPRDiffService` with all dependencies
+
+**Factory Function:**
+```python
+def get_infrastructure_factory() -> InfrastructureFactoryInterface:
+    return InfrastructureFactory()
+```
+
+See `factories/CLAUDE.md` for detailed documentation.
+
+### Service Implementations (`services/`)
+
+**GitHubPRDiffService** (`pr_diff_service.py`)
+Concrete implementation of `PRDiffServiceInterface` from the domain layer.
+
+**Purpose:**
+- Provides PR diff operations using GitHub API
+- Orchestrates diff generation workflow
+- Handles error cases with graceful degradation
+
+**Key Methods:**
+- `get_pr_diff(repo_owner, repo_name, pr_number)` - Fetches complete PR diff data
+- `get_latest_commit_sha(...)` - Gets latest commit SHA for caching
+- `validate_repository_access(...)` - Validates repository accessibility
+
+**Dependencies:**
+- `GitHubAPIClient` - API operations
+- `DiffGenerator` - Diff content generation
+- `FileProcessor` - File filtering and validation
+- `LoggerService` - Structured logging
+
+See `services/CLAUDE.md` for detailed documentation.
+
 ## Development Guidelines
 
 ### Working with GitHub API

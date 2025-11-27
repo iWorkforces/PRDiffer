@@ -3,6 +3,7 @@ import os
 import sys
 from dynaconf import Dynaconf
 from ccpragents.domain.services import SettingsServiceInterface
+from ccpragents.domain.config import GitHubConfig
 from ccpragents.infrastructure.utils.cache_decorator import CachingMixin, cached_method
 
 
@@ -68,7 +69,7 @@ class SettingsService(SettingsServiceInterface, CachingMixin):
         """
 
         # Get settings from current environment, fall back to default environment if not found
-        def get_with_fallback(key, default=None):
+        def get_with_fallback(key: str, default: Any = None) -> Any:
             value = self.get(key)
             if value is None and hasattr(self.settings, "from_env"):
                 # Fall back to default environment
@@ -84,6 +85,73 @@ class SettingsService(SettingsServiceInterface, CachingMixin):
             "ignore_patterns": tuple(get_with_fallback("github.ignore_patterns", [])),
             "valid_extensions": tuple(get_with_fallback("github.valid_extensions", [])),
         }
+
+    @cached_method()
+    def get_github_config(self) -> GitHubConfig:
+        """Get centralized GitHub configuration as a GitHubConfig dataclass.
+
+        This method returns a GitHubConfig object that centralizes all GitHub-related
+        settings in a single source of truth. Services should prefer receiving
+        a GitHubConfig object instead of individual parameters.
+
+        Returns:
+            GitHubConfig: Centralized GitHub configuration dataclass
+        """
+
+        def get_with_fallback(key: str, default: Any = None) -> Any:
+            value = self.get(key)
+            if value is None and hasattr(self.settings, "from_env"):
+                default_settings = cast(Dynaconf, self.settings.from_env("default"))  # type: ignore[misc]
+                value = cast(Any, default_settings.get(key, default))  # type: ignore[misc]
+            return value if value is not None else default
+
+        return GitHubConfig(
+            # Basic API settings
+            rate_limit=get_with_fallback("github.rate_limit", 5000),
+            timeout=get_with_fallback("github.timeout", 30),
+            max_retries=get_with_fallback("github.max_retries", 3),
+            retry_delay=float(get_with_fallback("github.retry_delay", 1.0)),
+            # Smart retry settings
+            retry_on_404=get_with_fallback("github.retry_on_404", False),
+            retry_on_403=get_with_fallback("github.retry_on_403", True),
+            retry_on_500=get_with_fallback("github.retry_on_500", True),
+            retry_log_level=get_with_fallback("github.retry_log_level", "DEBUG"),
+            permanent_failure_log_level=get_with_fallback(
+                "github.permanent_failure_log_level", "INFO"
+            ),
+            # Circuit breaker and adaptive retry
+            circuit_breaker_enabled=get_with_fallback(
+                "github.circuit_breaker_enabled", True
+            ),
+            circuit_breaker_failure_threshold=get_with_fallback(
+                "github.circuit_breaker_failure_threshold", 5
+            ),
+            circuit_breaker_timeout=get_with_fallback(
+                "github.circuit_breaker_timeout", 60
+            ),
+            adaptive_retry_enabled=get_with_fallback(
+                "github.adaptive_retry_enabled", True
+            ),
+            max_adaptive_delay=get_with_fallback("github.max_adaptive_delay", 30),
+            api_health_tracking=get_with_fallback("github.api_health_tracking", True),
+            context_aware_retry=get_with_fallback("github.context_aware_retry", True),
+            # File filtering patterns (convert to tuples for hashability)
+            ignore_patterns=tuple(get_with_fallback("github.ignore_patterns", [])),
+            valid_extensions=tuple(get_with_fallback("github.valid_extensions", [])),
+            # Parallel diff processing
+            diff_parallel_enabled=get_with_fallback(
+                "github.diff_parallel_enabled", True
+            ),
+            diff_parallel_threshold=get_with_fallback(
+                "github.diff_parallel_threshold", 3
+            ),
+            diff_max_workers=get_with_fallback("github.diff_max_workers", 4),
+            diff_worker_timeout=float(
+                get_with_fallback("github.diff_worker_timeout", 30.0)
+            ),
+            # File processing limits
+            max_files_allowed=get_with_fallback("app.max_files_allowed", 50),
+        )
 
     @cached_method()
     def get_cache_settings(self) -> Dict[str, Any]:
