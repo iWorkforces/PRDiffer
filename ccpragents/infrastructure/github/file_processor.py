@@ -268,6 +268,14 @@ class FileProcessor:
                 new_file_content = head_contents.get(file.filename, "")
                 base_key = renamed_file_mapping.get(file.filename, file.filename)
                 original_file_content = base_contents.get(base_key, "")
+
+                # Skip rename-only files (no content changes)
+                if self._is_rename_only(file, original_file_content, new_file_content):
+                    previous_name = getattr(file, "previous_filename", "?")
+                    self._logger.info(
+                        f"Skipping rename-only file: {previous_name} -> {file.filename}"
+                    )
+                    continue
             else:  # modified or other statuses
                 new_file_content = head_contents.get(file.filename, "")
                 original_file_content = base_contents.get(file.filename, "")
@@ -422,6 +430,14 @@ class FileProcessor:
                 new_file_content = head_contents.get(file.filename, "")
                 base_key = renamed_file_mapping.get(file.filename, file.filename)
                 original_file_content = base_contents.get(base_key, "")
+
+                # Skip rename-only files (no content changes)
+                if self._is_rename_only(file, original_file_content, new_file_content):
+                    previous_name = getattr(file, "previous_filename", "?")
+                    self._logger.info(
+                        f"Skipping rename-only file: {previous_name} -> {file.filename}"
+                    )
+                    continue
             else:  # modified or other statuses
                 new_file_content = head_contents.get(file.filename, "")
                 original_file_content = base_contents.get(file.filename, "")
@@ -493,6 +509,13 @@ class FileProcessor:
                 original_file_content = self._github_api_service.get_file_content(
                     repository, base_filename, base_sha
                 )
+
+                # Skip rename-only files (no content changes)
+                if self._is_rename_only(file, original_file_content, new_file_content):
+                    self._logger.info(
+                        f"Skipping rename-only file: {previous_name} -> {file.filename}"
+                    )
+                    return None
             else:
                 # Modified or other statuses: fetch from both commits
                 new_file_content = self._github_api_service.get_file_content(
@@ -628,6 +651,44 @@ class FileProcessor:
         except Exception:
             self._logger.error(f"Failed to generate patch for file: {filename}")
             return ""
+
+    def _is_rename_only(
+        self, file: File, original_content: str = "", new_content: str = ""
+    ) -> bool:
+        """Check if a renamed file has no content changes.
+
+        Uses GitHub API metadata as primary check, falls back to content comparison.
+
+        Args:
+            file: GitHub file object with status == "renamed"
+            original_content: Base file content (for fallback comparison)
+            new_content: Head file content (for fallback comparison)
+
+        Returns:
+            True if file is renamed without content changes, False otherwise
+        """
+        # Primary check: GitHub API metadata
+        if hasattr(file, "additions") and hasattr(file, "deletions"):
+            if file.additions == 0 and file.deletions == 0:
+                self._logger.debug(
+                    f"Rename-only detected via API metadata: {file.filename}"
+                )
+                return True
+            # Has changes - not rename-only
+            return False
+
+        # Fallback: Content comparison (when API metadata unavailable)
+        if original_content and new_content:
+            # Normalize trailing whitespace and compare
+            is_identical = original_content.rstrip() == new_content.rstrip()
+            if is_identical:
+                self._logger.debug(
+                    f"Rename-only detected via content comparison: {file.filename}"
+                )
+            return is_identical
+
+        # If no content available, cannot determine - assume has changes (conservative)
+        return False
 
 
 def get_file_processor(
