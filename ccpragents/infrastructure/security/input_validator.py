@@ -55,9 +55,10 @@ class InputValidator:
 
     SQL_INJECTION_PATTERNS = [
         r"(?:--|#|/\*|\*/)",  # SQL comments
-        # Fixed: Use lookahead (?=\s) instead of \s to prevent ReDoS
-        # The lookahead asserts whitespace follows without consuming it
-        r"(?:union|select|insert|update|delete|drop|create|alter)(?=\s|$)",  # SQL keywords
+        # Fixed: Use word boundary \b and lookahead (?=\s|$) to prevent ReDoS
+        # The \b ensures we match whole words (not "union" in "reunion")
+        # The lookahead asserts whitespace or end-of-string follows without consuming it
+        r"\b(?:union|select|insert|update|delete|drop|create|alter)\b",  # SQL keywords
         r"(?:exec|execute|xp_)",  # Stored procedures
     ]
 
