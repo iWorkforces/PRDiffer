@@ -150,6 +150,53 @@ class FastMCPServer:
 
         self._register_tools()
 
+    def _create_safe_error_message(self, exception: Exception) -> str:
+        """Create a safe error message that doesn't expose internal details.
+
+        This method maps known exception types to generic, user-friendly messages
+        to prevent leaking sensitive system information in error responses.
+
+        Args:
+            exception: The exception to create a safe message for
+
+        Returns:
+            str: A safe error message suitable for external consumption
+        """
+        # Map known exception types to safe, generic messages
+        safe_messages = {
+            # GitHub API exceptions
+            "GithubException": "GitHub API error occurred",
+            "RateLimitExceededException": "API rate limit exceeded. Please try again later",
+            "UnknownObjectException": "Repository or PR not found",
+            "BadCredentialsException": "GitHub authentication failed",
+            "TwoFactorException": "Two-factor authentication required",
+            # Security validation exceptions
+            "InvalidURLError": "Invalid GitHub PR URL format",
+            "InvalidRepositoryError": "Invalid repository identifier",
+            "InvalidPRNumberError": "Invalid pull request number",
+            "InputSanitizationError": "Invalid input parameters",
+            "SuspiciousOperationError": "Request contains suspicious patterns",
+            # Network/connection exceptions
+            "ConnectionError": "Connection to GitHub failed",
+            "TimeoutError": "Request timed out",
+            "SSLError": "Secure connection failed",
+            # Generic Python exceptions
+            "ValueError": "Invalid input value",
+            "TypeError": "Invalid input type",
+            "KeyError": "Missing required field",
+            "AttributeError": "Configuration error",
+        }
+
+        exception_type = type(exception).__name__
+
+        # Return mapped message if available, otherwise generic message
+        if exception_type in safe_messages:
+            return safe_messages[exception_type]
+
+        # For unknown exceptions, return a generic message
+        # Never expose the actual exception message which might contain sensitive info
+        return "Request processing failed"
+
     def _parse_pr_url(self, pr_url: str) -> tuple[str, str, int]:
         """Parse GitHub PR URL to extract repository owner, name, and PR number.
 
@@ -343,7 +390,7 @@ class FastMCPServer:
                 # Legacy metrics for backward compatibility
                 self._failed_requests += 1
 
-                # Security validation errors - provide clear error messages
+                # Security validation errors - provide safe error messages
                 self._logger.warning(
                     "Security validation error in PR diff request",
                     request_id=request_id,
@@ -353,7 +400,9 @@ class FastMCPServer:
                     error=str(e),
                     error_type=type(e).__name__,
                 )
-                raise ValueError(f"Invalid request: {e}")
+                # Use safe message that doesn't expose internal details
+                safe_message = self._create_safe_error_message(e)
+                raise ValueError(f"Invalid request: {safe_message}")
 
             except ValueError as e:
                 # Track failed request
@@ -364,7 +413,7 @@ class FastMCPServer:
                 # Legacy metrics for backward compatibility
                 self._failed_requests += 1
 
-                # Other validation errors - provide clear error messages
+                # Other validation errors - provide safe error messages
                 self._logger.warning(
                     "Validation error in PR diff request",
                     request_id=request_id,
@@ -373,7 +422,9 @@ class FastMCPServer:
                     else None,
                     error=str(e),
                 )
-                raise ValueError(f"Invalid request: {e}")
+                # Use safe message that doesn't expose internal details
+                safe_message = self._create_safe_error_message(e)
+                raise ValueError(f"Invalid request: {safe_message}")
 
             except Exception as e:
                 # Track failed request
@@ -384,15 +435,19 @@ class FastMCPServer:
                 # Legacy metrics for backward compatibility
                 self._failed_requests += 1
 
-                # GitHub API or other unexpected errors
+                # GitHub API or other unexpected errors - log full details internally
                 self._logger.error(
                     "Failed to fetch PR diff",
                     request_id=request_id,
-                    pr_url=pr_url,
+                    pr_url=self._input_validator.sanitize_for_logging(pr_url)
+                    if pr_url
+                    else None,
                     error=str(e),
+                    error_type=type(e).__name__,
                 )
-                # Re-raise with consistent error format
-                raise RuntimeError(f"Failed to fetch PR diff: {e}")
+                # Re-raise with safe error message that doesn't expose internals
+                safe_message = self._create_safe_error_message(e)
+                raise RuntimeError(f"Failed to fetch PR diff: {safe_message}")
 
         @self.mcp.tool()
         async def health():
@@ -404,8 +459,15 @@ class FastMCPServer:
             try:
                 return self._get_health_status()
             except Exception as e:
-                self._logger.error("Failed to get health status", error=str(e))
-                return {"status": "unhealthy", "error": str(e)}
+                # Log full error internally for debugging
+                self._logger.error(
+                    "Failed to get health status",
+                    error=str(e),
+                    error_type=type(e).__name__,
+                )
+                # Return safe error message that doesn't expose internals
+                safe_message = self._create_safe_error_message(e)
+                return {"status": "unhealthy", "error": safe_message}
 
     def run(self):
         """Start the FastMCP server with configured transport and port.
