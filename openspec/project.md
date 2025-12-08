@@ -18,7 +18,8 @@ CCPRAgents is an MCP (Model Context Protocol) server that provides GitHub PR dif
 ## Tech Stack
 
 ### Core Technologies
-- **Python 3.14+** - Primary language (requires Python 3.14 or higher)
+
+- **Python 3.14+** - Primary language (requires Python 3.14.1 or higher)
 - **FastMCP** - MCP server framework for tool exposure
 - **PyGithub** - GitHub API integration
 - **Pydantic** - Data validation and serialization
