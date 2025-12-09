@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # CCPRAgents - Type Checking Script
-# This script uses mypy to perform static type checking on all Python files
+# This script uses ty (Astral's fast Python type checker) to perform static type checking
 
 set -e
 
@@ -15,7 +15,7 @@ CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
 # Configuration
-MYPY_CONFIG_FILE="pyproject.toml"
+TY_CONFIG_FILE="pyproject.toml"
 
 echo -e "${BLUE}🔍 CCPRAgents - Type Checking${NC}"
 echo -e "${BLUE}=====================================${NC}"
@@ -63,61 +63,63 @@ check_uv() {
     echo -e "${CYAN}Version: $(uv --version)${NC}"
 }
 
-# Function to check if mypy is installed
-check_mypy() {
-    if ! uv run mypy --version &> /dev/null; then
-        echo -e "${YELLOW}📦 mypy not found, installing...${NC}"
-        echo -e "${CYAN}Installing mypy via uv...${NC}"
-        uv pip install mypy
+# Function to check if ty is installed
+check_ty() {
+    if ! uv run ty version &> /dev/null; then
+        echo -e "${YELLOW}📦 ty not found, installing...${NC}"
+        echo -e "${CYAN}Installing ty via uv...${NC}"
+        uv add --dev ty
 
         # Verify installation
-        if ! uv run mypy --version &> /dev/null; then
-            echo -e "${RED}❌ Failed to install mypy${NC}"
-            echo -e "${YELLOW}Please install mypy manually: uv pip install mypy${NC}"
+        if ! uv run ty version &> /dev/null; then
+            echo -e "${RED}❌ Failed to install ty${NC}"
+            echo -e "${YELLOW}Please install ty manually: uv add --dev ty${NC}"
             exit 1
         fi
     fi
 
-    echo -e "${GREEN}✅ mypy is available${NC}"
-    echo -e "${CYAN}Version: $(uv run mypy --version)${NC}"
+    echo -e "${GREEN}✅ ty is available${NC}"
+    echo -e "${CYAN}Version: $(uv run ty version)${NC}"
 }
 
-# Function to upgrade mypy to latest version
-upgrade_mypy() {
-    echo -e "${BLUE}🔄 Upgrading mypy to latest version...${NC}"
-    echo -e "${CYAN}Upgrading mypy via uv...${NC}"
-    uv pip install --upgrade mypy
-
-    echo -e "${GREEN}✅ mypy upgraded to latest version${NC}"
-    echo -e "${CYAN}Version: $(uv run mypy --version)${NC}"
+# Function to upgrade ty to latest version
+upgrade_ty() {
+    echo -e "${BLUE}🔄 Checking for ty updates...${NC}"
+    # Use uv pip to upgrade without modifying pyproject.toml
+    if uv pip install --upgrade ty --quiet 2>/dev/null; then
+        echo -e "${GREEN}✅ ty is up to date${NC}"
+    else
+        echo -e "${YELLOW}⚠️  Could not check for updates, continuing with installed version${NC}"
+    fi
+    echo -e "${CYAN}Version: $(uv run ty version)${NC}"
     echo ""
 }
 
-# Function to show mypy configuration
+# Function to show ty configuration
 show_config() {
-    echo -e "${BLUE}⚙️  MyPy Configuration:${NC}"
+    echo -e "${BLUE}⚙️  ty Configuration:${NC}"
 
-    if [ -f "$MYPY_CONFIG_FILE" ]; then
-        echo -e "${GREEN}✅ Using configuration from $MYPY_CONFIG_FILE${NC}"
+    if [ -f "$TY_CONFIG_FILE" ]; then
+        echo -e "${GREEN}✅ Using configuration from $TY_CONFIG_FILE${NC}"
 
-        # Show relevant mypy configuration if it exists
-        if grep -q "\[tool.mypy\]" "$MYPY_CONFIG_FILE" 2>/dev/null; then
+        # Show relevant ty configuration if it exists
+        if grep -q "\[tool.ty\]" "$TY_CONFIG_FILE" 2>/dev/null; then
             echo -e "${CYAN}Configuration preview:${NC}"
-            sed -n '/\[tool\.mypy\]/,/^\[/p' "$MYPY_CONFIG_FILE" | head -20
+            sed -n '/\[tool\.ty\]/,/^\[tool\.[^t]/p' "$TY_CONFIG_FILE" | head -30
         fi
     else
-        echo -e "${YELLOW}⚠️  No mypy configuration found, using defaults${NC}"
+        echo -e "${YELLOW}⚠️  No ty configuration found, using defaults${NC}"
     fi
     echo ""
 }
 
-# Function to run mypy type check
+# Function to run ty type check
 run_type_check() {
-    echo -e "${BLUE}🔍 Running mypy type check...${NC}"
+    echo -e "${BLUE}🔍 Running ty type check...${NC}"
     echo ""
 
-    # Run mypy with detailed output
-    if uv run mypy .; then
+    # Run ty with detailed output
+    if uv run ty check; then
         echo ""
         echo -e "${GREEN}✅ No type errors found!${NC}"
         return 0
@@ -133,30 +135,29 @@ show_stats() {
     echo -e "${BLUE}📊 Type Check Statistics:${NC}"
     echo ""
 
-    # Get statistics by error type
-    echo -e "${CYAN}Errors by type:${NC}"
-    uv run mypy . 2>&1 | grep "error:" | cut -d: -f3 | sed 's/^ *//' | cut -d' ' -f1 | sort | uniq -c | sort -nr || true
+    # Get statistics by running ty and counting errors
+    echo -e "${CYAN}Running type check for statistics...${NC}"
+    local output
+    output=$(uv run ty check 2>&1) || true
+
+    # Count errors by type
+    echo -e "${CYAN}Error summary:${NC}"
+    echo "$output" | grep -E "error\[" | sed 's/.*error\[\([^]]*\)\].*/\1/' | sort | uniq -c | sort -nr || echo "No errors found"
     echo ""
 
-    # Get statistics by file
+    # Count errors by file
     echo -e "${CYAN}Files with errors:${NC}"
-    uv run mypy . 2>&1 | grep "error:" | cut -d: -f1 | sort | uniq -c | sort -nr | head -10 || true
+    echo "$output" | grep -E "^[^ ].*\.py:" | cut -d: -f1 | sort | uniq -c | sort -nr | head -10 || echo "No errors found"
     echo ""
 }
 
-# Function to run type check with coverage report
-run_coverage() {
-    echo -e "${BLUE}📊 Running type check with coverage report...${NC}"
+# Function to run type check in watch mode
+run_watch() {
+    echo -e "${BLUE}👀 Running ty in watch mode...${NC}"
+    echo -e "${CYAN}Press Ctrl+C to stop watching${NC}"
     echo ""
 
-    # Run mypy with coverage report
-    uv run mypy . --html-report mypy-report || true
-
-    echo ""
-    if [ -d "mypy-report" ]; then
-        echo -e "${GREEN}✅ Coverage report generated in mypy-report/${NC}"
-        echo -e "${CYAN}Open mypy-report/index.html in your browser to view the report${NC}"
-    fi
+    uv run ty check --watch
 }
 
 # Function to show detailed help
@@ -166,29 +167,26 @@ show_help() {
     echo "Options:"
     echo "  --check       Run type checking (default)"
     echo "  --stats       Show detailed type error statistics"
-    echo "  --coverage    Generate HTML coverage report"
-    echo "  --config      Show mypy configuration"
-    echo "  --install     Install/upgrade mypy"
+    echo "  --watch       Run in watch mode (re-check on file changes)"
+    echo "  --config      Show ty configuration"
+    echo "  --install     Install/upgrade ty"
     echo "  --help        Show this help message"
     echo ""
     echo "Examples:"
     echo "  $0                    # Run type check"
     echo "  $0 --stats           # Show statistics"
-    echo "  $0 --coverage        # Generate coverage report"
-    echo ""
-    echo "Environment Variables:"
-    echo "  MYPY_CACHE_DIR   Directory for mypy cache"
+    echo "  $0 --watch           # Watch mode"
     echo ""
 }
 
-# Function to install/upgrade mypy
-install_mypy() {
-    echo -e "${BLUE}📦 Installing/upgrading mypy...${NC}"
-    echo -e "${CYAN}Installing mypy via uv...${NC}"
-    uv pip install --upgrade mypy
+# Function to install/upgrade ty
+install_ty() {
+    echo -e "${BLUE}📦 Installing/upgrading ty...${NC}"
+    echo -e "${CYAN}Installing ty via uv...${NC}"
+    uv pip install --upgrade ty
 
-    echo -e "${GREEN}✅ mypy installation completed${NC}"
-    echo -e "${CYAN}Version: $(uv run mypy --version)${NC}"
+    echo -e "${GREEN}✅ ty installation completed${NC}"
+    echo -e "${CYAN}Version: $(uv run ty version)${NC}"
 }
 
 # Main execution
@@ -207,19 +205,19 @@ main() {
                 SHOW_STATS=true
                 shift
                 ;;
-            --coverage)
-                ACTION="coverage"
+            --watch)
+                ACTION="watch"
                 shift
                 ;;
             --config)
                 check_uv
-                check_mypy
+                check_ty
                 show_config
                 exit 0
                 ;;
             --install)
                 check_uv
-                install_mypy
+                install_ty
                 exit 0
                 ;;
             --help)
@@ -236,8 +234,8 @@ main() {
 
     # Execute main workflow
     check_uv
-    check_mypy
-    upgrade_mypy
+    check_ty
+    upgrade_ty
     show_config
 
     case $ACTION in
@@ -256,12 +254,8 @@ main() {
                 exit 1
             fi
             ;;
-        "coverage")
-            run_coverage
-            if [ "$SHOW_STATS" = true ]; then
-                show_stats
-            fi
-            echo -e "${GREEN}🎉 Coverage report generation completed${NC}"
+        "watch")
+            run_watch
             ;;
     esac
 }

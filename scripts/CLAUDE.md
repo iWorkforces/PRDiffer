@@ -190,7 +190,7 @@ exit 0
 | Script | Purpose |
 |--------|---------|
 | `start-lint.sh` | Code linting with Ruff |
-| `start-type-check.sh` | Type checking with mypy |
+| `start-type-check.sh` | Type checking with ty |
 | `start-unittest.sh` | Unit test runner |
 
 ## Troubleshooting

@@ -34,7 +34,7 @@ CCPRAgents is an MCP (Model Context Protocol) server that provides GitHub PR dif
 ### Development Tools
 - **uv** - Python package manager and runner
 - **Ruff** - Linting and formatting
-- **mypy** - Static type checking
+- **ty** - Static type checking (Astral)
 - **pytest** - Testing framework
 - **pytest-asyncio** - Async test support
 - **pytest-cov** - Coverage reporting
@@ -45,7 +45,7 @@ CCPRAgents is an MCP (Model Context Protocol) server that provides GitHub PR dif
 
 **Linting & Formatting:**
 - Use Ruff for all linting and formatting (`./start-lint.sh --all`)
-- Run type checking with mypy (`./start-type-check.sh --check`)
+- Run type checking with ty (`./start-type-check.sh --check`)
 - All code must pass linting and type checking before push (enforced by pre-push hook)
 
 **Type Annotations:**

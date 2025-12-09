@@ -305,8 +305,9 @@ def conditional_cache(condition: Callable[[Any], bool], ttl: Optional[int] = Non
                     "that inherit from CachingMixin."
                 )
 
-            # Generate cache key
-            cache_key = _generate_cache_key(method.__name__, args, kwargs)
+            # Generate cache key (use getattr for type safety)
+            method_name = getattr(method, "__name__", repr(method))
+            cache_key = _generate_cache_key(method_name, args, kwargs)
 
             # Clean up expired entries periodically
             if (self._cache_hits + self._cache_misses) % 10 == 0:

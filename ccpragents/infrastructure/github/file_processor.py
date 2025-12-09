@@ -1,7 +1,7 @@
 """File processing service for GitHub repositories."""
 
 import time
-from typing import List, Optional, Dict
+from typing import List, Optional, Dict, Callable, cast
 from github.File import File
 from github.PaginatedList import PaginatedList
 from github.Repository import Repository
@@ -350,14 +350,24 @@ class FileProcessor:
         with ThreadPoolExecutor(max_workers=2) as executor:
             futures: List[Optional[Future[Dict[str, str]]]] = []
 
+            # Type alias for the batch fetch function
+            BatchFetchFunc = Callable[..., Dict[str, str]]
+
             # Submit head content fetch if needed
             if head_files:
                 if hasattr(
                     self._github_api_service, "get_files_content_batch_parallel"
                 ):
+                    batch_parallel_func = cast(
+                        BatchFetchFunc,
+                        getattr(
+                            self._github_api_service,
+                            "get_files_content_batch_parallel",
+                        ),
+                    )
                     futures.append(
                         executor.submit(
-                            self._github_api_service.get_files_content_batch_parallel,
+                            batch_parallel_func,
                             repository,
                             head_files,
                             head_sha,
@@ -381,9 +391,16 @@ class FileProcessor:
                 if hasattr(
                     self._github_api_service, "get_files_content_batch_parallel"
                 ):
+                    batch_parallel_func = cast(
+                        BatchFetchFunc,
+                        getattr(
+                            self._github_api_service,
+                            "get_files_content_batch_parallel",
+                        ),
+                    )
                     futures.append(
                         executor.submit(
-                            self._github_api_service.get_files_content_batch_parallel,
+                            batch_parallel_func,
                             repository,
                             base_files,
                             base_sha,

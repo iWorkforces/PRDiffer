@@ -114,17 +114,8 @@ class MetricsTracker(MetricsTrackerProtocol):
             for op, metrics in self._operation_metrics.items():
                 operation_metrics_copy[op] = metrics.copy()
 
-        metrics = {
-            "uptime_seconds": uptime_seconds,
-            "uptime_human": self._format_uptime(uptime_seconds),
-            "total_requests": total_requests,
-            "successful_requests": successful_requests,
-            "failed_requests": failed_requests,
-            "success_rate": self._calculate_success_rate_safe(
-                successful_requests, total_requests
-            ),
-            "operations": {},
-        }
+        # Build operations metrics separately with proper typing
+        operations_data: Dict[str, Dict[str, Any]] = {}
 
         # Process operation-specific metrics (now safe to iterate outside the lock)
         for operation, op_metrics in operation_metrics_copy.items():
@@ -140,7 +131,7 @@ class MetricsTracker(MetricsTrackerProtocol):
                     op_metrics["successful_requests"] / op_metrics["total_requests"]
                 ) * 100
 
-            metrics["operations"][operation] = {
+            operations_data[operation] = {
                 "total_requests": op_metrics["total_requests"],
                 "successful_requests": op_metrics["successful_requests"],
                 "failed_requests": op_metrics["failed_requests"],
@@ -151,6 +142,18 @@ class MetricsTracker(MetricsTrackerProtocol):
                 else 0.0,
                 "max_execution_time": round(op_metrics["max_execution_time"], 3),
             }
+
+        metrics: Dict[str, Any] = {
+            "uptime_seconds": uptime_seconds,
+            "uptime_human": self._format_uptime(uptime_seconds),
+            "total_requests": total_requests,
+            "successful_requests": successful_requests,
+            "failed_requests": failed_requests,
+            "success_rate": self._calculate_success_rate_safe(
+                successful_requests, total_requests
+            ),
+            "operations": operations_data,
+        }
 
         return metrics
 
