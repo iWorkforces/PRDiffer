@@ -32,11 +32,14 @@ dependencies = [
     "uvloop>=0.22.1",
     "httptools>=0.7.1",
     "starlette>=0.50.0",
-    "httpx>=0.28.1",
+    "httpx[http2]>=0.28.1",
     "jinja2>=3.1.6",
     "python-multipart>=0.0.20",
     "itsdangerous>=2.2.0",
     "pyyaml>=6.0.3",
+    "h2>=4.3.0",
+    "hpack>=4.1.0",
+    "hyperframe>=6.1.0",
 ]
 
 [project.urls]
