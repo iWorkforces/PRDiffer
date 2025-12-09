@@ -64,16 +64,16 @@ TRANSPORT=sse PORT=9102 uv run python ccpragents/server.py
 
 ### Type Checking
 ```bash
-# Run type checking with mypy
+# Run type checking with ty
 ./start-type-check.sh --check
 
 # Run with detailed statistics
 ./start-type-check.sh --stats
 
-# Generate HTML coverage report
-./start-type-check.sh --coverage
+# Run in watch mode (re-check on file changes)
+./start-type-check.sh --watch
 
-# Show mypy configuration
+# Show ty configuration
 ./start-type-check.sh --config
 ```
 

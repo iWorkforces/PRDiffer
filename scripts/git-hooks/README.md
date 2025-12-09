@@ -9,7 +9,7 @@ This directory contains git hooks for the CCPRAgents project.
 Runs validation checks before allowing a push to the remote repository:
 
 1. **Type Checking**: Runs `./start-type-check.sh`
-   - Uses mypy for static type checking
+   - Uses ty for static type checking
    - Ensures all Python code is properly typed
 
 2. **Linting**: Runs `./start-lint.sh --all`
