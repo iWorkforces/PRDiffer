@@ -86,8 +86,9 @@ class TestGitHubConfig:
 
         config = GitHubConfig()
 
+        # Use setattr() to test immutability (frozen dataclass prevents mutation)
         with pytest.raises(AttributeError):
-            config.rate_limit = 9999  # type: ignore
+            setattr(config, "rate_limit", 9999)
 
     def test_should_ignore_file(self):
         """Test file ignore pattern matching."""

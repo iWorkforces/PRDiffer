@@ -1,4 +1,4 @@
-from typing import Optional, Dict, Any, cast, List
+from typing import Optional, Dict, Any, List
 import os
 import sys
 from dynaconf import Dynaconf
@@ -54,8 +54,7 @@ class SettingsService(SettingsServiceInterface, CachingMixin):
         Returns:
             Any: The configuration value or default
         """
-        # Use cast to tell type checker that settings.get returns the expected type
-        return cast(Any, self.settings.get(key, default))  # type: ignore[misc]
+        return self.settings.get(key, default)
 
     @cached_method()
     def get_github_settings(self) -> Dict[str, Any]:
@@ -73,8 +72,10 @@ class SettingsService(SettingsServiceInterface, CachingMixin):
             value = self.get(key)
             if value is None and hasattr(self.settings, "from_env"):
                 # Fall back to default environment
-                default_settings = cast(Dynaconf, self.settings.from_env("default"))  # type: ignore[misc]
-                value = cast(Any, default_settings.get(key, default))  # type: ignore[misc]
+                default_settings = self.settings.from_env("default")
+                value = (
+                    default_settings.get(key, default) if default_settings else default
+                )
             return value or default
 
         return {
@@ -101,8 +102,8 @@ class SettingsService(SettingsServiceInterface, CachingMixin):
         def get_with_fallback(key: str, default: Any = None) -> Any:
             value = self.get(key)
             if value is None and hasattr(self.settings, "from_env"):
-                default_settings = cast(Dynaconf, self.settings.from_env("default"))  # type: ignore[misc]
-                value = cast(Any, default_settings.get(key, default))  # type: ignore[misc]
+                default_settings = self.settings.from_env("default")
+                value = default_settings.get(key, default) if default_settings else None
             return value if value is not None else default
 
         return GitHubConfig(

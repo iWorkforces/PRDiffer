@@ -4,14 +4,11 @@ These tests verify the end-to-end workflow from MCP server request
 to GitHub API response, including all intermediate components.
 """
 
-import os
-import time
-from unittest.mock import Mock, AsyncMock, patch, MagicMock
+from unittest.mock import Mock, AsyncMock
 import pytest
 
 from ccpragents.application.factory import create_mcp_server
 from ccpragents.domain.entities.pr_diff import PRDiff
-from ccpragents.domain.entities.file_patch import FilePatchInfo
 from ccpragents.infrastructure.github_repository import GitHubPRDiffRepository
 
 
@@ -30,18 +27,20 @@ class TestCompleteWorkflow:
     def mock_settings(self):
         """Mock settings service."""
         mock_settings = Mock()
-        mock_settings.get = Mock(side_effect=lambda key, default=None: {
-            "app.debug": False,
-            "app.log_level": "INFO",
-            "app.max_files_allowed": 50,
-            "github.rate_limit": 5000,
-            "github.timeout": 30,
-            "cache.ttl": 300,
-            "cache.use_hashed_keys": True,
-            "rate_limit.max_requests": 100,
-            "rate_limit.window_seconds": 60,
-            "mcp.transport": "stdio",
-        }.get(key, default))
+        mock_settings.get = Mock(
+            side_effect=lambda key, default=None: {
+                "app.debug": False,
+                "app.log_level": "INFO",
+                "app.max_files_allowed": 50,
+                "github.rate_limit": 5000,
+                "github.timeout": 30,
+                "cache.ttl": 300,
+                "cache.use_hashed_keys": True,
+                "rate_limit.max_requests": 100,
+                "rate_limit.window_seconds": 60,
+                "mcp.transport": "stdio",
+            }.get(key, default)
+        )
         return mock_settings
 
     @pytest.fixture
@@ -473,8 +472,8 @@ class TestEndToEndScenarios:
         mock_repo_cache.retrieve = Mock(return_value=None)
         mock_repo_cache.insert = Mock(return_value=True)
 
-        # Create server
-        server = create_mcp_server(
+        # Create server (not directly used, but validates wiring)
+        _ = create_mcp_server(
             github_repository_class=lambda o, r, n: mock_repo,
             settings_service=settings_service,
             cache_service=cache_service,

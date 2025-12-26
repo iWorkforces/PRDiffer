@@ -4,15 +4,13 @@ These tests verify that security validations properly prevent attacks
 including command injection, SQL injection, path traversal, and other threats.
 """
 
-import os
-from unittest.mock import Mock, AsyncMock, patch
+from unittest.mock import Mock, AsyncMock
 import pytest
 
 from ccpragents.application.factory import create_mcp_server
 from ccpragents.domain.exceptions import (
     InvalidURLError,
     InvalidRepositoryError,
-    InvalidPRNumberError,
     InputSanitizationError,
     SuspiciousOperationError,
 )
@@ -31,6 +29,7 @@ class TestCommandInjectionPrevention:
 
         mock_logger = Mock()
         from ccpragents.infrastructure.logging.console_logger import ConsoleLogger
+
         logger = ConsoleLogger()
         logger._logger = mock_logger
 
@@ -147,6 +146,7 @@ class TestSQLInjectionPrevention:
 
         mock_logger = Mock()
         from ccpragents.infrastructure.logging.console_logger import ConsoleLogger
+
         logger = ConsoleLogger()
         logger._logger = mock_logger
 
@@ -263,6 +263,7 @@ class TestPathTraversalPrevention:
 
         mock_logger = Mock()
         from ccpragents.infrastructure.logging.console_logger import ConsoleLogger
+
         logger = ConsoleLogger()
         logger._logger = mock_logger
 
@@ -296,7 +297,9 @@ class TestPathTraversalPrevention:
         ]
 
         for url in malicious_urls:
-            with pytest.raises((SuspiciousOperationError, InvalidRepositoryError, InvalidURLError)):
+            with pytest.raises(
+                (SuspiciousOperationError, InvalidRepositoryError, InvalidURLError)
+            ):
                 server._parse_pr_url(url)
 
     def test_blocks_encoded_path_traversal(self, server):
@@ -307,7 +310,9 @@ class TestPathTraversalPrevention:
         ]
 
         for url in malicious_urls:
-            with pytest.raises((SuspiciousOperationError, InvalidRepositoryError, InvalidURLError)):
+            with pytest.raises(
+                (SuspiciousOperationError, InvalidRepositoryError, InvalidURLError)
+            ):
                 server._parse_pr_url(url)
 
     def test_blocks_absolute_path_traversal(self, server):
@@ -319,7 +324,9 @@ class TestPathTraversalPrevention:
         ]
 
         for url in malicious_urls:
-            with pytest.raises((SuspiciousOperationError, InvalidRepositoryError, InvalidURLError)):
+            with pytest.raises(
+                (SuspiciousOperationError, InvalidRepositoryError, InvalidURLError)
+            ):
                 server._parse_pr_url(url)
 
     def test_blocks_system_directory_access(self, server):
@@ -328,7 +335,9 @@ class TestPathTraversalPrevention:
 
         for system_dir in system_dirs:
             url = f"https://github.com/{system_dir}repo/pull/123"
-            with pytest.raises((SuspiciousOperationError, InvalidRepositoryError, InvalidURLError)):
+            with pytest.raises(
+                (SuspiciousOperationError, InvalidRepositoryError, InvalidURLError)
+            ):
                 server._parse_pr_url(url)
 
     def test_blocks_windows_path_traversal(self, server):
@@ -339,7 +348,9 @@ class TestPathTraversalPrevention:
         ]
 
         for url in malicious_urls:
-            with pytest.raises((SuspiciousOperationError, InvalidRepositoryError, InvalidURLError)):
+            with pytest.raises(
+                (SuspiciousOperationError, InvalidRepositoryError, InvalidURLError)
+            ):
                 server._parse_pr_url(url)
 
 
@@ -355,6 +366,7 @@ class TestXSSPrevention:
 
         mock_logger = Mock()
         from ccpragents.infrastructure.logging.console_logger import ConsoleLogger
+
         logger = ConsoleLogger()
         logger._logger = mock_logger
 
@@ -421,6 +433,7 @@ class TestInputSanitization:
 
         mock_logger = Mock()
         from ccpragents.infrastructure.logging.console_logger import ConsoleLogger
+
         logger = ConsoleLogger()
         logger._logger = mock_logger
 
@@ -501,6 +514,7 @@ class TestRepositoryValidation:
 
         mock_logger = Mock()
         from ccpragents.infrastructure.logging.console_logger import ConsoleLogger
+
         logger = ConsoleLogger()
         logger._logger = mock_logger
 
@@ -536,7 +550,9 @@ class TestRepositoryValidation:
 
         for invalid_owner in invalid_owners:
             url = f"https://github.com/{invalid_owner}/repo/pull/123"
-            with pytest.raises((SuspiciousOperationError, InvalidRepositoryError, InvalidURLError)):
+            with pytest.raises(
+                (SuspiciousOperationError, InvalidRepositoryError, InvalidURLError)
+            ):
                 server._parse_pr_url(url)
 
     def test_rejects_invalid_repo_names(self, server):
@@ -549,7 +565,9 @@ class TestRepositoryValidation:
 
         for invalid_repo in invalid_repos:
             url = f"https://github.com/owner/{invalid_repo}/pull/123"
-            with pytest.raises((SuspiciousOperationError, InvalidRepositoryError, InvalidURLError)):
+            with pytest.raises(
+                (SuspiciousOperationError, InvalidRepositoryError, InvalidURLError)
+            ):
                 server._parse_pr_url(url)
 
     def test_accepts_valid_names(self, server):
@@ -586,6 +604,7 @@ class TestSecureLogging:
 
         mock_logger = Mock()
         from ccpragents.infrastructure.logging.console_logger import ConsoleLogger
+
         logger = ConsoleLogger()
         logger._logger = mock_logger
 
@@ -642,6 +661,7 @@ class TestBranchValidationSecurity:
 
         mock_logger = Mock()
         from ccpragents.infrastructure.logging.console_logger import ConsoleLogger
+
         logger = ConsoleLogger()
         logger._logger = mock_logger
 

@@ -4,7 +4,7 @@ These tests verify proper error handling for various failure scenarios
 including API failures, rate limits, network errors, and invalid inputs.
 """
 
-from unittest.mock import Mock, AsyncMock, patch
+from unittest.mock import Mock, AsyncMock
 import pytest
 from github import GithubException, RateLimitExceededException, UnknownObjectException
 
@@ -28,15 +28,17 @@ class TestAPIErrorScenarios:
     def mock_settings(self):
         """Mock settings service."""
         mock_settings = Mock()
-        mock_settings.get = Mock(side_effect=lambda key, default=None: {
-            "app.debug": False,
-            "app.log_level": "INFO",
-            "github.rate_limit": 5000,
-            "github.timeout": 30,
-            "cache.ttl": 300,
-            "rate_limit.max_requests": 100,
-            "rate_limit.window_seconds": 60,
-        }.get(key, default))
+        mock_settings.get = Mock(
+            side_effect=lambda key, default=None: {
+                "app.debug": False,
+                "app.log_level": "INFO",
+                "github.rate_limit": 5000,
+                "github.timeout": 30,
+                "cache.ttl": 300,
+                "rate_limit.max_requests": 100,
+                "rate_limit.window_seconds": 60,
+            }.get(key, default)
+        )
         return mock_settings
 
     @pytest.fixture
@@ -74,7 +76,12 @@ class TestAPIErrorScenarios:
 
     @pytest.fixture
     def server(
-        self, mock_settings, mock_logger, mock_cache, mock_repo_cache, mock_pr_diff_service
+        self,
+        mock_settings,
+        mock_logger,
+        mock_cache,
+        mock_repo_cache,
+        mock_pr_diff_service,
     ):
         """Create server with mocked dependencies."""
         mock_repo = Mock(spec=GitHubPRDiffRepository)
@@ -193,7 +200,12 @@ class TestValidationErrorScenarios:
 
     @pytest.fixture
     def server(
-        self, mock_settings, mock_logger, mock_cache, mock_repo_cache, mock_pr_diff_service
+        self,
+        mock_settings,
+        mock_logger,
+        mock_cache,
+        mock_repo_cache,
+        mock_pr_diff_service,
     ):
         """Create server with mocked dependencies."""
         mock_repo = Mock(spec=GitHubPRDiffRepository)
@@ -250,7 +262,9 @@ class TestValidationErrorScenarios:
         malicious_url = "https://github.com/owner/../etc/passwd/pull/123"
 
         # Act & Assert: Should raise SuspiciousOperationError or InvalidRepositoryError
-        with pytest.raises((SuspiciousOperationError, InvalidRepositoryError, InvalidURLError)):
+        with pytest.raises(
+            (SuspiciousOperationError, InvalidRepositoryError, InvalidURLError)
+        ):
             server._parse_pr_url(malicious_url)
 
     def test_empty_url(self, server):
@@ -316,10 +330,12 @@ class TestRateLimitingScenarios:
     def mock_settings(self):
         """Mock settings service."""
         mock_settings = Mock()
-        mock_settings.get = Mock(side_effect=lambda key, default=None: {
-            "rate_limit.max_requests": 5,  # Low limit for testing
-            "rate_limit.window_seconds": 60,
-        }.get(key, default))
+        mock_settings.get = Mock(
+            side_effect=lambda key, default=None: {
+                "rate_limit.max_requests": 5,  # Low limit for testing
+                "rate_limit.window_seconds": 60,
+            }.get(key, default)
+        )
         return mock_settings
 
     @pytest.fixture
@@ -354,7 +370,12 @@ class TestRateLimitingScenarios:
 
     @pytest.fixture
     def server(
-        self, mock_settings, mock_logger, mock_cache, mock_repo_cache, mock_pr_diff_service
+        self,
+        mock_settings,
+        mock_logger,
+        mock_cache,
+        mock_repo_cache,
+        mock_pr_diff_service,
     ):
         """Create server with mocked dependencies."""
         mock_repo = Mock(spec=GitHubPRDiffRepository)
@@ -377,7 +398,7 @@ class TestRateLimitingScenarios:
         # Act: Check rate limit multiple times within limit
         for i in range(5):
             is_allowed = server._rate_limiter.check_rate_limit("test_client")
-            assert is_allowed is True, f"Request {i+1} should be allowed"
+            assert is_allowed is True, f"Request {i + 1} should be allowed"
             server._rate_limiter.increment_rate_limit("test_client")
 
     def test_rate_limit_blocks_requests_exceeding_limit(self, server):
@@ -501,7 +522,6 @@ class TestCacheErrorScenarios:
     @pytest.fixture
     def mock_pr_diff_service(self):
         """Mock PR diff service."""
-        from ccpragents.domain.entities.pr_diff import PRDiff
 
         mock_service = Mock()
         # Even with cache failure, service should still work
@@ -515,7 +535,12 @@ class TestCacheErrorScenarios:
 
     @pytest.fixture
     def server_with_failing_cache(
-        self, mock_settings, mock_logger, failing_cache, mock_repo_cache, mock_pr_diff_service
+        self,
+        mock_settings,
+        mock_logger,
+        failing_cache,
+        mock_repo_cache,
+        mock_pr_diff_service,
     ):
         """Create server with failing cache."""
         mock_repo = Mock(spec=GitHubPRDiffRepository)
@@ -584,7 +609,12 @@ class TestAuthenticationErrorScenarios:
 
     @pytest.fixture
     def server(
-        self, mock_settings, mock_logger, mock_cache, mock_repo_cache, mock_pr_diff_service
+        self,
+        mock_settings,
+        mock_logger,
+        mock_cache,
+        mock_repo_cache,
+        mock_pr_diff_service,
     ):
         """Create server with mocked dependencies."""
         mock_repo = Mock(spec=GitHubPRDiffRepository)

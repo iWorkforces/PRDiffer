@@ -117,7 +117,7 @@ class PROperationHandler(PROperationHandlerProtocol):
 
             # Initialize the repository with settings if it has an initialize method
             try:
-                init_method = repository.initialize  # type: ignore[attr-defined]
+                init_method = getattr(repository, "initialize", None)
                 if callable(init_method):
                     await init_method()
             except (AttributeError, TypeError):

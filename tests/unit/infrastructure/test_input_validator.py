@@ -5,6 +5,7 @@ functionality to prevent security vulnerabilities.
 """
 
 import pytest
+from typing import cast, Any
 from ccpragents.infrastructure.security.input_validator import (
     InputValidator,
     validate_github_url,
@@ -272,8 +273,11 @@ class TestStringSanitization:
 
     def test_sanitize_string_non_string_type(self):
         """Test that non-string types raise exception."""
+        from typing import cast, Any
+
+        # Using cast(Any, ...) to intentionally pass wrong type for testing
         with pytest.raises(InputSanitizationError, match="Expected string"):
-            InputValidator.sanitize_string(12345)  # type: ignore[arg-type]
+            InputValidator.sanitize_string(cast(Any, 12345))
 
     def test_sanitize_string_convenience_function(self):
         """Test the convenience function wrapper."""
@@ -350,8 +354,10 @@ class TestTokenValidation:
 
     def test_validate_token_non_string(self):
         """Test that non-string tokens are rejected."""
+        from typing import cast, Any
+
         with pytest.raises(InputSanitizationError, match="must be a string"):
-            InputValidator.validate_token(123456789012345678901)  # type: ignore[arg-type]
+            InputValidator.validate_token(cast(Any, 123456789012345678901))
 
     def test_validate_token_convenience_function(self):
         """Test the convenience function wrapper."""
@@ -397,8 +403,9 @@ class TestUserIDValidation:
 
     def test_validate_user_id_non_string(self):
         """Test that non-string user IDs are rejected."""
+        # Using cast(Any, ...) to intentionally pass wrong type for testing
         with pytest.raises(InputSanitizationError, match="must be a string"):
-            InputValidator.validate_user_id(12345)  # type: ignore[arg-type]
+            InputValidator.validate_user_id(cast(Any, 12345))
 
     def test_validate_user_id_convenience_function(self):
         """Test the convenience function wrapper."""
@@ -452,8 +459,9 @@ class TestFilePathValidation:
 
     def test_validate_file_path_non_string(self):
         """Test that non-string paths are rejected."""
+        # Using cast(Any, ...) to intentionally pass wrong type for testing
         with pytest.raises(InputSanitizationError, match="must be a string"):
-            InputValidator.validate_file_path(123)  # type: ignore[arg-type]
+            InputValidator.validate_file_path(cast(Any, 123))
 
 
 @pytest.mark.unit
@@ -486,7 +494,8 @@ class TestSafeLogging:
 
     def test_sanitize_for_logging_converts_non_strings(self):
         """Test that non-string values are converted to strings."""
-        result = InputValidator.sanitize_for_logging(12345)  # type: ignore[arg-type]
+        # Using cast(Any, ...) to intentionally pass wrong type for testing
+        result = InputValidator.sanitize_for_logging(cast(Any, 12345))
         assert result == "12345"
 
     def test_sanitize_for_logging_with_custom_length(self):
