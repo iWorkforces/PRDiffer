@@ -12,6 +12,7 @@ from ccpragents.domain.services import GitHubAPIServiceInterface
 from ccpragents.domain.services import PatternMatchingServiceInterface
 from ccpragents.domain.services import DiffServiceInterface
 from ccpragents.infrastructure.logging.console_logger import get_logger
+from ccpragents.infrastructure.logging.exception_utils import sanitize_exception_for_logging
 
 
 class FileProcessor:
@@ -196,7 +197,11 @@ class FileProcessor:
                         files_processed_count += 1
                 except Exception as e:
                     file = future_to_file[future]
-                    self._logger.error(f"Error processing file {file.filename}: {e}")
+                    sanitized = sanitize_exception_for_logging(e)
+                    self._logger.error(
+                        f"Error processing file {file.filename}",
+                        extra=sanitized
+                    )
 
         return diff_files
 
@@ -424,14 +429,22 @@ class FileProcessor:
                 try:
                     head_contents = futures[0].result()
                 except Exception as e:
-                    self._logger.error(f"Failed to fetch head contents: {e}")
+                    sanitized = sanitize_exception_for_logging(e)
+                    self._logger.error(
+                        "Failed to fetch head contents",
+                        extra=sanitized
+                    )
                     head_contents = {}
 
             if futures[1] is not None:
                 try:
                     base_contents = futures[1].result()
                 except Exception as e:
-                    self._logger.error(f"Failed to fetch base contents: {e}")
+                    sanitized = sanitize_exception_for_logging(e)
+                    self._logger.error(
+                        "Failed to fetch base contents",
+                        extra=sanitized
+                    )
                     base_contents = {}
 
         # Process each file with loaded content

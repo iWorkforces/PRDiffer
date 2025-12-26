@@ -21,12 +21,12 @@ from ccpragents.domain.exceptions import (
 )
 
 from .interfaces.protocols import (
-    URLValidatorProtocol,
     RateLimiterProtocol,
     MetricsTrackerProtocol,
     PROperationHandlerProtocol,
     HealthMonitorProtocol,
     ServerConfigurationProtocol,
+    AuthenticationProtocol,
 )
 
 
@@ -55,12 +55,12 @@ class FastMCPServer:
         logger: LoggerServiceInterface,
         github_repository_class: Callable[[str, str, int], PRDiffRepositoryInterface],
         # Infrastructure dependencies injected via factory
-        url_validator: URLValidatorProtocol,
         rate_limiter: RateLimiterProtocol,
         metrics_tracker: MetricsTrackerProtocol,
         pr_operation_handler: PROperationHandlerProtocol,
         health_monitor: HealthMonitorProtocol,
         server_configuration: ServerConfigurationProtocol,
+        authentication: AuthenticationProtocol,
         # Security and request coalescing services from infrastructure
         input_validator: Optional[InputValidator] = None,
         request_coalescing_service: Optional[RequestCoalescingService] = None,
@@ -74,12 +74,12 @@ class FastMCPServer:
             pr_diff_service: PR diff service instance implementing PRDiffServiceInterface
             logger: Logger instance implementing LoggerServiceInterface
             github_repository_class: GitHub repository class callable that creates PRDiffRepositoryInterface instances
-            url_validator: URL validator component implementing URLValidatorProtocol
             rate_limiter: Rate limiter component implementing RateLimiterProtocol
             metrics_tracker: Metrics tracker component implementing MetricsTrackerProtocol
             pr_operation_handler: PR operation handler component implementing PROperationHandlerProtocol
             health_monitor: Health monitor component implementing HealthMonitorProtocol
             server_configuration: Server configuration component implementing ServerConfigurationProtocol
+            authentication: Authentication middleware component implementing AuthenticationProtocol
             input_validator: Optional input validator factory function (for backward compatibility)
             request_coalescing_service: Optional request coalescing service factory function (for backward compatibility)
         """
@@ -91,12 +91,12 @@ class FastMCPServer:
         self._github_repository_class = github_repository_class
 
         # Infrastructure dependencies injected via factory
-        self._url_validator = url_validator
         self._rate_limiter = rate_limiter
         self._metrics_tracker = metrics_tracker
         self._pr_operation_handler = pr_operation_handler
         self._health_monitor = health_monitor
         self._server_configuration = server_configuration
+        self._authentication = authentication
 
         # Initialize security validator - should be injected for Clean Architecture
         if input_validator is None:
@@ -212,21 +212,24 @@ class FastMCPServer:
         """
         return self._input_validator.validate_github_url(pr_url)
 
-    def _check_rate_limit(self):
+    def _check_rate_limit(self, client_id: str = "global"):
         """Check if the current request exceeds rate limits.
+
+        Args:
+            client_id: Unique identifier for rate limiting (e.g., API key hash or IP)
 
         Raises:
             RuntimeError: If rate limit is exceeded
         """
-        if not self._rate_limiter.check_rate_limit("global"):
+        if not self._rate_limiter.check_rate_limit(client_id):
             rate_info = self._rate_limiter.get_rate_limit_info()
             raise RuntimeError(
-                f"Rate limit exceeded. Maximum {rate_info['max_requests']} "
+                f"Rate limit exceeded for client '{client_id}'. Maximum {rate_info['max_requests']} "
                 f"requests per {rate_info['window_seconds']} seconds."
             )
 
         # Increment rate limit counter
-        self._rate_limiter.increment_rate_limit("global")
+        self._rate_limiter.increment_rate_limit(client_id)
 
     def _generate_request_id(self) -> str:
         """Generate a unique request ID for tracking purposes.
@@ -242,7 +245,10 @@ class FastMCPServer:
         Returns:
             dict: Health status and metrics information
         """
-        return self._health_monitor.check_health()
+        health_status = self._health_monitor.check_health()
+        # Add authentication status
+        health_status["authentication"] = self._authentication.get_status()
+        return health_status
 
     def _register_tools(self):
         """Register FastMCP tools with the server instance.
@@ -251,13 +257,18 @@ class FastMCPServer:
         """
 
         @self.mcp.tool()
-        async def get_pr_diff(pr_url: str) -> PRDiff:
+        async def get_pr_diff(pr_url: str, api_key: Optional[str] = None) -> PRDiff:
             """Get the diff content for a specific GitHub pull request.
 
             Automatic commit-based caching ensures fresh data is returned when the PR changes.
 
             Args:
                 pr_url: The full GitHub PR URL (e.g., https://github.com/owner/repo/pull/123)
+                api_key: Optional API key for authentication (required if authentication is enabled)
+
+            Raises:
+                ValueError: If authentication fails or URL is invalid
+                RuntimeError: If rate limit is exceeded or API request fails
             """
             # Generate request ID for tracing
             request_id = self._generate_request_id()
@@ -274,9 +285,24 @@ class FastMCPServer:
             # Start tracking request time
             start_time = time.time()
 
+            # Authenticate request
+            is_authenticated, client_id = self._authentication.authenticate(api_key)
+            if not is_authenticated:
+                self._logger.warning(
+                    "Authentication failed",
+                    request_id=request_id,
+                )
+                raise ValueError(
+                    "Authentication failed. Please provide a valid API key via the 'api_key' parameter."
+                )
+
+            # Use authenticated client_id for rate limiting
+            # Fallback to "anonymous" if no client_id provided
+            rate_limit_client_id = client_id or "anonymous"
+
             try:
-                # Check rate limit
-                self._check_rate_limit()
+                # Check rate limit with client-specific identifier
+                self._check_rate_limit(rate_limit_client_id)
 
                 # Validate input parameters using InputValidator
                 if not pr_url:

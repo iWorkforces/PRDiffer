@@ -11,6 +11,7 @@ from ccpragents.domain.entities.pr_diff import PRDiff
 from ccpragents.domain.repositories import PRDiffRepositoryInterface
 from ccpragents.infrastructure.settings import SettingsService, get_settings_service
 from ccpragents.infrastructure.logging.console_logger import get_logger
+from ccpragents.infrastructure.logging.exception_utils import sanitize_exception_for_logging
 
 from ccpragents.infrastructure.github.api_client import get_github_api_client
 from ccpragents.infrastructure.github.file_processor import get_file_processor
@@ -194,7 +195,11 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
         try:
             self._repository = self._github_api_client.get_repository(repo_full_name)
         except Exception as e:
-            self._logger.error(f"Failed to access repository {repo_full_name}: {e}")
+            sanitized = sanitize_exception_for_logging(e)
+            self._logger.error(
+                f"Failed to access repository {repo_full_name}",
+                extra=sanitized
+            )
             self._logger.info(
                 f"Repository {repo_full_name} might not exist or you may not have access to it"
             )
@@ -206,8 +211,10 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
                     self._repository, self._pr_number
                 )
             except Exception as e:
+                sanitized = sanitize_exception_for_logging(e)
                 self._logger.error(
-                    f"Failed to get pull request #{self._pr_number} from repository {repo_full_name}: {e}"
+                    f"Failed to get pull request #{self._pr_number} from repository {repo_full_name}",
+                    extra=sanitized
                 )
                 self._logger.info(
                     f"Pull request #{self._pr_number} might not exist or be inaccessible"
@@ -320,7 +327,11 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
             merge_base_commit = compare.merge_base_commit
             base_sha = merge_base_commit.sha
         except Exception as e:
-            self._logger.error(f"Failed to get merge base commit: {e}")
+            sanitized = sanitize_exception_for_logging(e)
+            self._logger.error(
+                "Failed to get merge base commit",
+                extra=sanitized
+            )
             assert self._pull_request is not None, "Pull request should be initialized"
             base_sha = self._pull_request.base.sha
 

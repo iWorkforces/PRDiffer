@@ -59,12 +59,12 @@ def create_mcp_server(
         )
 
     # Create application layer components via infrastructure factory
-    url_validator = infrastructure_factory.create_url_validator(logger)
     rate_limiter = infrastructure_factory.create_rate_limiter(logger)
     metrics_tracker = infrastructure_factory.create_metrics_tracker(logger)
     server_configuration = infrastructure_factory.create_server_configuration(
         settings_service, logger
     )
+    authentication = infrastructure_factory.create_authentication(logger)
 
     # Create PR operation handler with all its dependencies
     pr_operation_handler = infrastructure_factory.create_pr_operation_handler(
@@ -107,12 +107,12 @@ def create_mcp_server(
         github_repository_class=github_repository_class,
         logger=logger,
         # Injected components from infrastructure factory
-        url_validator=url_validator,
         rate_limiter=rate_limiter,
         metrics_tracker=metrics_tracker,
         pr_operation_handler=pr_operation_handler,
         health_monitor=health_monitor,
         server_configuration=server_configuration,
+        authentication=authentication,
         # Security and request coalescing services - injected instances
         input_validator=input_validator_instance,
         request_coalescing_service=request_coalescing_instance,
@@ -154,9 +154,9 @@ def create_mcp_server_legacy(
 
     # Create all required infrastructure components
     pr_diff_service = infrastructure_factory.create_pr_diff_service()
-    url_validator = infrastructure_factory.create_url_validator(logger_service)
     rate_limiter = infrastructure_factory.create_rate_limiter(logger_service)
     metrics_tracker = infrastructure_factory.create_metrics_tracker(logger_service)
+    authentication = infrastructure_factory.create_authentication(logger_service)
     pr_operation_handler = infrastructure_factory.create_pr_operation_handler(
         github_repository_class=github_repository_class,
         cache_service=cache_service,
@@ -182,10 +182,10 @@ def create_mcp_server_legacy(
         pr_diff_service=pr_diff_service,
         logger=logger_service,
         github_repository_class=github_repository_class,
-        url_validator=url_validator,
         rate_limiter=rate_limiter,
         metrics_tracker=metrics_tracker,
         pr_operation_handler=pr_operation_handler,
         health_monitor=health_monitor,
         server_configuration=server_configuration,
+        authentication=authentication,
     )
