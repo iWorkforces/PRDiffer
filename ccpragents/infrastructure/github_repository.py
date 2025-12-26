@@ -11,6 +11,9 @@ from ccpragents.domain.entities.pr_diff import PRDiff
 from ccpragents.domain.repositories import PRDiffRepositoryInterface
 from ccpragents.infrastructure.settings import SettingsService, get_settings_service
 from ccpragents.infrastructure.logging.console_logger import get_logger
+from ccpragents.infrastructure.logging.exception_utils import (
+    sanitize_exception_for_logging,
+)
 
 from ccpragents.infrastructure.github.api_client import get_github_api_client
 from ccpragents.infrastructure.github.file_processor import get_file_processor
@@ -194,7 +197,10 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
         try:
             self._repository = self._github_api_client.get_repository(repo_full_name)
         except Exception as e:
-            self._logger.error(f"Failed to access repository {repo_full_name}: {e}")
+            sanitized = sanitize_exception_for_logging(e)
+            self._logger.error(
+                f"Failed to access repository {repo_full_name}", extra=sanitized
+            )
             self._logger.info(
                 f"Repository {repo_full_name} might not exist or you may not have access to it"
             )
@@ -206,8 +212,10 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
                     self._repository, self._pr_number
                 )
             except Exception as e:
+                sanitized = sanitize_exception_for_logging(e)
                 self._logger.error(
-                    f"Failed to get pull request #{self._pr_number} from repository {repo_full_name}: {e}"
+                    f"Failed to get pull request #{self._pr_number} from repository {repo_full_name}",
+                    extra=sanitized,
                 )
                 self._logger.info(
                     f"Pull request #{self._pr_number} might not exist or be inaccessible"
@@ -231,12 +239,24 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
 
         Returns:
             str: The latest head commit SHA
+
+        Raises:
+            RuntimeError: If GitHub objects failed to initialize
+            ValueError: If pull request cannot be refreshed
         """
         self._initialize_github_objects()
 
-        # Type assertion: self._repository and self._pull_request should not be None after initialization
-        assert self._repository is not None, "Repository should be initialized"
-        assert self._pull_request is not None, "Pull request should be initialized"
+        # Check that initialization succeeded (replace assertion with proper exception)
+        if self._repository is None:
+            raise RuntimeError(
+                f"Failed to initialize repository {self._repo_owner}/{self._repo_name} "
+                "- GitHub objects may not have been properly initialized"
+            )
+        if self._pull_request is None:
+            raise RuntimeError(
+                f"Failed to initialize pull request #{self._pr_number} "
+                "- GitHub objects may not have been properly initialized"
+            )
 
         # Refresh the PR object to get the latest data
         self._pull_request = self._github_api_client.get_pull_request(
@@ -260,12 +280,23 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
                 - Base and head commit SHAs
                 - File change statistics (changed files, additions, deletions)
                 - Commit messages
+
+        Raises:
+            RuntimeError: If GitHub objects failed to initialize
         """
         self._initialize_github_objects()
 
-        # Type assertion: objects should not be None after initialization
-        assert self._repository is not None, "Repository should be initialized"
-        assert self._pull_request is not None, "Pull request should be initialized"
+        # Check that initialization succeeded (replace assertion with proper exception)
+        if self._repository is None:
+            raise RuntimeError(
+                f"Failed to initialize repository {self._repo_owner}/{self._repo_name} "
+                "- GitHub objects may not have been properly initialized"
+            )
+        if self._pull_request is None:
+            raise RuntimeError(
+                f"Failed to initialize pull request #{self._pr_number} "
+                "- GitHub objects may not have been properly initialized"
+            )
 
         # Get merge base commit for accurate diff comparison
         base_sha, head_sha = self._get_merge_base_commits()
@@ -278,8 +309,11 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
             self._log_filtered_files(pr_files, filtered_files)
 
         # Process files to get diff information
-        # Type assertion: self._repository should not be None after _initialize_github_objects()
-        assert self._repository is not None, "Repository should be initialized"
+        # Check that repository is still valid (replace assertion with proper exception)
+        if self._repository is None:
+            raise RuntimeError(
+                f"Repository {self._repo_owner}/{self._repo_name} became invalid during processing"
+            )
         diff_files = self._file_processor.process_files_to_patches(
             filtered_files, self._repository, head_sha, base_sha
         )
@@ -309,22 +343,40 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
 
         Returns:
             tuple: (base_sha, head_sha) where base_sha is the merge base commit
+
+        Raises:
+            RuntimeError: If GitHub objects are not properly initialized
         """
+        # Check that objects are initialized (replace assertion with proper exception)
+        if self._repository is None:
+            raise RuntimeError(
+                f"Repository {self._repo_owner}/{self._repo_name} not initialized"
+            )
+        if self._pull_request is None:
+            raise RuntimeError(f"Pull request #{self._pr_number} not initialized")
+
         try:
-            # Type assertion: self._repository should not be None after _initialize_github_objects()
-            assert self._repository is not None, "Repository should be initialized"
-            assert self._pull_request is not None, "Pull request should be initialized"
             compare = self._repository.compare(
                 self._pull_request.base.sha, self._pull_request.head.sha
             )
             merge_base_commit = compare.merge_base_commit
             base_sha = merge_base_commit.sha
         except Exception as e:
-            self._logger.error(f"Failed to get merge base commit: {e}")
-            assert self._pull_request is not None, "Pull request should be initialized"
+            sanitized = sanitize_exception_for_logging(e)
+            self._logger.error("Failed to get merge base commit", extra=sanitized)
+            # Fallback to base commit if merge base fails
+            if self._pull_request is None:
+                raise RuntimeError(
+                    f"Pull request #{self._pr_number} became invalid during merge base calculation"
+                )
             base_sha = self._pull_request.base.sha
 
-        assert self._pull_request is not None, "Pull request should be initialized"
+        # Check pull request again after exception handling
+        if self._pull_request is None:
+            raise RuntimeError(
+                f"Pull request #{self._pr_number} became invalid during merge base calculation"
+            )
+
         if base_sha != self._pull_request.base.sha:
             self._logger.info(
                 f"Using merge base commit {base_sha} instead of base commit {self._pull_request.base.sha}"

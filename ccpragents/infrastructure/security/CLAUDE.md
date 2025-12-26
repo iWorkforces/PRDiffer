@@ -126,6 +126,36 @@ safe_value = InputValidator.sanitize_for_logging(user_input, max_length=200)
 logger.info(f"User input: {safe_value}")
 ```
 
+**9. Branch/Ref Validation**
+
+- Validates Git branch and reference names against Git naming rules
+- Enforces Git ref naming conventions (git-check-ref-format rules)
+- Prevents injection attacks through malicious branch names
+- Max 256 characters, alphanumeric with safe separators
+
+```python
+from ccpragents.infrastructure.security.input_validator import validate_branch_name
+
+# Valid branch names
+branch = validate_branch_name("feature/new-functionality")  # Valid
+branch = validate_branch_name("bugfix/issue-123")  # Valid
+branch = validate_branch_name("release/v1.0.0")  # Valid
+
+# Invalid branch names raise InputSanitizationError
+validate_branch_name("../../etc/passwd")  # Path traversal - rejected
+validate_branch_name("feature; rm -rf /")  # Command injection - rejected
+validate_branch_name("-h")  # Looks like a flag - rejected
+```
+
+**Git Ref Naming Rules:**
+
+- Cannot begin or end with slash (`/`)
+- Cannot have consecutive slashes (`//`)
+- Cannot contain `..`, `.`, `@`, `:`, `@{`, spaces, control chars
+- Cannot start with a dash (`-`)
+- Max length 256 characters
+- Must be valid UTF-8
+
 #### Validation Patterns
 
 **Command Injection Detection**:

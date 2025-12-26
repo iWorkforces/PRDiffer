@@ -26,7 +26,6 @@ Abstract factory interface that provides methods for creating all infrastructure
 - `create_pr_diff_service() -> PRDiffServiceInterface` - Creates PR diff operations service
 
 **Application Component Factory Methods:**
-- `create_url_validator(logger) -> URLValidatorProtocol` - Creates URL validation component
 - `create_rate_limiter(logger) -> RateLimiterProtocol` - Creates rate limiting component
 - `create_metrics_tracker(logger) -> MetricsTrackerProtocol` - Creates metrics tracking component
 - `create_pr_operation_handler(...) -> PROperationHandlerProtocol` - Creates PR operation handler

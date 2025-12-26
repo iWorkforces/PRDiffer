@@ -200,13 +200,118 @@ uv run pytest --cov=ccpragents --cov-report=html
 
 ### Security Tests (`test_input_validator.py`)
 
-Comprehensive tests for input validation:
+Comprehensive tests for input validation (ENHANCED in Sprint 1):
 - URL validation (GitHub PR URLs)
 - Repository identifier validation
 - String sanitization
 - Command injection detection
 - SQL injection detection
 - Path traversal prevention
+- **Branch/ref validation** (NEW in Sprint 1)
+
+**Security Test Patterns** (NEW in Sprint 1):
+```python
+# Test command injection detection
+def test_command_injection_rejected():
+    with pytest.raises(SuspiciousOperationError):
+        validate_github_url("https://github.com/owner/repo/pull/123; rm -rf /")
+
+# Test SQL injection detection
+def test_sql_injection_rejected():
+    with pytest.raises(SuspiciousOperationError):
+        sanitize_string("'; DROP TABLE users; --")
+
+# Test branch validation
+def test_branch_name_validation():
+    # Valid branch names
+    assert validate_branch_name("feature/new-functionality") == "feature/new-functionality"
+    assert validate_branch_name("bugfix/issue-123") == "bugfix/issue-123"
+
+    # Invalid branch names
+    with pytest.raises(InputSanitizationError):
+        validate_branch_name("../../etc/passwd")  # Path traversal
+    with pytest.raises(InputSanitizationError):
+        validate_branch_name("feature; rm -rf /")  # Command injection
+```
+
+### Thread Safety Tests (NEW in Sprint 2)
+
+**Thread Safety Testing Patterns:**
+```python
+import pytest
+import threading
+import time
+
+@pytest.mark.unit
+class TestThreadSafety:
+    """Test thread safety of concurrent operations."""
+
+    def test_cache_thread_safety(self):
+        """Test that cache operations are thread-safe."""
+        cache = get_cache_service()
+        results = []
+        exceptions = []
+
+        def concurrent_get_set(key, value):
+            try:
+                cache.set(key, value, "commit123")
+                result = cache.get(key)
+                results.append(result)
+            except Exception as e:
+                exceptions.append(e)
+
+        # Create multiple threads
+        threads = [
+            threading.Thread(target=concurrent_get_set, args=(f"key{i}", f"value{i}"))
+            for i in range(100)
+        ]
+
+        # Start all threads
+        for t in threads:
+            t.start()
+
+        # Wait for completion
+        for t in threads:
+            t.join()
+
+        # Verify no exceptions and correct results
+        assert len(exceptions) == 0
+        assert len(results) == 100
+
+    def test_request_coalescing_thread_safety(self):
+        """Test that request coalescing is thread-safe."""
+        coalescer = get_request_coalescing_service()
+        call_count = [0]
+
+        async def fetch_func():
+            call_count[0] += 1
+            await anyio.sleep(0.1)
+            return "result"
+
+        async def concurrent_requests():
+            async with anyio.create_task_group() as tg:
+                for i in range(10):
+                    tg.start_soon(coalescer.coalesce, "test_key", fetch_func, 30.0)
+
+        # Run concurrent requests
+        anyio.run(concurrent_requests)
+
+        # Should only call fetch_func once due to coalescing
+        assert call_count[0] == 1
+
+    def test_double_check_locking_pattern(self):
+        """Test double-check locking pattern for performance and safety."""
+        processor = get_file_processor(...)
+
+        # First call - should initialize cache
+        files1 = processor.get_pr_files(mock_pr)
+
+        # Second call - should return cached value without lock
+        files2 = processor.get_pr_files(mock_pr)
+
+        # Verify cache was used (same object reference)
+        assert files1 is files2
+```
 
 ### Cache Tests (`test_cache_hashing.py`)
 

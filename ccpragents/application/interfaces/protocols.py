@@ -4,25 +4,7 @@ This module defines the interfaces that each component must implement,
 ensuring loose coupling and enabling easy testing with mocks.
 """
 
-from typing import Dict, Any, Tuple, Protocol
-
-
-class URLValidatorProtocol(Protocol):
-    """Protocol for URL validation and parsing."""
-
-    def parse_github_url(self, pr_url: str) -> Tuple[str, str, int]:
-        """Parse GitHub PR URL and extract owner, repo, and PR number.
-
-        Args:
-            pr_url: GitHub PR URL to parse
-
-        Returns:
-            Tuple of (owner, repo, pr_number)
-
-        Raises:
-            ValueError: If URL format is invalid
-        """
-        ...
+from typing import Dict, Any, Tuple, Protocol, Optional
 
 
 class RateLimiterProtocol(Protocol):
@@ -195,5 +177,53 @@ class ServerConfigurationProtocol(Protocol):
 
         Returns:
             String containing MCP server instructions
+        """
+        ...
+
+
+class AuthenticationProtocol(Protocol):
+    """Protocol for authentication and authorization."""
+
+    def authenticate(self, api_key: Optional[str]) -> Tuple[bool, Optional[str]]:
+        """Authenticate a request using API key.
+
+        Args:
+            api_key: The API key to validate (may be None for unauthenticated requests)
+
+        Returns:
+            Tuple of (is_authenticated, client_id) where:
+            - is_authenticated: True if authentication succeeded
+            - client_id: Client identifier for rate limiting (None if not authenticated)
+        """
+        ...
+
+    def extract_client_identifier(
+        self, headers: Dict[str, str]
+    ) -> Tuple[Optional[str], Optional[str]]:
+        """Extract client identifier from request headers.
+
+        Args:
+            headers: Request headers dictionary
+
+        Returns:
+            Tuple of (api_key, client_id) where:
+            - api_key: The extracted API key (or None if not present)
+            - client_id: The client identifier for rate limiting (IP or API key)
+        """
+        ...
+
+    def is_authentication_enabled(self) -> bool:
+        """Check if authentication is enabled.
+
+        Returns:
+            True if authentication is required
+        """
+        ...
+
+    def get_status(self) -> Dict[str, Any]:
+        """Get authentication status and configuration.
+
+        Returns:
+            Dictionary containing authentication status
         """
         ...

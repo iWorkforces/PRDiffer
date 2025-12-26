@@ -14,12 +14,12 @@ from ccpragents.domain.services.pattern_matching import PatternMatchingServiceIn
 from ccpragents.domain.services.retry import RetryServiceInterface
 
 from ccpragents.application.interfaces.protocols import (
-    URLValidatorProtocol,
     RateLimiterProtocol,
     MetricsTrackerProtocol,
     PROperationHandlerProtocol,
     HealthMonitorProtocol,
     ServerConfigurationProtocol,
+    AuthenticationProtocol,
 )
 
 # Infrastructure implementations
@@ -43,12 +43,12 @@ from ccpragents.infrastructure.github.file_processor import FileProcessor
 from ccpragents.infrastructure.services.pr_diff_service import GitHubPRDiffService
 
 # Application components
-from ccpragents.application.components.url_validator import URLValidator
 from ccpragents.application.components.rate_limiter import RateLimiter
 from ccpragents.application.components.metrics_tracker import MetricsTracker
 from ccpragents.application.components.pr_operation_handler import PROperationHandler
 from ccpragents.application.components.health_monitor import HealthMonitor
 from ccpragents.application.components.server_configuration import ServerConfiguration
+from ccpragents.application.components.authentication import AuthenticationMiddleware
 
 
 class InfrastructureFactory(InfrastructureFactoryInterface):
@@ -147,12 +147,6 @@ class InfrastructureFactory(InfrastructureFactoryInterface):
             parallel_enabled=False,
         )
 
-    def create_url_validator(
-        self, logger: LoggerServiceInterface
-    ) -> URLValidatorProtocol:
-        """Create URL validator component."""
-        return URLValidator()
-
     def create_rate_limiter(
         self, logger: LoggerServiceInterface
     ) -> RateLimiterProtocol:
@@ -206,6 +200,12 @@ class InfrastructureFactory(InfrastructureFactoryInterface):
             settings_service=settings_service,
             logger=logger,
         )
+
+    def create_authentication(
+        self, logger: LoggerServiceInterface
+    ) -> AuthenticationProtocol:
+        """Create authentication middleware component."""
+        return AuthenticationMiddleware(logger=logger)
 
 
 def get_infrastructure_factory() -> InfrastructureFactoryInterface:

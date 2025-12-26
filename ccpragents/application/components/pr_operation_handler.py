@@ -94,7 +94,7 @@ class PROperationHandler(PROperationHandlerProtocol):
 
             if cached_repository is None:
                 # Create new repository instance
-                cached_repository = self._github_repository_class(
+                repository = self._github_repository_class(
                     repo_owner, repo_name, pr_number
                 )
                 self._logger.debug(
@@ -110,19 +110,18 @@ class PROperationHandler(PROperationHandlerProtocol):
                     repo_name=repo_name,
                     pr_number=pr_number,
                 )
-
-            # At this point, cached_repository is guaranteed to be non-None
-            assert cached_repository is not None
+                repository = cached_repository
 
             # Execute use case with automatic caching
-            # Create repository instance for this specific PR
-            repository: PRDiffRepositoryInterface = self._github_repository_class(
-                repo_owner, repo_name, pr_number
-            )
+            # repository is guaranteed to be set at this point
 
             # Initialize the repository with settings if it has an initialize method
-            if hasattr(repository, "initialize"):
-                await repository.initialize()
+            try:
+                init_method = getattr(repository, "initialize", None)
+                if callable(init_method):
+                    await init_method()
+            except (AttributeError, TypeError):
+                pass  # Repository doesn't have initialize method or it's not callable
 
             # Execute the repository directly (since we don't have a PRDiffService)
             pr_diff: Optional[PRDiff] = await repository.get_pr_diff()

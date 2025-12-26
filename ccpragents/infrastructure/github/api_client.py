@@ -16,6 +16,9 @@ from ccpragents.infrastructure.utils.retry_handler import (
     OperationContext,
 )
 from ccpragents.infrastructure.logging.console_logger import get_logger
+from ccpragents.infrastructure.logging.exception_utils import (
+    sanitize_exception_for_logging,
+)
 
 
 # Default cache settings
@@ -157,7 +160,10 @@ class GitHubAPIClient(GitHubAPIServiceInterface):
             )
             return cast(Optional[Repository], result)
         except Exception as e:
-            self._logger.error(f"Failed to get repository {repo_full_name}: {e}")
+            sanitized = sanitize_exception_for_logging(e)
+            self._logger.error(
+                f"Failed to get repository {repo_full_name}", extra=sanitized
+            )
             return None
 
     def get_pull_request(
@@ -178,7 +184,10 @@ class GitHubAPIClient(GitHubAPIServiceInterface):
             )
             return cast(Optional[PullRequest], result)
         except Exception as e:
-            self._logger.error(f"Failed to get pull request #{pr_number}: {e}")
+            sanitized = sanitize_exception_for_logging(e)
+            self._logger.error(
+                f"Failed to get pull request #{pr_number}", extra=sanitized
+            )
             return None
 
     def _is_cache_entry_valid(self, cache_key: tuple) -> bool:
@@ -293,8 +302,10 @@ class GitHubAPIClient(GitHubAPIServiceInterface):
             return file_content
 
         except Exception as e:
+            sanitized = sanitize_exception_for_logging(e)
             self._logger.warning(
-                f"Failed to get content for file '{file_path}' in branch '{branch}': {e}"
+                f"Failed to get content for file '{file_path}' in branch '{branch}'",
+                extra=sanitized,
             )
             file_content = ""
             # Cache even failures to avoid repeated API calls
@@ -385,8 +396,9 @@ class GitHubAPIClient(GitHubAPIServiceInterface):
                     content = future.result()
                     results[file_path] = content
                 except Exception as e:
+                    sanitized = sanitize_exception_for_logging(e)
                     self._logger.warning(
-                        f"Parallel fetch failed for '{file_path}': {e}"
+                        f"Parallel fetch failed for '{file_path}'", extra=sanitized
                     )
                     results[file_path] = ""
 

@@ -19,12 +19,12 @@ from ccpragents.domain.services.pr_diff_service import PRDiffServiceInterface
 
 # Interface imports for infrastructure components
 from ccpragents.application.interfaces.protocols import (
-    URLValidatorProtocol,
     RateLimiterProtocol,
     MetricsTrackerProtocol,
     PROperationHandlerProtocol,
     HealthMonitorProtocol,
     ServerConfigurationProtocol,
+    AuthenticationProtocol,
 )
 
 
@@ -82,13 +82,6 @@ class InfrastructureFactoryInterface(ABC):
 
     # Application layer component factories
     @abstractmethod
-    def create_url_validator(
-        self, logger: LoggerServiceInterface
-    ) -> URLValidatorProtocol:
-        """Create URL validator component."""
-        pass
-
-    @abstractmethod
     def create_rate_limiter(
         self, logger: LoggerServiceInterface
     ) -> RateLimiterProtocol:
@@ -133,4 +126,11 @@ class InfrastructureFactoryInterface(ABC):
         logger: LoggerServiceInterface,
     ) -> ServerConfigurationProtocol:
         """Create server configuration component."""
+        pass
+
+    @abstractmethod
+    def create_authentication(
+        self, logger: LoggerServiceInterface
+    ) -> AuthenticationProtocol:
+        """Create authentication middleware component."""
         pass

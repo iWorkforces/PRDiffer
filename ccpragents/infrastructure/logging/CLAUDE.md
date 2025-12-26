@@ -8,6 +8,66 @@ This directory contains logging infrastructure components that provide structure
 
 ## Components
 
+### Exception Sanitizer (`exception_utils.py`)
+
+**ExceptionSanitizer**
+
+- Redacts sensitive data from exception messages before logging
+- Prevents token exposure through error logs
+- Handles GitHub tokens, passwords, emails, IP addresses
+- Used throughout codebase (15+ locations) for secure logging
+
+**Key Features:**
+
+- **Token Redaction**: GitHub tokens (ghp_, gho_, ghu_, ghs_, ghr_ prefixes)
+- **Password Redaction**: Generic password/passwd/pwd keywords
+- **PII Protection**: Email and IP address partial redaction
+- **Comprehensive Patterns**: Covers common sensitive data formats
+
+**Redaction Examples:**
+
+```python
+from ccpragents.infrastructure.logging.exception_utils import sanitize_exception_for_logging
+
+# GitHub token redaction
+exception = Exception("Failed with token: ghp_1234567890abcdef")
+sanitized = sanitize_exception_for_logging(exception)
+# Result: "Failed with token: ghp_*****"
+
+# Password redaction
+exception = Exception("Authentication failed: password=secret123")
+sanitized = sanitize_exception_for_logging(exception)
+# Result: "Authentication failed: password=*****"
+
+# Email redaction
+exception = Exception("User user@example.com not found")
+sanitized = sanitize_exception_for_logging(exception)
+# Result: "User u***@e***.com not found"
+
+# IP redaction
+exception = Exception("Connection from 192.168.1.100")
+sanitized = sanitize_exception_for_logging(exception)
+# Result: "Connection from 192.168.*.*"
+```
+
+**Usage Pattern:**
+
+```python
+try:
+    result = risky_github_api_call()
+except Exception as e:
+    sanitized = sanitize_exception_for_logging(e)
+    logger.error("GitHub API failed", extra=sanitized)
+```
+
+**Redaction Patterns:**
+
+- **GitHub Tokens**: `ghp_`, `gho_`, `ghu_`, `ghs_`, `ghr_` followed by redaction
+- **Generic Tokens**: `token`, `apikey`, `api_key`, `access_token` followed by `=` or `:`
+- **Passwords**: `password`, `passwd`, `pwd` keywords
+- **Emails**: Partially masked (u***@d***.com format)
+- **IPs**: Last octet masked (192.168.*.*)
+
 ### Console Logger (`console_logger.py`)
 
 **ConsoleLogger**

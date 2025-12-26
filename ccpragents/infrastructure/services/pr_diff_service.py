@@ -16,6 +16,9 @@ from ccpragents.infrastructure.github.api_client import GitHubAPIClient
 from ccpragents.infrastructure.github.diff_generator import DiffGenerator
 from ccpragents.infrastructure.github.file_processor import FileProcessor
 from ccpragents.infrastructure.logging.console_logger import get_logger
+from ccpragents.infrastructure.logging.exception_utils import (
+    sanitize_exception_for_logging,
+)
 
 
 class GitHubPRDiffService(PRDiffServiceInterface):
@@ -102,13 +105,13 @@ class GitHubPRDiffService(PRDiffServiceInterface):
 
         except Exception as e:
             # Log the error and return None for graceful degradation
+            sanitized = sanitize_exception_for_logging(e)
             self._logger.error(
                 "Failed to get PR diff",
                 repo_owner=repo_owner,
                 repo_name=repo_name,
                 pr_number=pr_number,
-                error=str(e),
-                error_type=type(e).__name__,
+                extra=sanitized,
             )
             return None
 
@@ -152,13 +155,13 @@ class GitHubPRDiffService(PRDiffServiceInterface):
 
         except Exception as e:
             # Log the error and return None for graceful degradation
+            sanitized = sanitize_exception_for_logging(e)
             self._logger.error(
                 "Failed to get latest commit SHA",
                 repo_owner=repo_owner,
                 repo_name=repo_name,
                 pr_number=pr_number,
-                error=str(e),
-                error_type=type(e).__name__,
+                extra=sanitized,
             )
             return None
 
@@ -270,10 +273,8 @@ class GitHubPRDiffService(PRDiffServiceInterface):
                 return "\n\n".join(diff_content_parts)
 
         except Exception as e:
-            import logging
-
-            logger = logging.getLogger(__name__)
-            logger.error(f"Failed to generate diff content: {e}")
+            sanitized = sanitize_exception_for_logging(e)
+            self._logger.error("Failed to generate diff content", extra=sanitized)
             return ""
 
     def _get_base_commit_sha(self, repository, pull_request) -> Optional[str]:
@@ -300,10 +301,8 @@ class GitHubPRDiffService(PRDiffServiceInterface):
 
             return None
         except Exception as e:
-            import logging
-
-            logger = logging.getLogger(__name__)
-            logger.error(f"Failed to get base commit SHA: {e}")
+            sanitized = sanitize_exception_for_logging(e)
+            self._logger.error("Failed to get base commit SHA", extra=sanitized)
             return None
 
     def _get_commit_messages(self, pull_request) -> Optional[str]:
@@ -332,10 +331,8 @@ class GitHubPRDiffService(PRDiffServiceInterface):
                     )
                 return None
         except Exception as e:
-            import logging
-
-            logger = logging.getLogger(__name__)
-            logger.error(f"Failed to get commit messages: {e}")
+            sanitized = sanitize_exception_for_logging(e)
+            self._logger.error("Failed to get commit messages", extra=sanitized)
             return None
 
     def validate_repository_access(
@@ -357,14 +354,11 @@ class GitHubPRDiffService(PRDiffServiceInterface):
             return repository is not None
         except Exception as e:
             # Log the error and return False for graceful degradation
-            import logging
-
-            logger = logging.getLogger(__name__)
-            logger.error(
-                "Failed to validate repository access - repo: %s/%s, error: %s (%s)",
-                repo_owner,
-                repo_name,
-                str(e),
-                type(e).__name__,
+            sanitized = sanitize_exception_for_logging(e)
+            self._logger.error(
+                "Failed to validate repository access",
+                repo_owner=repo_owner,
+                repo_name=repo_name,
+                extra=sanitized,
             )
             return False

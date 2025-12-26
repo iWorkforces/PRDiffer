@@ -31,6 +31,16 @@ class InputValidator:
     GITHUB_REPO_PATTERN: Pattern = re.compile(r"^[a-zA-Z0-9_-]+/[a-zA-Z0-9._-]+$")
     SAFE_USERNAME_PATTERN: Pattern = re.compile(r"^[a-zA-Z0-9_-]+$")
     SAFE_REPO_NAME_PATTERN: Pattern = re.compile(r"^[a-zA-Z0-9._-]+$")
+    # Git branch/reference name validation
+    # Based on Git ref naming rules:
+    # - Can contain alphanumeric, hyphens, underscores, dots, and forward slashes
+    # - Cannot start or end with slash
+    # - Cannot have consecutive slashes
+    # - Cannot start with dot
+    # - Max length for Git refs is typically around 255 characters
+    BRANCH_NAME_PATTERN: Pattern = re.compile(
+        r"^[a-zA-Z0-9]([a-zA-Z0-9_\-./]*[a-zA-Z0-9])?$"
+    )
 
     # Dangerous patterns to block
     # Note: Patterns are designed to avoid ReDoS vulnerabilities by using
@@ -331,6 +341,66 @@ class InputValidator:
         return user_id
 
     @classmethod
+    def validate_branch_name(cls, branch: str) -> str:
+        """Validate a Git branch or reference name.
+
+        Args:
+            branch: Branch or reference name to validate
+
+        Returns:
+            Validated branch name
+
+        Raises:
+            InputSanitizationError: If branch name is invalid
+        """
+        if not isinstance(branch, str):
+            raise InputSanitizationError("Branch name must be a string")
+
+        if not branch:
+            raise InputSanitizationError("Branch name cannot be empty")
+
+        if len(branch) > 255:
+            raise InputSanitizationError("Branch name too long (max 255 characters)")
+
+        # Check for suspicious patterns
+        if cls._contains_suspicious_patterns(branch):
+            raise SuspiciousOperationError(
+                "Branch name contains suspicious patterns",
+                details={"branch": branch[:100]},
+            )
+
+        # Validate against Git branch naming rules
+        if not cls.BRANCH_NAME_PATTERN.match(branch):
+            raise InputSanitizationError(
+                "Branch name contains invalid characters or format",
+                details={
+                    "branch": branch[:100],
+                    "allowed": "alphanumeric, hyphens, underscores, dots, and forward slashes",
+                },
+            )
+
+        # Additional checks for branch name safety
+        # Cannot start or end with slash
+        if branch.startswith("/") or branch.endswith("/"):
+            raise InputSanitizationError("Branch name cannot start or end with '/'")
+
+        # Cannot have consecutive slashes
+        if "//" in branch:
+            raise InputSanitizationError(
+                "Branch name cannot contain consecutive slashes"
+            )
+
+        # Cannot start with dot (hidden file/path)
+        if branch.startswith("."):
+            raise InputSanitizationError("Branch name cannot start with '.'")
+
+        # Cannot contain ".." (parent directory reference)
+        if ".." in branch:
+            raise SuspiciousOperationError("Branch name cannot contain '..'")
+
+        return branch
+
+    @classmethod
     def _contains_suspicious_patterns(cls, value: str) -> bool:
         """Check if value contains suspicious patterns.
 
@@ -448,3 +518,8 @@ def validate_token(token: str) -> str:
 def validate_user_id(user_id: str) -> str:
     """Convenience function for user ID validation."""
     return _validator.validate_user_id(user_id)
+
+
+def validate_branch_name(branch: str) -> str:
+    """Convenience function for branch/ref name validation."""
+    return _validator.validate_branch_name(branch)

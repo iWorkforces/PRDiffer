@@ -1,5 +1,6 @@
 import hashlib
 import time
+import threading
 from typing import Optional, Dict, Any, cast
 from ccpragents.domain.entities.pr_diff import PRDiff
 from ccpragents.domain.services import CacheServiceInterface
@@ -21,7 +22,14 @@ class CacheService(CacheServiceInterface):
         - cache.hash_algorithm: Hash algorithm to use (default: md5)
         - cache.store_key_mapping: Store reverse mapping (default: True)
         - cache.ttl: Time-to-live for cache entries in seconds (default: 600)
+
+        Thread Safety:
+        - All cache operations are protected by a reentrant lock
+        - Statistics counters are atomic within locked sections
         """
+        # Thread safety lock for cache operations
+        self._lock = threading.RLock()
+
         self.cache: Dict[str, Dict[str, Any]] = {}
         self.logger = get_logger()
 
@@ -92,6 +100,8 @@ class CacheService(CacheServiceInterface):
     ) -> tuple[str, str]:
         """Get internal key for cache operations with optional hashing.
 
+        Thread-safe: Uses lock when modifying key_mapping.
+
         Args:
             original_key: Original cache key in format "owner/repo/pr/number"
             store_mapping: Whether to store reverse mapping (only True when setting)
@@ -108,13 +118,16 @@ class CacheService(CacheServiceInterface):
 
         # Store reverse mapping if configured and requested
         if store_mapping and self._store_key_mapping:
-            self._key_mapping[hashed] = original_key
+            with self._lock:
+                self._key_mapping[hashed] = original_key
 
         # Return hashed key and short display version
         return hashed, f"{hashed[:8]}..."
 
     def _get_original_key(self, internal_key: str) -> str:
         """Get original key from internal key using reverse mapping.
+
+        Thread-safe: Uses lock when reading key_mapping.
 
         Args:
             internal_key: The internal cache key (may be hashed)
@@ -123,7 +136,8 @@ class CacheService(CacheServiceInterface):
             str: Original key if mapping exists, otherwise returns internal_key
         """
         if self._use_hashed_keys and self._store_key_mapping:
-            return self._key_mapping.get(internal_key, internal_key)
+            with self._lock:
+                return self._key_mapping.get(internal_key, internal_key)
         return internal_key
 
     def _is_entry_expired(self, cached_data: Dict[str, Any]) -> bool:
@@ -145,6 +159,8 @@ class CacheService(CacheServiceInterface):
     def get(self, cache_key: str, current_commit_sha: str) -> Optional[PRDiff]:
         """Get cached PR diff data if it exists, commit SHA matches, and not expired.
 
+        Thread-safe: All cache operations protected by lock.
+
         Args:
             cache_key: The cache key to look up (original format)
             current_commit_sha: The current head commit SHA from GitHub
@@ -154,59 +170,62 @@ class CacheService(CacheServiceInterface):
         """
         internal_key, hash_display = self._get_internal_key(cache_key)
 
-        if internal_key not in self.cache:
-            self._cache_misses += 1
-            self.logger.debug(
-                f"Cache miss [cache_key={cache_key}"
-                + (f" hash={hash_display}" if hash_display else "")
-                + "]"
-            )
-            return None
+        with self._lock:
+            if internal_key not in self.cache:
+                self._cache_misses += 1
+                self.logger.debug(
+                    "Cache miss",
+                    cache_key=cache_key,
+                    hash=hash_display if self._use_hashed_keys else None,
+                )
+                return None
 
-        cached_data = self.cache[internal_key]
+            cached_data = self.cache[internal_key]
 
-        # Check TTL expiration first
-        if self._is_entry_expired(cached_data):
-            self._cache_expirations += 1
-            self._cache_misses += 1
-            # Remove expired entry
-            del self.cache[internal_key]
-            if self._use_hashed_keys and self._store_key_mapping:
-                self._key_mapping.pop(internal_key, None)
-            self.logger.info(
-                "Cache entry expired (TTL)",
-                cache_key=cache_key,
-                hash=hash_display if self._use_hashed_keys else None,
-                ttl_seconds=self._ttl,
-            )
-            return None
+            # Check TTL expiration first
+            if self._is_entry_expired(cached_data):
+                self._cache_expirations += 1
+                self._cache_misses += 1
+                # Remove expired entry
+                del self.cache[internal_key]
+                if self._use_hashed_keys and self._store_key_mapping:
+                    self._key_mapping.pop(internal_key, None)
+                self.logger.info(
+                    "Cache entry expired (TTL)",
+                    cache_key=cache_key,
+                    hash=hash_display if self._use_hashed_keys else None,
+                    ttl_seconds=self._ttl,
+                )
+                return None
 
-        cached_commit_sha = cached_data.get("commit_sha")
-        cached_result = cached_data.get("data")
+            cached_commit_sha = cached_data.get("commit_sha")
+            cached_result = cached_data.get("data")
 
-        if cached_commit_sha == current_commit_sha and cached_result:
-            self._cache_hits += 1
-            self.logger.info(
-                "Cache hit",
-                cache_key=cache_key,
-                hash=hash_display if self._use_hashed_keys else None,
-                commit_sha=current_commit_sha,
-            )
-            # Cast to PRDiff since we know the type from set() method
-            return cast(PRDiff, cached_result)
-        else:
-            self._cache_misses += 1
-            self.logger.info(
-                "Cache miss (commit SHA mismatch)",
-                cache_key=cache_key,
-                hash=hash_display if self._use_hashed_keys else None,
-                cached_sha=cached_commit_sha,
-                current_sha=current_commit_sha,
-            )
-            return None
+            if cached_commit_sha == current_commit_sha and cached_result:
+                self._cache_hits += 1
+                self.logger.info(
+                    "Cache hit",
+                    cache_key=cache_key,
+                    hash=hash_display if self._use_hashed_keys else None,
+                    commit_sha=current_commit_sha,
+                )
+                # Cast to PRDiff since we know the type from set() method
+                return cast(PRDiff, cached_result)
+            else:
+                self._cache_misses += 1
+                self.logger.info(
+                    "Cache miss (commit SHA mismatch)",
+                    cache_key=cache_key,
+                    hash=hash_display if self._use_hashed_keys else None,
+                    cached_sha=cached_commit_sha,
+                    current_sha=current_commit_sha,
+                )
+                return None
 
     def set(self, cache_key: str, commit_sha: str, data: PRDiff) -> None:
         """Cache PR diff data with associated commit SHA.
+
+        Thread-safe: All cache operations protected by lock.
 
         Args:
             cache_key: The cache key to store under (original format)
@@ -218,11 +237,12 @@ class CacheService(CacheServiceInterface):
             cache_key, store_mapping=True
         )
 
-        self.cache[internal_key] = {
-            "commit_sha": commit_sha,
-            "data": data,
-            "timestamp": time.time(),
-        }
+        with self._lock:
+            self.cache[internal_key] = {
+                "commit_sha": commit_sha,
+                "data": data,
+                "timestamp": time.time(),
+            }
         self.logger.info(
             "Cache set",
             cache_key=cache_key,
@@ -232,6 +252,8 @@ class CacheService(CacheServiceInterface):
 
     def invalidate(self, cache_key: str) -> None:
         """Invalidate cache for a specific PR.
+
+        Thread-safe: All cache operations protected by lock.
 
         Args:
             cache_key: The cache key to invalidate (original format)
@@ -244,21 +266,26 @@ class CacheService(CacheServiceInterface):
             internal_key = cache_key
             hash_display = ""
 
-        if internal_key in self.cache:
-            del self.cache[internal_key]
-            # Remove from reverse mapping too
-            if self._use_hashed_keys and self._store_key_mapping:
-                self._key_mapping.pop(internal_key, None)
-            self.logger.info(
-                "Cache invalidated",
-                cache_key=cache_key,
-                hash=hash_display if self._use_hashed_keys else None,
-            )
+        with self._lock:
+            if internal_key in self.cache:
+                del self.cache[internal_key]
+                # Remove from reverse mapping too
+                if self._use_hashed_keys and self._store_key_mapping:
+                    self._key_mapping.pop(internal_key, None)
+        self.logger.info(
+            "Cache invalidated",
+            cache_key=cache_key,
+            hash=hash_display if self._use_hashed_keys else None,
+        )
 
     def clear(self) -> None:
-        """Clear all cached data and key mappings."""
-        self.cache.clear()
-        self._key_mapping.clear()
+        """Clear all cached data and key mappings.
+
+        Thread-safe: All cache operations protected by lock.
+        """
+        with self._lock:
+            self.cache.clear()
+            self._key_mapping.clear()
         self.logger.info("Cache cleared")
 
     def get_stats(self) -> Dict[str, Any]:
@@ -266,6 +293,8 @@ class CacheService(CacheServiceInterface):
 
         When key hashing is enabled with mapping, returns original (human-readable) keys
         for better debuggability. Otherwise returns internal keys.
+
+        Thread-safe: All cache operations protected by lock.
 
         Returns:
             Dict[str, Any]: Cache statistics including:
@@ -280,29 +309,30 @@ class CacheService(CacheServiceInterface):
                 - cache_expirations: Number of expired entries removed
                 - hit_rate_percent: Cache hit rate percentage
         """
-        total_requests = self._cache_hits + self._cache_misses
-        hit_rate = (
-            (self._cache_hits / total_requests * 100) if total_requests > 0 else 0
-        )
+        with self._lock:
+            total_requests = self._cache_hits + self._cache_misses
+            hit_rate = (
+                (self._cache_hits / total_requests * 100) if total_requests > 0 else 0
+            )
 
-        base_stats = {
-            "size": len(self.cache),
-            "total_entries": len(self.cache),
-            "ttl_seconds": self._ttl,
-            "cache_hits": self._cache_hits,
-            "cache_misses": self._cache_misses,
-            "cache_expirations": self._cache_expirations,
-            "hit_rate_percent": round(hit_rate, 2),
-            "hashing_enabled": self._use_hashed_keys,
-        }
+            base_stats = {
+                "size": len(self.cache),
+                "total_entries": len(self.cache),
+                "ttl_seconds": self._ttl,
+                "cache_hits": self._cache_hits,
+                "cache_misses": self._cache_misses,
+                "cache_expirations": self._cache_expirations,
+                "hit_rate_percent": round(hit_rate, 2),
+                "hashing_enabled": self._use_hashed_keys,
+            }
 
-        if self._use_hashed_keys and self._store_key_mapping:
-            # Return original keys for better readability
-            original_keys = [self._get_original_key(k) for k in self.cache.keys()]
-            base_stats["keys"] = original_keys
-            base_stats["mapping_size"] = len(self._key_mapping)
-        else:
-            base_stats["keys"] = list(self.cache.keys())
+            if self._use_hashed_keys and self._store_key_mapping:
+                # Return original keys for better readability
+                original_keys = [self._key_mapping.get(k, k) for k in self.cache.keys()]
+                base_stats["keys"] = original_keys
+                base_stats["mapping_size"] = len(self._key_mapping)
+            else:
+                base_stats["keys"] = list(self.cache.keys())
 
         return base_stats
 
