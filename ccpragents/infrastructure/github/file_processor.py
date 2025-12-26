@@ -1,5 +1,6 @@
 """File processing service for GitHub repositories."""
 
+import threading
 import time
 from typing import List, Optional, Dict, Callable, cast
 from github.File import File
@@ -12,7 +13,9 @@ from ccpragents.domain.services import GitHubAPIServiceInterface
 from ccpragents.domain.services import PatternMatchingServiceInterface
 from ccpragents.domain.services import DiffServiceInterface
 from ccpragents.infrastructure.logging.console_logger import get_logger
-from ccpragents.infrastructure.logging.exception_utils import sanitize_exception_for_logging
+from ccpragents.infrastructure.logging.exception_utils import (
+    sanitize_exception_for_logging,
+)
 
 
 class FileProcessor:
@@ -20,6 +23,10 @@ class FileProcessor:
 
     This class handles file filtering, content loading, and parallel processing
     of files for diff generation.
+
+    Thread Safety:
+    - PR files cache access is protected by a reentrant lock
+    - Prevents race condition in cache initialization and updates
     """
 
     STATUS_TO_EDIT_TYPE: dict[str, EDIT_TYPE] = {
@@ -52,6 +59,9 @@ class FileProcessor:
         self.max_files_allowed = max_files_allowed
         self._logger = logger or get_logger()
 
+        # Thread safety lock for cache operations
+        self._cache_lock = threading.RLock()
+
         # Cache for PR files to avoid repeated API calls
         self._pr_files_cache: Optional[PaginatedList[File]] = None
         self._pr_cache_timestamp: float = 0.0
@@ -59,21 +69,34 @@ class FileProcessor:
     def get_pr_files(self, pull_request) -> PaginatedList[File]:
         """Get all files from the pull request with caching.
 
+        Thread-safe: Uses double-check locking pattern for cache initialization.
+
         Args:
             pull_request: GitHub pull request object
 
         Returns:
             PaginatedList of File objects from the PR
         """
-        # Cache PR files to avoid repeated API calls
-        if self._pr_files_cache is None:
-            self._pr_files_cache = pull_request.get_files()
-            self._pr_cache_timestamp = time.time()
+        # Fast path: check cache without lock (double-check pattern)
+        if self._pr_files_cache is not None:
+            # Check if cache is still valid (5 minutes)
+            current_time = time.time()
+            if current_time - self._pr_cache_timestamp <= 300:
+                return self._pr_files_cache
 
-        # Invalidate cache after 5 minutes to handle PR updates
-        if time.time() - self._pr_cache_timestamp > 300:  # 5 minutes
+        # Slow path: acquire lock and double-check
+        with self._cache_lock:
+            # Double-check cache validity after acquiring lock
+            current_time = time.time()
+            if (
+                self._pr_files_cache is not None
+                and current_time - self._pr_cache_timestamp <= 300
+            ):
+                return self._pr_files_cache
+
+            # Cache is stale or uninitialized - update it
             self._pr_files_cache = pull_request.get_files()
-            self._pr_cache_timestamp = time.time()
+            self._pr_cache_timestamp = current_time
 
         return self._pr_files_cache
 
@@ -199,8 +222,7 @@ class FileProcessor:
                     file = future_to_file[future]
                     sanitized = sanitize_exception_for_logging(e)
                     self._logger.error(
-                        f"Error processing file {file.filename}",
-                        extra=sanitized
+                        f"Error processing file {file.filename}", extra=sanitized
                     )
 
         return diff_files
@@ -430,10 +452,7 @@ class FileProcessor:
                     head_contents = futures[0].result()
                 except Exception as e:
                     sanitized = sanitize_exception_for_logging(e)
-                    self._logger.error(
-                        "Failed to fetch head contents",
-                        extra=sanitized
-                    )
+                    self._logger.error("Failed to fetch head contents", extra=sanitized)
                     head_contents = {}
 
             if futures[1] is not None:
@@ -441,10 +460,7 @@ class FileProcessor:
                     base_contents = futures[1].result()
                 except Exception as e:
                     sanitized = sanitize_exception_for_logging(e)
-                    self._logger.error(
-                        "Failed to fetch base contents",
-                        extra=sanitized
-                    )
+                    self._logger.error("Failed to fetch base contents", extra=sanitized)
                     base_contents = {}
 
         # Process each file with loaded content

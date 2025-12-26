@@ -6,7 +6,9 @@ from typing import List, Dict, Optional, AsyncGenerator, Callable, Any
 from ccpragents.domain.entities.file_patch import FilePatchInfo
 from ccpragents.domain.services import DiffServiceInterface
 from ccpragents.infrastructure.logging.console_logger import get_logger
-from ccpragents.infrastructure.logging.exception_utils import sanitize_exception_for_logging
+from ccpragents.infrastructure.logging.exception_utils import (
+    sanitize_exception_for_logging,
+)
 import anyio
 
 
@@ -400,8 +402,7 @@ class DiffGenerator:
         except Exception as e:
             sanitized = sanitize_exception_for_logging(e)
             self._logger.error(
-                f"Error processing file {file.filename} in parallel",
-                extra=sanitized
+                f"Error processing file {file.filename} in parallel", extra=sanitized
             )
             return None
 
@@ -591,8 +592,7 @@ class DiffGenerator:
             except Exception as e:
                 sanitized = sanitize_exception_for_logging(e)
                 self._logger.error(
-                    f"Error processing file {file.filename} in stream",
-                    extra=sanitized
+                    f"Error processing file {file.filename} in stream", extra=sanitized
                 )
                 processed_count += 1
                 continue
@@ -654,8 +654,7 @@ class DiffGenerator:
         except Exception as e:
             sanitized = sanitize_exception_for_logging(e)
             self._logger.error(
-                f"Error generating single diff for {file.filename}",
-                extra=sanitized
+                f"Error generating single diff for {file.filename}", extra=sanitized
             )
             return None
 

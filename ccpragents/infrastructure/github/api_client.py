@@ -16,7 +16,9 @@ from ccpragents.infrastructure.utils.retry_handler import (
     OperationContext,
 )
 from ccpragents.infrastructure.logging.console_logger import get_logger
-from ccpragents.infrastructure.logging.exception_utils import sanitize_exception_for_logging
+from ccpragents.infrastructure.logging.exception_utils import (
+    sanitize_exception_for_logging,
+)
 
 
 # Default cache settings
@@ -160,8 +162,7 @@ class GitHubAPIClient(GitHubAPIServiceInterface):
         except Exception as e:
             sanitized = sanitize_exception_for_logging(e)
             self._logger.error(
-                f"Failed to get repository {repo_full_name}",
-                extra=sanitized
+                f"Failed to get repository {repo_full_name}", extra=sanitized
             )
             return None
 
@@ -185,8 +186,7 @@ class GitHubAPIClient(GitHubAPIServiceInterface):
         except Exception as e:
             sanitized = sanitize_exception_for_logging(e)
             self._logger.error(
-                f"Failed to get pull request #{pr_number}",
-                extra=sanitized
+                f"Failed to get pull request #{pr_number}", extra=sanitized
             )
             return None
 
@@ -305,7 +305,7 @@ class GitHubAPIClient(GitHubAPIServiceInterface):
             sanitized = sanitize_exception_for_logging(e)
             self._logger.warning(
                 f"Failed to get content for file '{file_path}' in branch '{branch}'",
-                extra=sanitized
+                extra=sanitized,
             )
             file_content = ""
             # Cache even failures to avoid repeated API calls
@@ -398,8 +398,7 @@ class GitHubAPIClient(GitHubAPIServiceInterface):
                 except Exception as e:
                     sanitized = sanitize_exception_for_logging(e)
                     self._logger.warning(
-                        f"Parallel fetch failed for '{file_path}'",
-                        extra=sanitized
+                        f"Parallel fetch failed for '{file_path}'", extra=sanitized
                     )
                     results[file_path] = ""
 

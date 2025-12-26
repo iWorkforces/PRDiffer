@@ -33,13 +33,19 @@ class AuthenticationMiddleware(AuthenticationProtocol):
         self._logger = logger or logging.getLogger(__name__)
 
         # Load configuration from environment
-        self._auth_enabled = os.getenv("MCP_AUTH_ENABLED", "false").lower() in ("true", "1", "yes")
+        self._auth_enabled = os.getenv("MCP_AUTH_ENABLED", "false").lower() in (
+            "true",
+            "1",
+            "yes",
+        )
         self._api_keys_env = os.getenv("MCP_API_KEYS", "")
 
         # Parse API keys from environment (comma-separated)
         self._api_keys: Set[str] = set()
         if self._api_keys_env:
-            self._api_keys = set(key.strip() for key in self._api_keys_env.split(",") if key.strip())
+            self._api_keys = set(
+                key.strip() for key in self._api_keys_env.split(",") if key.strip()
+            )
 
         # Hash API keys for secure comparison
         self._hashed_api_keys: Set[str] = set()
@@ -123,7 +129,9 @@ class AuthenticationMiddleware(AuthenticationProtocol):
         self._logger.warning("Authentication failed: Invalid API key")
         return False, None
 
-    def extract_client_identifier(self, headers: Dict[str, str]) -> Tuple[Optional[str], Optional[str]]:
+    def extract_client_identifier(
+        self, headers: Dict[str, str]
+    ) -> Tuple[Optional[str], Optional[str]]:
         """Extract client identifier from request headers.
 
         This method extracts API keys from various header sources:

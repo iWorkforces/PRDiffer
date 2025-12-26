@@ -3,6 +3,7 @@
 import functools
 import hashlib
 import json
+import threading
 import time
 from collections import OrderedDict
 from typing import Any, Callable, Dict, Optional, Tuple, Set, Protocol, TypeVar, cast
@@ -28,6 +29,10 @@ class CachingMixin:
 
     This mixin provides a shared cache dictionary and cache management methods
     that can be used by the @cached_method decorator.
+
+    Thread Safety:
+    - All cache operations are protected by a reentrant lock
+    - Statistics counters are atomic within locked sections
     """
 
     def __init__(self, max_cache_size: int = 1000, default_ttl: int = 300):
@@ -37,6 +42,8 @@ class CachingMixin:
             max_cache_size: Maximum number of cache entries (default: 1000)
             default_ttl: Default TTL in seconds (default: 300 = 5 minutes)
         """
+        # Thread safety lock for cache operations
+        self._cache_lock = threading.RLock()
         self._method_cache: OrderedDict[str, Dict[str, Any]] = OrderedDict()
         self._cache_hits = 0
         self._cache_misses = 0
@@ -44,45 +51,60 @@ class CachingMixin:
         self._default_ttl = default_ttl
 
     def _evict_expired_entries(self):
-        """Remove expired cache entries."""
-        current_time = time.time()
-        expired_keys = [
-            key
-            for key, entry in self._method_cache.items()
-            if current_time > entry.get("expires_at", float("inf"))
-        ]
-        for key in expired_keys:
-            del self._method_cache[key]
+        """Remove expired cache entries.
+
+        Thread-safe: Uses lock for all cache operations.
+        """
+        with self._cache_lock:
+            current_time = time.time()
+            expired_keys = [
+                key
+                for key, entry in self._method_cache.items()
+                if current_time > entry.get("expires_at", float("inf"))
+            ]
+            for key in expired_keys:
+                del self._method_cache[key]
 
     def _enforce_size_limit(self):
-        """Enforce cache size limit using LRU eviction."""
-        while len(self._method_cache) > self._max_cache_size:
-            self._method_cache.popitem(last=False)  # Remove oldest entry
+        """Enforce cache size limit using LRU eviction.
+
+        Thread-safe: Uses lock for all cache operations.
+        """
+        with self._cache_lock:
+            while len(self._method_cache) > self._max_cache_size:
+                self._method_cache.popitem(last=False)  # Remove oldest entry
 
     def clear_cache(self):
-        """Clear all cached method results."""
-        self._method_cache.clear()
-        self._cache_hits = 0
-        self._cache_misses = 0
+        """Clear all cached method results.
+
+        Thread-safe: Uses lock for all cache operations.
+        """
+        with self._cache_lock:
+            self._method_cache.clear()
+            self._cache_hits = 0
+            self._cache_misses = 0
 
     def get_cache_stats(self) -> Dict[str, Any]:
         """Get cache statistics.
 
+        Thread-safe: Uses lock for all cache operations.
+
         Returns:
             Dict containing cache size, hit rate, and other statistics
         """
-        total_requests = self._cache_hits + self._cache_misses
-        hit_rate = self._cache_hits / total_requests if total_requests > 0 else 0
+        with self._cache_lock:
+            total_requests = self._cache_hits + self._cache_misses
+            hit_rate = self._cache_hits / total_requests if total_requests > 0 else 0
 
-        return {
-            "size": len(self._method_cache),
-            "hits": self._cache_hits,
-            "misses": self._cache_misses,
-            "hit_rate": hit_rate,
-            "total_requests": total_requests,
-            "max_size": self._max_cache_size,
-            "default_ttl": self._default_ttl,
-        }
+            return {
+                "size": len(self._method_cache),
+                "hits": self._cache_hits,
+                "misses": self._cache_misses,
+                "hit_rate": hit_rate,
+                "total_requests": total_requests,
+                "max_size": self._max_cache_size,
+                "default_ttl": self._default_ttl,
+            }
 
 
 def _make_hashable(obj: Any, _seen: Optional[Set[int]] = None, _depth: int = 0) -> Any:
@@ -185,6 +207,8 @@ def cached_method(ttl: Optional[int] = None, key_prefix: Optional[str] = None):
     This decorator can be applied to methods of classes that inherit from CachingMixin.
     It handles unhashable parameters by converting them to hashable forms.
 
+    Thread-safe: All cache operations protected by lock.
+
     Args:
         ttl: Time-to-live for cache entries in seconds
         key_prefix: Optional prefix for cache keys
@@ -218,56 +242,70 @@ def cached_method(ttl: Optional[int] = None, key_prefix: Optional[str] = None):
 
             cache_key = _generate_cache_key(method_name, args, kwargs)
 
-            # Clean up expired entries periodically (every 10 cache operations)
+            with self._cache_lock:
+                # Clean up expired entries periodically (every 10 cache operations)
+                if (self._cache_hits + self._cache_misses) % 10 == 0:
+                    # We need to release lock to call _evict_expired_entries which also uses lock
+                    # But _evict_expired_entries already uses lock, so we can call it directly
+                    pass
+
+                # Check cache and validate TTL
+                if cache_key in self._method_cache:
+                    entry = self._method_cache[cache_key]
+                    current_time = time.time()
+                    if current_time <= entry.get("expires_at", float("inf")):
+                        # Move to end for LRU
+                        self._method_cache.move_to_end(cache_key)
+                        self._cache_hits += 1
+                        return entry["value"]
+                    else:
+                        # Entry expired, remove it
+                        del self._method_cache[cache_key]
+
+            # Periodic cleanup done outside main lock
             if (self._cache_hits + self._cache_misses) % 10 == 0:
                 self._evict_expired_entries()
 
-            # Check cache and validate TTL
-            if cache_key in self._method_cache:
-                entry = self._method_cache[cache_key]
-                current_time = time.time()
-                if current_time <= entry.get("expires_at", float("inf")):
-                    # Move to end for LRU
-                    self._method_cache.move_to_end(cache_key)
-                    self._cache_hits += 1
-                    return entry["value"]
-                else:
-                    # Entry expired, remove it
-                    del self._method_cache[cache_key]
+            # Cache miss - execute method (outside lock to allow concurrent execution)
+            with self._cache_lock:
+                self._cache_misses += 1
 
-            # Cache miss - execute method
-            self._cache_misses += 1
             result = method(self, *args, **kwargs)
 
             # Store in cache with TTL
             entry_ttl = ttl if ttl is not None else self._default_ttl
             expires_at = time.time() + entry_ttl if entry_ttl > 0 else float("inf")
 
-            self._method_cache[cache_key] = {
-                "value": result,
-                "expires_at": expires_at,
-                "created_at": time.time(),
-            }
+            with self._cache_lock:
+                self._method_cache[cache_key] = {
+                    "value": result,
+                    "expires_at": expires_at,
+                    "created_at": time.time(),
+                }
 
-            # Enforce size limit
+            # Enforce size limit (uses its own lock)
             self._enforce_size_limit()
 
             return result
 
         # Add a method to clear this specific method's cache
         def clear_method_cache(self):
-            """Clear cache entries for this specific method."""
+            """Clear cache entries for this specific method.
+
+            Thread-safe: Uses lock for all cache operations.
+            """
             method_name = method.__name__
             if key_prefix:
                 method_name = f"{key_prefix}_{method_name}"
 
-            keys_to_remove = [
-                key
-                for key in self._method_cache.keys()
-                if key.startswith(f"{method_name}_")
-            ]
-            for key in keys_to_remove:
-                del self._method_cache[key]
+            with self._cache_lock:
+                keys_to_remove = [
+                    key
+                    for key in list(self._method_cache.keys())
+                    if key.startswith(f"{method_name}_")
+                ]
+                for key in keys_to_remove:
+                    del self._method_cache[key]
 
         # Use setattr to dynamically add clear_cache method
         setattr(wrapper, "clear_cache", clear_method_cache)
@@ -279,6 +317,8 @@ def cached_method(ttl: Optional[int] = None, key_prefix: Optional[str] = None):
 
 def conditional_cache(condition: Callable[[Any], bool], ttl: Optional[int] = None):
     """Decorator that caches based on a condition function.
+
+    Thread-safe: All cache operations protected by lock.
 
     Args:
         condition: Function that takes the result and returns True if it should be cached
@@ -309,23 +349,30 @@ def conditional_cache(condition: Callable[[Any], bool], ttl: Optional[int] = Non
             method_name = getattr(method, "__name__", repr(method))
             cache_key = _generate_cache_key(method_name, args, kwargs)
 
-            # Clean up expired entries periodically
+            with self._cache_lock:
+                # Clean up expired entries periodically
+                if (self._cache_hits + self._cache_misses) % 10 == 0:
+                    pass  # Will do cleanup outside lock
+
+                # Check cache and validate TTL
+                if cache_key in self._method_cache:
+                    entry = self._method_cache[cache_key]
+                    current_time = time.time()
+                    if current_time <= entry.get("expires_at", float("inf")):
+                        self._method_cache.move_to_end(cache_key)
+                        self._cache_hits += 1
+                        return entry["value"]
+                    else:
+                        del self._method_cache[cache_key]
+
+            # Periodic cleanup done outside main lock
             if (self._cache_hits + self._cache_misses) % 10 == 0:
                 self._evict_expired_entries()
 
-            # Check cache and validate TTL
-            if cache_key in self._method_cache:
-                entry = self._method_cache[cache_key]
-                current_time = time.time()
-                if current_time <= entry.get("expires_at", float("inf")):
-                    self._method_cache.move_to_end(cache_key)
-                    self._cache_hits += 1
-                    return entry["value"]
-                else:
-                    del self._method_cache[cache_key]
-
             # Cache miss - execute method
-            self._cache_misses += 1
+            with self._cache_lock:
+                self._cache_misses += 1
+
             result = method(self, *args, **kwargs)
 
             # Store in cache only if condition is met
@@ -333,13 +380,14 @@ def conditional_cache(condition: Callable[[Any], bool], ttl: Optional[int] = Non
                 entry_ttl = ttl if ttl is not None else self._default_ttl
                 expires_at = time.time() + entry_ttl if entry_ttl > 0 else float("inf")
 
-                self._method_cache[cache_key] = {
-                    "value": result,
-                    "expires_at": expires_at,
-                    "created_at": time.time(),
-                }
+                with self._cache_lock:
+                    self._method_cache[cache_key] = {
+                        "value": result,
+                        "expires_at": expires_at,
+                        "created_at": time.time(),
+                    }
 
-                # Enforce size limit
+                # Enforce size limit (uses its own lock)
                 self._enforce_size_limit()
 
             return result

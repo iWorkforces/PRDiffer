@@ -55,9 +55,7 @@ class RateLimiter(RateLimiterProtocol):
 
         # Remove timestamps outside the rate limit window
         self._client_timestamps[identifier] = [
-            ts
-            for ts in timestamps
-            if current_time - ts < self._rate_limit_window
+            ts for ts in timestamps if current_time - ts < self._rate_limit_window
         ]
 
         # Update last access time
@@ -104,17 +102,23 @@ class RateLimiter(RateLimiterProtocol):
         if identifier == "global":
             # Return the maximum rate across all clients
             return max(
-                (len([ts for ts in timestamps if current_time - ts < self._rate_limit_window])
-                 for timestamps in self._client_timestamps.values()),
-                default=0
+                (
+                    len(
+                        [
+                            ts
+                            for ts in timestamps
+                            if current_time - ts < self._rate_limit_window
+                        ]
+                    )
+                    for timestamps in self._client_timestamps.values()
+                ),
+                default=0,
             )
 
         # Clean up old timestamps for this client
         timestamps = self._client_timestamps.get(identifier, [])
         self._client_timestamps[identifier] = [
-            ts
-            for ts in timestamps
-            if current_time - ts < self._rate_limit_window
+            ts for ts in timestamps if current_time - ts < self._rate_limit_window
         ]
 
         return len(self._client_timestamps[identifier])
@@ -133,9 +137,7 @@ class RateLimiter(RateLimiterProtocol):
             "max_requests": self._rate_limit_requests,
             "window_seconds": self._rate_limit_window,
             "current_requests": current_requests,
-            "remaining_requests": max(
-                0, self._rate_limit_requests - current_requests
-            ),
+            "remaining_requests": max(0, self._rate_limit_requests - current_requests),
             "identifier": identifier,
         }
 
@@ -197,13 +199,14 @@ class RateLimiter(RateLimiterProtocol):
         for identifier, timestamps in self._client_timestamps.items():
             # Count requests within the window
             valid_timestamps = [
-                ts for ts in timestamps
-                if current_time - ts < self._rate_limit_window
+                ts for ts in timestamps if current_time - ts < self._rate_limit_window
             ]
             result[identifier] = {
                 "current_requests": len(valid_timestamps),
                 "max_requests": self._rate_limit_requests,
-                "remaining_requests": max(0, self._rate_limit_requests - len(valid_timestamps)),
+                "remaining_requests": max(
+                    0, self._rate_limit_requests - len(valid_timestamps)
+                ),
                 "last_access": self._last_access.get(identifier, current_time),
             }
 

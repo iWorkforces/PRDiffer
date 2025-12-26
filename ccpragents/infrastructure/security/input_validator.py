@@ -386,7 +386,9 @@ class InputValidator:
 
         # Cannot have consecutive slashes
         if "//" in branch:
-            raise InputSanitizationError("Branch name cannot contain consecutive slashes")
+            raise InputSanitizationError(
+                "Branch name cannot contain consecutive slashes"
+            )
 
         # Cannot start with dot (hidden file/path)
         if branch.startswith("."):

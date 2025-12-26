@@ -35,7 +35,7 @@ class ExceptionSanitizer:
         r'(["\']?token["\']?\s*[:=]\s*["\'])([a-zA-Z0-9_\-]{20,})(["\'])',  # token: "xxx" or token='xxx'
         r'(["\']?api_key["\']?\s*[:=]\s*["\'])([a-zA-Z0-9_\-]{20,})(["\'])',  # api_key: "xxx"
         r'(["\']?authorization["\']?\s*[:=]\s*["\'])([a-zA-Z0-9_\-]{20,})(["\'])',  # authorization: "xxx"
-        r'(Bearer\s+)([a-zA-Z0-9_\-\.]{20,})',  # Bearer xxx
+        r"(Bearer\s+)([a-zA-Z0-9_\-\.]{20,})",  # Bearer xxx
     ]
 
     # Password patterns
@@ -46,13 +46,13 @@ class ExceptionSanitizer:
     ]
 
     # Email patterns (partially redact)
-    EMAIL_PATTERN = r'([a-zA-Z0-9._%+-]+)@([a-zA-Z0-9.-]+\.[a-zA-Z]{2,})'
+    EMAIL_PATTERN = r"([a-zA-Z0-9._%+-]+)@([a-zA-Z0-9.-]+\.[a-zA-Z]{2,})"
 
     # IP address patterns (partially redact)
-    IP_PATTERN = r'(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})'
+    IP_PATTERN = r"(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})"
 
     # API key/secret in headers or URLs
-    API_KEY_IN_URL = r'([&?](api_key|token|access_token|secret|password)[=][^&\s]{8,})'
+    API_KEY_IN_URL = r"([&?](api_key|token|access_token|secret|password)[=][^&\s]{8,})"
 
     @classmethod
     def sanitize_exception_message(
@@ -111,7 +111,7 @@ class ExceptionSanitizer:
         if len(tb_lines) > max_frames * 2 + 2:  # Approximate lines per frame
             # Keep header and a subset of frames
             header = tb_lines[:2]
-            frames = tb_lines[2:max_frames * 2 + 2]
+            frames = tb_lines[2 : max_frames * 2 + 2]
             tb_lines = header + frames + ["... (truncated)\n"]
 
         # Sanitize each line
@@ -172,7 +172,9 @@ class ExceptionSanitizer:
         for pattern in cls.GITHUB_TOKEN_PATTERNS:
             sanitized = re.sub(
                 pattern,
-                lambda m: m.group(1)[:8] + "*" * (len(m.group(1)) - 8) if m.group(1) else m.group(0),
+                lambda m: m.group(1)[:8] + "*" * (len(m.group(1)) - 8)
+                if m.group(1)
+                else m.group(0),
                 sanitized,
                 flags=re.IGNORECASE,
             )
@@ -181,7 +183,10 @@ class ExceptionSanitizer:
         for pattern in cls.GENERIC_TOKEN_PATTERNS:
             sanitized = re.sub(
                 pattern,
-                lambda m: m.group(1) + m.group(2)[:4] + "*" * (len(m.group(2)) - 4) + m.group(3),
+                lambda m: m.group(1)
+                + m.group(2)[:4]
+                + "*" * (len(m.group(2)) - 4)
+                + m.group(3),
                 sanitized,
                 flags=re.IGNORECASE,
             )

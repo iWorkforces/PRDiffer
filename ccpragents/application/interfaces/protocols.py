@@ -197,7 +197,9 @@ class AuthenticationProtocol(Protocol):
         """
         ...
 
-    def extract_client_identifier(self, headers: Dict[str, str]) -> Tuple[Optional[str], Optional[str]]:
+    def extract_client_identifier(
+        self, headers: Dict[str, str]
+    ) -> Tuple[Optional[str], Optional[str]]:
         """Extract client identifier from request headers.
 
         Args:
