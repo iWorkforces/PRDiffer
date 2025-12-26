@@ -163,6 +163,7 @@ result = circuit_breaker.execute(risky_operation, arg1, arg2)
 - No domain interface (general-purpose utility, not domain-specific)
 - Handles complex object types that can't be cached with standard `@lru_cache`
 - TTL support with automatic expiration and LRU eviction
+- **Thread-safe with reentrant lock protection**
 
 **Key Components:**
 
@@ -172,6 +173,7 @@ result = circuit_breaker.execute(risky_operation, arg1, arg2)
    - Cache statistics tracking (hits, misses, hit rate)
    - Automatic cleanup of expired entries
    - LRU eviction when cache size limit is reached
+   - **Thread-safe with `threading.RLock()`**
 
 2. **@cached_method** decorator - Caches method results with TTL
    - Automatic conversion of unhashable types to hashable forms
@@ -180,11 +182,79 @@ result = circuit_breaker.execute(risky_operation, arg1, arg2)
    - Configurable TTL per method
    - Optional key prefix for cache namespacing
    - Individual method cache clearing support
+   - **All operations protected by reentrant lock**
 
 3. **@conditional_cache** decorator - Conditional caching
    - Only caches results that meet specific criteria
    - Example: Cache only non-None results
    - Useful for operations that may fail or return invalid data
+   - **Thread-safe conditional caching**
+
+**Thread Safety Guarantees**:
+
+- **Reentrant Lock**: `threading.RLock()` protects all cache operations
+- **Atomic Operations**: All cache reads/writes under lock protection
+- **Safe Cleanup**: `clear_method_cache()` properly locked
+- **Statistics Safety**: Hit/miss counters updated atomically
+
+**Thread-Safe Usage Pattern:**
+
+```python
+from ccpragents.infrastructure.utils.cache_decorator import CachingMixin, cached_method
+
+class MyService(CachingMixin):
+    def __init__(self):
+        super().__init__(max_cache_size=500, default_ttl=600)
+        # _cache_lock (RLock) automatically initialized
+
+    @cached_method(ttl=300)
+    def expensive_operation(self, params: List[str]) -> str:
+        # Thread-safe: multiple threads can safely access
+        return do_expensive_work(params)
+
+    # Thread-safe cache clearing
+    def clear_all_caches(self):
+        self.clear_method_cache()  # Protected by lock
+```
+
+**Thread Safety Implementation:**
+
+```python
+class CachingMixin:
+    def __init__(self, max_cache_size: int = 1000, default_ttl: int = 300):
+        # Thread safety lock for cache operations
+        self._cache_lock = threading.RLock()
+        self._method_cache: OrderedDict[str, Dict[str, Any]] = OrderedDict()
+
+    def _get_cached_value(self, cache_key: str):
+        # Thread-safe cache lookup
+        with self._cache_lock:
+            if cache_key in self._method_cache:
+                entry = self._method_cache[cache_key]
+                if not self._is_expired(entry):
+                    self._cache_hits += 1
+                    return entry["value"]
+                else:
+                    del self._method_cache[cache_key]
+            self._cache_misses += 1
+            return None
+
+    def _set_cached_value(self, cache_key: str, value, ttl: int):
+        # Thread-safe cache update
+        with self._cache_lock:
+            self._method_cache[cache_key] = {
+                "value": value,
+                "expires_at": time.time() + ttl,
+            }
+            self._enforce_max_size()
+
+    def clear_method_cache(self):
+        # Thread-safe cache clearing
+        with self._cache_lock:
+            self._method_cache.clear()
+            self._cache_hits = 0
+            self._cache_misses = 0
+```
 
 **Unhashable Parameter Handling:**
 The cache decorator solves the common problem where `@lru_cache` fails with unhashable types:

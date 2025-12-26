@@ -146,6 +146,30 @@ Configuration is managed through `settings.toml` with support for environment-sp
 - **Intelligent Caching**: Multi-level caching strategy
 - **Resource Limits**: Configurable limits to prevent resource exhaustion
 
+### Security Architecture
+- **API Key Authentication**: SHA-256 hashed token storage for secure access control
+- **Per-Client Rate Limiting**: Rate limiting based on authenticated client identity
+- **Input Validation**: Comprehensive validation for URLs, repository identifiers, and branch names
+- **Exception Sanitization**: Automatic redaction of sensitive data (tokens, passwords, emails) from logs
+- **Safe Logging**: All user inputs sanitized before logging to prevent log injection attacks
+- **Branch/Ref Validation**: Git ref naming rules enforcement to prevent injection attacks
+
+**Security Documentation**: See `SecurityUsageGuide.md` for comprehensive authentication setup, client connection examples, and troubleshooting.
+
+### Thread Safety Guarantees
+- **CacheService**: Fully thread-safe with `threading.RLock()` protection on all operations
+- **RequestCoalescingService**: Memory-safe with maximum waiter limits (default: 100) and proper cleanup
+- **FileProcessor**: Thread-safe cache with double-check locking pattern for race condition prevention
+- **CacheDecorator**: Thread-safe caching mixin with reentrant lock protection
+- **Anyio Async Primitives**: Uses `anyio` (Lock, Semaphore, Event) for portable async concurrency
+- **Proper Exception Handling**: Assertions replaced with RuntimeError exceptions for production safety
+
+**Thread Safety Patterns**:
+- Reentrant locks (`RLock`) for recursive access patterns
+- Double-check locking for performance with safety
+- Atomic state management with proper cleanup on all exit paths
+- Timeout protection with `anyio.fail_after()` to prevent indefinite waits
+
 ## Development Workflows
 
 ### Adding New Features

@@ -46,6 +46,51 @@ docs/
 - **Scaling**: Scaling considerations and best practices
 - **Security**: Security considerations and hardening
 
+## Security Documentation (NEW in Sprint 1)
+
+### SecurityUsageGuide.md
+
+A comprehensive security guide has been added to document authentication, input validation, and secure deployment practices:
+
+**Topics Covered:**
+- API key authentication setup and configuration
+- SHA-256 hashed token storage
+- Per-client rate limiting
+- Client connection examples (Python, TypeScript, cURL)
+- Security best practices and troubleshooting
+- nginx configuration for security headers
+
+**Key Sections:**
+```markdown
+# SecurityUsageGuide.md
+
+## Authentication Setup
+- Admin vs. regular API keys
+- Token generation and hashing
+- Configuration in settings.toml
+
+## Client Connection Examples
+- Python: Using MCP client with authentication
+- TypeScript: Using FastMCP client
+- cURL: Testing authentication endpoint
+
+## Security Headers
+- Content-Security-Policy (CSP)
+- X-Frame-Options
+- X-Content-Type-Options
+- nginx configuration examples
+
+## Troubleshooting
+- Authentication failures
+- Rate limiting issues
+- Token validation problems
+```
+
+**Integration with CLAUDE.md:**
+- The root `ccpragents/CLAUDE.md` references `SecurityUsageGuide.md`
+- Application layer documentation links to authentication patterns
+- Infrastructure security documentation validates against the guide
+
 ## Documentation Standards
 
 ### Markdown Formatting

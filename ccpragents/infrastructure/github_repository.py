@@ -353,9 +353,7 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
                 f"Repository {self._repo_owner}/{self._repo_name} not initialized"
             )
         if self._pull_request is None:
-            raise RuntimeError(
-                f"Pull request #{self._pr_number} not initialized"
-            )
+            raise RuntimeError(f"Pull request #{self._pr_number} not initialized")
 
         try:
             compare = self._repository.compare(

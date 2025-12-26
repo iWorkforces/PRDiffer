@@ -262,10 +262,7 @@ class RequestCoalescingService:
             return
 
         async with self._lock:
-            if (
-                key in self._pending_requests
-                and self._pending_requests[key] is request
-            ):
+            if key in self._pending_requests and self._pending_requests[key] is request:
                 del self._pending_requests[key]
                 self._logger.debug(f"Cleaned up failed request for key '{key}'")
 

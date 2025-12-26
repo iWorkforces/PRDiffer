@@ -12,30 +12,47 @@ The application layer orchestrates the use cases and provides the external inter
 
 **Primary Responsibilities:**
 - FastMCP server initialization and configuration
-- Tool registration and exposure via MCP protocol  
+- Tool registration and exposure via MCP protocol
 - GitHub PR URL parsing and validation
 - Request orchestration through domain use cases
 - Response formatting and error handling
+- API key authentication and authorization
+- Per-client rate limiting enforcement
 
 **Key Methods:**
 - `__init__()`: Server setup, tool registration, logging initialization
 - `_parse_pr_url()`: Extracts owner/repo/PR number from GitHub URLs
-- `_register_tools()`: Defines the `get_pr_diff` MCP tool
+- `_register_tools()`: Defines the `get_pr_diff` MCP tool with authentication
 - `run()`: Starts server with configured transport (stdio/http/sse)
+
+**Security Features:**
+- **Input Validation**: All inputs validated through `InputValidator` before processing
+- **API Key Authentication**: Optional SHA-256 hashed token-based authentication
+- **Per-Client Rate Limiting**: Rate limiting using authenticated client_id or IP address
+- **Security Exception Handling**: Catches and logs security exceptions with sanitized values
+- **Safe Logging**: All parameters sanitized before logging to prevent log injection
 
 ### MCP Tool: `get_pr_diff`
 
-**Input:** 
+**Input:**
 - `pr_url`: Full GitHub PR URL (e.g., "https://github.com/owner/repo/pull/123")
+- `api_key` (optional): API key for authentication (when authentication is enabled)
 
 **Output:**
 - JSON string containing complete `PRDiff` data via `model_dump_json()`
 
 **Processing Flow:**
-1. Parse and validate GitHub PR URL
-2. Create GitHubPRDiffRepository instance
-3. Execute GetPRDiffUseCase with repository
-4. Return serialized PRDiff result
+1. Validate API key (if authentication is enabled)
+2. Parse and validate GitHub PR URL through `InputValidator`
+3. Create GitHubPRDiffRepository instance
+4. Execute GetPRDiffUseCase with repository
+5. Return serialized PRDiff result
+
+**Security Validations:**
+- URL format validation (GitHub PR URL pattern)
+- Suspicious pattern detection (command injection, path traversal, SQL injection)
+- Repository identifier validation (owner/repo naming conventions)
+- PR number validation (positive integer within valid range)
 
 ## Configuration Integration
 
@@ -71,8 +88,11 @@ Extend this pattern if supporting additional URL formats.
 
 ### Error Handling Strategy
 - Log errors with structured context (PR URL, repo details)
+- Security exceptions (`InvalidURLError`, `SuspiciousOperationError`, etc.) are caught and logged safely
+- Sanitized error values prevent log injection attacks
 - Re-raise exceptions to let FastMCP handle MCP-level error responses
 - Include relevant request context in error messages
+- Failed security validations tracked in metrics for security monitoring
 
 ### Testing Integration Points
 When testing the application layer:

@@ -328,9 +328,7 @@ class CacheService(CacheServiceInterface):
 
             if self._use_hashed_keys and self._store_key_mapping:
                 # Return original keys for better readability
-                original_keys = [
-                    self._key_mapping.get(k, k) for k in self.cache.keys()
-                ]
+                original_keys = [self._key_mapping.get(k, k) for k in self.cache.keys()]
                 base_stats["keys"] = original_keys
                 base_stats["mapping_size"] = len(self._key_mapping)
             else:

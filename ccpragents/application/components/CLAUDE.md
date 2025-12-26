@@ -8,19 +8,79 @@ The components layer contains modular, reusable components that support the Fast
 
 ## Key Components
 
+### PR Operation Handler (`pr_operation_handler.py`)
+
+**Primary Responsibilities:**
+
+- Handles PR-related operations (get diff, describe, approve, review)
+- Manages repository caching for efficiency
+- Coordinates with domain use cases for business logic
+- Validates PR URLs and parses components
+
+**Key Features:**
+
+- **Repository Caching**: Reuses GitHubPRDiffRepository instances when available
+- **URL Parsing**: Extracts owner, repo name, and PR number from GitHub URLs
+- **Error Handling**: Comprehensive error handling with sanitized logging
+- **Lazy Initialization**: Repository objects initialized only when needed
+
+**Usage Pattern:**
+
+```python
+handler = PROperationHandler(
+    github_repository_class=GitHubPRDiffRepository,
+    cache_service=cache_service,
+    repository_cache_service=repo_cache_service
+)
+result = await handler.get_pr_diff("https://github.com/owner/repo/pull/123")
+```
+
+### Rate Limiter (`rate_limiter.py`)
+
+**Primary Responsibilities:**
+
+- Enforces rate limits on API requests
+- Per-client rate limiting using authenticated client_id or IP address
+- Token bucket algorithm for burst limit protection
+
+**Key Features:**
+
+- **Per-Client Limits**: Each authenticated client has independent rate limits
+- **Configurable Limits**: Requests per minute and burst size from settings
+- **Token Bucket**: Allows burst traffic while maintaining average rate
+- **Rate Limit Headers**: Returns X-RateLimit-* headers for client visibility
+
 ### Protocol Handler (`protocols.py`)
 
 **Primary Responsibilities:**
+
 - MCP protocol message processing and validation
 - Request/response serialization and deserialization
 - Protocol-specific error handling and formatting
 - Transport layer abstraction for different MCP protocols
 
 **Key Features:**
+
 - **Message Validation**: Validates incoming MCP messages against protocol specifications
 - **Serialization**: Converts between internal data structures and MCP protocol formats
 - **Error Handling**: Formats errors according to MCP standards
 - **Transport Compatibility**: Abstracts differences between stdio, HTTP, and SSE transports
+
+### Metrics Tracker (`metrics_tracker.py`)
+
+**Primary Responsibilities:**
+
+- Tracks performance metrics for monitoring
+- Records request counts, success/failure rates
+- Provides observability for server health
+
+### Health Monitor (`health_monitor.py`)
+
+**Primary Responsibilities:**
+
+- Performs health checks on server components
+- Monitors GitHub API connectivity
+- Provides health status endpoints
 
 ## Development Guidelines
 

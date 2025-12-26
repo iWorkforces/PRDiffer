@@ -31,7 +31,6 @@ Concrete implementation of `InfrastructureFactoryInterface` that creates real in
 - `create_diff_generator()` - Creates `DiffGenerator` for diff content generation
 
 **Application Component Factory Methods:**
-- `create_url_validator(logger)` - Creates `URLValidator`
 - `create_rate_limiter(logger)` - Creates `RateLimiter`
 - `create_metrics_tracker(logger)` - Creates `MetricsTracker`
 - `create_pr_operation_handler(...)` - Creates `PROperationHandler`

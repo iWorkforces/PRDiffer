@@ -277,6 +277,110 @@ Concrete implementation of `PRDiffServiceInterface` from the domain layer.
 
 See `services/CLAUDE.md` for detailed documentation.
 
+## Thread Safety Guarantees
+
+The infrastructure layer implements comprehensive thread safety mechanisms to ensure correct behavior under concurrent access:
+
+### CacheService Thread Safety
+
+- **Reentrant Lock Protection**: All cache operations protected by `threading.RLock()`
+- **Atomic Operations**: Statistics counters (`_cache_hits`, `_cache_misses`) updated atomically
+- **Double-Check Locking**: Fast path without lock in `_get_internal_key()`, slow path with lock
+- **Thread-Safe Statistics**: `get_stats()` returns consistent snapshots under lock
+
+### RequestCoalescingService Thread Safety
+
+- **Memory Safety**: Maximum waiter limit (default: 100) prevents resource exhaustion
+- **Atomic State Management**: `anyio.Lock` ensures atomic request tracking
+- **Proper Cleanup**: `_decrement_waiter()` ensures cleanup on all exit paths
+- **Timeout Protection**: `anyio.fail_after()` prevents indefinite waits
+
+### FileProcessor Thread Safety
+
+- **Double-Check Locking**: Fast path cache check, slow path with lock for initialization
+- **Cache Lock**: `_cache_lock` (reentrant) protects PR files cache
+- **Thread-Safe Updates**: Cache initialization and updates protected by lock
+
+### CacheDecorator Thread Safety
+
+- **CachingMixin**: Thread-safe with `threading.RLock()` protection
+- **Protected Operations**: All cache modifications (get, set, clear) under lock
+- **Safe Cleanup**: `clear_method_cache()` properly locked
+
+### Thread Safety Patterns Used
+
+- **Reentrant Locks (`RLock`)**: For recursive access patterns
+- **Double-Check Locking**: Fast path without lock, slow path with lock
+- **Anyio Primitives**: `Lock`, `Semaphore`, `Event` for async concurrency
+- **Atomic State Management**: All state transitions protected by locks
+- **Proper Cleanup**: try-finally blocks ensure cleanup on all exit paths
+
+### Exception Handling (Production Safety)
+
+- **Assertions Replaced**: All `assert` statements replaced with `RuntimeError` exceptions
+- **GitHubPRDiffRepository**: 7 assertions → proper exceptions
+- **RequestCoalescingService**: 1 assertion → proper exception
+- **PROperationHandler**: Logic bug fixed + assertion removed
+
+## Security Features
+
+The infrastructure layer implements comprehensive security measures to protect against common vulnerabilities:
+
+### Exception Sanitization (`exception_utils.py`)
+
+- **ExceptionSanitizer Class**: Redacts sensitive data from exception messages
+- **Token Redaction Patterns**: GitHub tokens, generic tokens, passwords
+- **PII Protection**: Email addresses and IP addresses partially redacted
+- **Usage Throughout**: Applied in 15+ locations across codebase
+
+**Redaction Patterns:**
+
+- GitHub tokens: `ghp_`, `gho_`, `ghu_`, `ghs_`, `ghr_` prefixes
+- Generic tokens: `token`, `apikey`, `api_key`, `access_token`
+- Passwords: `password`, `passwd`, `pwd` keywords
+- Emails: `user@domain.com` → `u***@d***.com`
+- IPs: `192.168.1.1` → `192.168.*.*`
+
+### Input Validation (`security/input_validator.py`)
+
+- **URL Validation**: GitHub PR URL validation with strict patterns
+- **Branch/Ref Validation**: Git ref naming rules enforcement (`validate_branch_name()`)
+- **Repository Validation**: Owner and repo name validation against GitHub conventions
+- **PR Number Validation**: Positive integer within valid range
+- **String Sanitization**: Removes control characters, checks for null bytes
+- **Suspicious Pattern Detection**: Command injection, path traversal, SQL injection
+
+**Validation Methods:**
+
+- `validate_github_url()`: Comprehensive URL validation with security checks
+- `validate_repository_identifier()`: Repository owner/name validation
+- `validate_pr_number()`: PR number validation
+- `validate_branch_name()`: Git ref naming rules
+- `validate_token_format()`: Token format validation
+- `validate_user_id()`: User identifier validation
+- `sanitize_for_logging()`: Prevents log injection attacks
+
+### Safe Logging Practices
+
+- **Sanitization Before Logging**: All user inputs sanitized before logging
+- **Control Character Removal**: Prevents log injection through ANSI codes
+- **Length Limits**: Prevents log flooding through overly long messages
+- **Structured Logging**: Context data passed as kwargs (not string interpolated)
+
+**Example:**
+
+```python
+# Safe logging with sanitization
+safe_url = self._input_validator.sanitize_for_logging(user_url)
+self._logger.info("Processing PR", url=safe_url)
+```
+
+### Security Configuration
+
+- **Settings Integration**: Security settings in `settings.toml`
+- **Environment-Specific**: Different settings for development/production
+- **Security Headers Documentation**: nginx examples for CSP, X-Frame-Options, etc.
+
 ## Development Guidelines
 
 ### Working with GitHub API

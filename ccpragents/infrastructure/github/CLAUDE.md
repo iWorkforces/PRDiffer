@@ -37,12 +37,45 @@ content = client.get_file_content(repo, "path/to/file.py", "branch")
 - Integrates with pattern matching and GitHub API services
 - Provides batch processing capabilities for better performance
 - Manages file content limits to respect GitHub API rate limits
+- **Thread-safe with double-check locking**
 
 **Key Features:**
 - **Pattern-Based Filtering**: Uses `PatternMatchingServiceInterface` for file validation
 - **Batch Processing**: Efficient bulk file content retrieval
 - **Parallel Processing**: Thread pool execution for concurrent file processing
 - **Content Limiting**: Respects `max_files_allowed` setting to avoid rate limits
+- **Thread Safety**: PR files cache protected with reentrant lock
+
+**Thread Safety Implementation**:
+
+- **Double-Check Locking**: Fast path cache check without lock, slow path with lock
+- **Cache Lock**: `_cache_lock` (threading.RLock) protects PR files cache
+- **Atomic Initialization**: Cache initialization and updates are thread-safe
+- **Race Condition Fixed**: Fixed race condition in `get_pr_files()` method
+
+**Thread-Safe Pattern:**
+
+```python
+def get_pr_files(self, pull_request) -> PaginatedList[File]:
+    # Fast path: check cache without lock (double-check pattern)
+    if self._pr_files_cache is not None:
+        current_time = time.time()
+        if current_time - self._pr_cache_timestamp <= 300:
+            return self._pr_files_cache
+
+    # Slow path: acquire lock and double-check
+    with self._cache_lock:
+        # Double-check cache validity after acquiring lock
+        if self._pr_files_cache is not None:
+            current_time = time.time()
+            if current_time - self._pr_cache_timestamp <= 300:
+                return self._pr_files_cache
+
+        # Initialize cache under lock protection
+        self._pr_files_cache = pull_request.get_files()
+        self._pr_cache_timestamp = time.time()
+        return self._pr_files_cache
+```
 
 **Processing Modes:**
 - **Sequential**: Standard processing with content loading
