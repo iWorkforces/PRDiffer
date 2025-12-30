@@ -523,3 +523,26 @@ The settings service uses manual caching instead of `@lru_cache` because:
   - Parameters sanitized to prevent injection attacks
   - Security exceptions caught and logged safely
   - Failed security validations tracked in metrics
+
+## Code Search with mgrep
+
+This project uses **mgrep** for semantic code search. mgrep provides natural-language search capabilities that understand intent, not just exact patterns.
+
+**Search Examples:**
+
+```bash
+mgrep "where do we set up auth?" src/lib
+mgrep "how are guarantees created?"
+mgrep -m 25 "store schema"  # limit results to 25
+mgrep -a "What code parsers are available?"  # generate an answer based on results
+```
+
+**Key Options:**
+
+| Option | Description |
+|--------|-------------|
+| `-m <count>` | Maximum number of results (default: 10) |
+| `-c`, `--content` | Show content of results |
+| `-a`, `--answer` | Generate AI answer based on results |
+| `-s`, `--sync` | Sync files before searching |
+| `--no-rerank` | Disable result reranking |

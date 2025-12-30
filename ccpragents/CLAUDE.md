@@ -22,12 +22,20 @@ ccpragents/
 ├── application/                # Application layer - orchestration
 │   ├── mcp_server.py          # FastMCP server implementation
 │   ├── components/            # Application components
+│   │   ├── authentication.py  # API key authentication
+│   │   ├── rate_limiter.py    # Rate limiting component
+│   │   ├── metrics_tracker.py # Metrics tracking
+│   │   ├── health_monitor.py  # Health monitoring
+│   │   ├── pr_operation_handler.py  # PR operations coordination
+│   │   └── server_configuration.py  # Server configuration
 │   └── interfaces/            # Protocol definitions
 └── infrastructure/            # Infrastructure layer - external integrations
     ├── github_repository.py   # GitHub API repository implementation
     ├── settings.py            # Configuration management
     ├── cache_service.py       # Caching infrastructure
     ├── repository_cache_service.py  # Repository instance caching
+    ├── request_coalescing.py  # Request deduplication
+    ├── async_parallel_executor.py  # Async parallel processing
     ├── github/               # GitHub-specific components
     ├── utils/                # Utility components
     ├── logging/              # Logging infrastructure
