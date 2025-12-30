@@ -23,12 +23,17 @@ The application layer orchestrates the use cases and provides the external inter
 - `__init__()`: Server setup, tool registration, logging initialization
 - `_parse_pr_url()`: Extracts owner/repo/PR number from GitHub URLs
 - `_register_tools()`: Defines the `get_pr_diff` MCP tool with authentication
+- `_authenticate_request()`: Validates API key when authentication is enabled
 - `run()`: Starts server with configured transport (stdio/http/sse)
 
 **Security Features:**
-- **Input Validation**: All inputs validated through `InputValidator` before processing
 - **API Key Authentication**: Optional SHA-256 hashed token-based authentication
+  - Enable via `MCP_AUTH_ENABLED=true` environment variable
+  - Configure API keys via `MCP_API_KEYS` (comma-separated)
+  - Admin key via `MCP_ADMIN_API_KEY` for elevated privileges
+  - Supports X-API-Key and Authorization Bearer headers
 - **Per-Client Rate Limiting**: Rate limiting using authenticated client_id or IP address
+- **Input Validation**: All inputs validated through `InputValidator` before processing
 - **Security Exception Handling**: Catches and logs security exceptions with sanitized values
 - **Safe Logging**: All parameters sanitized before logging to prevent log injection
 
@@ -42,7 +47,7 @@ The application layer orchestrates the use cases and provides the external inter
 - JSON string containing complete `PRDiff` data via `model_dump_json()`
 
 **Processing Flow:**
-1. Validate API key (if authentication is enabled)
+1. **Authentication** (if enabled): Validate API key via `AuthenticationMiddleware`
 2. Parse and validate GitHub PR URL through `InputValidator`
 3. Create GitHubPRDiffRepository instance
 4. Execute GetPRDiffUseCase with repository

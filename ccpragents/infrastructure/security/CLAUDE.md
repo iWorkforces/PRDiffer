@@ -131,7 +131,7 @@ logger.info(f"User input: {safe_value}")
 - Validates Git branch and reference names against Git naming rules
 - Enforces Git ref naming conventions (git-check-ref-format rules)
 - Prevents injection attacks through malicious branch names
-- Max 256 characters, alphanumeric with safe separators
+- Max 255 characters, alphanumeric with safe separators
 
 ```python
 from ccpragents.infrastructure.security.input_validator import validate_branch_name
@@ -153,7 +153,7 @@ validate_branch_name("-h")  # Looks like a flag - rejected
 - Cannot have consecutive slashes (`//`)
 - Cannot contain `..`, `.`, `@`, `:`, `@{`, spaces, control chars
 - Cannot start with a dash (`-`)
-- Max length 256 characters
+- Max length 255 characters
 - Must be valid UTF-8
 
 #### Validation Patterns

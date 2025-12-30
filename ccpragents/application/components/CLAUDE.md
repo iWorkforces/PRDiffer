@@ -8,6 +8,37 @@ The components layer contains modular, reusable components that support the Fast
 
 ## Key Components
 
+### Authentication Middleware (`authentication.py`)
+
+**Primary Responsibilities:**
+
+- API key-based authentication and authorization
+- SHA-256 hashed token storage for security
+- Per-client rate limiting integration
+- Client identifier extraction from headers
+
+**Key Features:**
+
+- **API Key Validation**: Validates keys against configured set with SHA-256 hashing
+- **Admin Support**: Separate admin API key with elevated privileges
+- **Runtime Management**: Add/remove API keys dynamically
+- **Configuration**: Environment-based enable/disable
+
+### Server Configuration (`server_configuration.py`)
+
+**Primary Responsibilities:**
+
+- Server configuration and setup management
+- Logging configuration based on settings
+- Configuration validation
+
+**Key Features:**
+
+- **Logging Setup**: Configures log level from settings
+- **Server Info**: Provides metadata (version, transport, port)
+- **Validation**: Validates transport, port, and GitHub settings
+- **MCP Instructions**: Returns server capabilities description
+
 ### PR Operation Handler (`pr_operation_handler.py`)
 
 **Primary Responsibilities:**
@@ -73,6 +104,101 @@ result = await handler.get_pr_diff("https://github.com/owner/repo/pull/123")
 - Tracks performance metrics for monitoring
 - Records request counts, success/failure rates
 - Provides observability for server health
+
+### Authentication Middleware (`authentication.py`)
+
+**Primary Responsibilities:**
+
+- API key-based authentication and authorization
+- Per-client rate limiting integration
+- SHA-256 hashed token storage for security
+- Client identifier extraction for rate limiting
+
+**Key Features:**
+
+- **API Key Authentication**: Validates API keys against configured set
+- **SHA-256 Hashing**: Securely stores API key hashes instead of plain text
+- **Admin API Key**: Separate admin key with elevated privileges
+- **Per-Client Rate Limiting**: Integration with rate limiter using authenticated client_id
+- **Configuration-Based**: Enable/disable via environment variables
+- **Multiple API Keys**: Support for multiple valid API keys
+
+**Key Methods:**
+- `authenticate(api_key)` - Authenticates request using API key
+- `extract_client_identifier(headers)` - Extracts API key from headers (X-API-Key, Authorization Bearer)
+- `validate_api_key_format(api_key)` - Validates API key format
+- `add_api_key(api_key)` - Runtime API key addition
+- `remove_api_key(api_key)` - Runtime API key removal
+- `get_status()` - Returns authentication configuration status
+
+**Usage Pattern:**
+```python
+auth = AuthenticationMiddleware(logger)
+is_authenticated, client_id = auth.authenticate(api_key)
+
+# Extract from headers
+api_key, client_id = auth.extract_client_identifier(request_headers)
+
+# Check if authentication is enabled
+if auth.is_authentication_enabled():
+    # Require authentication
+    pass
+```
+
+**Environment Configuration:**
+- `MCP_AUTH_ENABLED` - Enable/disable authentication (default: false)
+- `MCP_API_KEYS` - Comma-separated list of API keys
+- `MCP_ADMIN_API_KEY` - Admin API key with elevated privileges
+
+### Server Configuration (`server_configuration.py`)
+
+**Primary Responsibilities:**
+
+- Server configuration and setup management
+- Logging configuration based on settings
+- Server information and metadata
+- Configuration validation
+
+**Key Features:**
+
+- **Logging Setup**: Configures log level and handlers based on settings
+- **Server Info**: Provides server metadata (name, version, transport, port)
+- **MCP Instructions**: Returns server capabilities and tool descriptions
+- **Configuration Validation**: Validates transport, port, and GitHub settings
+- **Feature Detection**: Reports enabled features (caching, rate limiting, metrics)
+
+**Key Methods:**
+- `setup_logging()` - Configures logging based on settings
+- `get_server_info()` - Returns server information dictionary
+- `get_mcp_instructions()` - Returns MCP server instructions for clients
+- `validate_configuration()` - Validates server configuration and returns ValidationResult
+
+**Usage Pattern:**
+```python
+config = ServerConfiguration(settings_service, logger)
+
+# Setup logging
+config.setup_logging()
+
+# Get server information
+info = config.get_server_info()
+# Returns: {"name": "ccpragents", "version": "0.3.3", ...}
+
+# Validate configuration
+validation = config.validate_configuration()
+if validation["valid"]:
+    # Configuration is valid
+    pass
+```
+
+**ValidationResult Type:**
+```python
+{
+    "valid": bool,        # Overall validation status
+    "warnings": List[str],  # Configuration warnings
+    "errors": List[str]     # Configuration errors
+}
+```
 
 ### Health Monitor (`health_monitor.py`)
 
