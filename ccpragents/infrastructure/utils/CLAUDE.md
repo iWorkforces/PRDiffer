@@ -142,20 +142,6 @@ result = circuit_breaker.execute(risky_operation, arg1, arg2)
 - **Error Rates**: Breakdown by error type and frequency
 - **Throughput**: Operations per minute/second
 
-### Advanced Retry Handler (`advanced_retry_handler.py`)
-
-**AdvancedRetryHandler**
-- Extends basic retry handler with advanced features
-- Implements `AdvancedRetryServiceInterface` from domain layer
-- Context-aware retry strategies with dynamic backoff
-- Integration with circuit breaker and health tracking
-
-**Advanced Features:**
-- **Contextual Retry**: Different strategies based on operation type
-- **Dynamic Backoff**: Adaptive delays based on current system load
-- **Health Integration**: Uses API health data to inform retry decisions
-- **Circuit Integration**: Works with circuit breaker for coordinated failure handling
-
 ### Cache Decorator (`cache_decorator.py`)
 
 **CachingMixin & Decorators**
@@ -329,7 +315,6 @@ Most utilities implement domain service interfaces:
 - `DiffUtils` → `DiffServiceInterface`
 - `CircuitBreaker` → `CircuitBreakerServiceInterface`
 - `APIHealthTracker` → `APIHealthServiceInterface`
-- `AdvancedRetryHandler` → `AdvancedRetryServiceInterface`
 - `CacheDecorator` → No domain interface (general-purpose utility)
 
 ### Factory Pattern
@@ -341,7 +326,6 @@ pattern_matcher = get_pattern_matcher(ignore_patterns, valid_extensions)
 diff_utils = get_diff_utils()
 circuit_breaker = get_circuit_breaker()
 health_tracker = get_api_health_tracker()
-advanced_retry = get_advanced_retry_handler()
 ```
 
 ## Development Guidelines
@@ -402,7 +386,6 @@ ccpragents/infrastructure/utils/
 ├── diff_utils.py           # Diff generation and content utilities
 ├── circuit_breaker.py      # Circuit breaker pattern implementation
 ├── api_health_tracker.py   # API performance monitoring
-├── advanced_retry_handler.py # Advanced retry strategies
 └── cache_decorator.py      # Method-level caching with unhashable parameter support
 ```
 
@@ -444,20 +427,6 @@ result = circuit_breaker.execute(
 
 # Monitor health
 health_status = health_tracker.get_health_status()
-```
-
-### Advanced Retry with Health Awareness
-```python
-advanced_retry = get_advanced_retry_handler(
-    max_retries=5,
-    health_tracker=health_tracker,
-    circuit_breaker=circuit_breaker
-)
-
-result = advanced_retry.execute_with_context_aware_retry(
-    operation=api_client.fetch_data,
-    context={"critical": True, "time_sensitive": False}
-)
 ```
 
 ## Migration Notes
