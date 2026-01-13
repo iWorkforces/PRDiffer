@@ -18,7 +18,7 @@ classifiers = [
     "Topic :: Software Development :: Version Control :: Git",
 ]
 dependencies = [
-    "fastmcp>=2.14.2",
+    "fastmcp>=2.14.3",
     "pydantic>=2.12.5",
     "fastapi[standard]>=0.128.0",
     "uvicorn[standard]>=0.40.0",
