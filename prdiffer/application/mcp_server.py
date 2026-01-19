@@ -370,7 +370,9 @@ class FastMCPServer:
                 # Legacy metrics for backward compatibility
                 self._successful_requests += 1
 
-                self._logger.info("Successfully fetched PR diff")
+                self._logger.info(
+                    f"""Successfully fetched PR diff\n {pr_diff.diff_content}"""
+                )
                 return pr_diff
 
             except (
