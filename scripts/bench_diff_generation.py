@@ -33,9 +33,13 @@ class DummyAPIService:
         return self._content_map.get((file_path, branch), "")
 
     def get_files_content_batch(self, repository, file_paths, branch: str):
-        return {path: self.get_file_content(repository, path, branch) for path in file_paths}
+        return {
+            path: self.get_file_content(repository, path, branch) for path in file_paths
+        }
 
-    def get_files_content_batch_parallel(self, repository, file_paths, branch: str, max_workers: int = 4):
+    def get_files_content_batch_parallel(
+        self, repository, file_paths, branch: str, max_workers: int = 4
+    ):
         return self.get_files_content_batch(repository, file_paths, branch)
 
 
@@ -80,7 +84,9 @@ def build_fake_files(
 def benchmark_diff_generation(
     diff_utils: DiffUtils, patch_infos: list[FilePatchInfo]
 ) -> float:
-    generator = DiffGenerator(diff_utils=diff_utils, parallel_executor=None, parallel_enabled=False)
+    generator = DiffGenerator(
+        diff_utils=diff_utils, parallel_executor=None, parallel_enabled=False
+    )
     start = time.perf_counter()
     generator.generate_extended_diff(patch_infos)
     return time.perf_counter() - start
@@ -101,7 +107,9 @@ def benchmark_file_processing(
         max_parallel_workers=max_workers,
     )
     start = time.perf_counter()
-    processor.process_files_to_patches(files, repository=object(), head_sha="head", base_sha="base")
+    processor.process_files_to_patches(
+        files, repository=object(), head_sha="head", base_sha="base"
+    )
     return time.perf_counter() - start
 
 
@@ -114,10 +122,14 @@ def main() -> None:
     args = parser.parse_args()
 
     diff_utils = DiffUtils()
-    files, patch_infos, content_map = build_fake_files(diff_utils, args.files, args.lines)
+    files, patch_infos, content_map = build_fake_files(
+        diff_utils, args.files, args.lines
+    )
 
     diff_time = benchmark_diff_generation(diff_utils, patch_infos)
-    seq_time = benchmark_file_processing(diff_utils, files, content_map, parallel_threshold=0, max_workers=1)
+    seq_time = benchmark_file_processing(
+        diff_utils, files, content_map, parallel_threshold=0, max_workers=1
+    )
     par_time = benchmark_file_processing(
         diff_utils,
         files,

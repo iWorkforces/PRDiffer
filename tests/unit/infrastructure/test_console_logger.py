@@ -1,6 +1,3 @@
-import os
-
-
 def test_console_logger_uses_stderr_in_stdio(monkeypatch, capsys):
     monkeypatch.setenv("MCP_TRANSPORT", "stdio")
 

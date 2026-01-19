@@ -32,4 +32,3 @@ def apply_diff_limits(
 
     metadata["diff_truncated_length"] = len(truncated)
     return truncated, metadata
-

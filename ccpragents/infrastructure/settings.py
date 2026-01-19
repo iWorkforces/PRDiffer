@@ -103,8 +103,12 @@ class SettingsService(SettingsServiceInterface, CachingMixin):
                 "github.adaptive_retry_enabled", True
             ),
             "max_adaptive_delay": get_with_fallback("github.max_adaptive_delay", 30),
-            "api_health_tracking": get_with_fallback("github.api_health_tracking", True),
-            "context_aware_retry": get_with_fallback("github.context_aware_retry", True),
+            "api_health_tracking": get_with_fallback(
+                "github.api_health_tracking", True
+            ),
+            "context_aware_retry": get_with_fallback(
+                "github.context_aware_retry", True
+            ),
             "ignore_patterns": tuple(get_with_fallback("github.ignore_patterns", [])),
             "valid_extensions": tuple(get_with_fallback("github.valid_extensions", [])),
             "diff_parallel_enabled": get_with_fallback(
@@ -114,7 +118,9 @@ class SettingsService(SettingsServiceInterface, CachingMixin):
                 "github.diff_parallel_threshold", 3
             ),
             "diff_max_workers": get_with_fallback("github.diff_max_workers", 4),
-            "diff_worker_timeout": get_with_fallback("github.diff_worker_timeout", 30.0),
+            "diff_worker_timeout": get_with_fallback(
+                "github.diff_worker_timeout", 30.0
+            ),
         }
 
     @cached_method()

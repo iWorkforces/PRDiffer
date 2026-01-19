@@ -9,6 +9,7 @@ from ccpragents.domain.services.settings import SettingsServiceInterface
 from ccpragents.domain.services.cache import CacheServiceInterface
 from ccpragents.domain.services.repository_cache import RepositoryCacheServiceInterface
 from ccpragents.domain.services.logger import LoggerServiceInterface
+from ccpragents.domain.repositories.pr_diff_repository import PRDiffRepositoryInterface
 from ccpragents.infrastructure.security.input_validator import InputValidator
 from ccpragents.infrastructure.request_coalescing import RequestCoalescingService
 

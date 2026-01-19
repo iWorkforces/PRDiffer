@@ -7,7 +7,9 @@ class DummyAPIService:
     def get_files_content_batch(self, repository, file_paths, branch):
         return {path: "" for path in file_paths}
 
-    def get_files_content_batch_parallel(self, repository, file_paths, branch, max_workers=4):
+    def get_files_content_batch_parallel(
+        self, repository, file_paths, branch, max_workers=4
+    ):
         return {path: "" for path in file_paths}
 
 
@@ -17,7 +19,9 @@ class DummyPatternMatcher:
 
 
 class DummyDiffUtils:
-    def extend_patch(self, original_file_str: str, patch_str: str, new_file_str: str = "") -> str:
+    def extend_patch(
+        self, original_file_str: str, patch_str: str, new_file_str: str = ""
+    ) -> str:
         return patch_str
 
 
@@ -45,7 +49,9 @@ def test_file_processor_uses_parallel_fetch(monkeypatch):
         called["parallel"] = True
         return []
 
-    monkeypatch.setattr(processor, "_process_files_with_content_parallel", fake_parallel)
+    monkeypatch.setattr(
+        processor, "_process_files_with_content_parallel", fake_parallel
+    )
     monkeypatch.setattr(
         processor,
         "_process_files_with_content",
@@ -53,6 +59,8 @@ def test_file_processor_uses_parallel_fetch(monkeypatch):
     )
 
     files = [FakeFile("a.py"), FakeFile("b.py"), FakeFile("c.py")]
-    processor.process_files_to_patches(files, repository=object(), head_sha="head", base_sha="base")
+    processor.process_files_to_patches(
+        files, repository=object(), head_sha="head", base_sha="base"
+    )
 
     assert called["parallel"] is True
