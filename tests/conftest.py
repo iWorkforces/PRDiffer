@@ -418,9 +418,7 @@ def patch_github_api():
     """Context manager to patch GitHub API calls."""
 
     def _patcher():
-        return patch(
-            "prdiffer.infrastructure.github.api_client.Github", autospec=True
-        )
+        return patch("prdiffer.infrastructure.github.api_client.Github", autospec=True)
 
     return _patcher
 
