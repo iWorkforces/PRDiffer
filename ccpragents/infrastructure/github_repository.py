@@ -4,11 +4,11 @@ This is the refactored version using composition with extracted components.
 """
 
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, Dict
 from github.Repository import Repository
 from github.PullRequest import PullRequest
-import anyio
+import asyncer
 from ccpragents.domain.entities.pr_diff import PRDiff
 from ccpragents.domain.repositories import PRDiffRepositoryInterface
 from ccpragents.infrastructure.settings import SettingsService, get_settings_service
@@ -268,7 +268,7 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
             RuntimeError: If GitHub objects failed to initialize
             ValueError: If pull request cannot be refreshed
         """
-        return await anyio.to_thread.run_sync(self._get_latest_commit_sha_sync)
+        return await asyncer.asyncify(self._get_latest_commit_sha_sync)()
 
     async def get_pr_diff(self) -> PRDiff:
         """Fetch PR diff information from GitHub.
@@ -284,7 +284,7 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
         Raises:
             RuntimeError: If GitHub objects failed to initialize
         """
-        return await anyio.to_thread.run_sync(self._get_pr_diff_sync)
+        return await asyncer.asyncify(self._get_pr_diff_sync)()
 
     def _get_latest_commit_sha_sync(self) -> str:
         self._initialize_github_objects()
@@ -357,7 +357,9 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
         )
 
         generation_metadata = {
-            "generated_at": f"{datetime.utcnow().isoformat()}Z",
+            "generated_at": datetime.now(timezone.utc)
+            .isoformat()
+            .replace("+00:00", "Z"),
             "files_processed": len(diff_files),
         }
         generation_metadata.update(truncation_meta)

@@ -4,11 +4,17 @@
 import argparse
 import time
 from dataclasses import dataclass
+from typing import cast
 
 from ccpragents.domain.entities.file_patch import FilePatchInfo, EDIT_TYPE
+from ccpragents.domain.services.github_api import GitHubAPIServiceInterface
+from ccpragents.domain.services.pattern_matching import PatternMatchingServiceInterface
 from ccpragents.infrastructure.github.diff_generator import DiffGenerator
 from ccpragents.infrastructure.github.file_processor import FileProcessor
 from ccpragents.infrastructure.utils.diff_utils import DiffUtils
+from github.File import File
+from github.PullRequest import PullRequest
+from github.Repository import Repository
 
 
 @dataclass
@@ -20,25 +26,45 @@ class FakeFile:
     deletions: int
 
 
-class DummyPatternMatcher:
+class DummyPatternMatcher(PatternMatchingServiceInterface):
     def is_valid_file(self, filename: str) -> bool:
         return True
 
+    def filter_files(self, filenames: list[str]) -> list[str]:
+        return list(filenames)
 
-class DummyAPIService:
+
+class DummyAPIService(GitHubAPIServiceInterface):
     def __init__(self, content_map: dict[tuple[str, str], str]):
         self._content_map = content_map
+
+    def initialize_client(self, github_token: str | None = None, timeout: int = 30):
+        return None
+
+    def get_repository(self, repo_full_name: str) -> Repository | None:
+        return None
+
+    def get_pull_request(
+        self, repository: Repository, pr_number: int
+    ) -> PullRequest | None:
+        return None
 
     def get_file_content(self, repository, file_path: str, branch: str) -> str:
         return self._content_map.get((file_path, branch), "")
 
-    def get_files_content_batch(self, repository, file_paths, branch: str):
+    def get_files_content_batch(
+        self, repository: Repository, file_paths: list[str], branch: str
+    ):
         return {
             path: self.get_file_content(repository, path, branch) for path in file_paths
         }
 
     def get_files_content_batch_parallel(
-        self, repository, file_paths, branch: str, max_workers: int = 4
+        self,
+        repository: Repository,
+        file_paths: list[str],
+        branch: str,
+        max_workers: int = 4,
     ):
         return self.get_files_content_batch(repository, file_paths, branch)
 
@@ -108,7 +134,10 @@ def benchmark_file_processing(
     )
     start = time.perf_counter()
     processor.process_files_to_patches(
-        files, repository=object(), head_sha="head", base_sha="base"
+        cast(list[File], files),
+        repository=cast(Repository, object()),
+        head_sha="head",
+        base_sha="base",
     )
     return time.perf_counter() - start
 

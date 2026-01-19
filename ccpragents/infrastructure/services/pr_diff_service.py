@@ -5,10 +5,10 @@ using GitHub API operations.
 """
 
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
-import anyio
+import asyncer
 from ccpragents.domain.services.pr_diff_service import PRDiffServiceInterface
 from ccpragents.domain.services.github_api import GitHubAPIServiceInterface
 from ccpragents.domain.services.logger import LoggerServiceInterface
@@ -89,8 +89,8 @@ class GitHubPRDiffService(PRDiffServiceInterface):
             RateLimitError: If rate limit is exceeded
             ValidationError: If input parameters are invalid
         """
-        return await anyio.to_thread.run_sync(
-            self._get_pr_diff_sync, repo_owner, repo_name, pr_number
+        return await asyncer.asyncify(self._get_pr_diff_sync)(
+            repo_owner, repo_name, pr_number
         )
 
     async def get_latest_commit_sha(
@@ -113,8 +113,8 @@ class GitHubPRDiffService(PRDiffServiceInterface):
             RepositoryNotFoundError: If repository or PR doesn't exist
             AuthenticationError: If authentication fails
         """
-        return await anyio.to_thread.run_sync(
-            self._get_latest_commit_sha_sync, repo_owner, repo_name, pr_number
+        return await asyncer.asyncify(self._get_latest_commit_sha_sync)(
+            repo_owner, repo_name, pr_number
         )
 
     def _get_pr_diff_sync(
@@ -150,7 +150,9 @@ class GitHubPRDiffService(PRDiffServiceInterface):
             )
 
             generation_metadata = {
-                "generated_at": f"{datetime.utcnow().isoformat()}Z",
+                "generated_at": datetime.now(timezone.utc)
+                .isoformat()
+                .replace("+00:00", "Z"),
                 "files_processed": len(diff_files),
             }
             generation_metadata.update(truncation_meta)
