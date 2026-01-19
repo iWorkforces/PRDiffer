@@ -2,7 +2,7 @@
 
 This file provides guidance for working with the infrastructure service implementations in PRDiffer.
 
-**Current Version:** 0.4.6
+**Current Version:** 0.4.7
 
 ## Overview
 

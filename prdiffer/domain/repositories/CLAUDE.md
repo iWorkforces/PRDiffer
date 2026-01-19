@@ -2,7 +2,7 @@
 
 This file provides guidance for working with the Domain Repository Interfaces in PRDiffer.
 
-**Current Version:** 0.4.6
+**Current Version:** 0.4.7
 
 ## Repository Interfaces Overview
 

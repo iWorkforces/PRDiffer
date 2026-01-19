@@ -2,7 +2,7 @@
 
 This file provides guidance for working with the domain entities of PRDiffer.
 
-**Current Version:** 0.4.6
+**Current Version:** 0.4.7
 
 ## OverviewPRDiffer
 

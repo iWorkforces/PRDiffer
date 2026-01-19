@@ -2,7 +2,7 @@
 
 This file provides guidance for working with the Components layer of the PRDiffer Application.
 
-**Current Version:** 0.4.6
+**Current Version:** 0.4.7
 
 ## Components Overview
 

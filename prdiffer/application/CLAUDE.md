@@ -2,7 +2,7 @@
 
 This file provides guidance for working with the Application Layer of PRDiffer.
 
-**Current Version:** 0.4.6
+**Current Version:** 0.4.7
 
 ## Application Layer Overview
 

@@ -2,7 +2,7 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-**Current Version:** 0.4.6
+**Current Version:** 0.4.7
 
 # OpenSpec Instructions
 

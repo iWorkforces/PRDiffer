@@ -6,7 +6,7 @@ This file provides guidance for working with the main PRDiffer package structure
 
 PRDiffer is an MCP (Model Context Protocol) server that provides GitHub PR diff analysis capabilities. The package follows Clean Architecture principles with clear separation between domain, application, and infrastructure layers.
 
-**Current Version:** 0.4.6
+**Current Version:** 0.4.7
 
 **Python Version:** 3.14.2+ required
 
