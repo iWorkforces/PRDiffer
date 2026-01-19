@@ -1,4 +1,4 @@
-from ccpragents.infrastructure.settings import SettingsService
+from prdiffer.infrastructure.settings import SettingsService
 
 
 def test_get_github_settings_includes_advanced_keys():

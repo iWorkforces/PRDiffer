@@ -1,6 +1,8 @@
 # CLAUDE.md - OpenSpec Directory
 
-This file provides guidance for working with OpenSpec spec-driven development in CCPRAgents.
+This file provides guidance for working with OpenSpec spec-driven development in PRDiffer.
+
+**Current Version:** 0.4.7
 
 ## Overview
 

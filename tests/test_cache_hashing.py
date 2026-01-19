@@ -7,8 +7,8 @@ including configuration, reverse mapping, and logging behavior.
 import hashlib
 import pytest
 from unittest.mock import Mock, patch
-from ccpragents.infrastructure.cache_service import CacheService
-from ccpragents.domain.entities.pr_diff import PRDiff
+from prdiffer.infrastructure.cache_service import CacheService
+from prdiffer.domain.entities.pr_diff import PRDiff
 
 
 @pytest.fixture
@@ -59,7 +59,7 @@ def sample_pr_diff():
 class TestCacheKeyHashing:
     """Test cache key hashing functionality."""
 
-    @patch("ccpragents.infrastructure.settings.get_settings_service")
+    @patch("prdiffer.infrastructure.settings.get_settings_service")
     def test_hash_key_md5(self, mock_get_settings, mock_settings_hashing_enabled):
         """Test MD5 hash generation."""
         mock_get_settings.return_value = mock_settings_hashing_enabled
@@ -72,7 +72,7 @@ class TestCacheKeyHashing:
         assert actual_hash == expected_hash
         assert len(actual_hash) == 32  # MD5 produces 32 hex chars
 
-    @patch("ccpragents.infrastructure.settings.get_settings_service")
+    @patch("prdiffer.infrastructure.settings.get_settings_service")
     def test_hash_key_sha256(self, mock_get_settings):
         """Test SHA-256 hash generation."""
         mock_settings = Mock()
@@ -91,7 +91,7 @@ class TestCacheKeyHashing:
         assert actual_hash == expected_hash
         assert len(actual_hash) == 64  # SHA-256 produces 64 hex chars
 
-    @patch("ccpragents.infrastructure.settings.get_settings_service")
+    @patch("prdiffer.infrastructure.settings.get_settings_service")
     def test_hash_key_unsupported_algorithm(
         self, mock_get_settings, mock_settings_hashing_enabled
     ):
@@ -109,7 +109,7 @@ class TestCacheKeyHashing:
         with pytest.raises(ValueError, match="Unsupported hash algorithm"):
             cache_service._hash_key("test/repo/pr/123")
 
-    @patch("ccpragents.infrastructure.settings.get_settings_service")
+    @patch("prdiffer.infrastructure.settings.get_settings_service")
     def test_get_internal_key_with_hashing(
         self, mock_get_settings, mock_settings_hashing_enabled
     ):
@@ -128,7 +128,7 @@ class TestCacheKeyHashing:
         assert hash_display == f"{expected_hash[:8]}..."
         assert len(hash_display) == 11  # 8 chars + "..."
 
-    @patch("ccpragents.infrastructure.settings.get_settings_service")
+    @patch("prdiffer.infrastructure.settings.get_settings_service")
     def test_get_internal_key_without_hashing(
         self, mock_get_settings, mock_settings_hashing_disabled
     ):
@@ -144,7 +144,7 @@ class TestCacheKeyHashing:
         # Hash display should be empty
         assert hash_display == ""
 
-    @patch("ccpragents.infrastructure.settings.get_settings_service")
+    @patch("prdiffer.infrastructure.settings.get_settings_service")
     def test_reverse_mapping_stored(
         self, mock_get_settings, mock_settings_hashing_enabled
     ):
@@ -161,7 +161,7 @@ class TestCacheKeyHashing:
         assert internal_key in cache_service._key_mapping
         assert cache_service._key_mapping[internal_key] == original_key
 
-    @patch("ccpragents.infrastructure.settings.get_settings_service")
+    @patch("prdiffer.infrastructure.settings.get_settings_service")
     def test_reverse_mapping_not_stored(
         self, mock_get_settings, mock_settings_no_mapping
     ):
@@ -175,7 +175,7 @@ class TestCacheKeyHashing:
         # Reverse mapping should be empty
         assert len(cache_service._key_mapping) == 0
 
-    @patch("ccpragents.infrastructure.settings.get_settings_service")
+    @patch("prdiffer.infrastructure.settings.get_settings_service")
     def test_get_original_key_with_mapping(
         self, mock_get_settings, mock_settings_hashing_enabled
     ):
@@ -192,7 +192,7 @@ class TestCacheKeyHashing:
         retrieved_key = cache_service._get_original_key(internal_key)
         assert retrieved_key == original_key
 
-    @patch("ccpragents.infrastructure.settings.get_settings_service")
+    @patch("prdiffer.infrastructure.settings.get_settings_service")
     def test_get_original_key_without_mapping(
         self, mock_get_settings, mock_settings_no_mapping
     ):
@@ -210,7 +210,7 @@ class TestCacheKeyHashing:
 class TestCacheOperationsWithHashing:
     """Test cache operations (get, set, invalidate) with hashing."""
 
-    @patch("ccpragents.infrastructure.settings.get_settings_service")
+    @patch("prdiffer.infrastructure.settings.get_settings_service")
     def test_set_and_get_with_hashing(
         self, mock_get_settings, mock_settings_hashing_enabled, sample_pr_diff
     ):
@@ -233,7 +233,7 @@ class TestCacheOperationsWithHashing:
         retrieved = cache_service.get(cache_key, commit_sha)
         assert retrieved == sample_pr_diff
 
-    @patch("ccpragents.infrastructure.settings.get_settings_service")
+    @patch("prdiffer.infrastructure.settings.get_settings_service")
     def test_set_and_get_without_hashing(
         self, mock_get_settings, mock_settings_hashing_disabled, sample_pr_diff
     ):
@@ -254,7 +254,7 @@ class TestCacheOperationsWithHashing:
         retrieved = cache_service.get(cache_key, commit_sha)
         assert retrieved == sample_pr_diff
 
-    @patch("ccpragents.infrastructure.settings.get_settings_service")
+    @patch("prdiffer.infrastructure.settings.get_settings_service")
     def test_cache_miss_with_hashing(
         self, mock_get_settings, mock_settings_hashing_enabled
     ):
@@ -269,7 +269,7 @@ class TestCacheOperationsWithHashing:
         retrieved = cache_service.get(cache_key, commit_sha)
         assert retrieved is None
 
-    @patch("ccpragents.infrastructure.settings.get_settings_service")
+    @patch("prdiffer.infrastructure.settings.get_settings_service")
     def test_invalidate_with_hashing(
         self, mock_get_settings, mock_settings_hashing_enabled, sample_pr_diff
     ):
@@ -294,7 +294,7 @@ class TestCacheOperationsWithHashing:
         expected_hash = hashlib.md5(cache_key.encode("utf-8")).hexdigest()
         assert expected_hash not in cache_service._key_mapping
 
-    @patch("ccpragents.infrastructure.settings.get_settings_service")
+    @patch("prdiffer.infrastructure.settings.get_settings_service")
     def test_clear_with_hashing(
         self, mock_get_settings, mock_settings_hashing_enabled, sample_pr_diff
     ):
@@ -318,7 +318,7 @@ class TestCacheOperationsWithHashing:
         assert len(cache_service.cache) == 0
         assert len(cache_service._key_mapping) == 0
 
-    @patch("ccpragents.infrastructure.settings.get_settings_service")
+    @patch("prdiffer.infrastructure.settings.get_settings_service")
     def test_commit_sha_mismatch_with_hashing(
         self, mock_get_settings, mock_settings_hashing_enabled, sample_pr_diff
     ):
@@ -341,7 +341,7 @@ class TestCacheOperationsWithHashing:
 class TestCacheStatsWithHashing:
     """Test cache statistics with hashing."""
 
-    @patch("ccpragents.infrastructure.settings.get_settings_service")
+    @patch("prdiffer.infrastructure.settings.get_settings_service")
     def test_stats_with_hashing_and_mapping(
         self, mock_get_settings, mock_settings_hashing_enabled, sample_pr_diff
     ):
@@ -368,7 +368,7 @@ class TestCacheStatsWithHashing:
         assert stats["mapping_size"] == 3
         assert set(stats["keys"]) == set(keys)  # Original keys returned
 
-    @patch("ccpragents.infrastructure.settings.get_settings_service")
+    @patch("prdiffer.infrastructure.settings.get_settings_service")
     def test_stats_with_hashing_no_mapping(
         self, mock_get_settings, mock_settings_no_mapping, sample_pr_diff
     ):
@@ -389,7 +389,7 @@ class TestCacheStatsWithHashing:
         expected_hash = hashlib.md5(cache_key.encode("utf-8")).hexdigest()
         assert stats["keys"] == [expected_hash]
 
-    @patch("ccpragents.infrastructure.settings.get_settings_service")
+    @patch("prdiffer.infrastructure.settings.get_settings_service")
     def test_stats_without_hashing(
         self, mock_get_settings, mock_settings_hashing_disabled, sample_pr_diff
     ):
@@ -413,7 +413,7 @@ class TestCacheStatsWithHashing:
 class TestCacheKeyConsistency:
     """Test consistency of cache key generation and hashing."""
 
-    @patch("ccpragents.infrastructure.settings.get_settings_service")
+    @patch("prdiffer.infrastructure.settings.get_settings_service")
     def test_same_key_produces_same_hash(
         self, mock_get_settings, mock_settings_hashing_enabled
     ):
@@ -427,7 +427,7 @@ class TestCacheKeyConsistency:
 
         assert hash1 == hash2
 
-    @patch("ccpragents.infrastructure.settings.get_settings_service")
+    @patch("prdiffer.infrastructure.settings.get_settings_service")
     def test_different_keys_produce_different_hashes(
         self, mock_get_settings, mock_settings_hashing_enabled
     ):
@@ -443,7 +443,7 @@ class TestCacheKeyConsistency:
 
         assert hash1 != hash2
 
-    @patch("ccpragents.infrastructure.settings.get_settings_service")
+    @patch("prdiffer.infrastructure.settings.get_settings_service")
     def test_get_cache_key_returns_original_format(
         self, mock_get_settings, mock_settings_hashing_enabled
     ):

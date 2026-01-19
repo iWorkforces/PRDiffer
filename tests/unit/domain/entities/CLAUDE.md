@@ -2,13 +2,15 @@
 
 This file provides guidance for working with unit tests for domain entities.
 
+**Current Version:** 0.4.7
+
 ## Overview
 
 Unit tests for domain entities verify the correctness of core business objects. Domain entities should have no external dependencies, making them straightforward to test.
 
 ## Test Files
 
-Test files in this directory should test entities from `ccpragents/domain/entities/`:
+Test files in this directory should test entities from `prdiffer/domain/entities/`:
 
 - `test_file_patch.py` - Tests for `FilePatchInfo`
 - `test_pr_diff.py` - Tests for `PRDiff`
@@ -22,7 +24,7 @@ Test files in this directory should test entities from `ccpragents/domain/entiti
 """Unit tests for [entity]."""
 
 import pytest
-from ccpragents.domain.entities import [Entity]
+from prdiffer.domain.entities import [Entity]
 
 class Test[Entity]:
     """Unit tests for [Entity]."""
@@ -129,7 +131,7 @@ Create reusable fixtures in `conftest.py`:
 # tests/unit/domain/entities/conftest.py
 
 import pytest
-from ccpragents.domain.entities import FilePatchInfo, PRDiff, EDIT_TYPE
+from prdiffer.domain.entities import FilePatchInfo, PRDiff, EDIT_TYPE
 
 @pytest.fixture
 def sample_file_patch():
@@ -210,7 +212,7 @@ Ensure complete coverage for domain entities:
 
 ```bash
 # Run with coverage
-pytest tests/unit/domain/entities/ --cov=ccpragents.domain.entities --cov-report=html
+pytest tests/unit/domain/entities/ --cov=prdiffer.domain.entities --cov-report=html
 ```
 
 **Target Coverage:** >90% for domain entities (they're simple and critical)
@@ -218,5 +220,5 @@ pytest tests/unit/domain/entities/ --cov=ccpragents.domain.entities --cov-report
 ## Related Documentation
 
 - `../CLAUDE.md` - Unit test documentation
-- `../../../ccpragents/domain/entities/CLAUDE.md` - Entity documentation
+- `../../../prdiffer/domain/entities/CLAUDE.md` - Entity documentation
 - `../../../CLAUDE.md` - Project documentation

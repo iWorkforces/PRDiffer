@@ -6,7 +6,7 @@ functionality to prevent security vulnerabilities.
 
 import pytest
 from typing import cast, Any
-from ccpragents.infrastructure.security.input_validator import (
+from prdiffer.infrastructure.security.input_validator import (
     InputValidator,
     validate_github_url,
     validate_repository_identifier,
@@ -14,7 +14,7 @@ from ccpragents.infrastructure.security.input_validator import (
     validate_token,
     validate_user_id,
 )
-from ccpragents.domain.exceptions import (
+from prdiffer.domain.exceptions import (
     InvalidURLError,
     InvalidRepositoryError,
     InvalidPRNumberError,

@@ -15,13 +15,13 @@ import pytest
 from unittest.mock import Mock, patch
 
 # Import components to test
-from ccpragents.infrastructure.security.input_validator import InputValidator
-from ccpragents.infrastructure.utils.circuit_breaker import (
+from prdiffer.infrastructure.security.input_validator import InputValidator
+from prdiffer.infrastructure.utils.circuit_breaker import (
     CircuitBreaker,
     CircuitState,
 )
-from ccpragents.infrastructure.utils.retry_handler import RetryHandler
-from ccpragents.domain.entities.pr_diff import PRDiff
+from prdiffer.infrastructure.utils.retry_handler import RetryHandler
+from prdiffer.domain.entities.pr_diff import PRDiff
 
 
 # =============================================================================
@@ -37,10 +37,10 @@ class TestLRUCacheEviction:
         """Create mock logger."""
         return Mock()
 
-    @patch("ccpragents.infrastructure.github.api_client.get_logger")
+    @patch("prdiffer.infrastructure.github.api_client.get_logger")
     def test_cache_eviction_when_max_size_reached(self, mock_get_logger):
         """Test that oldest entries are evicted when cache reaches max size."""
-        from ccpragents.infrastructure.github.api_client import GitHubAPIClient
+        from prdiffer.infrastructure.github.api_client import GitHubAPIClient
 
         mock_get_logger.return_value = Mock()
 
@@ -67,10 +67,10 @@ class TestLRUCacheEviction:
         assert ("file1.py", "branch1") not in client._file_content_cache
         assert ("file4.py", "branch1") in client._file_content_cache
 
-    @patch("ccpragents.infrastructure.github.api_client.get_logger")
+    @patch("prdiffer.infrastructure.github.api_client.get_logger")
     def test_cache_lru_ordering(self, mock_get_logger):
         """Test that accessing an entry moves it to the end (most recently used)."""
-        from ccpragents.infrastructure.github.api_client import GitHubAPIClient
+        from prdiffer.infrastructure.github.api_client import GitHubAPIClient
 
         mock_get_logger.return_value = Mock()
 
@@ -97,10 +97,10 @@ class TestLRUCacheEviction:
         assert ("file2.py", "branch1") not in client._file_content_cache
         assert ("file1.py", "branch1") in client._file_content_cache
 
-    @patch("ccpragents.infrastructure.github.api_client.get_logger")
+    @patch("prdiffer.infrastructure.github.api_client.get_logger")
     def test_cache_statistics_tracking(self, mock_get_logger):
         """Test that cache hits, misses, and evictions are tracked."""
-        from ccpragents.infrastructure.github.api_client import GitHubAPIClient
+        from prdiffer.infrastructure.github.api_client import GitHubAPIClient
 
         mock_get_logger.return_value = Mock()
 
@@ -153,10 +153,10 @@ class TestTTLExpiration:
             commit_messages="test commit message",
         )
 
-    @patch("ccpragents.infrastructure.settings.get_settings_service")
+    @patch("prdiffer.infrastructure.settings.get_settings_service")
     def test_entry_not_expired_within_ttl(self, mock_get_settings, sample_pr_diff):
         """Test that entries are valid within TTL."""
-        from ccpragents.infrastructure.cache_service import CacheService
+        from prdiffer.infrastructure.cache_service import CacheService
 
         mock_settings = Mock()
         mock_settings.get.side_effect = lambda key, default: {
@@ -175,10 +175,10 @@ class TestTTLExpiration:
         result = cache_service.get(cache_key, commit_sha)
         assert result == sample_pr_diff
 
-    @patch("ccpragents.infrastructure.settings.get_settings_service")
+    @patch("prdiffer.infrastructure.settings.get_settings_service")
     def test_entry_expired_after_ttl(self, mock_get_settings, sample_pr_diff):
         """Test that entries expire after TTL."""
-        from ccpragents.infrastructure.cache_service import CacheService
+        from prdiffer.infrastructure.cache_service import CacheService
 
         mock_settings = Mock()
         mock_settings.get.side_effect = lambda key, default: {
@@ -200,10 +200,10 @@ class TestTTLExpiration:
         result = cache_service.get(cache_key, commit_sha)
         assert result is None
 
-    @patch("ccpragents.infrastructure.settings.get_settings_service")
+    @patch("prdiffer.infrastructure.settings.get_settings_service")
     def test_expiration_statistics(self, mock_get_settings, sample_pr_diff):
         """Test that expiration statistics are tracked."""
-        from ccpragents.infrastructure.cache_service import CacheService
+        from prdiffer.infrastructure.cache_service import CacheService
 
         mock_settings = Mock()
         mock_settings.get.side_effect = lambda key, default: {
@@ -551,7 +551,7 @@ class TestErrorMessageSanitization:
 
     def test_github_exception_sanitization(self, mock_dependencies):
         """Test GitHub exception is sanitized."""
-        from ccpragents.application.mcp_server import FastMCPServer
+        from prdiffer.application.mcp_server import FastMCPServer
 
         # Configure mock
         mock_dependencies["server_configuration"].setup_logging = Mock()
@@ -559,7 +559,7 @@ class TestErrorMessageSanitization:
             return_value=""
         )
 
-        with patch("ccpragents.application.mcp_server.FastMCP"):
+        with patch("prdiffer.application.mcp_server.FastMCP"):
             server = FastMCPServer(**mock_dependencies)
 
         # Create mock exception
@@ -575,14 +575,14 @@ class TestErrorMessageSanitization:
 
     def test_rate_limit_exception_sanitization(self, mock_dependencies):
         """Test rate limit exception is sanitized."""
-        from ccpragents.application.mcp_server import FastMCPServer
+        from prdiffer.application.mcp_server import FastMCPServer
 
         mock_dependencies["server_configuration"].setup_logging = Mock()
         mock_dependencies["server_configuration"].get_mcp_instructions = Mock(
             return_value=""
         )
 
-        with patch("ccpragents.application.mcp_server.FastMCP"):
+        with patch("prdiffer.application.mcp_server.FastMCP"):
             server = FastMCPServer(**mock_dependencies)
 
         class RateLimitExceededException(Exception):
@@ -595,14 +595,14 @@ class TestErrorMessageSanitization:
 
     def test_unknown_exception_sanitization(self, mock_dependencies):
         """Test unknown exception returns generic message."""
-        from ccpragents.application.mcp_server import FastMCPServer
+        from prdiffer.application.mcp_server import FastMCPServer
 
         mock_dependencies["server_configuration"].setup_logging = Mock()
         mock_dependencies["server_configuration"].get_mcp_instructions = Mock(
             return_value=""
         )
 
-        with patch("ccpragents.application.mcp_server.FastMCP"):
+        with patch("prdiffer.application.mcp_server.FastMCP"):
             server = FastMCPServer(**mock_dependencies)
 
         class UnknownInternalError(Exception):
@@ -619,8 +619,8 @@ class TestErrorMessageSanitization:
 
     def test_security_exceptions_sanitization(self, mock_dependencies):
         """Test security exceptions are sanitized."""
-        from ccpragents.application.mcp_server import FastMCPServer
-        from ccpragents.domain.exceptions import (
+        from prdiffer.application.mcp_server import FastMCPServer
+        from prdiffer.domain.exceptions import (
             InvalidURLError,
             SuspiciousOperationError,
         )
@@ -630,7 +630,7 @@ class TestErrorMessageSanitization:
             return_value=""
         )
 
-        with patch("ccpragents.application.mcp_server.FastMCP"):
+        with patch("prdiffer.application.mcp_server.FastMCP"):
             server = FastMCPServer(**mock_dependencies)
 
         # InvalidURLError

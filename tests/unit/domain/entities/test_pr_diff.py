@@ -4,7 +4,7 @@ Tests the PRDiff Pydantic model which represents pull request information
 with diff content, commit messages, statistics, and metadata.
 """
 
-from ccpragents.domain.entities.pr_diff import PRDiff
+from prdiffer.domain.entities.pr_diff import PRDiff
 
 
 class TestPRDiffCreation:

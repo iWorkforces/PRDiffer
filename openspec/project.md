@@ -2,7 +2,7 @@
 
 ## Purpose
 
-CCPRAgents is an MCP (Model Context Protocol) server that provides GitHub PR diff analysis capabilities with full file context. The server enables AI assistants and code review tools to retrieve comprehensive PR diff information including:
+PRDiffer is an MCP (Model Context Protocol) server that provides GitHub PR diff analysis capabilities with full file context. The server enables AI assistants and code review tools to retrieve comprehensive PR diff information including:
 
 - Complete file content before and after changes (not just minimal hunks)
 - Commit messages and PR metadata
@@ -97,7 +97,7 @@ Infrastructure Layer (GitHub, Caching, Logging)
 
 **File Organization:**
 ```
-ccpragents/
+prdiffer/
 ├── domain/           # No external dependencies
 │   ├── entities/     # Core business objects (dataclasses, Pydantic models)
 │   ├── repositories/ # Repository interfaces

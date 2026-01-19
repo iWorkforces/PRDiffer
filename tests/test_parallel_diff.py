@@ -2,10 +2,10 @@
 """Simple test to validate parallel diff generation implementation."""
 
 import sys
-from ccpragents.domain.entities.file_patch import FilePatchInfo, EDIT_TYPE
-from ccpragents.infrastructure.github.diff_generator import get_diff_generator
-from ccpragents.infrastructure.github.parallel_executor import get_parallel_executor
-from ccpragents.infrastructure.utils.diff_utils import get_diff_utils
+from prdiffer.domain.entities.file_patch import FilePatchInfo, EDIT_TYPE
+from prdiffer.infrastructure.github.diff_generator import get_diff_generator
+from prdiffer.infrastructure.github.parallel_executor import get_parallel_executor
+from prdiffer.infrastructure.utils.diff_utils import get_diff_utils
 
 
 def create_test_file(index: int) -> FilePatchInfo:

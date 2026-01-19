@@ -5,7 +5,7 @@ monitoring for the MCP server.
 """
 
 from unittest.mock import Mock
-from ccpragents.application.components.health_monitor import HealthMonitor
+from prdiffer.application.components.health_monitor import HealthMonitor
 
 
 class TestHealthMonitorInitialization:

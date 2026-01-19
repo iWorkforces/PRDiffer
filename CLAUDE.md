@@ -2,6 +2,8 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+**Current Version:** 0.4.7
+
 # OpenSpec Instructions
 
 These instructions are for AI assistants working in this project.
@@ -20,7 +22,7 @@ Use `@/openspec/AGENTS.md` to learn:
 
 Keep this managed block so 'openspec update' can refresh the instructions.
 
-## Project Overview
+PRDiffer Overview
 
 CCPRAgents is an MCP (Model Context Protocol) server that provides GitHub PR diff analysis capabilities. It's built using FastMCP framework and follows Clean Architecture principles with domain-driven design.
 
@@ -38,10 +40,10 @@ uv install --dev
 ### Running the Server
 ```bash
 # Run MCP server (default HTTP transport on port 9102)
-uv run python ccpragents/server.py
+uv run python prdiffer/server.py
 
 # Run with different transport/port via environment variables
-TRANSPORT=sse PORT=9102 uv run python ccpragents/server.py
+TRANSPORT=sse PORT=9102 uv run python prdiffer/server.py
 ```
 
 ### Development Commands
@@ -111,7 +113,8 @@ uv run python tests/test_mcp_server.py
 
 The codebase follows Clean Architecture with these layers:
 
-### Domain Layer (`ccpragents/domain/`)
+### Domain Layer (`prdiffer/domain/`)
+
 - **Entities**: Core business objects
   - `FilePatchInfo`: File change representation with diff and metadata
   - `PRDiff`: PR model with commit messages and diff content
@@ -132,7 +135,7 @@ The codebase follows Clean Architecture with these layers:
 - **Factory Interfaces** (`domain/factories/`): Dependency injection abstractions
   - `InfrastructureFactoryInterface`: Abstract factory for creating infrastructure services
 
-### Infrastructure Layer (`ccpragents/infrastructure/`)
+### Infrastructure Layer (`prdiffer/infrastructure/`)
 
 - **GitHub Integration**:
   - `GitHubPRDiffRepository`: PyGithub implementation of `PRDiffRepositoryInterface`
@@ -189,7 +192,7 @@ The codebase follows Clean Architecture with these layers:
   - Provides PR diff operations using GitHub API with graceful error handling
   - Orchestrates diff generation workflow with DiffGenerator and FileProcessor
 
-### Application Layer (`ccpragents/application/`)
+### Application Layer (`prdiffer/application/`)
 
 - **MCP Server** (`mcp_server.py`):
   - FastMCP server exposing `get_pr_diff` tool
@@ -209,7 +212,7 @@ The codebase follows Clean Architecture with these layers:
 
 ### Interface Layer
 
-- **Server Entry Point**: `ccpragents/server.py` - main server launcher with dependency initialization
+- **Server Entry Point**: `prdiffer/server.py` - main server launcher with dependency initialization
 
 ## Key Technical Details
 

@@ -3,8 +3,8 @@
 
 import asyncio
 from typing import Optional
-from ccpragents.infrastructure.services.pr_diff_service import GitHubPRDiffService
-from ccpragents.domain.entities.pr_diff import PRDiff
+from prdiffer.infrastructure.services.pr_diff_service import GitHubPRDiffService
+from prdiffer.domain.entities.pr_diff import PRDiff
 
 
 async def test_github_client():

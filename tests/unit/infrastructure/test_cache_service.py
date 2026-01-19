@@ -8,14 +8,14 @@ import time
 import threading
 from unittest.mock import patch
 import pytest
-from ccpragents.infrastructure.cache_service import CacheService, get_cache_service
-from ccpragents.domain.entities.pr_diff import PRDiff
+from prdiffer.infrastructure.cache_service import CacheService, get_cache_service
+from prdiffer.domain.entities.pr_diff import PRDiff
 
 
 @pytest.fixture
 def reset_cache_service():
     """Reset the global cache service before each test."""
-    import ccpragents.infrastructure.cache_service as cache_module
+    import prdiffer.infrastructure.cache_service as cache_module
 
     cache_module._cache_service = None
     yield
@@ -485,7 +485,7 @@ class TestCacheServiceSingleton:
 
     def test_get_cache_service_creates_once(self, reset_cache_service):
         """Test that singleton is created only once."""
-        import ccpragents.infrastructure.cache_service as cache_module
+        import prdiffer.infrastructure.cache_service as cache_module
 
         service1 = get_cache_service()
         service2 = get_cache_service()

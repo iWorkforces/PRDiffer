@@ -8,9 +8,9 @@ from unittest.mock import Mock, AsyncMock
 import anyio
 import pytest
 
-from ccpragents.application.factory import create_mcp_server
-from ccpragents.domain.entities.pr_diff import PRDiff
-from ccpragents.infrastructure.github_repository import GitHubPRDiffRepository
+from prdiffer.application.factory import create_mcp_server
+from prdiffer.domain.entities.pr_diff import PRDiff
+from prdiffer.infrastructure.github_repository import GitHubPRDiffRepository
 
 
 @pytest.mark.integration
@@ -47,7 +47,7 @@ class TestCompleteWorkflow:
     @pytest.fixture
     def mock_logger(self):
         """Mock logger service."""
-        from ccpragents.infrastructure.logging.console_logger import ConsoleLogger
+        from prdiffer.infrastructure.logging.console_logger import ConsoleLogger
 
         logger = ConsoleLogger()
         # Disable actual logging during tests
@@ -321,7 +321,7 @@ class TestWorkflowWithRealServices:
     @pytest.fixture
     def real_settings(self):
         """Create real settings service with test configuration."""
-        from ccpragents.infrastructure.factories import get_infrastructure_factory
+        from prdiffer.infrastructure.factories import get_infrastructure_factory
 
         factory = get_infrastructure_factory()
         return factory.create_settings_service()
@@ -329,7 +329,7 @@ class TestWorkflowWithRealServices:
     @pytest.fixture
     def real_logger(self):
         """Create real logger service."""
-        from ccpragents.infrastructure.factories import get_infrastructure_factory
+        from prdiffer.infrastructure.factories import get_infrastructure_factory
 
         factory = get_infrastructure_factory()
         return factory.create_logger_service()
@@ -337,7 +337,7 @@ class TestWorkflowWithRealServices:
     @pytest.fixture
     def real_cache(self):
         """Create real cache service."""
-        from ccpragents.infrastructure.factories import get_infrastructure_factory
+        from prdiffer.infrastructure.factories import get_infrastructure_factory
 
         factory = get_infrastructure_factory()
         return factory.create_cache_service()
@@ -412,7 +412,7 @@ class TestEndToEndScenarios:
 
     def test_server_initialization_scenario(self):
         """Test complete server initialization scenario."""
-        from ccpragents.infrastructure.factories import get_infrastructure_factory
+        from prdiffer.infrastructure.factories import get_infrastructure_factory
 
         factory = get_infrastructure_factory()
 
@@ -451,7 +451,7 @@ class TestEndToEndScenarios:
 
     def test_component_interaction_scenario(self):
         """Test interaction between components."""
-        from ccpragents.infrastructure.factories import get_infrastructure_factory
+        from prdiffer.infrastructure.factories import get_infrastructure_factory
 
         factory = get_infrastructure_factory()
 
@@ -502,7 +502,7 @@ class TestEndToEndScenarios:
 
     def test_health_check_scenario(self):
         """Test health check scenario."""
-        from ccpragents.infrastructure.factories import get_infrastructure_factory
+        from prdiffer.infrastructure.factories import get_infrastructure_factory
 
         factory = get_infrastructure_factory()
 

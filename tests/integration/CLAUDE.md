@@ -1,6 +1,8 @@
 # CLAUDE.md - Integration Tests
 
-This file provides guidance for working with integration tests in CCPRAgents.
+This file provides guidance for working with integration tests in PRDiffer.
+
+**Current Version:** 0.4.7
 
 ## Overview
 
@@ -142,7 +144,7 @@ Integration tests may use:
 """Integration test for [feature]."""
 
 import pytest
-from ccpragents.application.factory import create_mcp_server
+from prdiffer.application.factory import create_mcp_server
 
 class TestFeatureIntegration:
     """Integration tests for [feature]."""
@@ -256,5 +258,5 @@ def test_pr_diff_performance(benchmark):
 ## Related Documentation
 
 - `../unit/CLAUDE.md` - Unit test documentation
-- `../../ccpragents/CLAUDE.md` - Package structure
+- `../../prdiffer/CLAUDE.md` - Package structure
 - `../../README.md` - Project overview

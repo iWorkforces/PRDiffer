@@ -22,7 +22,7 @@ class TestBinaryFileHandling:
 
     def test_binary_content_detection_null_bytes(self):
         """Test that content with null bytes is detected as binary."""
-        from ccpragents.infrastructure.utils.diff_utils import DiffUtils
+        from prdiffer.infrastructure.utils.diff_utils import DiffUtils
 
         diff_utils = DiffUtils()
 
@@ -32,7 +32,7 @@ class TestBinaryFileHandling:
 
     def test_binary_content_detection_high_non_printable_ratio(self):
         """Test that content with high ratio of non-printable chars is binary."""
-        from ccpragents.infrastructure.utils.diff_utils import DiffUtils
+        from prdiffer.infrastructure.utils.diff_utils import DiffUtils
 
         diff_utils = DiffUtils()
 
@@ -45,7 +45,7 @@ class TestBinaryFileHandling:
 
     def test_binary_content_detection_normal_text(self):
         """Test that normal text content is not detected as binary."""
-        from ccpragents.infrastructure.utils.diff_utils import DiffUtils
+        from prdiffer.infrastructure.utils.diff_utils import DiffUtils
 
         diff_utils = DiffUtils()
 
@@ -55,14 +55,14 @@ class TestBinaryFileHandling:
 
     def test_binary_content_detection_empty(self):
         """Test that empty content is not detected as binary."""
-        from ccpragents.infrastructure.utils.diff_utils import DiffUtils
+        from prdiffer.infrastructure.utils.diff_utils import DiffUtils
 
         diff_utils = DiffUtils()
         assert diff_utils._is_binary_content("") is False
 
     def test_extend_patch_skips_binary_files(self):
         """Test that extend_patch returns binary marker for binary content."""
-        from ccpragents.infrastructure.utils.diff_utils import DiffUtils
+        from prdiffer.infrastructure.utils.diff_utils import DiffUtils
 
         diff_utils = DiffUtils()
 
@@ -76,7 +76,7 @@ class TestBinaryFileHandling:
 
     def test_extend_patch_processes_text_files(self):
         """Test that extend_patch processes normal text files."""
-        from ccpragents.infrastructure.utils.diff_utils import DiffUtils
+        from prdiffer.infrastructure.utils.diff_utils import DiffUtils
 
         diff_utils = DiffUtils()
 
@@ -99,7 +99,7 @@ class TestChunkedProcessing:
 
     def test_is_large_file_below_threshold(self):
         """Test files below threshold are not considered large."""
-        from ccpragents.infrastructure.utils.diff_utils import DiffUtils
+        from prdiffer.infrastructure.utils.diff_utils import DiffUtils
 
         diff_utils = DiffUtils()
 
@@ -108,7 +108,7 @@ class TestChunkedProcessing:
 
     def test_is_large_file_above_threshold(self):
         """Test files above threshold are considered large."""
-        from ccpragents.infrastructure.utils.diff_utils import DiffUtils
+        from prdiffer.infrastructure.utils.diff_utils import DiffUtils
 
         diff_utils = DiffUtils()
 
@@ -117,7 +117,7 @@ class TestChunkedProcessing:
 
     def test_get_file_line_count(self):
         """Test line count calculation."""
-        from ccpragents.infrastructure.utils.diff_utils import DiffUtils
+        from prdiffer.infrastructure.utils.diff_utils import DiffUtils
 
         diff_utils = DiffUtils()
 
@@ -127,7 +127,7 @@ class TestChunkedProcessing:
 
     def test_build_chunk_hunk_with_changes(self):
         """Test chunk hunk generation with actual changes."""
-        from ccpragents.infrastructure.utils.diff_utils import DiffUtils
+        from prdiffer.infrastructure.utils.diff_utils import DiffUtils
 
         diff_utils = DiffUtils()
 
@@ -142,7 +142,7 @@ class TestChunkedProcessing:
 
     def test_build_chunk_hunk_no_changes(self):
         """Test chunk hunk generation with no changes."""
-        from ccpragents.infrastructure.utils.diff_utils import DiffUtils
+        from prdiffer.infrastructure.utils.diff_utils import DiffUtils
 
         diff_utils = DiffUtils()
 
@@ -156,7 +156,7 @@ class TestChunkedProcessing:
 
     def test_build_full_file_patch_chunked_small_file(self):
         """Test chunked processing falls back to standard for small files."""
-        from ccpragents.infrastructure.utils.diff_utils import DiffUtils
+        from prdiffer.infrastructure.utils.diff_utils import DiffUtils
 
         diff_utils = DiffUtils()
 
@@ -172,7 +172,7 @@ class TestChunkedProcessing:
 
     def test_build_full_file_patch_chunked_large_file(self):
         """Test chunked processing for large files."""
-        from ccpragents.infrastructure.utils.diff_utils import DiffUtils
+        from prdiffer.infrastructure.utils.diff_utils import DiffUtils
 
         diff_utils = DiffUtils()
 
@@ -207,14 +207,14 @@ class TestStreamingDiffGeneration:
     @pytest.fixture
     def diff_generator(self, mock_diff_utils):
         """Create DiffGenerator with mocked dependencies."""
-        from ccpragents.infrastructure.github.diff_generator import DiffGenerator
+        from prdiffer.infrastructure.github.diff_generator import DiffGenerator
 
         return DiffGenerator(diff_utils=mock_diff_utils)
 
     @pytest.fixture
     def sample_file_patches(self):
         """Create sample FilePatchInfo objects."""
-        from ccpragents.domain.entities.file_patch import FilePatchInfo, EDIT_TYPE
+        from prdiffer.domain.entities.file_patch import FilePatchInfo, EDIT_TYPE
 
         return [
             FilePatchInfo(
@@ -274,7 +274,7 @@ class TestStreamingDiffGeneration:
         self, diff_generator
     ):
         """Test that files without patches are skipped."""
-        from ccpragents.domain.entities.file_patch import FilePatchInfo, EDIT_TYPE
+        from prdiffer.domain.entities.file_patch import FilePatchInfo, EDIT_TYPE
 
         files = [
             FilePatchInfo(
@@ -298,7 +298,7 @@ class TestStreamingDiffGeneration:
     @pytest.mark.asyncio
     async def test_generate_single_diff_success(self, diff_generator):
         """Test single diff generation."""
-        from ccpragents.domain.entities.file_patch import FilePatchInfo, EDIT_TYPE
+        from prdiffer.domain.entities.file_patch import FilePatchInfo, EDIT_TYPE
 
         file = FilePatchInfo(
             base_file="old",
@@ -318,7 +318,7 @@ class TestStreamingDiffGeneration:
     @pytest.mark.asyncio
     async def test_generate_single_diff_empty_patch(self, diff_generator):
         """Test single diff generation with empty patch."""
-        from ccpragents.domain.entities.file_patch import FilePatchInfo, EDIT_TYPE
+        from prdiffer.domain.entities.file_patch import FilePatchInfo, EDIT_TYPE
 
         file = FilePatchInfo(
             base_file="",
@@ -346,7 +346,7 @@ class TestParallelBatchFetching:
     @pytest.fixture
     def api_client(self):
         """Create GitHub API client for testing."""
-        from ccpragents.infrastructure.github.api_client import GitHubAPIClient
+        from prdiffer.infrastructure.github.api_client import GitHubAPIClient
 
         client = GitHubAPIClient(
             max_retries=1,
@@ -426,7 +426,7 @@ class TestFileProcessorParallelContent:
     @pytest.fixture
     def file_processor(self, mock_services):
         """Create FileProcessor with mocked dependencies."""
-        from ccpragents.infrastructure.github.file_processor import FileProcessor
+        from prdiffer.infrastructure.github.file_processor import FileProcessor
 
         github_api, pattern_matcher, diff_utils = mock_services
 
@@ -517,7 +517,7 @@ class TestLineNumberingEdgeCases:
     @pytest.fixture
     def diff_generator(self):
         """Create DiffGenerator with mocked dependencies."""
-        from ccpragents.infrastructure.github.diff_generator import DiffGenerator
+        from prdiffer.infrastructure.github.diff_generator import DiffGenerator
 
         mock_diff_utils = Mock()
         return DiffGenerator(diff_utils=mock_diff_utils)
@@ -654,9 +654,9 @@ class TestPhase2Integration:
     @pytest.mark.asyncio
     async def test_streaming_with_binary_file_handling(self):
         """Test streaming diff generation with binary file handling."""
-        from ccpragents.infrastructure.github.diff_generator import DiffGenerator
-        from ccpragents.infrastructure.utils.diff_utils import DiffUtils
-        from ccpragents.domain.entities.file_patch import FilePatchInfo, EDIT_TYPE
+        from prdiffer.infrastructure.github.diff_generator import DiffGenerator
+        from prdiffer.infrastructure.utils.diff_utils import DiffUtils
+        from prdiffer.domain.entities.file_patch import FilePatchInfo, EDIT_TYPE
 
         diff_utils = DiffUtils()
         generator = DiffGenerator(diff_utils=diff_utils)
@@ -692,7 +692,7 @@ class TestPhase2Integration:
 
     def test_chunked_processing_maintains_diff_integrity(self):
         """Test that chunked processing produces valid diffs."""
-        from ccpragents.infrastructure.utils.diff_utils import DiffUtils
+        from prdiffer.infrastructure.utils.diff_utils import DiffUtils
 
         diff_utils = DiffUtils()
 

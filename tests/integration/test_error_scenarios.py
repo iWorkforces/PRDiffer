@@ -8,16 +8,16 @@ from unittest.mock import Mock, AsyncMock
 import pytest
 from github import GithubException, RateLimitExceededException, UnknownObjectException
 
-from ccpragents.application.factory import create_mcp_server
-from ccpragents.domain.entities.pr_diff import PRDiff
-from ccpragents.domain.exceptions import (
+from prdiffer.application.factory import create_mcp_server
+from prdiffer.domain.entities.pr_diff import PRDiff
+from prdiffer.domain.exceptions import (
     InvalidURLError,
     InvalidRepositoryError,
     InvalidPRNumberError,
     InputSanitizationError,
     SuspiciousOperationError,
 )
-from ccpragents.infrastructure.github_repository import GitHubPRDiffRepository
+from prdiffer.infrastructure.github_repository import GitHubPRDiffRepository
 
 
 @pytest.mark.integration
@@ -44,7 +44,7 @@ class TestAPIErrorScenarios:
     @pytest.fixture
     def mock_logger(self):
         """Mock logger service."""
-        from ccpragents.infrastructure.logging.console_logger import ConsoleLogger
+        from prdiffer.infrastructure.logging.console_logger import ConsoleLogger
 
         logger = ConsoleLogger()
         logger._logger = Mock()
@@ -171,7 +171,7 @@ class TestValidationErrorScenarios:
     @pytest.fixture
     def mock_logger(self):
         """Mock logger service."""
-        from ccpragents.infrastructure.logging.console_logger import ConsoleLogger
+        from prdiffer.infrastructure.logging.console_logger import ConsoleLogger
 
         logger = ConsoleLogger()
         logger._logger = Mock()
@@ -341,7 +341,7 @@ class TestRateLimitingScenarios:
     @pytest.fixture
     def mock_logger(self):
         """Mock logger service."""
-        from ccpragents.infrastructure.logging.console_logger import ConsoleLogger
+        from prdiffer.infrastructure.logging.console_logger import ConsoleLogger
 
         logger = ConsoleLogger()
         logger._logger = Mock()
@@ -498,7 +498,7 @@ class TestCacheErrorScenarios:
     @pytest.fixture
     def mock_logger(self):
         """Mock logger service."""
-        from ccpragents.infrastructure.logging.console_logger import ConsoleLogger
+        from prdiffer.infrastructure.logging.console_logger import ConsoleLogger
 
         logger = ConsoleLogger()
         logger._logger = Mock()
@@ -580,7 +580,7 @@ class TestAuthenticationErrorScenarios:
     @pytest.fixture
     def mock_logger(self):
         """Mock logger service."""
-        from ccpragents.infrastructure.logging.console_logger import ConsoleLogger
+        from prdiffer.infrastructure.logging.console_logger import ConsoleLogger
 
         logger = ConsoleLogger()
         logger._logger = Mock()

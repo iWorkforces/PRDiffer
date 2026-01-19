@@ -2,13 +2,15 @@
 
 This file provides guidance for working with unit tests for domain service interfaces.
 
+**Current Version:** 0.4.7
+
 ## Overview
 
 Unit tests for domain services verify the correctness of service interfaces and their implementations. Domain services define the contracts for external operations.
 
 ## Test Files
 
-Test files in this directory should test services from `ccpragents/domain/services/`:
+Test files in this directory should test services from `prdiffer/domain/services/`:
 
 - `test_cache.py` - Tests for `CacheServiceInterface`
 - `test_logger.py` - Tests for `LoggerServiceInterface`
@@ -29,7 +31,7 @@ Test files in this directory should test services from `ccpragents/domain/servic
 
 import pytest
 from unittest.mock import Mock
-from ccpragents.domain.services import [Service]Interface
+from prdiffer.domain.services import [Service]Interface
 
 class Test[Service]Interface:
     """Unit tests for [Service] interface."""
@@ -229,7 +231,7 @@ Ensure good coverage for domain services:
 
 ```bash
 # Run with coverage
-pytest tests/unit/domain/services/ --cov=ccpragents.domain.services --cov-report=html
+pytest tests/unit/domain/services/ --cov=prdiffer.domain.services --cov-report=html
 ```
 
 **Target Coverage:** >80% for domain services
@@ -237,5 +239,5 @@ pytest tests/unit/domain/services/ --cov=ccpragents.domain.services --cov-report
 ## Related Documentation
 
 - `../CLAUDE.md` - Unit test documentation
-- `../../../ccpragents/domain/services/CLAUDE.md` - Service documentation
+- `../../../prdiffer/domain/services/CLAUDE.md` - Service documentation
 - `../../../CLAUDE.md` - Project documentation
