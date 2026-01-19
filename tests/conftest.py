@@ -360,14 +360,14 @@ def reset_singletons():
 
     import ccpragents.infrastructure.logging.console_logger as logger_module
 
-    logger_module._logger = None
+    logger_module._logger_instance = None
 
     yield
 
     # Clean up after test
     cache_module._cache_service = None
     settings_module._settings_service = None
-    logger_module._logger = None
+    logger_module._logger_instance = None
 
 
 # =============================================================================

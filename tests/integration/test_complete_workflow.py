@@ -5,6 +5,7 @@ to GitHub API response, including all intermediate components.
 """
 
 from unittest.mock import Mock, AsyncMock
+import anyio
 import pytest
 
 from ccpragents.application.factory import create_mcp_server
@@ -70,6 +71,7 @@ class TestCompleteWorkflow:
         mock_repo_cache = Mock()
         mock_repo_cache.retrieve = Mock(return_value=None)
         mock_repo_cache.insert = Mock(return_value=True)
+        mock_repo_cache.stats = Mock(return_value={"total_entries": 0})
         return mock_repo_cache
 
     @pytest.fixture
@@ -193,7 +195,7 @@ class TestCompleteWorkflow:
         assert hasattr(server._health_monitor, "check_health")
 
         # Get health status
-        health = server._get_health_status()
+        health = anyio.run(server._get_health_status)
         assert "status" in health
         assert "uptime_seconds" in health
 
@@ -362,6 +364,7 @@ class TestWorkflowWithRealServices:
         mock_repo_cache = Mock()
         mock_repo_cache.retrieve = Mock(return_value=None)
         mock_repo_cache.insert = Mock(return_value=True)
+        mock_repo_cache.stats = Mock(return_value={"total_entries": 0})
 
         # Create server with real services
         server = create_mcp_server(
@@ -532,7 +535,7 @@ class TestEndToEndScenarios:
         )
 
         # Get health status
-        health = server._get_health_status()
+        health = anyio.run(server._get_health_status)
 
         # Verify health status structure
         assert "status" in health

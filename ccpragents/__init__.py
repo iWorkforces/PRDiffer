@@ -4,7 +4,7 @@ This package provides a Model Context Protocol (MCP) server that enables
 AI assistants to analyze GitHub pull requests with comprehensive diff context.
 """
 
-__version__ = "0.3.8"
+from ccpragents.version import __version__
 
 # Export main components for programmatic access
 from ccpragents.server import main

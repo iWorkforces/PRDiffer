@@ -1,6 +1,7 @@
 import time
 from typing import Optional, Callable, Literal, cast, TypeAlias
 from fastmcp import FastMCP
+from ccpragents.version import __version__
 from ccpragents.domain.entities.pr_diff import PRDiff
 from ccpragents.domain.usecases.pr_diff_usecases import GetPRDiffUseCase
 from ccpragents.domain.services.pr_diff_service import PRDiffServiceInterface
@@ -60,9 +61,10 @@ class FastMCPServer:
         pr_operation_handler: PROperationHandlerProtocol,
         health_monitor: HealthMonitorProtocol,
         server_configuration: ServerConfigurationProtocol,
-        authentication: AuthenticationProtocol,
+        authentication: Optional[AuthenticationProtocol] = None,
         # Security and request coalescing services from infrastructure
         input_validator: Optional[InputValidator] = None,
+        url_validator: Optional[InputValidator] = None,
         request_coalescing_service: Optional[RequestCoalescingService] = None,
     ):
         """Initialize the FastMCP server with dependency injection.
@@ -81,6 +83,7 @@ class FastMCPServer:
             server_configuration: Server configuration component implementing ServerConfigurationProtocol
             authentication: Authentication middleware component implementing AuthenticationProtocol
             input_validator: Optional input validator factory function (for backward compatibility)
+            url_validator: Optional legacy URL validator alias for input_validator
             request_coalescing_service: Optional request coalescing service factory function (for backward compatibility)
         """
         self._settings_service = settings_service
@@ -96,10 +99,19 @@ class FastMCPServer:
         self._pr_operation_handler = pr_operation_handler
         self._health_monitor = health_monitor
         self._server_configuration = server_configuration
-        self._authentication = authentication
+        if authentication is None:
+            from ccpragents.application.components.authentication import (
+                AuthenticationMiddleware,
+            )
+
+            self._authentication = AuthenticationMiddleware()
+        else:
+            self._authentication = authentication
 
         # Initialize security validator - should be injected for Clean Architecture
-        if input_validator is None:
+        if input_validator is None and url_validator is not None:
+            self._input_validator = url_validator
+        elif input_validator is None:
             # Fallback to direct instantiation only for backward compatibility
             from ccpragents.infrastructure.security.input_validator import (
                 InputValidator,
@@ -145,7 +157,7 @@ class FastMCPServer:
         self.mcp = FastMCP(
             name="ccpragents",
             instructions=self._server_configuration.get_mcp_instructions(),
-            version="0.1.3",
+            version=__version__,
         )
 
         self._register_tools()
@@ -239,7 +251,7 @@ class FastMCPServer:
         """
         return self._metrics_tracker.generate_request_id()
 
-    def _get_health_status(self) -> dict:
+    async def _get_health_status(self) -> dict:
         """Get health status and metrics for the MCP server.
 
         Returns:
@@ -248,6 +260,9 @@ class FastMCPServer:
         health_status = self._health_monitor.check_health()
         # Add authentication status
         health_status["authentication"] = self._authentication.get_status()
+        health_status["cache"] = self._cache_service.get_stats()
+        health_status["repository_cache"] = self._repository_cache_service.stats()
+        health_status["request_coalescing"] = await self._request_coalescing.get_stats()
         return health_status
 
     def _register_tools(self):
@@ -320,34 +335,6 @@ class FastMCPServer:
                 # Define the actual fetch function
                 async def fetch_pr_diff() -> PRDiff:
                     """Fetch PR diff - will be coalesced if multiple requests arrive."""
-                    # Try to get repository from cache first
-                    repository: Optional[PRDiffRepositoryInterface] = (
-                        self._repository_cache_service.retrieve(
-                            repo_owner, repo_name, pr_number
-                        )
-                    )
-
-                    if repository is None:
-                        # Create new repository instance
-                        repository = self._github_repository_class(
-                            repo_owner, repo_name, pr_number
-                        )
-                        self._logger.debug(
-                            "Created new repository instance",
-                            request_id=request_id,
-                            repo_owner=repo_owner,
-                            repo_name=repo_name,
-                            pr_number=pr_number,
-                        )
-                    else:
-                        self._logger.debug(
-                            "Reusing cached repository instance",
-                            request_id=request_id,
-                            repo_owner=repo_owner,
-                            repo_name=repo_name,
-                            pr_number=pr_number,
-                        )
-
                     use_case = GetPRDiffUseCase(
                         pr_diff_service=self._pr_diff_service,
                         cache_service=self._cache_service,
@@ -369,21 +356,6 @@ class FastMCPServer:
                             "Failed to get PR diff - use case returned None"
                         )
 
-                    # Cache the repository after it's been used
-                    if hasattr(repository, "_initialized") and getattr(
-                        repository, "_initialized", False
-                    ):
-                        cache_success = self._repository_cache_service.insert(
-                            repository
-                        )
-                        if cache_success:
-                            self._logger.debug(
-                                "Cached repository instance after initialization",
-                                request_id=request_id,
-                                repo_owner=repo_owner,
-                                repo_name=repo_name,
-                                pr_number=pr_number,
-                            )
                     return result
 
                 # Coalesce the request - if multiple concurrent requests for same PR,
@@ -483,7 +455,7 @@ class FastMCPServer:
                 dict: Health status and performance metrics
             """
             try:
-                return self._get_health_status()
+                return await self._get_health_status()
             except Exception as e:
                 # Log full error internally for debugging
                 self._logger.error(
@@ -501,7 +473,7 @@ class FastMCPServer:
         Configuration priority (highest to lowest):
         1. Environment variables (MCP_TRANSPORT, MCP_PORT, MCP_HOST, MCP_PATH)
         2. Settings file (settings.toml)
-        3. Defaults (stdio transport, port 9102, host 127.0.0.1, path /mcp)
+        3. Defaults (http transport, port 9102, host 127.0.0.1, path /mcp)
 
         Supported transports include "stdio", "http", "sse", and "streamable-http".
         """
@@ -509,7 +481,7 @@ class FastMCPServer:
 
         # Get MCP settings from environment variables first, then fall back to settings service
         transport_raw = os.getenv("MCP_TRANSPORT") or self._settings_service.get(
-            "mcp.transport", "stdio"
+            "mcp.transport", "http"
         )
         port = int(os.getenv("MCP_PORT", "0")) or self._settings_service.get(
             "mcp.port", 9102

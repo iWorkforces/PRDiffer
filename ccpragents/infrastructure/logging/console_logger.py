@@ -1,4 +1,5 @@
 import logging
+import os
 import sys
 from datetime import datetime
 from typing import Optional, Dict, Any
@@ -37,11 +38,16 @@ class ConsoleLogger(LoggerServiceInterface):
         log_level_str = app_settings.get("log_level", "INFO").upper()
         self.log_level = getattr(LogLevel, log_level_str, LogLevel.INFO)
 
+        transport = os.getenv("MCP_TRANSPORT") or self.settings_service.get(
+            "mcp.transport", "stdio"
+        )
+        self._force_stderr = transport == "stdio"
+
         # Set up Python logging if needed
         logging.basicConfig(
             level=logging.INFO,
             format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-            stream=sys.stdout,
+            stream=sys.stderr if self._force_stderr else sys.stdout,
         )
 
     def should_log(self, level: LogLevel) -> bool:
@@ -143,11 +149,11 @@ class ConsoleLogger(LoggerServiceInterface):
             f"{color}{timestamp} - {level.value} - {formatted_message}{self.RESET}"
         )
 
-        # Use stderr for errors and critical messages
+        # Use stderr for stdio mode or for error/critical messages
+        stream = sys.stderr if self._force_stderr else sys.stdout
         if level in [LogLevel.ERROR, LogLevel.CRITICAL]:
-            print(log_line, file=sys.stderr)
-        else:
-            print(log_line)
+            stream = sys.stderr
+        print(log_line, file=stream)
 
 
 # Global logger instance
