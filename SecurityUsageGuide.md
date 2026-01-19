@@ -1,6 +1,6 @@
 # Security Usage Guide
 
-This guide explains how to configure and use the authentication and security features of CCPRAgentsMCP.
+This guide explains how to configure and use the authentication and security features of PRDifferMCP.
 
 ## Table of Contents
 
@@ -15,7 +15,7 @@ This guide explains how to configure and use the authentication and security fea
 
 ## Overview
 
-CCPRAgentsMCP implements API key-based authentication to control access to the MCP server. The authentication system includes:
+PRDifferMCP implements API key-based authentication to control access to the MCP server. The authentication system includes:
 
 - **API Key Authentication**: Requires clients to provide a valid API key
 - **SHA-256 Hashing**: Keys are stored as SHA-256 hashes for security
@@ -155,14 +155,14 @@ For Claude Desktop, configure the MCP server in your `claude_desktop_config.json
 ```json
 {
   "mcpServers": {
-    "ccpragents": {
+    "prdiffer": {
       "command": "uv",
       "args": [
         "--directory",
-        "/path/to/CCPRAgentsMCP",
+        "/path/to/PRDifferMCP",
         "run",
         "python",
-        "ccpragents/server.py"
+        "prdiffer/server.py"
       ],
       "env": {
         "MCP_AUTH_ENABLED": "true",
@@ -263,10 +263,10 @@ async function fetchPRDiffWithAuth() {
         command: "uv",
         args: [
             "--directory",
-            "/path/to/CCPRAgentsMCP",
+            "/path/to/PRDifferMCP",
             "run",
             "python",
-            "ccpragents/server.py"
+            "prdiffer/server.py"
         ],
         env: {
             MCP_AUTH_ENABLED: "true",
@@ -276,7 +276,7 @@ async function fetchPRDiffWithAuth() {
     });
 
     const client = new Client({
-        name: "ccpragents-client",
+        name: "prdiffer-client",
         version: "1.0.0"
     }, {
         capabilities: {}
@@ -468,7 +468,7 @@ Check what keys are loaded by examining the server startup logs:
 
 ```bash
 # Run the server and check logs
-uv run python ccpragents/server.py
+uv run python prdiffer/server.py
 
 # Look for messages like:
 # [INFO] Authentication: Enabled
@@ -507,7 +507,7 @@ export MCP_AUTH_ENABLED=true
 export MCP_API_KEYS="key1,key2,key3"
 
 # Run server with authentication
-uv run python ccpragents/server.py
+uv run python prdiffer/server.py
 
 # Test with curl
 curl -X POST http://127.0.0.1:9102/mcp \
@@ -521,8 +521,8 @@ curl -X POST http://127.0.0.1:9102/mcp \
 
 - **Main Documentation**: See `CLAUDE.md` for project overview
 - **Configuration Reference**: See `settings.toml` for all configuration options
-- **Security Implementation**: See `ccpragents/application/components/authentication.py`
-- **Input Validation**: See `ccpragents/infrastructure/security/input_validator.py`
+- **Security Implementation**: See `prdiffer/application/components/authentication.py`
+- **Input Validation**: See `prdiffer/infrastructure/security/input_validator.py`
 
 ---
 

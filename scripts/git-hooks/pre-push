@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# CCPRAgents - Pre-Push Git Hook
+# PRDiffer - Pre-Push Git Hook
 # This hook runs type checking and linting before allowing a push
 
 # Colors for output

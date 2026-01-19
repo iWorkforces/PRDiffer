@@ -1,7 +1,7 @@
 def test_console_logger_uses_stderr_in_stdio(monkeypatch, capsys):
     monkeypatch.setenv("MCP_TRANSPORT", "stdio")
 
-    import ccpragents.infrastructure.logging.console_logger as logger_module
+    import prdiffer.infrastructure.logging.console_logger as logger_module
 
     logger_module._logger_instance = None
     logger = logger_module.ConsoleLogger()

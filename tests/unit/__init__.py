@@ -1,4 +1,4 @@
-"""Unit tests for CCPRAgents.
+"""Unit tests for PRDiffer.
 
 This package contains unit tests organized by architectural layer:
 - domain: Domain layer tests (entities, use cases)

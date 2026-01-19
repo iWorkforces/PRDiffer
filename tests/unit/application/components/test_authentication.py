@@ -6,7 +6,7 @@ authentication and authorization functionality.
 
 import os
 from unittest.mock import Mock, patch
-from ccpragents.application.components.authentication import AuthenticationMiddleware
+from prdiffer.application.components.authentication import AuthenticationMiddleware
 
 
 class TestAuthenticationMiddlewareInitialization:

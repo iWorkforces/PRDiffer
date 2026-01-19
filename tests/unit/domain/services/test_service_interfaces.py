@@ -8,15 +8,15 @@ import pytest
 from abc import ABC
 
 # Import all domain service interfaces
-from ccpragents.domain.services.cache import CacheServiceInterface
-from ccpragents.domain.services.diff import DiffServiceInterface
-from ccpragents.domain.services.logger import LoggerServiceInterface, LogLevel
-from ccpragents.domain.services.pattern_matching import PatternMatchingServiceInterface
-from ccpragents.domain.services.pr_diff_service import PRDiffServiceInterface
-from ccpragents.domain.services.repository_cache import RepositoryCacheServiceInterface
-from ccpragents.domain.services.retry import RetryServiceInterface
-from ccpragents.domain.services.settings import SettingsServiceInterface
-from ccpragents.domain.services.github_api import GitHubAPIServiceInterface
+from prdiffer.domain.services.cache import CacheServiceInterface
+from prdiffer.domain.services.diff import DiffServiceInterface
+from prdiffer.domain.services.logger import LoggerServiceInterface, LogLevel
+from prdiffer.domain.services.pattern_matching import PatternMatchingServiceInterface
+from prdiffer.domain.services.pr_diff_service import PRDiffServiceInterface
+from prdiffer.domain.services.repository_cache import RepositoryCacheServiceInterface
+from prdiffer.domain.services.retry import RetryServiceInterface
+from prdiffer.domain.services.settings import SettingsServiceInterface
+from prdiffer.domain.services.github_api import GitHubAPIServiceInterface
 
 
 class TestCacheServiceInterface:

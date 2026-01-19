@@ -2,6 +2,8 @@
 
 This file provides guidance for working with unit tests for infrastructure components.
 
+**Current Version:** 0.4.6
+
 ## Overview
 
 Unit tests for infrastructure verify the correctness of implementations that integrate with external systems (GitHub API, file system, caching, etc.).
@@ -43,7 +45,7 @@ tests/unit/infrastructure/
 
 import pytest
 from unittest.mock import Mock, AsyncMock, patch
-from ccpragents.infrastructure import [Component]
+from prdiffer.infrastructure import [Component]
 
 class Test[Component]:
     """Unit tests for [Component]."""
@@ -321,7 +323,7 @@ Ensure good coverage for infrastructure:
 
 ```bash
 # Run with coverage
-pytest tests/unit/infrastructure/ --cov=ccpragents.infrastructure --cov-report=html
+pytest tests/unit/infrastructure/ --cov=prdiffer.infrastructure --cov-report=html
 ```
 
 **Target Coverage:** >75% for infrastructure (external dependencies may reduce coverage)
@@ -329,5 +331,5 @@ pytest tests/unit/infrastructure/ --cov=ccpragents.infrastructure --cov-report=h
 ## Related Documentation
 
 - `../CLAUDE.md` - Unit test documentation
-- `../../../ccpragents/infrastructure/CLAUDE.md` - Infrastructure documentation
+- `../../../prdiffer/infrastructure/CLAUDE.md` - Infrastructure documentation
 - `../../../CLAUDE.md` - Project documentation

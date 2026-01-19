@@ -1,6 +1,8 @@
 # CLAUDE.md - Documentation Directory
 
-This file provides guidance for working with the documentation in CCPRAgents.
+This file provides guidance for working with the documentation in PRDiffer.
+
+**Current Version:** 0.4.6
 
 ## Documentation Overview
 
@@ -87,7 +89,8 @@ A comprehensive security guide has been added to document authentication, input 
 ```
 
 **Integration with CLAUDE.md:**
-- The root `ccpragents/CLAUDE.md` references `SecurityUsageGuide.md`
+
+- The root `prdiffer/CLAUDE.md` references `SecurityUsageGuide.md`
 - Application layer documentation links to authentication patterns
 - Infrastructure security documentation validates against the guide
 

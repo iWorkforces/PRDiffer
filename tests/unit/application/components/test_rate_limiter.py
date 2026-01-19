@@ -6,7 +6,7 @@ with configurable limits and sliding window tracking.
 
 import time
 from unittest.mock import Mock
-from ccpragents.application.components.rate_limiter import RateLimiter
+from prdiffer.application.components.rate_limiter import RateLimiter
 
 
 class TestRateLimiterInitialization:

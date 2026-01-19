@@ -1,5 +1,5 @@
 [project]
-name = "ccpragents"
+name = "prdiffer"
 version = "0.4.6"
 description = "MCP Server For GitHub PR's Review Process With Full Contexts"
 readme = "README.md"
@@ -47,20 +47,20 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/CCWorkforce/CCPRAgentsMCP"
-Repository = "https://github.com/CCWorkforce/CCPRAgentsMCP"
-Issues = "https://github.com/CCWorkforce/CCPRAgentsMCP/issues"
-Documentation = "https://github.com/CCWorkforce/CCPRAgentsMCP#readme"
+Homepage = "https://github.com/CCWorkforce/PRDifferMCP"
+Repository = "https://github.com/CCWorkforce/PRDifferMCP"
+Issues = "https://github.com/CCWorkforce/PRDifferMCP/issues"
+Documentation = "https://github.com/CCWorkforce/PRDifferMCP#readme"
 
 [project.scripts]
-ccpragents = "ccpragents.server:main"
+prdiffer = "prdiffer.server:main"
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["ccpragents"]
+packages = ["prdiffer"]
 
 [dependency-groups]
 dev = [
@@ -97,7 +97,7 @@ filterwarnings = [
 ]
 
 [tool.coverage.run]
-source = ["ccpragents"]
+source = ["prdiffer"]
 omit = [
     "*/tests/*",
     "*/test_*.py",

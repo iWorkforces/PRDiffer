@@ -20,7 +20,7 @@ class TestGitHubConfig:
 
     def test_default_values(self):
         """Test GitHubConfig has sensible defaults."""
-        from ccpragents.domain.config import GitHubConfig
+        from prdiffer.domain.config import GitHubConfig
 
         config = GitHubConfig()
 
@@ -33,7 +33,7 @@ class TestGitHubConfig:
 
     def test_from_dict(self):
         """Test creating GitHubConfig from dictionary."""
-        from ccpragents.domain.config import GitHubConfig
+        from prdiffer.domain.config import GitHubConfig
 
         data = {
             "rate_limit": 1000,
@@ -53,7 +53,7 @@ class TestGitHubConfig:
 
     def test_to_dict(self):
         """Test converting GitHubConfig to dictionary."""
-        from ccpragents.domain.config import GitHubConfig
+        from prdiffer.domain.config import GitHubConfig
 
         config = GitHubConfig(
             rate_limit=2000,
@@ -71,7 +71,7 @@ class TestGitHubConfig:
 
     def test_with_overrides(self):
         """Test creating new config with overridden values."""
-        from ccpragents.domain.config import GitHubConfig
+        from prdiffer.domain.config import GitHubConfig
 
         original = GitHubConfig(rate_limit=1000)
         overridden = original.with_overrides(rate_limit=2000, timeout=60)
@@ -82,7 +82,7 @@ class TestGitHubConfig:
 
     def test_immutability(self):
         """Test that GitHubConfig is immutable (frozen)."""
-        from ccpragents.domain.config import GitHubConfig
+        from prdiffer.domain.config import GitHubConfig
 
         config = GitHubConfig()
 
@@ -92,7 +92,7 @@ class TestGitHubConfig:
 
     def test_should_ignore_file(self):
         """Test file ignore pattern matching."""
-        from ccpragents.domain.config import GitHubConfig
+        from prdiffer.domain.config import GitHubConfig
 
         config = GitHubConfig(ignore_patterns=("*.lock", "node_modules/", "*.log"))
 
@@ -106,7 +106,7 @@ class TestGitHubConfig:
 
     def test_has_valid_extension(self):
         """Test valid extension checking."""
-        from ccpragents.domain.config import GitHubConfig
+        from prdiffer.domain.config import GitHubConfig
 
         config = GitHubConfig(valid_extensions=(".py", ".js", ".ts"))
 
@@ -118,7 +118,7 @@ class TestGitHubConfig:
 
     def test_has_valid_extension_empty(self):
         """Test valid extension with no restrictions."""
-        from ccpragents.domain.config import GitHubConfig
+        from prdiffer.domain.config import GitHubConfig
 
         config = GitHubConfig(valid_extensions=())
 
@@ -127,7 +127,7 @@ class TestGitHubConfig:
 
     def test_should_process_file(self):
         """Test combined file processing check."""
-        from ccpragents.domain.config import GitHubConfig
+        from prdiffer.domain.config import GitHubConfig
 
         config = GitHubConfig(
             ignore_patterns=("*.lock", "node_modules/"),
@@ -140,7 +140,7 @@ class TestGitHubConfig:
 
     def test_helper_properties(self):
         """Test helper properties for checking enabled features."""
-        from ccpragents.domain.config import GitHubConfig
+        from prdiffer.domain.config import GitHubConfig
 
         config = GitHubConfig(
             circuit_breaker_enabled=True,
@@ -160,8 +160,8 @@ class TestSettingsServiceGitHubConfig:
 
     def test_get_github_config_returns_config_object(self):
         """Test that get_github_config returns a GitHubConfig object."""
-        from ccpragents.infrastructure.settings import SettingsService
-        from ccpragents.domain.config import GitHubConfig
+        from prdiffer.infrastructure.settings import SettingsService
+        from prdiffer.domain.config import GitHubConfig
 
         service = SettingsService()
         config = service.get_github_config()
@@ -182,7 +182,7 @@ class TestAsyncParallelExecutor:
     @pytest.mark.asyncio
     async def test_execute_batch_basic(self):
         """Test basic batch execution."""
-        from ccpragents.infrastructure.async_parallel_executor import (
+        from prdiffer.infrastructure.async_parallel_executor import (
             AsyncParallelExecutor,
         )
 
@@ -197,7 +197,7 @@ class TestAsyncParallelExecutor:
     @pytest.mark.asyncio
     async def test_execute_batch_empty(self):
         """Test batch execution with empty list."""
-        from ccpragents.infrastructure.async_parallel_executor import (
+        from prdiffer.infrastructure.async_parallel_executor import (
             AsyncParallelExecutor,
         )
 
@@ -212,7 +212,7 @@ class TestAsyncParallelExecutor:
     @pytest.mark.asyncio
     async def test_execute_batch_with_errors_ignore(self):
         """Test batch execution with errors using IGNORE strategy."""
-        from ccpragents.infrastructure.async_parallel_executor import (
+        from prdiffer.infrastructure.async_parallel_executor import (
             AsyncParallelExecutor,
             ErrorStrategy,
         )
@@ -230,7 +230,7 @@ class TestAsyncParallelExecutor:
     @pytest.mark.asyncio
     async def test_execute_batch_with_errors_raise(self):
         """Test batch execution with errors using RAISE strategy."""
-        from ccpragents.infrastructure.async_parallel_executor import (
+        from prdiffer.infrastructure.async_parallel_executor import (
             AsyncParallelExecutor,
             ErrorStrategy,
         )
@@ -246,7 +246,7 @@ class TestAsyncParallelExecutor:
     @pytest.mark.asyncio
     async def test_execute_batch_with_context(self):
         """Test batch execution with shared context."""
-        from ccpragents.infrastructure.async_parallel_executor import (
+        from prdiffer.infrastructure.async_parallel_executor import (
             AsyncParallelExecutor,
         )
 
@@ -263,7 +263,7 @@ class TestAsyncParallelExecutor:
     @pytest.mark.asyncio
     async def test_execute_batch_with_progress(self):
         """Test batch execution with progress tracking."""
-        from ccpragents.infrastructure.async_parallel_executor import (
+        from prdiffer.infrastructure.async_parallel_executor import (
             AsyncParallelExecutor,
         )
 
@@ -289,7 +289,7 @@ class TestAsyncParallelExecutor:
     @pytest.mark.asyncio
     async def test_execute_batch_detailed(self):
         """Test detailed batch execution with BatchResult."""
-        from ccpragents.infrastructure.async_parallel_executor import (
+        from prdiffer.infrastructure.async_parallel_executor import (
             AsyncParallelExecutor,
         )
 
@@ -310,7 +310,7 @@ class TestAsyncParallelExecutor:
     @pytest.mark.asyncio
     async def test_concurrency_limit(self):
         """Test that semaphore limits concurrent operations."""
-        from ccpragents.infrastructure.async_parallel_executor import (
+        from prdiffer.infrastructure.async_parallel_executor import (
             AsyncParallelExecutor,
         )
 
@@ -336,7 +336,7 @@ class TestAsyncParallelExecutor:
 
     def test_get_stats(self):
         """Test executor statistics."""
-        from ccpragents.infrastructure.async_parallel_executor import (
+        from prdiffer.infrastructure.async_parallel_executor import (
             AsyncParallelExecutor,
             ErrorStrategy,
         )
@@ -359,7 +359,7 @@ class TestBatchResult:
 
     def test_batch_result_properties(self):
         """Test BatchResult computed properties."""
-        from ccpragents.infrastructure.async_parallel_executor import BatchResult
+        from prdiffer.infrastructure.async_parallel_executor import BatchResult
 
         result = BatchResult[int](
             successful=[1, 2, 3],
@@ -374,7 +374,7 @@ class TestBatchResult:
 
     def test_batch_result_all_success(self):
         """Test BatchResult when all operations succeed."""
-        from ccpragents.infrastructure.async_parallel_executor import BatchResult
+        from prdiffer.infrastructure.async_parallel_executor import BatchResult
 
         result = BatchResult[str](successful=["a", "b", "c"], failed=[])
 
@@ -383,7 +383,7 @@ class TestBatchResult:
 
     def test_batch_result_get_errors(self):
         """Test getting list of errors from BatchResult."""
-        from ccpragents.infrastructure.async_parallel_executor import BatchResult
+        from prdiffer.infrastructure.async_parallel_executor import BatchResult
 
         e1 = ValueError("error1")
         e2 = RuntimeError("error2")
@@ -405,7 +405,7 @@ class TestBatchResult:
 
 def _reset_circuit_breaker_registry():
     """Helper to reset the circuit breaker registry for tests."""
-    import ccpragents.infrastructure.utils.circuit_breaker as cb_module
+    import prdiffer.infrastructure.utils.circuit_breaker as cb_module
 
     cb_module.GlobalCircuitBreakerRegistry._instance = None
     cb_module.GlobalCircuitBreakerRegistry._initialized = False
@@ -417,7 +417,7 @@ class TestGlobalCircuitBreakerRegistry:
 
     def test_singleton_pattern(self):
         """Test that registry is a singleton."""
-        from ccpragents.infrastructure.utils.circuit_breaker import (
+        from prdiffer.infrastructure.utils.circuit_breaker import (
             GlobalCircuitBreakerRegistry,
         )
 
@@ -431,7 +431,7 @@ class TestGlobalCircuitBreakerRegistry:
 
     def test_get_breaker_creates_new(self):
         """Test getting a breaker creates it if not exists."""
-        from ccpragents.infrastructure.utils.circuit_breaker import (
+        from prdiffer.infrastructure.utils.circuit_breaker import (
             get_global_circuit_breaker_registry,
         )
 
@@ -446,7 +446,7 @@ class TestGlobalCircuitBreakerRegistry:
 
     def test_get_breaker_returns_same(self):
         """Test getting same breaker returns same instance."""
-        from ccpragents.infrastructure.utils.circuit_breaker import (
+        from prdiffer.infrastructure.utils.circuit_breaker import (
             get_global_circuit_breaker_registry,
         )
 
@@ -461,7 +461,7 @@ class TestGlobalCircuitBreakerRegistry:
 
     def test_can_execute_checks_both_breakers(self):
         """Test can_execute checks both endpoint and global breakers."""
-        from ccpragents.infrastructure.utils.circuit_breaker import (
+        from prdiffer.infrastructure.utils.circuit_breaker import (
             get_global_circuit_breaker_registry,
         )
 
@@ -475,7 +475,7 @@ class TestGlobalCircuitBreakerRegistry:
 
     def test_record_success_updates_both(self):
         """Test record_success updates both endpoint and global breakers."""
-        from ccpragents.infrastructure.utils.circuit_breaker import (
+        from prdiffer.infrastructure.utils.circuit_breaker import (
             get_global_circuit_breaker_registry,
         )
 
@@ -492,7 +492,7 @@ class TestGlobalCircuitBreakerRegistry:
 
     def test_record_failure_updates_both(self):
         """Test record_failure updates both endpoint and global breakers."""
-        from ccpragents.infrastructure.utils.circuit_breaker import (
+        from prdiffer.infrastructure.utils.circuit_breaker import (
             get_global_circuit_breaker_registry,
         )
 
@@ -511,7 +511,7 @@ class TestGlobalCircuitBreakerRegistry:
 
     def test_get_all_stats(self):
         """Test getting statistics for all breakers."""
-        from ccpragents.infrastructure.utils.circuit_breaker import (
+        from prdiffer.infrastructure.utils.circuit_breaker import (
             get_global_circuit_breaker_registry,
         )
 
@@ -530,7 +530,7 @@ class TestGlobalCircuitBreakerRegistry:
 
     def test_get_open_breakers(self):
         """Test getting list of open breakers."""
-        from ccpragents.infrastructure.utils.circuit_breaker import (
+        from prdiffer.infrastructure.utils.circuit_breaker import (
             get_global_circuit_breaker_registry,
         )
 
@@ -556,7 +556,7 @@ class TestGlobalCircuitBreakerRegistry:
 
     def test_reset_all(self):
         """Test resetting all circuit breakers."""
-        from ccpragents.infrastructure.utils.circuit_breaker import (
+        from prdiffer.infrastructure.utils.circuit_breaker import (
             get_global_circuit_breaker_registry,
             CircuitState,
         )
@@ -581,7 +581,7 @@ class TestGlobalCircuitBreakerRegistry:
 
     def test_clear_endpoint(self):
         """Test removing a specific endpoint's breaker."""
-        from ccpragents.infrastructure.utils.circuit_breaker import (
+        from prdiffer.infrastructure.utils.circuit_breaker import (
             get_global_circuit_breaker_registry,
         )
 
@@ -603,7 +603,7 @@ class TestCircuitBreakerForEndpoint:
 
     def test_get_circuit_breaker_for_endpoint(self):
         """Test convenience function for getting endpoint breaker."""
-        from ccpragents.infrastructure.utils.circuit_breaker import (
+        from prdiffer.infrastructure.utils.circuit_breaker import (
             get_circuit_breaker_for_endpoint,
         )
 
@@ -626,8 +626,8 @@ class TestPhase4Integration:
 
     def test_github_config_with_settings_service(self):
         """Test GitHubConfig integration with SettingsService."""
-        from ccpragents.infrastructure.settings import SettingsService
-        from ccpragents.domain.config import GitHubConfig
+        from prdiffer.infrastructure.settings import SettingsService
+        from prdiffer.domain.config import GitHubConfig
 
         service = SettingsService()
         config = service.get_github_config()
@@ -639,10 +639,10 @@ class TestPhase4Integration:
     @pytest.mark.asyncio
     async def test_async_executor_with_circuit_breaker(self):
         """Test AsyncParallelExecutor with circuit breaker integration."""
-        from ccpragents.infrastructure.async_parallel_executor import (
+        from prdiffer.infrastructure.async_parallel_executor import (
             AsyncParallelExecutor,
         )
-        from ccpragents.infrastructure.utils.circuit_breaker import (
+        from prdiffer.infrastructure.utils.circuit_breaker import (
             get_global_circuit_breaker_registry,
         )
 
@@ -672,7 +672,7 @@ class TestPhase4Integration:
 
     def test_github_config_file_filtering(self):
         """Test GitHubConfig file filtering methods."""
-        from ccpragents.domain.config import GitHubConfig
+        from prdiffer.domain.config import GitHubConfig
 
         config = GitHubConfig(
             ignore_patterns=("*.lock", "node_modules/", "*.min.js"),

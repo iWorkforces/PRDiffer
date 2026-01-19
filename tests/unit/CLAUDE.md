@@ -1,6 +1,8 @@
 # CLAUDE.md - Unit Tests
 
-This file provides guidance for working with unit tests in CCPRAgents.
+This file provides guidance for working with unit tests in PRDiffer.
+
+**Current Version:** 0.4.6
 
 ## Overview
 
@@ -97,7 +99,7 @@ pytest tests/unit/ -k "test_cache" -v
 ### Run with Coverage
 ```bash
 # Using pytest
-pytest tests/unit/ --cov=ccpragents --cov-report=html
+pytest tests/unit/ --cov=prdiffer --cov-report=html
 
 # View coverage report
 open htmlcov/index.html
@@ -125,7 +127,7 @@ Each component has its own test file:
 
 import pytest
 from unittest.mock import Mock
-from ccpragents.[layer] import [Component]
+from prdiffer.[layer] import [Component]
 
 class Test[Component]:
     """Unit tests for [Component]."""
@@ -250,7 +252,7 @@ def test_with_mock():
 ```python
 def test_with_patch():
     """Test with patched module."""
-    with patch('ccpragents.infrastructure.github.api') as mock_api:
+    with patch('prdiffer.infrastructure.github.api') as mock_api:
         mock_api.get.return_value = Mock(data="test")
         result = component.fetch_data()
         assert result == "test"
@@ -290,10 +292,10 @@ def test_invalid_input_raises_error():
 ### Run Coverage Analysis
 ```bash
 # Generate coverage report
-pytest tests/unit/ --cov=ccpragents --cov-report=html
+pytest tests/unit/ --cov=prdiffer --cov-report=html
 
 # Generate terminal report
-pytest tests/unit/ --cov=ccpragents --cov-report=term-missing
+pytest tests/unit/ --cov=prdiffer --cov-report=term-missing
 ```
 
 ### Coverage Goals
@@ -378,4 +380,4 @@ assert result is not None
 
 - `../CLAUDE.md` - Test documentation
 - `integration/CLAUDE.md` - Integration test documentation
-- `../../ccpragents/CLAUDE.md` - Package structure
+- `../../prdiffer/CLAUDE.md` - Package structure

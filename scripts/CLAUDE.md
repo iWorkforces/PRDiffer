@@ -1,6 +1,8 @@
 # CLAUDE.md - Scripts Directory
 
-This file provides guidance for working with the utility scripts in CCPRAgents.
+This file provides guidance for working with the utility scripts in PRDiffer.
+
+**Current Version:** 0.4.6
 
 ## Overview
 
@@ -133,7 +135,7 @@ Push   Block Push
 ### Hook Script Template
 
 ```bash
-#!/bin/bash
+#!PRDiffer
 
 # CCPRAgents - [Hook Name] Git Hook
 # [Description of what this hook does]

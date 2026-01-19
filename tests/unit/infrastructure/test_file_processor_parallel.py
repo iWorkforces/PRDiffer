@@ -1,6 +1,6 @@
 import pytest
 
-from ccpragents.infrastructure.github.file_processor import FileProcessor
+from prdiffer.infrastructure.github.file_processor import FileProcessor
 
 
 class DummyAPIService:

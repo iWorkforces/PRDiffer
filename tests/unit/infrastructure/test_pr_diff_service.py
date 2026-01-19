@@ -1,7 +1,7 @@
 import pytest
 
-from ccpragents.domain.entities.file_patch import FilePatchInfo, EDIT_TYPE
-from ccpragents.infrastructure.services.pr_diff_service import GitHubPRDiffService
+from prdiffer.domain.entities.file_patch import FilePatchInfo, EDIT_TYPE
+from prdiffer.infrastructure.services.pr_diff_service import GitHubPRDiffService
 
 
 class DummyGitHubAPI:

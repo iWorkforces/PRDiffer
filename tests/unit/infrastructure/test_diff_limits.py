@@ -1,4 +1,4 @@
-from ccpragents.infrastructure.utils.diff_limits import apply_diff_limits
+from prdiffer.infrastructure.utils.diff_limits import apply_diff_limits
 
 
 def test_apply_diff_limits_truncates_and_reports_metadata():

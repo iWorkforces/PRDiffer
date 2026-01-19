@@ -3,7 +3,7 @@
 Tests the FilePatchInfo dataclass which represents file changes in a pull request.
 """
 
-from ccpragents.domain.entities.file_patch import (
+from prdiffer.domain.entities.file_patch import (
     FilePatchInfo,
     EDIT_TYPE,
 )

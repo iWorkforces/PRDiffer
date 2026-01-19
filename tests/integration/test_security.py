@@ -7,14 +7,14 @@ including command injection, SQL injection, path traversal, and other threats.
 from unittest.mock import Mock, AsyncMock
 import pytest
 
-from ccpragents.application.factory import create_mcp_server
-from ccpragents.domain.exceptions import (
+from prdiffer.application.factory import create_mcp_server
+from prdiffer.domain.exceptions import (
     InvalidURLError,
     InvalidRepositoryError,
     InputSanitizationError,
     SuspiciousOperationError,
 )
-from ccpragents.infrastructure.github_repository import GitHubPRDiffRepository
+from prdiffer.infrastructure.github_repository import GitHubPRDiffRepository
 
 
 @pytest.mark.integration
@@ -28,7 +28,7 @@ class TestCommandInjectionPrevention:
         mock_settings.get = Mock(return_value=None)
 
         mock_logger = Mock()
-        from ccpragents.infrastructure.logging.console_logger import ConsoleLogger
+        from prdiffer.infrastructure.logging.console_logger import ConsoleLogger
 
         logger = ConsoleLogger()
         logger._logger = mock_logger
@@ -145,7 +145,7 @@ class TestSQLInjectionPrevention:
         mock_settings.get = Mock(return_value=None)
 
         mock_logger = Mock()
-        from ccpragents.infrastructure.logging.console_logger import ConsoleLogger
+        from prdiffer.infrastructure.logging.console_logger import ConsoleLogger
 
         logger = ConsoleLogger()
         logger._logger = mock_logger
@@ -262,7 +262,7 @@ class TestPathTraversalPrevention:
         mock_settings.get = Mock(return_value=None)
 
         mock_logger = Mock()
-        from ccpragents.infrastructure.logging.console_logger import ConsoleLogger
+        from prdiffer.infrastructure.logging.console_logger import ConsoleLogger
 
         logger = ConsoleLogger()
         logger._logger = mock_logger
@@ -365,7 +365,7 @@ class TestXSSPrevention:
         mock_settings.get = Mock(return_value=None)
 
         mock_logger = Mock()
-        from ccpragents.infrastructure.logging.console_logger import ConsoleLogger
+        from prdiffer.infrastructure.logging.console_logger import ConsoleLogger
 
         logger = ConsoleLogger()
         logger._logger = mock_logger
@@ -432,7 +432,7 @@ class TestInputSanitization:
         mock_settings.get = Mock(return_value=None)
 
         mock_logger = Mock()
-        from ccpragents.infrastructure.logging.console_logger import ConsoleLogger
+        from prdiffer.infrastructure.logging.console_logger import ConsoleLogger
 
         logger = ConsoleLogger()
         logger._logger = mock_logger
@@ -513,7 +513,7 @@ class TestRepositoryValidation:
         mock_settings.get = Mock(return_value=None)
 
         mock_logger = Mock()
-        from ccpragents.infrastructure.logging.console_logger import ConsoleLogger
+        from prdiffer.infrastructure.logging.console_logger import ConsoleLogger
 
         logger = ConsoleLogger()
         logger._logger = mock_logger
@@ -603,7 +603,7 @@ class TestSecureLogging:
         mock_settings.get = Mock(return_value=None)
 
         mock_logger = Mock()
-        from ccpragents.infrastructure.logging.console_logger import ConsoleLogger
+        from prdiffer.infrastructure.logging.console_logger import ConsoleLogger
 
         logger = ConsoleLogger()
         logger._logger = mock_logger
@@ -660,7 +660,7 @@ class TestBranchValidationSecurity:
         mock_settings.get = Mock(return_value=None)
 
         mock_logger = Mock()
-        from ccpragents.infrastructure.logging.console_logger import ConsoleLogger
+        from prdiffer.infrastructure.logging.console_logger import ConsoleLogger
 
         logger = ConsoleLogger()
         logger._logger = mock_logger

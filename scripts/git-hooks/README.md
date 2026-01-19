@@ -1,6 +1,6 @@
 # Git Hooks
 
-This directory contains git hooks for the CCPRAgents project.
+This directory contains git hooks for the PRDiffer project.
 
 ## Available Hooks
 

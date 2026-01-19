@@ -1,8 +1,10 @@
 # CLAUDE.md - Tests Directory
 
-This file provides guidance for working with the test suite in CCPRAgents.
+This file provides guidance for working with the test suite in PRDiffer.
 
-## Overview
+**Current Version:** 0.4.6
+
+## OverviewPRDiffer
 
 The `tests/` directory contains the complete test suite for the CCPRAgents project, including unit tests, integration tests, and test utilities. Tests are organized to mirror the main package structure and follow pytest conventions.
 
@@ -85,7 +87,7 @@ uv run pytest -m unit
 uv run pytest -m integration
 
 # Run with coverage report
-uv run pytest --cov=ccpragents
+uv run pytest --cov=prdiffer
 
 # Run specific test class
 uv run pytest tests/unit/infrastructure/test_input_validator.py::TestGitHubURLValidation
@@ -169,7 +171,7 @@ def sample_pr_diff():
 
 ```toml
 [tool.coverage.run]
-source = ["ccpragents"]
+source = ["prdiffer"]
 omit = [
     "*/tests/*",
     "*/test_*.py",
@@ -193,7 +195,7 @@ exclude_lines = [
 ./start-unittest.sh --coverage
 
 # HTML coverage report
-uv run pytest --cov=ccpragents --cov-report=html
+uv run pytest --cov=prdiffer --cov-report=html
 ```
 
 ## Key Test Files

@@ -1,4 +1,4 @@
-"""Pytest configuration and shared fixtures for CCPRAgents tests.
+"""Pytest configuration and shared fixtures for PRDiffer tests.
 
 This module provides common fixtures and configuration used across all test suites,
 including mocks for external dependencies (GitHub API, cache, settings, etc.).
@@ -11,8 +11,8 @@ from unittest.mock import patch
 import pytest
 
 # Domain imports
-from ccpragents.domain.entities.pr_diff import PRDiff
-from ccpragents.domain.entities.file_patch import FilePatchInfo, EDIT_TYPE
+from prdiffer.domain.entities.pr_diff import PRDiff
+from prdiffer.domain.entities.file_patch import FilePatchInfo, EDIT_TYPE
 
 
 # =============================================================================
@@ -350,15 +350,15 @@ def set_test_environment():
 def reset_singletons():
     """Reset singleton instances between tests."""
     # Reset cache services
-    import ccpragents.infrastructure.cache_service as cache_module
+    import prdiffer.infrastructure.cache_service as cache_module
 
     cache_module._cache_service = None
 
-    import ccpragents.infrastructure.settings as settings_module
+    import prdiffer.infrastructure.settings as settings_module
 
     settings_module._settings_service = None
 
-    import ccpragents.infrastructure.logging.console_logger as logger_module
+    import prdiffer.infrastructure.logging.console_logger as logger_module
 
     logger_module._logger_instance = None
 
@@ -419,7 +419,7 @@ def patch_github_api():
 
     def _patcher():
         return patch(
-            "ccpragents.infrastructure.github.api_client.Github", autospec=True
+            "prdiffer.infrastructure.github.api_client.Github", autospec=True
         )
 
     return _patcher
@@ -431,7 +431,7 @@ def patch_settings():
 
     def _patcher():
         return patch(
-            "ccpragents.infrastructure.settings.get_settings_service", autospec=True
+            "prdiffer.infrastructure.settings.get_settings_service", autospec=True
         )
 
     return _patcher
@@ -443,7 +443,7 @@ def patch_cache():
 
     def _patcher():
         return patch(
-            "ccpragents.infrastructure.cache_service.get_cache_service", autospec=True
+            "prdiffer.infrastructure.cache_service.get_cache_service", autospec=True
         )
 
     return _patcher
@@ -487,7 +487,7 @@ def run_concurrently():
 def coverage_config():
     """Return coverage configuration for tests."""
     return {
-        "source": ["ccpragents"],
+        "source": ["prdiffer"],
         "omit": [
             "*/tests/*",
             "*/test_*.py",

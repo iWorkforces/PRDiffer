@@ -1,7 +1,7 @@
 from pathlib import Path
 import tomllib
 
-from ccpragents.version import __version__
+from prdiffer.version import __version__
 
 
 def test_version_matches_pyproject():

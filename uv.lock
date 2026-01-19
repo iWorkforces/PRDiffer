@@ -169,7 +169,7 @@ wheels = [
 ]
 
 [[package]]
-name = "ccpragents"
+name = "prdiffer"
 version = "0.4.6"
 source = { editable = "." }
 dependencies = [

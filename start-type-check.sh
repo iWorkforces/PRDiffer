@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# CCPRAgents - Type Checking Script
+# PRDiffer - Type Checking Script
 # This script uses ty (Astral's fast Python type checker) to perform static type checking
 
 set -e
@@ -17,7 +17,7 @@ NC='\033[0m' # No Color
 # Configuration
 TY_CONFIG_FILE="pyproject.toml"
 
-echo -e "${BLUE}🔍 CCPRAgents - Type Checking${NC}"
+echo -e "${BLUE}🔍 PRDiffer - Type Checking${NC}"
 echo -e "${BLUE}=====================================${NC}"
 echo ""
 

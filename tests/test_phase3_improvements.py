@@ -19,7 +19,7 @@ class TestFilePatchInfoExtensions:
 
     def test_new_fields_have_defaults(self):
         """Test that new fields have sensible defaults."""
-        from ccpragents.domain.entities.file_patch import FilePatchInfo, EDIT_TYPE
+        from prdiffer.domain.entities.file_patch import FilePatchInfo, EDIT_TYPE
 
         patch = FilePatchInfo(
             filename="test.py",
@@ -38,7 +38,7 @@ class TestFilePatchInfoExtensions:
 
     def test_calculate_review_priority_high_for_security_files(self):
         """Test high priority for security-sensitive files."""
-        from ccpragents.domain.entities.file_patch import FilePatchInfo, EDIT_TYPE
+        from prdiffer.domain.entities.file_patch import FilePatchInfo, EDIT_TYPE
 
         security_files = [
             "auth.py",
@@ -61,7 +61,7 @@ class TestFilePatchInfoExtensions:
 
     def test_calculate_review_priority_high_for_large_changes(self):
         """Test high priority for large change sets."""
-        from ccpragents.domain.entities.file_patch import FilePatchInfo, EDIT_TYPE
+        from prdiffer.domain.entities.file_patch import FilePatchInfo, EDIT_TYPE
 
         patch = FilePatchInfo(
             filename="regular.py",
@@ -74,7 +74,7 @@ class TestFilePatchInfoExtensions:
 
     def test_calculate_review_priority_low_for_docs(self):
         """Test low priority for documentation files."""
-        from ccpragents.domain.entities.file_patch import FilePatchInfo, EDIT_TYPE
+        from prdiffer.domain.entities.file_patch import FilePatchInfo, EDIT_TYPE
 
         doc_files = ["README.md", "docs/api.md", "CHANGELOG.txt", "LICENSE"]
         # Provide enough base_file content to keep change_percentage < 50%
@@ -94,7 +94,7 @@ class TestFilePatchInfoExtensions:
 
     def test_calculate_review_priority_low_for_tests(self):
         """Test low priority for test files."""
-        from ccpragents.domain.entities.file_patch import FilePatchInfo, EDIT_TYPE
+        from prdiffer.domain.entities.file_patch import FilePatchInfo, EDIT_TYPE
 
         test_files = ["test_main.py", "tests/unit/test_api.py", "spec/test_helper.js"]
         # Provide enough base_file content to keep change_percentage < 50%
@@ -114,7 +114,7 @@ class TestFilePatchInfoExtensions:
 
     def test_calculate_review_priority_normal_for_regular_files(self):
         """Test normal priority for regular source files."""
-        from ccpragents.domain.entities.file_patch import FilePatchInfo, EDIT_TYPE
+        from prdiffer.domain.entities.file_patch import FilePatchInfo, EDIT_TYPE
 
         # Provide enough base_file content to keep change_percentage < 50%
         base_content = "\n".join([f"line {i}" for i in range(100)])
@@ -131,7 +131,7 @@ class TestFilePatchInfoExtensions:
 
     def test_detect_code_smells_todo(self):
         """Test detection of TODO comments."""
-        from ccpragents.domain.entities.file_patch import FilePatchInfo, EDIT_TYPE
+        from prdiffer.domain.entities.file_patch import FilePatchInfo, EDIT_TYPE
 
         patch = FilePatchInfo(
             filename="test.py",
@@ -146,7 +146,7 @@ class TestFilePatchInfoExtensions:
 
     def test_detect_code_smells_fixme(self):
         """Test detection of FIXME comments."""
-        from ccpragents.domain.entities.file_patch import FilePatchInfo, EDIT_TYPE
+        from prdiffer.domain.entities.file_patch import FilePatchInfo, EDIT_TYPE
 
         patch = FilePatchInfo(
             filename="test.py",
@@ -161,7 +161,7 @@ class TestFilePatchInfoExtensions:
 
     def test_detect_code_smells_debug_statements(self):
         """Test detection of debug statements."""
-        from ccpragents.domain.entities.file_patch import FilePatchInfo, EDIT_TYPE
+        from prdiffer.domain.entities.file_patch import FilePatchInfo, EDIT_TYPE
 
         patch = FilePatchInfo(
             filename="test.py",
@@ -178,7 +178,7 @@ class TestFilePatchInfoExtensions:
 
     def test_detect_code_smells_large_changes(self):
         """Test detection of very large change sets."""
-        from ccpragents.domain.entities.file_patch import FilePatchInfo, EDIT_TYPE
+        from prdiffer.domain.entities.file_patch import FilePatchInfo, EDIT_TYPE
 
         patch = FilePatchInfo(
             filename="test.py",
@@ -193,7 +193,7 @@ class TestFilePatchInfoExtensions:
 
     def test_detect_code_smells_empty_patch(self):
         """Test that empty patch returns no smells."""
-        from ccpragents.domain.entities.file_patch import FilePatchInfo, EDIT_TYPE
+        from prdiffer.domain.entities.file_patch import FilePatchInfo, EDIT_TYPE
 
         patch = FilePatchInfo(
             filename="test.py",
@@ -208,7 +208,7 @@ class TestFilePatchInfoExtensions:
 
     def test_get_summary_includes_new_fields(self):
         """Test that get_summary includes new Phase 3 fields."""
-        from ccpragents.domain.entities.file_patch import FilePatchInfo, EDIT_TYPE
+        from prdiffer.domain.entities.file_patch import FilePatchInfo, EDIT_TYPE
 
         patch = FilePatchInfo(
             filename="test.py",
@@ -237,7 +237,7 @@ class TestPRDiffExtensions:
 
     def test_new_fields_have_defaults(self):
         """Test that new fields have sensible defaults."""
-        from ccpragents.domain.entities.pr_diff import PRDiff
+        from prdiffer.domain.entities.pr_diff import PRDiff
 
         diff = PRDiff(diff_content="test", commit_messages="message")
 
@@ -249,7 +249,7 @@ class TestPRDiffExtensions:
 
     def test_total_changes_property(self):
         """Test total_changes property calculation."""
-        from ccpragents.domain.entities.pr_diff import PRDiff
+        from prdiffer.domain.entities.pr_diff import PRDiff
 
         diff = PRDiff(
             diff_content="test",
@@ -261,14 +261,14 @@ class TestPRDiffExtensions:
 
     def test_has_content_true(self):
         """Test has_content returns True for non-empty content."""
-        from ccpragents.domain.entities.pr_diff import PRDiff
+        from prdiffer.domain.entities.pr_diff import PRDiff
 
         diff = PRDiff(diff_content="@@ -1,3 +1,3 @@")
         assert diff.has_content is True
 
     def test_has_content_false_empty(self):
         """Test has_content returns False for empty content."""
-        from ccpragents.domain.entities.pr_diff import PRDiff
+        from prdiffer.domain.entities.pr_diff import PRDiff
 
         diff = PRDiff(diff_content="")
         assert diff.has_content is False
@@ -278,7 +278,7 @@ class TestPRDiffExtensions:
 
     def test_get_statistics(self):
         """Test get_statistics method."""
-        from ccpragents.domain.entities.pr_diff import PRDiff
+        from prdiffer.domain.entities.pr_diff import PRDiff
 
         diff = PRDiff(
             diff_content="test diff",
@@ -299,7 +299,7 @@ class TestPRDiffExtensions:
 
     def test_get_response_envelope(self):
         """Test get_response_envelope method."""
-        from ccpragents.domain.entities.pr_diff import PRDiff
+        from prdiffer.domain.entities.pr_diff import PRDiff
 
         diff = PRDiff(
             diff_content="test diff",
@@ -335,13 +335,13 @@ class TestStructuredErrorCodes:
 
     def test_error_code_string_format(self):
         """Test error code string representation."""
-        from ccpragents.domain.errors import E1001_INVALID_URL
+        from prdiffer.domain.errors import E1001_INVALID_URL
 
         assert str(E1001_INVALID_URL) == "E1001_INVALID_URL"
 
     def test_error_code_to_dict(self):
         """Test error code conversion to dictionary."""
-        from ccpragents.domain.errors import E1001_INVALID_URL
+        from prdiffer.domain.errors import E1001_INVALID_URL
 
         result = E1001_INVALID_URL.to_dict()
 
@@ -353,7 +353,7 @@ class TestStructuredErrorCodes:
 
     def test_input_validation_errors(self):
         """Test input validation error codes."""
-        from ccpragents.domain.errors import (
+        from prdiffer.domain.errors import (
             E1001_INVALID_URL,
             E1002_INVALID_REPOSITORY,
             E1003_INVALID_PR_NUMBER,
@@ -374,7 +374,7 @@ class TestStructuredErrorCodes:
 
     def test_authentication_errors(self):
         """Test authentication error codes."""
-        from ccpragents.domain.errors import (
+        from prdiffer.domain.errors import (
             E2001_AUTH_REQUIRED,
             E2002_AUTH_FAILED,
             E2003_INSUFFICIENT_PERMISSIONS,
@@ -393,7 +393,7 @@ class TestStructuredErrorCodes:
 
     def test_rate_limiting_errors(self):
         """Test rate limiting error codes."""
-        from ccpragents.domain.errors import (
+        from prdiffer.domain.errors import (
             E3001_RATE_LIMITED,
             E3002_SECONDARY_RATE_LIMIT,
             ErrorCategory,
@@ -407,7 +407,7 @@ class TestStructuredErrorCodes:
 
     def test_not_found_errors(self):
         """Test resource not found error codes."""
-        from ccpragents.domain.errors import (
+        from prdiffer.domain.errors import (
             E4001_REPO_NOT_FOUND,
             E4002_PR_NOT_FOUND,
             E4003_FILE_NOT_FOUND,
@@ -422,7 +422,7 @@ class TestStructuredErrorCodes:
 
     def test_internal_errors(self):
         """Test internal server error codes."""
-        from ccpragents.domain.errors import (
+        from prdiffer.domain.errors import (
             E5001_INTERNAL_ERROR,
             E5002_GITHUB_API_ERROR,
             E5003_DIFF_GENERATION_ERROR,
@@ -445,7 +445,7 @@ class TestMCPErrorException:
 
     def test_mcp_error_creation(self):
         """Test MCPError exception creation."""
-        from ccpragents.domain.errors import MCPError, E1001_INVALID_URL
+        from prdiffer.domain.errors import MCPError, E1001_INVALID_URL
 
         error = MCPError(E1001_INVALID_URL)
 
@@ -455,7 +455,7 @@ class TestMCPErrorException:
 
     def test_mcp_error_with_detail(self):
         """Test MCPError with additional detail."""
-        from ccpragents.domain.errors import MCPError, E1001_INVALID_URL
+        from prdiffer.domain.errors import MCPError, E1001_INVALID_URL
 
         error = MCPError(E1001_INVALID_URL, detail="URL missing protocol")
 
@@ -463,7 +463,7 @@ class TestMCPErrorException:
 
     def test_mcp_error_with_context(self):
         """Test MCPError with context information."""
-        from ccpragents.domain.errors import MCPError, E1001_INVALID_URL
+        from prdiffer.domain.errors import MCPError, E1001_INVALID_URL
 
         error = MCPError(E1001_INVALID_URL, context={"provided_url": "invalid://url"})
 
@@ -471,7 +471,7 @@ class TestMCPErrorException:
 
     def test_mcp_error_to_dict(self):
         """Test MCPError conversion to dictionary."""
-        from ccpragents.domain.errors import MCPError, E1001_INVALID_URL
+        from prdiffer.domain.errors import MCPError, E1001_INVALID_URL
 
         error = MCPError(
             E1001_INVALID_URL, detail="Missing protocol", context={"url": "test"}
@@ -487,7 +487,7 @@ class TestMCPErrorException:
 
     def test_category_specific_exceptions(self):
         """Test category-specific exception classes."""
-        from ccpragents.domain.errors import (
+        from prdiffer.domain.errors import (
             InputValidationError,
             AuthenticationError,
             RateLimitError,
@@ -526,7 +526,7 @@ class TestErrorHandlingUtilities:
 
     def test_get_error_for_exception_known_types(self):
         """Test mapping known exception types to error codes."""
-        from ccpragents.domain.errors import (
+        from prdiffer.domain.errors import (
             get_error_for_exception,
             E1001_INVALID_URL,
             E5004_TIMEOUT_ERROR,
@@ -551,7 +551,7 @@ class TestErrorHandlingUtilities:
 
     def test_get_error_for_exception_unknown_type(self):
         """Test mapping unknown exception types to internal error."""
-        from ccpragents.domain.errors import (
+        from prdiffer.domain.errors import (
             get_error_for_exception,
             E5001_INTERNAL_ERROR,
         )
@@ -564,7 +564,7 @@ class TestErrorHandlingUtilities:
 
     def test_create_error_response_basic(self):
         """Test creating basic error response."""
-        from ccpragents.domain.errors import create_error_response, E1001_INVALID_URL
+        from prdiffer.domain.errors import create_error_response, E1001_INVALID_URL
 
         response = create_error_response(E1001_INVALID_URL)
 
@@ -574,7 +574,7 @@ class TestErrorHandlingUtilities:
 
     def test_create_error_response_with_detail(self):
         """Test creating error response with detail."""
-        from ccpragents.domain.errors import create_error_response, E1001_INVALID_URL
+        from prdiffer.domain.errors import create_error_response, E1001_INVALID_URL
 
         response = create_error_response(
             E1001_INVALID_URL, detail="Missing protocol in URL"
@@ -584,7 +584,7 @@ class TestErrorHandlingUtilities:
 
     def test_create_error_response_with_context(self):
         """Test creating error response with context."""
-        from ccpragents.domain.errors import create_error_response, E1001_INVALID_URL
+        from prdiffer.domain.errors import create_error_response, E1001_INVALID_URL
 
         response = create_error_response(
             E1001_INVALID_URL, context={"provided_url": "invalid://url"}
@@ -604,7 +604,7 @@ class TestPhase3Integration:
 
     def test_file_patch_with_priority_and_smells(self):
         """Test FilePatchInfo with auto-detected priority and smells."""
-        from ccpragents.domain.entities.file_patch import FilePatchInfo, EDIT_TYPE
+        from prdiffer.domain.entities.file_patch import FilePatchInfo, EDIT_TYPE
 
         # Create a security-related file with code smells
         patch = FilePatchInfo(
@@ -627,7 +627,7 @@ class TestPhase3Integration:
 
     def test_pr_diff_with_full_metadata(self):
         """Test PRDiff with complete metadata."""
-        from ccpragents.domain.entities.pr_diff import PRDiff
+        from prdiffer.domain.entities.pr_diff import PRDiff
 
         diff = PRDiff(
             diff_content="@@ -1,10 +1,15 @@\n-old\n+new",
@@ -655,7 +655,7 @@ class TestPhase3Integration:
 
     def test_error_handling_flow(self):
         """Test complete error handling flow."""
-        from ccpragents.domain.errors import (
+        from prdiffer.domain.errors import (
             MCPError,
             E1001_INVALID_URL,
             create_error_response,

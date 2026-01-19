@@ -2,13 +2,15 @@
 
 This file provides guidance for working with unit tests for application components.
 
+**Current Version:** 0.4.6
+
 ## Overview
 
 Unit tests for application components verify the correctness of individual application-layer components in isolation.
 
 ## Test Files
 
-Test files in this directory should test components from `ccpragents/application/components/`:
+Test files in this directory should test components from `prdiffer/application/components/`:
 
 - `test_authentication.py` - Tests for `authentication.py`
 - `test_rate_limiter.py` - Tests for `rate_limiter.py`
@@ -26,7 +28,7 @@ Test files in this directory should test components from `ccpragents/application
 
 import pytest
 from unittest.mock import Mock, patch
-from ccpragents.application.components import [Component]
+from prdiffer.application.components import [Component]
 
 class Test[Component]:
     """Unit tests for [Component]."""
@@ -210,7 +212,7 @@ Ensure high test coverage for application components:
 
 ```bash
 # Run with coverage
-pytest tests/unit/application/components/ --cov=ccpragents.application.components --cov-report=html
+pytest tests/unit/application/components/ --cov=prdiffer.application.components --cov-report=html
 ```
 
 **Target Coverage:** >80% for application components
@@ -218,5 +220,5 @@ pytest tests/unit/application/components/ --cov=ccpragents.application.component
 ## Related Documentation
 
 - `../CLAUDE.md` - Unit test documentation
-- `../../../ccpragents/application/components/CLAUDE.md` - Component documentation
+- `../../../prdiffer/application/components/CLAUDE.md` - Component documentation
 - `../../../CLAUDE.md` - Project documentation

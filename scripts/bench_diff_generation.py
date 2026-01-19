@@ -6,12 +6,12 @@ import time
 from dataclasses import dataclass
 from typing import cast
 
-from ccpragents.domain.entities.file_patch import FilePatchInfo, EDIT_TYPE
-from ccpragents.domain.services.github_api import GitHubAPIServiceInterface
-from ccpragents.domain.services.pattern_matching import PatternMatchingServiceInterface
-from ccpragents.infrastructure.github.diff_generator import DiffGenerator
-from ccpragents.infrastructure.github.file_processor import FileProcessor
-from ccpragents.infrastructure.utils.diff_utils import DiffUtils
+from prdiffer.domain.entities.file_patch import FilePatchInfo, EDIT_TYPE
+from prdiffer.domain.services.github_api import GitHubAPIServiceInterface
+from prdiffer.domain.services.pattern_matching import PatternMatchingServiceInterface
+from prdiffer.infrastructure.github.diff_generator import DiffGenerator
+from prdiffer.infrastructure.github.file_processor import FileProcessor
+from prdiffer.infrastructure.utils.diff_utils import DiffUtils
 from github.File import File
 from github.PullRequest import PullRequest
 from github.Repository import Repository

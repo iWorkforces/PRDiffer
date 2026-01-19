@@ -8,7 +8,7 @@ import time
 import threading
 import pytest
 from unittest.mock import Mock
-from ccpragents.application.components.metrics_tracker import MetricsTracker
+from prdiffer.application.components.metrics_tracker import MetricsTracker
 
 
 class TestMetricsTrackerInitialization:

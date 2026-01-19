@@ -1,15 +1,15 @@
-# CCPRAgents MCP Server Usage Guide
+# PRDiffer MCP Server Usage Guide
 
 ## Starting the Server
 
-The easiest way to start the CCPRAgents MCP server is using the provided startup script:
+The easiest way to start the PRDiffer MCP server is using the provided startup script:
 
 ```bash
 export GITHUB_TOKEN=ghp_xxx
 ```
 
 ```bash
-./start-ccpragents-mcp-server.sh
+./start-prdiffer-mcp-server.sh
 ```
 
 ## Accessing the MCP Server
@@ -28,9 +28,9 @@ http://127.0.0.1:9102/mcp
 
   {
     "mcpServers": {
-      "ccpragents": {
+      "prdiffer": {
         "command": "uv",
-        "args": ["run", "python", "ccpragents/server.py"],
+        "args": ["run", "python", "prdiffer/server.py"],
         "env": {
           "PORT": "9102",
           "TRANSPORT": "http"
@@ -42,7 +42,7 @@ http://127.0.0.1:9102/mcp
 #### Add to Claude Code
 
 ```bash
-claude mcp add --transport http ccpragents http://127.0.0.1:9102/mcp
+claude mcp add --transport http prdiffer http://127.0.0.1:9102/mcp
 ```
 
 ## Optional Settings

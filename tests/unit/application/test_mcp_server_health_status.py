@@ -2,7 +2,7 @@ from unittest.mock import Mock, patch
 
 import anyio
 
-from ccpragents.application.mcp_server import FastMCPServer
+from prdiffer.application.mcp_server import FastMCPServer
 
 
 class DummyCoalescingService:
@@ -34,7 +34,7 @@ def test_health_status_includes_cache_and_coalescing():
 
     request_coalescing_service = DummyCoalescingService()
 
-    with patch("ccpragents.application.mcp_server.FastMCP"):
+    with patch("prdiffer.application.mcp_server.FastMCP"):
         server = FastMCPServer(
             settings_service=settings_service,
             cache_service=cache_service,
