@@ -98,6 +98,7 @@ class InfrastructureFactory(InfrastructureFactoryInterface):
     def create_pr_diff_service(self) -> PRDiffServiceInterface:
         """Create PR diff service instance."""
         # Create dependencies
+        settings_service = get_settings_service()
         github_api_service = self.create_github_api_service()
         diff_service = self.create_diff_service()
         pattern_matching_service = self.create_pattern_matching_service()
@@ -108,6 +109,12 @@ class InfrastructureFactory(InfrastructureFactoryInterface):
             github_api_service=github_api_service,
             pattern_matcher=pattern_matching_service,
             diff_utils=diff_service,
+            parallel_fetch_threshold=settings_service.get(
+                "file_processing.parallel_fetch_threshold", 10
+            ),
+            max_parallel_workers=settings_service.get(
+                "file_processing.concurrent_downloads", 3
+            ),
         )
 
         # Create diff generator
@@ -127,6 +134,7 @@ class InfrastructureFactory(InfrastructureFactoryInterface):
 
     def create_file_processor(self) -> FileProcessor:
         """Create file processor instance."""
+        settings_service = get_settings_service()
         github_api_service = self.create_github_api_service()
         diff_service = self.create_diff_service()
         pattern_matching_service = self.create_pattern_matching_service()
@@ -135,6 +143,12 @@ class InfrastructureFactory(InfrastructureFactoryInterface):
             github_api_service=github_api_service,
             pattern_matcher=pattern_matching_service,
             diff_utils=diff_service,
+            parallel_fetch_threshold=settings_service.get(
+                "file_processing.parallel_fetch_threshold", 10
+            ),
+            max_parallel_workers=settings_service.get(
+                "file_processing.concurrent_downloads", 3
+            ),
         )
 
     def create_diff_generator(self) -> DiffGenerator:

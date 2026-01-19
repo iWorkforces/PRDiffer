@@ -4,9 +4,11 @@ This is the refactored version using composition with extracted components.
 """
 
 import os
+from datetime import datetime
 from typing import Optional, Dict
 from github.Repository import Repository
 from github.PullRequest import PullRequest
+import anyio
 from ccpragents.domain.entities.pr_diff import PRDiff
 from ccpragents.domain.repositories import PRDiffRepositoryInterface
 from ccpragents.infrastructure.settings import SettingsService, get_settings_service
@@ -21,6 +23,7 @@ from ccpragents.infrastructure.github.diff_generator import get_diff_generator
 from ccpragents.infrastructure.github.parallel_executor import get_parallel_executor
 from ccpragents.infrastructure.utils.pattern_matcher import get_pattern_matcher
 from ccpragents.infrastructure.utils.diff_utils import get_diff_utils
+from ccpragents.infrastructure.utils.diff_limits import apply_diff_limits
 from ccpragents.infrastructure.security.input_validator import InputValidator
 
 
@@ -107,6 +110,25 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
         self.diff_max_workers = github_settings.get("diff_max_workers", 4)
         self.diff_worker_timeout = github_settings.get("diff_worker_timeout", 30.0)
 
+        # File processing parallel fetch configuration
+        self.file_parallel_threshold = self.settings_service.get(
+            "file_processing.parallel_fetch_threshold", 10
+        )
+        self.file_parallel_workers = self.settings_service.get(
+            "file_processing.concurrent_downloads", 3
+        )
+
+        # Diff truncation configuration
+        self._diff_truncate_enabled = self.settings_service.get(
+            "diff.truncate_enabled", False
+        )
+        self._diff_max_total_chars = int(
+            self.settings_service.get("diff.max_total_chars", 200000)
+        )
+        self._diff_truncation_notice = self.settings_service.get(
+            "diff.truncation_notice", "[DIFF TRUNCATED]"
+        )
+
         # Initialize logger
         self._logger = get_logger()
 
@@ -145,6 +167,8 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
             pattern_matcher=self._pattern_matcher,
             diff_utils=self._diff_utils,
             max_files_allowed=self.max_files_allowed,
+            parallel_fetch_threshold=self.file_parallel_threshold,
+            max_parallel_workers=self.file_parallel_workers,
         )
 
         # Initialize parallel executor for diff generation if enabled
@@ -244,31 +268,7 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
             RuntimeError: If GitHub objects failed to initialize
             ValueError: If pull request cannot be refreshed
         """
-        self._initialize_github_objects()
-
-        # Check that initialization succeeded (replace assertion with proper exception)
-        if self._repository is None:
-            raise RuntimeError(
-                f"Failed to initialize repository {self._repo_owner}/{self._repo_name} "
-                "- GitHub objects may not have been properly initialized"
-            )
-        if self._pull_request is None:
-            raise RuntimeError(
-                f"Failed to initialize pull request #{self._pr_number} "
-                "- GitHub objects may not have been properly initialized"
-            )
-
-        # Refresh the PR object to get the latest data
-        self._pull_request = self._github_api_client.get_pull_request(
-            self._repository, self._pr_number
-        )
-
-        if self._pull_request is None:
-            raise ValueError(
-                f"Failed to refresh pull request #{self._pr_number} - it may have been deleted or become inaccessible"
-            )
-
-        return self._pull_request.head.sha
+        return await anyio.to_thread.run_sync(self._get_latest_commit_sha_sync)
 
     async def get_pr_diff(self) -> PRDiff:
         """Fetch PR diff information from GitHub.
@@ -284,9 +284,11 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
         Raises:
             RuntimeError: If GitHub objects failed to initialize
         """
+        return await anyio.to_thread.run_sync(self._get_pr_diff_sync)
+
+    def _get_latest_commit_sha_sync(self) -> str:
         self._initialize_github_objects()
 
-        # Check that initialization succeeded (replace assertion with proper exception)
         if self._repository is None:
             raise RuntimeError(
                 f"Failed to initialize repository {self._repo_owner}/{self._repo_name} "
@@ -298,18 +300,39 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
                 "- GitHub objects may not have been properly initialized"
             )
 
-        # Get merge base commit for accurate diff comparison
+        self._pull_request = self._github_api_client.get_pull_request(
+            self._repository, self._pr_number
+        )
+
+        if self._pull_request is None:
+            raise ValueError(
+                f"Failed to refresh pull request #{self._pr_number} - it may have been deleted or become inaccessible"
+            )
+
+        return self._pull_request.head.sha
+
+    def _get_pr_diff_sync(self) -> PRDiff:
+        self._initialize_github_objects()
+
+        if self._repository is None:
+            raise RuntimeError(
+                f"Failed to initialize repository {self._repo_owner}/{self._repo_name} "
+                "- GitHub objects may not have been properly initialized"
+            )
+        if self._pull_request is None:
+            raise RuntimeError(
+                f"Failed to initialize pull request #{self._pr_number} "
+                "- GitHub objects may not have been properly initialized"
+            )
+
         base_sha, head_sha = self._get_merge_base_commits()
 
-        # Get and process PR files
         pr_files = self._file_processor.get_pr_files(self._pull_request)
         filtered_files = self._file_processor.filter_files(pr_files)
 
         if pr_files != filtered_files:
             self._log_filtered_files(pr_files, filtered_files)
 
-        # Process files to get diff information
-        # Check that repository is still valid (replace assertion with proper exception)
         if self._repository is None:
             raise RuntimeError(
                 f"Repository {self._repo_owner}/{self._repo_name} became invalid during processing"
@@ -318,25 +341,55 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
             filtered_files, self._repository, head_sha, base_sha
         )
 
-        # Generate extended diff content
         extended_diffs = self._diff_generator.generate_extended_diff(
             diff_files, add_line_numbers_to_hunks=False
         )
         diff_content = "\n".join(extended_diffs)
 
+        total_additions = sum(file.num_plus_lines for file in diff_files)
+        total_deletions = sum(file.num_minus_lines for file in diff_files)
+        file_summaries = self._build_file_summaries(diff_files)
+
+        diff_content, truncation_meta = apply_diff_limits(
+            diff_content,
+            self._diff_max_total_chars if self._diff_truncate_enabled else 0,
+            self._diff_truncation_notice,
+        )
+
+        generation_metadata = {
+            "generated_at": f"{datetime.utcnow().isoformat()}Z",
+            "files_processed": len(diff_files),
+        }
+        generation_metadata.update(truncation_meta)
+
         self._logger.info(f"Generated diff content for {len(diff_files)} files")
-        # Sanitize diff content for logging - truncate to prevent log flooding
-        # and sanitize to prevent log injection
         safe_diff_preview = self._input_validator.sanitize_for_logging(
             diff_content[:1000] if len(diff_content) > 1000 else diff_content,
             max_length=1000,
         )
         self._logger.debug(f"Diff content preview:\n{safe_diff_preview}")
 
-        # Get commit messages
         commit_messages = self._diff_generator.get_commit_messages(self._pull_request)
 
-        return PRDiff(diff_content=diff_content, commit_messages=commit_messages)
+        return PRDiff(
+            diff_content=diff_content,
+            commit_messages=commit_messages,
+            files_changed=len(diff_files),
+            total_additions=total_additions,
+            total_deletions=total_deletions,
+            generation_metadata=generation_metadata,
+            file_summaries=file_summaries,
+        )
+
+    def _build_file_summaries(self, diff_files: list) -> list[Dict]:
+        summaries: list[Dict] = []
+        for file_patch in diff_files:
+            file_patch.code_smell_indicators = file_patch.detect_code_smells()
+            file_patch.suggested_review_priority = (
+                file_patch.calculate_review_priority()
+            )
+            summaries.append(file_patch.get_summary())
+        return summaries
 
     def _get_merge_base_commits(self) -> tuple[str, str]:
         """Get base and head commit SHAs, using merge base for accurate comparison.

@@ -5,8 +5,10 @@ using GitHub API operations.
 """
 
 import os
+from datetime import datetime
 from typing import Optional
 
+import anyio
 from ccpragents.domain.services.pr_diff_service import PRDiffServiceInterface
 from ccpragents.domain.services.github_api import GitHubAPIServiceInterface
 from ccpragents.domain.services.logger import LoggerServiceInterface
@@ -19,6 +21,9 @@ from ccpragents.infrastructure.logging.console_logger import get_logger
 from ccpragents.infrastructure.logging.exception_utils import (
     sanitize_exception_for_logging,
 )
+from ccpragents.infrastructure.security.input_validator import InputValidator
+from ccpragents.infrastructure.settings import get_settings_service
+from ccpragents.infrastructure.utils.diff_limits import apply_diff_limits
 
 
 class GitHubPRDiffService(PRDiffServiceInterface):
@@ -51,6 +56,17 @@ class GitHubPRDiffService(PRDiffServiceInterface):
         self._diff_generator = diff_generator
         self._file_processor = file_processor
 
+        settings_service = get_settings_service()
+        self._diff_truncate_enabled = settings_service.get(
+            "diff.truncate_enabled", False
+        )
+        self._diff_max_total_chars = int(
+            settings_service.get("diff.max_total_chars", 200000)
+        )
+        self._diff_truncation_notice = settings_service.get(
+            "diff.truncation_notice", "[DIFF TRUNCATED]"
+        )
+
     async def get_pr_diff(
         self,
         repo_owner: str,
@@ -73,47 +89,9 @@ class GitHubPRDiffService(PRDiffServiceInterface):
             RateLimitError: If rate limit is exceeded
             ValidationError: If input parameters are invalid
         """
-        try:
-            # Use the GitHub API client to get repository and PR
-            repository = self._github_api.get_repository(f"{repo_owner}/{repo_name}")
-            if not repository:
-                return None
-
-            pull_request = self._github_api.get_pull_request(repository, pr_number)
-            if not pull_request:
-                return None
-
-            # Generate diff content and commit messages
-            diff_content = self._generate_diff_content(repository, pull_request)
-            commit_messages = self._get_commit_messages(pull_request)
-
-            # Create simplified PRDiff entity with only diff_content and commit_messages
-            pr_diff = PRDiff(
-                diff_content=diff_content,
-                commit_messages=commit_messages,
-            )
-
-            self._logger.info(
-                "Generated diff content",
-                repo_owner=repo_owner,
-                repo_name=repo_name,
-                pr_number=pr_number,
-            )
-            self._logger.info(f"Diff content:\n{diff_content}")
-
-            return pr_diff
-
-        except Exception as e:
-            # Log the error and return None for graceful degradation
-            sanitized = sanitize_exception_for_logging(e)
-            self._logger.error(
-                "Failed to get PR diff",
-                repo_owner=repo_owner,
-                repo_name=repo_name,
-                pr_number=pr_number,
-                extra=sanitized,
-            )
-            return None
+        return await anyio.to_thread.run_sync(
+            self._get_pr_diff_sync, repo_owner, repo_name, pr_number
+        )
 
     async def get_latest_commit_sha(
         self,
@@ -135,6 +113,89 @@ class GitHubPRDiffService(PRDiffServiceInterface):
             RepositoryNotFoundError: If repository or PR doesn't exist
             AuthenticationError: If authentication fails
         """
+        return await anyio.to_thread.run_sync(
+            self._get_latest_commit_sha_sync, repo_owner, repo_name, pr_number
+        )
+
+    def _get_pr_diff_sync(
+        self,
+        repo_owner: str,
+        repo_name: str,
+        pr_number: int,
+    ) -> Optional[PRDiff]:
+        try:
+            # Use the GitHub API client to get repository and PR
+            repository = self._github_api.get_repository(f"{repo_owner}/{repo_name}")
+            if not repository:
+                return None
+
+            pull_request = self._github_api.get_pull_request(repository, pr_number)
+            if not pull_request:
+                return None
+
+            # Generate diff content and commit messages
+            diff_content, diff_files = self._generate_diff_content(
+                repository, pull_request
+            )
+            commit_messages = self._get_commit_messages(pull_request)
+
+            total_additions = sum(file.num_plus_lines for file in diff_files)
+            total_deletions = sum(file.num_minus_lines for file in diff_files)
+            file_summaries = self._build_file_summaries(diff_files)
+
+            diff_content, truncation_meta = apply_diff_limits(
+                diff_content,
+                self._diff_max_total_chars if self._diff_truncate_enabled else 0,
+                self._diff_truncation_notice,
+            )
+
+            generation_metadata = {
+                "generated_at": f"{datetime.utcnow().isoformat()}Z",
+                "files_processed": len(diff_files),
+            }
+            generation_metadata.update(truncation_meta)
+
+            pr_diff = PRDiff(
+                diff_content=diff_content,
+                commit_messages=commit_messages,
+                files_changed=len(diff_files),
+                total_additions=total_additions,
+                total_deletions=total_deletions,
+                generation_metadata=generation_metadata,
+                file_summaries=file_summaries,
+            )
+
+            self._logger.info(
+                "Generated diff content",
+                repo_owner=repo_owner,
+                repo_name=repo_name,
+                pr_number=pr_number,
+            )
+
+            preview = InputValidator.sanitize_for_logging(
+                diff_content[:1000], max_length=1000
+            )
+            self._logger.debug("Diff content preview", preview=preview)
+
+            return pr_diff
+
+        except Exception as e:
+            sanitized = sanitize_exception_for_logging(e)
+            self._logger.error(
+                "Failed to get PR diff",
+                repo_owner=repo_owner,
+                repo_name=repo_name,
+                pr_number=pr_number,
+                extra=sanitized,
+            )
+            return None
+
+    def _get_latest_commit_sha_sync(
+        self,
+        repo_owner: str,
+        repo_name: str,
+        pr_number: int,
+    ) -> Optional[str]:
         try:
             repository = self._github_api.get_repository(f"{repo_owner}/{repo_name}")
             if not repository:
@@ -144,17 +205,9 @@ class GitHubPRDiffService(PRDiffServiceInterface):
             if not pull_request:
                 return None
 
-            # Get the latest commit from the PR
-            commits = list(pull_request.get_commits())
-            if not commits:
-                return None
-
-            # Return the SHA of the latest commit
-            latest_commit = commits[-1]
-            return latest_commit.sha if latest_commit else None
+            return pull_request.head.sha
 
         except Exception as e:
-            # Log the error and return None for graceful degradation
             sanitized = sanitize_exception_for_logging(e)
             self._logger.error(
                 "Failed to get latest commit SHA",
@@ -218,7 +271,9 @@ class GitHubPRDiffService(PRDiffServiceInterface):
 
         return status_mapping.get(status, EDIT_TYPE.UNKNOWN)
 
-    def _generate_diff_content(self, repository, pull_request) -> str:
+    def _generate_diff_content(
+        self, repository, pull_request
+    ) -> tuple[str, list[FilePatchInfo]]:
         """Generate diff content for the pull request.
 
         Args:
@@ -226,27 +281,24 @@ class GitHubPRDiffService(PRDiffServiceInterface):
             pull_request: GitHub pull request instance
 
         Returns:
-            str: Combined diff content for all files, empty string on error
+            tuple[str, list[FilePatchInfo]]: Combined diff content and file metadata,
+            empty string/list on error
         """
         try:
             # Get the latest commit SHA for the PR
-            commits = list(pull_request.get_commits())
-            if not commits:
-                return ""
-
-            latest_commit_sha = commits[-1].sha
+            latest_commit_sha = pull_request.head.sha
             if not latest_commit_sha:
-                return ""
+                return "", []
 
             # Get the base commit SHA (merge base)
             base_commit_sha = self._get_base_commit_sha(repository, pull_request)
             if not base_commit_sha:
-                return ""
+                return "", []
 
             # Get and process files
             github_files = pull_request.get_files()
             if not github_files:
-                return ""
+                return "", []
 
             # Process files to create FilePatchInfo objects with content
             if self._file_processor:
@@ -261,7 +313,7 @@ class GitHubPRDiffService(PRDiffServiceInterface):
             # Generate extended diff content
             if self._diff_generator and diff_files:
                 extended_diffs = self._diff_generator.generate_extended_diff(diff_files)
-                return "\n".join(extended_diffs)
+                return "\n".join(extended_diffs), diff_files
             else:
                 # Fallback: create simple diff from patches
                 diff_content_parts = []
@@ -270,12 +322,12 @@ class GitHubPRDiffService(PRDiffServiceInterface):
                         diff_content_parts.append(
                             f"## File: {file_patch.filename}\n{file_patch.patch}"
                         )
-                return "\n\n".join(diff_content_parts)
+                return "\n\n".join(diff_content_parts), diff_files
 
         except Exception as e:
             sanitized = sanitize_exception_for_logging(e)
             self._logger.error("Failed to generate diff content", extra=sanitized)
-            return ""
+            return "", []
 
     def _get_base_commit_sha(self, repository, pull_request) -> Optional[str]:
         """Get the base commit SHA for the pull request.
@@ -329,11 +381,21 @@ class GitHubPRDiffService(PRDiffServiceInterface):
                             for i, message in enumerate(commit_messages)
                         ]
                     )
-                return None
+            return None
         except Exception as e:
             sanitized = sanitize_exception_for_logging(e)
             self._logger.error("Failed to get commit messages", extra=sanitized)
             return None
+
+    def _build_file_summaries(self, diff_files: list[FilePatchInfo]) -> list[dict]:
+        summaries: list[dict] = []
+        for file_patch in diff_files:
+            file_patch.code_smell_indicators = file_patch.detect_code_smells()
+            file_patch.suggested_review_priority = (
+                file_patch.calculate_review_priority()
+            )
+            summaries.append(file_patch.get_summary())
+        return summaries
 
     def validate_repository_access(
         self,

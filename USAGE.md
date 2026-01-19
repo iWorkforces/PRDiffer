@@ -44,3 +44,13 @@ http://127.0.0.1:9102/mcp
 ```bash
 claude mcp add --transport http ccpragents http://127.0.0.1:9102/mcp
 ```
+
+## Optional Settings
+
+You can tune file processing and diff output via `settings.toml`:
+
+- `file_processing.concurrent_downloads`: Max workers for parallel file fetching.
+- `file_processing.parallel_fetch_threshold`: File count threshold to enable parallel fetching.
+- `diff.truncate_enabled`: Enable/disable diff truncation.
+- `diff.max_total_chars`: Max diff size before truncation.
+- `diff.truncation_notice`: Marker appended when diff is truncated.

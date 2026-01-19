@@ -42,6 +42,8 @@ class FileProcessor:
         pattern_matcher: PatternMatchingServiceInterface,
         diff_utils: DiffServiceInterface,
         max_files_allowed: int = 50,
+        parallel_fetch_threshold: int = 10,
+        max_parallel_workers: int = 4,
         logger=None,
     ):
         """Initialize the file processor.
@@ -51,12 +53,16 @@ class FileProcessor:
             pattern_matcher: Service for file pattern matching
             diff_utils: Service for diff utilities
             max_files_allowed: Maximum number of files to load content for
+            parallel_fetch_threshold: File count threshold to use parallel fetching
+            max_parallel_workers: Max workers for parallel content fetching
             logger: Logger instance for logging operations
         """
         self._github_api_service = github_api_service
         self._pattern_matcher = pattern_matcher
         self._diff_utils = diff_utils
         self.max_files_allowed = max_files_allowed
+        self._parallel_fetch_threshold = parallel_fetch_threshold
+        self._max_parallel_workers = max_parallel_workers
         self._logger = logger or get_logger()
 
         # Thread safety lock for cache operations
@@ -161,9 +167,21 @@ class FileProcessor:
 
         # Second pass: batch process files that need content loading
         if files_to_load:
-            processed_files = self._process_files_with_content(
-                files_to_load, repository, head_sha, base_sha
-            )
+            if (
+                self._parallel_fetch_threshold > 0
+                and len(files_to_load) >= self._parallel_fetch_threshold
+            ):
+                processed_files = self._process_files_with_content_parallel(
+                    files_to_load,
+                    repository,
+                    head_sha,
+                    base_sha,
+                    max_workers=self._max_parallel_workers,
+                )
+            else:
+                processed_files = self._process_files_with_content(
+                    files_to_load, repository, head_sha, base_sha
+                )
             diff_files.extend(processed_files)
 
         if invalid_files_names:
@@ -742,6 +760,8 @@ def get_file_processor(
     pattern_matcher: PatternMatchingServiceInterface,
     diff_utils: DiffServiceInterface,
     max_files_allowed: int = 50,
+    parallel_fetch_threshold: int = 10,
+    max_parallel_workers: int = 4,
 ) -> FileProcessor:
     """Get a configured file processor instance.
 
@@ -759,4 +779,6 @@ def get_file_processor(
         pattern_matcher=pattern_matcher,
         diff_utils=diff_utils,
         max_files_allowed=max_files_allowed,
+        parallel_fetch_threshold=parallel_fetch_threshold,
+        max_parallel_workers=max_parallel_workers,
     )

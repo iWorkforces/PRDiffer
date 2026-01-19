@@ -3,6 +3,7 @@
 import logging
 from typing import Dict, Any, Optional, List, TypedDict
 from ..interfaces.protocols import ServerConfigurationProtocol
+from ccpragents.version import __version__
 
 
 class ValidationResult(TypedDict):
@@ -38,7 +39,7 @@ class ServerConfiguration(ServerConfigurationProtocol):
         """
         try:
             # Log level configuration
-            log_level = self._settings_service.get("logging.level", "INFO").upper()
+            log_level = self._settings_service.get("app.log_level", "INFO").upper()
 
             # Configure root logger if needed
             root_logger = logging.getLogger()
@@ -62,9 +63,9 @@ class ServerConfiguration(ServerConfigurationProtocol):
         try:
             return {
                 "name": "ccpragents",
-                "version": "0.3.3",
+                "version": __version__,
                 "description": "GitHub PR Diff Fetcher MCP Server",
-                "transport": self._settings_service.get("mcp.transport", "stdio"),
+                "transport": self._settings_service.get("mcp.transport", "http"),
                 "port": self._settings_service.get("mcp.port", 9102),
                 "host": self._settings_service.get("mcp.host", "127.0.0.1"),
                 "path": self._settings_service.get("mcp.path", "/mcp"),
@@ -116,7 +117,7 @@ class ServerConfiguration(ServerConfigurationProtocol):
 
         try:
             # Check required settings
-            transport = self._settings_service.get("mcp.transport", "stdio")
+            transport = self._settings_service.get("mcp.transport", "http")
             if transport not in ["stdio", "sse", "http"]:
                 validation_results["warnings"].append(
                     f"Unknown transport '{transport}', defaulting to stdio"

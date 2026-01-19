@@ -130,3 +130,9 @@ enabled = false  # Enable/disable API key authentication
 file_processing.max_file_size_mb = 5
 file_processing.chunk_size_kb = 64
 file_processing.concurrent_downloads = 3
+file_processing.parallel_fetch_threshold = 10
+
+# Diff size limits
+diff.truncate_enabled = true
+diff.max_total_chars = 200000
+diff.truncation_notice = "[DIFF TRUNCATED]"

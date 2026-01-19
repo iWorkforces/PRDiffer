@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 # Add the current directory to Python path for direct execution
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from ccpragents import __version__
+from ccpragents.version import __version__
 from ccpragents.application.factory import create_mcp_server
 from ccpragents.infrastructure.settings import get_settings_service
 from ccpragents.infrastructure.cache_service import get_cache_service
@@ -29,7 +29,7 @@ def parse_args() -> argparse.Namespace:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  # Run with default stdio transport (for MCP clients)
+  # Run with default http transport
   ccpragents
 
   # Run as HTTP server
@@ -40,7 +40,7 @@ Examples:
 
 Environment Variables:
   GITHUB_TOKEN    GitHub personal access token for API authentication
-  MCP_TRANSPORT   Override transport mode (stdio, http, sse, streamable-http)
+  MCP_TRANSPORT   Override transport mode (http, stdio, sse, streamable-http)
   MCP_PORT        Override server port
   MCP_HOST        Override server host
   MCP_PATH        Override server path
@@ -58,7 +58,7 @@ Environment Variables:
         "--transport",
         type=str,
         choices=["stdio", "http", "sse", "streamable-http"],
-        help="Transport protocol (default: stdio for tool usage, or from settings.toml)",
+        help="Transport protocol (default: http, or from settings.toml)",
     )
 
     parser.add_argument(
@@ -92,12 +92,11 @@ def main() -> None:
     args = parse_args()
 
     # Set environment variables based on CLI args or defaults
-    # Priority: CLI args > existing env vars > default (stdio for tool usage)
+    # Priority: CLI args > existing env vars > default (http)
     if args.transport:
         os.environ["MCP_TRANSPORT"] = args.transport
     elif "MCP_TRANSPORT" not in os.environ:
-        # Default to stdio when run as installed tool
-        os.environ["MCP_TRANSPORT"] = "stdio"
+        os.environ["MCP_TRANSPORT"] = "http"
 
     if args.port:
         os.environ["MCP_PORT"] = str(args.port)
