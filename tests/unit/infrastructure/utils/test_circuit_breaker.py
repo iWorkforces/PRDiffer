@@ -12,7 +12,6 @@ from prdiffer.infrastructure.utils.circuit_breaker import (
     CircuitBreaker,
     CircuitState,
     CircuitBreakerOpenException,
-    GlobalCircuitBreakerRegistry,
     get_global_circuit_breaker_registry,
     get_circuit_breaker,
     get_circuit_breaker_for_endpoint,
@@ -36,10 +35,7 @@ class TestCircuitBreakerInitialization:
 
     def test_initialization_with_custom_values(self):
         """Test circuit breaker initialization with custom values."""
-        breaker = CircuitBreaker(
-            failure_threshold=10,
-            timeout=120.0
-        )
+        breaker = CircuitBreaker(failure_threshold=10, timeout=120.0)
 
         assert breaker.failure_threshold == 10
         assert breaker.timeout == 120.0
@@ -260,10 +256,7 @@ class TestCircuitBreakerStatistics:
 
     def test_get_stats(self):
         """Test get_stats returns correct statistics."""
-        breaker = CircuitBreaker(
-            failure_threshold=5,
-            timeout=120.0
-        )
+        breaker = CircuitBreaker(failure_threshold=5, timeout=120.0)
 
         # Record some state
         breaker.record_failure()
@@ -475,10 +468,7 @@ class TestCircuitBreakerFactoryFunctions:
 
     def test_get_circuit_breaker(self):
         """Test get_circuit_breaker returns configured breaker."""
-        breaker = get_circuit_breaker(
-            failure_threshold=7,
-            timeout=45.0
-        )
+        breaker = get_circuit_breaker(failure_threshold=7, timeout=45.0)
 
         assert breaker.failure_threshold == 7
         assert breaker.timeout == 45.0
@@ -512,6 +502,7 @@ class TestGlobalCircuitBreakerRegistry:
         """Reset the singleton before each test."""
         # Clear the singleton instance to get fresh state
         import prdiffer.infrastructure.utils.circuit_breaker as cb_module
+
         cb_module._global_circuit_breaker_registry = None
         cb_module.GlobalCircuitBreakerRegistry._instance = None
         cb_module.GlobalCircuitBreakerRegistry._initialized = False
@@ -526,8 +517,7 @@ class TestGlobalCircuitBreakerRegistry:
     def test_registry_initialization(self):
         """Test registry initializes with correct defaults."""
         registry = get_global_circuit_breaker_registry(
-            default_failure_threshold=10,
-            default_timeout=30.0
+            default_failure_threshold=10, default_timeout=30.0
         )
 
         stats = registry.get_all_stats()
@@ -561,9 +551,7 @@ class TestGlobalCircuitBreakerRegistry:
 
     def test_can_execute_with_endpoint(self):
         """Test can_execute checks both global and endpoint breakers."""
-        registry = get_global_circuit_breaker_registry(
-            default_failure_threshold=2
-        )
+        registry = get_global_circuit_breaker_registry(default_failure_threshold=2)
 
         # Both global and endpoint should allow execution initially
         assert registry.can_execute("github_api") is True
@@ -577,9 +565,7 @@ class TestGlobalCircuitBreakerRegistry:
 
     def test_can_execute_without_endpoint(self):
         """Test can_execute with no endpoint checks only global breaker."""
-        registry = get_global_circuit_breaker_registry(
-            default_failure_threshold=2
-        )
+        registry = get_global_circuit_breaker_registry(default_failure_threshold=2)
 
         # Initially should allow execution
         assert registry.can_execute() is True
@@ -669,7 +655,7 @@ class TestGlobalCircuitBreakerRegistry:
         """Test record_success updates both global and endpoint breakers."""
         registry = get_global_circuit_breaker_registry()
 
-        endpoint_breaker = registry.get_breaker("test_endpoint")
+        _ = registry.get_breaker("test_endpoint")
 
         # Record success propagates to global
         registry.record_success("test_endpoint")
@@ -681,9 +667,7 @@ class TestGlobalCircuitBreakerRegistry:
 
     def test_record_failure_propagates_to_all_breakers(self):
         """Test record_failure updates both global and endpoint breakers."""
-        registry = get_global_circuit_breaker_registry(
-            default_failure_threshold=5
-        )
+        registry = get_global_circuit_breaker_registry(default_failure_threshold=5)
 
         endpoint_breaker = registry.get_breaker("test_endpoint")
 

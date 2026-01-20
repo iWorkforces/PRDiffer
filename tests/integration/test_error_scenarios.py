@@ -285,15 +285,6 @@ class TestValidationErrorScenarios:
         with pytest.raises(ValueError, match="cannot be None"):
             server._parse_pr_url(none_url)
 
-    def test_empty_url(self, server):
-        """Test handling of empty string URL."""
-        # Arrange: Empty URL
-        empty_url = ""
-
-        # Act & Assert: Should raise ValueError with descriptive message
-        with pytest.raises(ValueError, match="cannot be empty"):
-            server._parse_pr_url(empty_url)
-
     def test_whitespace_only_url(self, server):
         """Test handling of whitespace-only URL."""
         # Arrange: Whitespace-only URL

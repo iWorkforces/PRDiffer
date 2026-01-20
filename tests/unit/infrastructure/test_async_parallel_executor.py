@@ -7,8 +7,6 @@ with semaphore-based concurrency control and multiple error handling strategies.
 import pytest
 import asyncio
 from unittest.mock import Mock, AsyncMock
-from typing import Dict, List, Any
-import anyio
 
 from prdiffer.infrastructure.async_parallel_executor import (
     AsyncParallelExecutor,
@@ -361,9 +359,7 @@ class TestExecuteWithProgress:
         async def progress_callback(completed, total):
             progress_calls.append((completed, total))
 
-        result = await executor.execute_with_progress(
-            fake_func, [], progress_callback
-        )
+        result = await executor.execute_with_progress(fake_func, [], progress_callback)
 
         assert result == []
         assert progress_calls == []
@@ -402,9 +398,7 @@ class TestExecuteWithProgress:
         async def fake_func(item):
             return item * 2
 
-        result = await executor.execute_with_progress(
-            fake_func, [1, 2, 3]
-        )
+        result = await executor.execute_with_progress(fake_func, [1, 2, 3])
 
         assert set(result) == {2, 4, 6}
 
@@ -424,7 +418,7 @@ class TestExecuteWithProgress:
         def progress_callback(completed, total):
             progress_calls.append((completed, total))
 
-        result = await executor.execute_with_progress(
+        _ = await executor.execute_with_progress(
             fake_func, [1, 2, 3, 4, 5], progress_callback
         )
 
@@ -609,6 +603,7 @@ class TestFactoryFunctions:
         """Test get_async_parallel_executor returns singleton."""
         # Reset the global singleton
         import prdiffer.infrastructure.async_parallel_executor as executor_module
+
         executor_module._async_parallel_executor = None
 
         executor1 = get_async_parallel_executor(max_concurrent=5)

@@ -11,7 +11,6 @@ from prdiffer.domain.usecases.pr_diff_usecases import GetPRDiffUseCase
 from prdiffer.domain.entities.pr_diff import PRDiff
 from prdiffer.domain.services.cache import CacheServiceInterface
 from prdiffer.domain.services.pr_diff_service import PRDiffServiceInterface
-from prdiffer.domain.services.pr_diff_service import PRDiffServiceInterface
 
 
 @pytest.mark.unit
@@ -40,12 +39,13 @@ class TestGetPRDiffUseCase:
     def use_case(self, mock_pr_diff_service, mock_cache):
         """Create use case with mocked dependencies."""
         return GetPRDiffUseCase(
-            pr_diff_service=mock_pr_diff_service,
-            cache_service=mock_cache
+            pr_diff_service=mock_pr_diff_service, cache_service=mock_cache
         )
 
     @pytest.mark.asyncio
-    async def test_execute_with_cache_miss(self, use_case, mock_pr_diff_service, mock_cache):
+    async def test_execute_with_cache_miss(
+        self, use_case, mock_pr_diff_service, mock_cache
+    ):
         """Test execution when cache misses (fresh data required)."""
         # Arrange
         owner = "test-owner"
@@ -59,7 +59,7 @@ class TestGetPRDiffUseCase:
             total_additions=10,
             total_deletions=5,
             generation_metadata={"cache_hit": False},
-            file_summaries=[]
+            file_summaries=[],
         )
 
         mock_cache.get.return_value = None  # Cache miss
@@ -71,12 +71,16 @@ class TestGetPRDiffUseCase:
 
         # Assert
         assert result == fresh_pr_diff
-        mock_pr_diff_service.get_latest_commit_sha.assert_called_once_with(owner, repo, pr_number)
+        mock_pr_diff_service.get_latest_commit_sha.assert_called_once_with(
+            owner, repo, pr_number
+        )
         mock_pr_diff_service.get_pr_diff.assert_called_once_with(owner, repo, pr_number)
         mock_cache.set.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_execute_with_cache_hit(self, use_case, mock_pr_diff_service, mock_cache):
+    async def test_execute_with_cache_hit(
+        self, use_case, mock_pr_diff_service, mock_cache
+    ):
         """Test execution when cache hits (data is fresh)."""
         # Arrange
         owner = "test-owner"
@@ -90,7 +94,7 @@ class TestGetPRDiffUseCase:
             total_additions=10,
             total_deletions=5,
             generation_metadata={"cache_hit": True},
-            file_summaries=[]
+            file_summaries=[],
         )
 
         mock_cache.get.return_value = cached_pr_diff
@@ -106,22 +110,24 @@ class TestGetPRDiffUseCase:
         mock_cache.set.assert_not_called()  # Should not update cache
 
     @pytest.mark.asyncio
-    async def test_execute_with_stale_cache(self, use_case, mock_pr_diff_service, mock_cache):
+    async def test_execute_with_stale_cache(
+        self, use_case, mock_pr_diff_service, mock_cache
+    ):
         """Test execution when cache has stale data (commit SHA mismatch)."""
         # Arrange
         owner = "test-owner"
         repo = "test-repo"
         pr_number = 123
-        cached_commit = "old123"
+        _cached_commit = "old123"
         current_commit = "new456"
-        cached_pr_diff = PRDiff(
+        _cached_pr_diff = PRDiff(
             diff_content="stale diff content",
             commit_messages="Stale commit",
             files_changed=1,
             total_additions=5,
             total_deletions=2,
             generation_metadata={"cache_hit": True},
-            file_summaries=[]
+            file_summaries=[],
         )
         fresh_pr_diff = PRDiff(
             diff_content="fresh diff content",
@@ -130,7 +136,7 @@ class TestGetPRDiffUseCase:
             total_additions=15,
             total_deletions=3,
             generation_metadata={"cache_hit": False},
-            file_summaries=[]
+            file_summaries=[],
         )
 
         # Cache returns None (commit SHA mismatch)
@@ -147,7 +153,9 @@ class TestGetPRDiffUseCase:
         mock_cache.set.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_execute_handles_service_error(self, use_case, mock_pr_diff_service, mock_cache):
+    async def test_execute_handles_service_error(
+        self, use_case, mock_pr_diff_service, mock_cache
+    ):
         """Test execution handles service errors gracefully."""
         # Arrange
         owner = "test-owner"
@@ -166,7 +174,9 @@ class TestGetPRDiffUseCase:
         mock_cache.set.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_execute_with_custom_cache_key(self, use_case, mock_pr_diff_service, mock_cache):
+    async def test_execute_with_custom_cache_key(
+        self, use_case, mock_pr_diff_service, mock_cache
+    ):
         """Test execution with correct cache key format."""
         # Arrange
         owner = "my-owner"
@@ -181,7 +191,7 @@ class TestGetPRDiffUseCase:
             total_additions=20,
             total_deletions=10,
             generation_metadata={},
-            file_summaries=[]
+            file_summaries=[],
         )
 
         mock_cache.get_cache_key.return_value = expected_cache_key
@@ -197,7 +207,9 @@ class TestGetPRDiffUseCase:
         mock_cache.get.assert_called_once_with(expected_cache_key, current_commit)
 
     @pytest.mark.asyncio
-    async def test_execute_gets_latest_commit_sha(self, use_case, mock_pr_diff_service, mock_cache):
+    async def test_execute_gets_latest_commit_sha(
+        self, use_case, mock_pr_diff_service, mock_cache
+    ):
         """Test that latest commit SHA is retrieved for cache validation."""
         # Arrange
         owner = "owner"
@@ -214,17 +226,21 @@ class TestGetPRDiffUseCase:
             total_additions=1,
             total_deletions=1,
             generation_metadata={},
-            file_summaries=[]
+            file_summaries=[],
         )
 
         # Act
         await use_case.execute(owner, repo, pr_number)
 
         # Assert
-        mock_pr_diff_service.get_latest_commit_sha.assert_called_once_with(owner, repo, pr_number)
+        mock_pr_diff_service.get_latest_commit_sha.assert_called_once_with(
+            owner, repo, pr_number
+        )
 
     @pytest.mark.asyncio
-    async def test_execute_returns_none_on_no_commit(self, use_case, mock_pr_diff_service, mock_cache):
+    async def test_execute_returns_none_on_no_commit(
+        self, use_case, mock_pr_diff_service, mock_cache
+    ):
         """Test execution returns None when latest commit SHA cannot be retrieved."""
         # Arrange
         owner = "owner"
@@ -242,7 +258,9 @@ class TestGetPRDiffUseCase:
         mock_pr_diff_service.get_pr_diff.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_execute_with_empty_cache_result(self, use_case, mock_pr_diff_service, mock_cache):
+    async def test_execute_with_empty_cache_result(
+        self, use_case, mock_pr_diff_service, mock_cache
+    ):
         """Test execution when cache returns None (cache miss)."""
         # Arrange
         owner = "owner"
@@ -260,7 +278,7 @@ class TestGetPRDiffUseCase:
             total_additions=1,
             total_deletions=1,
             generation_metadata={},
-            file_summaries=[]
+            file_summaries=[],
         )
 
         # Act
