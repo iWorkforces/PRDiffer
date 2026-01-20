@@ -112,8 +112,6 @@ def main() -> None:
 
     # In stdio mode, ALL output must go to stderr to avoid corrupting JSON-RPC protocol
     # Only JSON-RPC messages should go to stdout in stdio mode
-    import sys
-
     output_stream = sys.stderr if transport_mode == "stdio" else sys.stdout
 
     print("🚀 Starting MCP Server For Fetching GitHub PR's Diff...", file=output_stream)

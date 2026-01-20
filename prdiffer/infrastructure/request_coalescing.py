@@ -9,6 +9,7 @@ from typing import Dict, Any, Optional, Callable, Awaitable
 from dataclasses import dataclass, field
 from datetime import datetime
 from prdiffer.infrastructure.logging.console_logger import get_logger
+from prdiffer.infrastructure.settings import get_settings_service
 
 
 # Default maximum number of waiters per request to prevent resource exhaustion
@@ -40,16 +41,24 @@ class RequestCoalescingService:
     - Atomic state management with anyio.Lock
     """
 
-    def __init__(self, logger=None, max_waiters: int = DEFAULT_MAX_WAITERS):
+    def __init__(self, logger=None, max_waiters: Optional[int] = None):
         """Initialize the request coalescing service.
 
         Args:
             logger: Logger instance for logging operations
-            max_waiters: Maximum number of waiters per request (default: 100)
+            max_waiters: Maximum number of waiters per request (default: from settings or 100)
         """
         self._pending_requests: Dict[str, CoalescedRequest] = {}
         self._lock = anyio.Lock()
         self._logger = logger or get_logger()
+
+        # Load max_waiters from settings if not provided
+        if max_waiters is None:
+            settings_service = get_settings_service()
+            max_waiters = settings_service.get(
+                "request_coalescing.max_waiters", DEFAULT_MAX_WAITERS
+            )
+
         self._max_waiters = max_waiters
 
     async def coalesce(

@@ -8,6 +8,11 @@ from datetime import datetime, timezone
 from typing import Optional, Dict
 from github.Repository import Repository
 from github.PullRequest import PullRequest
+from github.GithubException import (
+    GithubException,
+    UnknownObjectException,
+    RateLimitExceededException,
+)
 import asyncer
 from prdiffer.domain.entities.pr_diff import PRDiff
 from prdiffer.domain.repositories import PRDiffRepositoryInterface
@@ -220,13 +225,17 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
 
         try:
             self._repository = self._github_api_client.get_repository(repo_full_name)
-        except Exception as e:
+        except (UnknownObjectException, RateLimitExceededException) as e:
+            sanitized = sanitize_exception_for_logging(e)
+            self._logger.warning(
+                f"Repository not accessible: {repo_full_name}", extra=sanitized
+            )
+            self._repository = None
+        except GithubException as e:
             sanitized = sanitize_exception_for_logging(e)
             self._logger.error(
-                f"Failed to access repository {repo_full_name}", extra=sanitized
-            )
-            self._logger.info(
-                f"Repository {repo_full_name} might not exist or you may not have access to it"
+                f"GitHub API error accessing repository {repo_full_name}",
+                extra=sanitized,
             )
             self._repository = None
 
@@ -235,14 +244,18 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
                 self._pull_request = self._github_api_client.get_pull_request(
                     self._repository, self._pr_number
                 )
-            except Exception as e:
+            except (UnknownObjectException, RateLimitExceededException) as e:
                 sanitized = sanitize_exception_for_logging(e)
-                self._logger.error(
-                    f"Failed to get pull request #{self._pr_number} from repository {repo_full_name}",
+                self._logger.warning(
+                    f"Pull request #{self._pr_number} not accessible in {repo_full_name}",
                     extra=sanitized,
                 )
-                self._logger.info(
-                    f"Pull request #{self._pr_number} might not exist or be inaccessible"
+                self._pull_request = None
+            except GithubException as e:
+                sanitized = sanitize_exception_for_logging(e)
+                self._logger.error(
+                    f"GitHub API error fetching pull request #{self._pr_number}",
+                    extra=sanitized,
                 )
                 self._pull_request = None
 
@@ -365,11 +378,17 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
         generation_metadata.update(truncation_meta)
 
         self._logger.info(f"Generated diff content for {len(diff_files)} files")
-        safe_diff_preview = self._input_validator.sanitize_for_logging(
-            diff_content[:1000] if len(diff_content) > 1000 else diff_content,
-            max_length=1000,
-        )
-        self._logger.debug(f"Diff content preview:\n{safe_diff_preview}")
+
+        # Optimize logging: avoid double truncation and intermediate string creation
+        # Only create preview if debug logging is enabled
+        if self._logger.is_enabled_for("DEBUG"):
+            # Only slice once - use the min of our limit and the slice
+            preview_length = min(1000, len(diff_content))
+            safe_diff_preview = self._input_validator.sanitize_for_logging(
+                diff_content[:preview_length],
+                max_length=1000,
+            )
+            self._logger.debug(f"Diff content preview:\n{safe_diff_preview}")
 
         commit_messages = self._diff_generator.get_commit_messages(self._pull_request)
 
@@ -416,14 +435,16 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
             )
             merge_base_commit = compare.merge_base_commit
             base_sha = merge_base_commit.sha
-        except Exception as e:
+        except (UnknownObjectException, RateLimitExceededException) as e:
+            sanitized = sanitize_exception_for_logging(e)
+            self._logger.warning(
+                "Could not determine merge base, falling back to base commit",
+                extra=sanitized,
+            )
+            base_sha = self._pull_request.base.sha
+        except GithubException as e:
             sanitized = sanitize_exception_for_logging(e)
             self._logger.error("Failed to get merge base commit", extra=sanitized)
-            # Fallback to base commit if merge base fails
-            if self._pull_request is None:
-                raise RuntimeError(
-                    f"Pull request #{self._pr_number} became invalid during merge base calculation"
-                )
             base_sha = self._pull_request.base.sha
 
         # Check pull request again after exception handling
@@ -469,8 +490,12 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
                 "Filtered out [ignore] files for pull request:",
                 extra={"files": original_names, "filtered_files": filtered_names},
             )
-        except Exception:
-            pass
+        except Exception as e:
+            # Log warning instead of silently swallowing exceptions
+            self._logger.warning(
+                f"Failed to log filtered files: {e}",
+                error_type=type(e).__name__,
+            )
 
 
 # Global instance cache for singleton pattern

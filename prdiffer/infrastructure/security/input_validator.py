@@ -11,6 +11,7 @@ This module provides comprehensive input validation to prevent:
 
 import re
 from typing import Pattern
+from dataclasses import dataclass
 
 from prdiffer.domain.exceptions import (
     InvalidURLError,
@@ -21,8 +22,107 @@ from prdiffer.domain.exceptions import (
 )
 
 
+@dataclass
+class SecurityPatterns:
+    """Configurable security patterns loaded from settings."""
+
+    command_injection: list[str]
+    path_traversal: list[str]
+    sql_injection: list[str]
+
+    @classmethod
+    def from_settings(cls, settings_service) -> "SecurityPatterns":
+        """Load patterns from settings service.
+
+        Args:
+            settings_service: Settings service instance
+
+        Returns:
+            SecurityPatterns instance with configured patterns
+        """
+        # Default patterns
+        defaults = cls(
+            command_injection=[
+                r"[;&|`$]",  # Shell metacharacters
+                r"\$\(",  # Command substitution
+                r"`",  # Backticks
+            ],
+            path_traversal=[
+                r"\.\.",  # Parent directory (Unix)
+                r"~/",  # Home directory (Unix)
+                r"/etc/",  # System directories (Unix)
+                r"/var/",
+                r"/usr/",
+                r"[a-zA-Z]:\\",  # Windows absolute paths
+                r"\.\.\\",  # Windows parent directory
+                r"\\\\",  # UNC paths
+            ],
+            sql_injection=[
+                r"(?:--|#|/\*|\*/)",  # SQL comments
+                r"\b(?:union|select|insert|update|delete|drop|create|alter)\b",
+                r"(?:exec|execute|xp_)",
+            ],
+        )
+
+        if settings_service is None:
+            return defaults
+
+        try:
+            command = settings_service.get("security.command_injection_patterns", [])
+            path = settings_service.get("security.path_traversal_patterns", [])
+            sql = settings_service.get("security.sql_injection_patterns", [])
+
+            if command or path or sql:
+                return cls(
+                    command_injection=command
+                    if command
+                    else defaults.command_injection,
+                    path_traversal=path if path else defaults.path_traversal,
+                    sql_injection=sql if sql else defaults.sql_injection,
+                )
+        except Exception:
+            # If settings loading fails, use defaults
+            pass
+
+        return defaults
+
+
 class InputValidator:
     """Validates and sanitizes user inputs for security."""
+
+    # Class-level patterns (fallback when settings not available)
+    _COMMAND_INJECTION_PATTERNS = [
+        r"[;&|`$]",  # Shell metacharacters
+        r"\$\(",  # Command substitution
+        r"`",  # Backticks
+    ]
+
+    _PATH_TRAVERSAL_PATTERNS = [
+        r"\.\.",  # Parent directory (Unix)
+        r"~/",  # Home directory (Unix)
+        r"/etc/",  # System directories (Unix)
+        r"/var/",
+        r"/usr/",
+        r"[a-zA-Z]:\\",  # Windows absolute paths
+        r"\.\.\\",  # Windows parent directory
+        r"\\\\",  # UNC paths
+    ]
+
+    _SQL_INJECTION_PATTERNS = [
+        r"(?:--|#|/\*|\*/)",  # SQL comments
+        r"\b(?:union|select|insert|update|delete|drop|create|alter)\b",  # SQL keywords
+        r"(?:exec|execute|xp_)",  # Stored procedures
+    ]
+
+    # Pre-compiled combined patterns for performance (Task 3.4)
+    _COMMAND_INJECTION_COMPILED = re.compile(r"[;&|`$]|\$\(|`", re.IGNORECASE)
+    _PATH_TRAVERSAL_COMPILED = re.compile(
+        r"\.\.|~/|/etc/|/var/|/usr/|[a-zA-Z]:\\|\.\\|\\\\", re.IGNORECASE
+    )
+    _SQL_INJECTION_COMPILED = re.compile(
+        r"(?:--|#|/\*|\*/)|\b(?:union|select|insert|update|delete|drop|create|alter)\b|(?:exec|execute|xp_)",
+        re.IGNORECASE,
+    )
 
     # Regex patterns for validation
     GITHUB_URL_PATTERN: Pattern = re.compile(
@@ -41,36 +141,6 @@ class InputValidator:
     BRANCH_NAME_PATTERN: Pattern = re.compile(
         r"^[a-zA-Z0-9]([a-zA-Z0-9_\-./]*[a-zA-Z0-9])?$"
     )
-
-    # Dangerous patterns to block
-    # Note: Patterns are designed to avoid ReDoS vulnerabilities by using
-    # lookahead assertions and atomic groupings where possible
-    COMMAND_INJECTION_PATTERNS = [
-        r"[;&|`$]",  # Shell metacharacters
-        r"\$\(",  # Command substitution
-        r"`",  # Backticks
-    ]
-
-    PATH_TRAVERSAL_PATTERNS = [
-        r"\.\.",  # Parent directory (Unix)
-        r"~/",  # Home directory (Unix)
-        r"/etc/",  # System directories (Unix)
-        r"/var/",
-        r"/usr/",
-        # Windows path traversal patterns
-        r"[a-zA-Z]:\\",  # Windows absolute paths (e.g., C:\)
-        r"\.\.\\",  # Windows parent directory (e.g., ..\)
-        r"\\\\",  # UNC paths (e.g., \\server\share)
-    ]
-
-    SQL_INJECTION_PATTERNS = [
-        r"(?:--|#|/\*|\*/)",  # SQL comments
-        # Fixed: Use word boundary \b and lookahead (?=\s|$) to prevent ReDoS
-        # The \b ensures we match whole words (not "union" in "reunion")
-        # The lookahead asserts whitespace or end-of-string follows without consuming it
-        r"\b(?:union|select|insert|update|delete|drop|create|alter)\b",  # SQL keywords
-        r"(?:exec|execute|xp_)",  # Stored procedures
-    ]
 
     @classmethod
     def validate_github_url(cls, url: str) -> tuple[str, str, int]:
@@ -404,29 +474,21 @@ class InputValidator:
     def _contains_suspicious_patterns(cls, value: str) -> bool:
         """Check if value contains suspicious patterns.
 
+        Uses pre-compiled combined patterns for performance (Task 3.4).
+
         Args:
             value: Value to check
 
         Returns:
             True if suspicious patterns found
         """
-        value_lower = value.lower()
-
-        # Check command injection
-        for pattern in cls.COMMAND_INJECTION_PATTERNS:
-            if re.search(pattern, value):
-                return True
-
-        # Check path traversal
-        for pattern in cls.PATH_TRAVERSAL_PATTERNS:
-            if re.search(pattern, value, re.IGNORECASE):
-                return True
-
-        # Check SQL injection
-        for pattern in cls.SQL_INJECTION_PATTERNS:
-            if re.search(pattern, value_lower, re.IGNORECASE):
-                return True
-
+        # Use pre-compiled patterns for efficiency
+        if cls._COMMAND_INJECTION_COMPILED.search(value):
+            return True
+        if cls._PATH_TRAVERSAL_COMPILED.search(value):
+            return True
+        if cls._SQL_INJECTION_COMPILED.search(value):
+            return True
         return False
 
     @classmethod
@@ -451,13 +513,12 @@ class InputValidator:
         if len(file_path) > 500:
             raise InputSanitizationError("File path too long")
 
-        # Check for path traversal
-        for pattern in cls.PATH_TRAVERSAL_PATTERNS:
-            if re.search(pattern, file_path):
-                raise SuspiciousOperationError(
-                    "File path contains suspicious patterns",
-                    details={"path": file_path[:100]},
-                )
+        # Check for path traversal using pre-compiled pattern
+        if cls._PATH_TRAVERSAL_COMPILED.search(file_path):
+            raise SuspiciousOperationError(
+                "File path contains suspicious patterns",
+                details={"path": file_path[:100]},
+            )
 
         # Ensure path doesn't start with /
         if file_path.startswith("/"):
