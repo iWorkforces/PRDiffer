@@ -28,15 +28,17 @@ PRDifferMCP implements API key-based authentication to control access to the MCP
 
 ### Enabling Authentication
 
-Authentication is controlled by the `MCP_AUTH_ENABLED` environment variable. Set it to `true` to enable authentication:
+**IMPORTANT**: Authentication is **enabled by default** for production security. The `MCP_AUTH_ENABLED` environment variable controls this setting.
 
 ```bash
-# Enable authentication
+# Enable authentication (default for production)
 export MCP_AUTH_ENABLED=true
 
-# Disable authentication (default, not recommended for production)
+# Disable authentication (ONLY for local development)
 export MCP_AUTH_ENABLED=false
 ```
+
+**Security Notice**: For production deployments, always keep authentication enabled (`MCP_AUTH_ENABLED=true`). Only disable authentication for local development environments where the server is not accessible from external networks.
 
 ### Configuring API Keys
 

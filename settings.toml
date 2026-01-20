@@ -90,10 +90,19 @@ mcp.path = "/mcp"
 
 # Authentication settings
 [auth]
-enabled = false  # Enable/disable API key authentication
+enabled = true  # Enable/disable API key authentication (SECURITY: enabled by default for production)
+# To disable authentication for development/local use, set MCP_AUTH_ENABLED=false environment variable
 # API keys can be configured via environment variable MCP_API_KEYS (comma-separated)
 # Or MCP_ADMIN_API_KEY for admin access
 # Example: MCP_API_KEYS="key1,key2,key3"
+
+# JWT token configuration (optional, for future JWT authentication support)
+# If you want to use JWT tokens for authentication, configure these settings:
+# auth.jwt.secret = "your-secret-key"  # Required for JWT signature verification
+# auth.jwt.algorithm = "HS256"  # JWT algorithm: HS256, RS256, etc.
+# auth.jwt.audience = null  # Optional audience claim validation
+# auth.jwt.issuer = null  # Optional issuer claim validation
+# Environment variable: MCP_JWT_SECRET
 
 # Security headers for HTTP/SSE transports
 # NOTE: FastMCP runs on uvicorn. For production deployments, use a reverse proxy
@@ -139,6 +148,17 @@ diff.truncation_notice = "[DIFF TRUNCATED]"
 
 # Request coalescing settings
 request_coalescing.max_waiters = 100
+request_coalescing.timeout = 30.0  # Default timeout for request coalescing (seconds)
+
+# Async parallel executor settings
+async_parallel_executor.max_concurrent = 10  # Maximum concurrent async operations
+async_parallel_executor.timeout = 30.0  # Default timeout for batch operations (seconds)
+async_parallel_executor.error_strategy = "ignore"  # Options: ignore, raise, collect, continue
+
+# Circuit breaker registry settings
+circuit_breaker_registry.default_failure_threshold = 5  # Failures before opening circuit
+circuit_breaker_registry.default_timeout = 60.0  # Seconds to keep circuit open
+circuit_breaker_registry.global_threshold_multiplier = 2  # Global breaker threshold multiplier
 
 # File content cache settings
 cache.file_content_max_size = 1000

@@ -5,6 +5,7 @@ authentication and authorization functionality.
 """
 
 import os
+import time
 from unittest.mock import Mock, patch
 from prdiffer.application.components.authentication import AuthenticationMiddleware
 
@@ -559,3 +560,209 @@ class TestAuthenticationMiddlewareEdgeCases:
         is_auth, _ = auth.authenticate("testkey1234567890")  # Lowercase
 
         assert is_auth is False
+
+
+class TestAuthenticationMiddlewareJWTVerification:
+    """Test suite for JWT signature verification functionality."""
+
+    @patch.dict(os.environ, {"MCP_AUTH_ENABLED": "false"})
+    def test_verify_jwt_valid_token(self):
+        """Test verification of valid JWT token with correct signature."""
+        import jwt
+
+        secret = "test_secret_key_12345678"
+        payload = {"user": "testuser", "exp": int(time.time()) + 3600}
+        token = jwt.encode(payload, secret, algorithm="HS256")
+
+        is_valid, verified_payload, error = AuthenticationMiddleware.verify_jwt_token(
+            token, secret
+        )
+
+        assert is_valid is True
+        assert verified_payload is not None
+        assert verified_payload["user"] == "testuser"
+        assert error is None
+
+    @patch.dict(os.environ, {"MCP_AUTH_ENABLED": "false"})
+    def test_verify_jwt_invalid_signature(self):
+        """Test verification fails with invalid signature."""
+        import jwt
+
+        secret = "test_secret_key_12345678"
+        wrong_secret = "wrong_secret_key"
+        payload = {"user": "testuser", "exp": int(time.time()) + 3600}
+        token = jwt.encode(payload, secret, algorithm="HS256")
+
+        is_valid, verified_payload, error = AuthenticationMiddleware.verify_jwt_token(
+            token, wrong_secret
+        )
+
+        assert is_valid is False
+        assert verified_payload is None
+        assert error == "Invalid token signature"
+
+    @patch.dict(os.environ, {"MCP_AUTH_ENABLED": "false"})
+    def test_verify_jwt_expired_token(self):
+        """Test verification fails with expired token."""
+        import jwt
+
+        secret = "test_secret_key_12345678"
+        # Create token that expired 1 hour ago
+        payload = {"user": "testuser", "exp": int(time.time()) - 3600}
+        token = jwt.encode(payload, secret, algorithm="HS256")
+
+        is_valid, verified_payload, error = AuthenticationMiddleware.verify_jwt_token(
+            token, secret
+        )
+
+        assert is_valid is False
+        assert verified_payload is None
+        assert error == "Token has expired"
+
+    @patch.dict(os.environ, {"MCP_AUTH_ENABLED": "false"})
+    def test_verify_jwt_malformed_token(self):
+        """Test verification fails with malformed token."""
+        is_valid, verified_payload, error = AuthenticationMiddleware.verify_jwt_token(
+            "not.a.valid.jwt.token", "secret"
+        )
+
+        assert is_valid is False
+        assert verified_payload is None
+        assert "Invalid token" in error
+
+    @patch.dict(os.environ, {"MCP_AUTH_ENABLED": "false"})
+    def test_verify_jwt_with_audience_validation(self):
+        """Test verification with audience claim validation."""
+        import jwt
+
+        secret = "test_secret_key_12345678"
+        payload = {
+            "user": "testuser",
+            "aud": "test-audience",
+            "exp": int(time.time()) + 3600,
+        }
+        token = jwt.encode(payload, secret, algorithm="HS256")
+
+        # Valid audience
+        is_valid, verified_payload, error = AuthenticationMiddleware.verify_jwt_token(
+            token, secret, audience="test-audience"
+        )
+        assert is_valid is True
+
+        # Invalid audience
+        is_valid, verified_payload, error = AuthenticationMiddleware.verify_jwt_token(
+            token, secret, audience="wrong-audience"
+        )
+        assert is_valid is False
+        assert "audience" in error.lower()
+
+    @patch.dict(os.environ, {"MCP_AUTH_ENABLED": "false"})
+    def test_verify_jwt_with_issuer_validation(self):
+        """Test verification with issuer claim validation."""
+        import jwt
+
+        secret = "test_secret_key_12345678"
+        payload = {
+            "user": "testuser",
+            "iss": "test-issuer",
+            "exp": int(time.time()) + 3600,
+        }
+        token = jwt.encode(payload, secret, algorithm="HS256")
+
+        # Valid issuer
+        is_valid, verified_payload, error = AuthenticationMiddleware.verify_jwt_token(
+            token, secret, issuer="test-issuer"
+        )
+        assert is_valid is True
+
+        # Invalid issuer
+        is_valid, verified_payload, error = AuthenticationMiddleware.verify_jwt_token(
+            token, secret, issuer="wrong-issuer"
+        )
+        assert is_valid is False
+        assert "issuer" in error.lower()
+
+    @patch.dict(os.environ, {"MCP_AUTH_ENABLED": "false"})
+    def test_verify_jwt_custom_algorithm(self):
+        """Test verification with custom algorithm."""
+        import jwt
+
+        secret = "test_secret_key_12345678"
+        payload = {"user": "testuser", "exp": int(time.time()) + 3600}
+        token = jwt.encode(payload, secret, algorithm="HS512")
+
+        is_valid, verified_payload, error = AuthenticationMiddleware.verify_jwt_token(
+            token, secret, algorithms=["HS512"]
+        )
+
+        assert is_valid is True
+        assert verified_payload["user"] == "testuser"
+
+    @patch.dict(os.environ, {"MCP_AUTH_ENABLED": "false"})
+    def test_verify_jwt_wrong_algorithm(self):
+        """Test verification fails when algorithm doesn't match."""
+        import jwt
+
+        secret = "test_secret_key_12345678"
+        payload = {"user": "testuser", "exp": int(time.time()) + 3600}
+        token = jwt.encode(payload, secret, algorithm="HS256")
+
+        # Try to verify with HS512 when token was signed with HS256
+        is_valid, verified_payload, error = AuthenticationMiddleware.verify_jwt_token(
+            token, secret, algorithms=["HS512"]
+        )
+
+        assert is_valid is False
+        assert "algorithm" in error.lower()
+
+
+class TestAuthenticationMiddlewareJWTPayloadParsing:
+    """Test suite for JWT payload parsing without verification."""
+
+    @patch.dict(os.environ, {"MCP_AUTH_ENABLED": "false"})
+    def test_parse_jwt_payload_valid(self):
+        """Test parsing valid JWT payload without verification."""
+        import jwt
+
+        secret = "test_secret"
+        payload = {"user": "testuser", "exp": int(time.time()) + 3600}
+        token = jwt.encode(payload, secret, algorithm="HS256")
+
+        parsed = AuthenticationMiddleware.parse_jwt_payload(token)
+
+        assert parsed is not None
+        assert parsed["user"] == "testuser"
+        assert "exp" in parsed
+
+    @patch.dict(os.environ, {"MCP_AUTH_ENABLED": "false"})
+    def test_parse_jwt_payload_malformed(self):
+        """Test parsing malformed JWT returns None."""
+        parsed = AuthenticationMiddleware.parse_jwt_payload("not-a-jwt")
+        assert parsed is None
+
+    @patch.dict(os.environ, {"MCP_AUTH_ENABLED": "false"})
+    def test_parse_jwt_payload_empty(self):
+        """Test parsing empty string returns None."""
+        parsed = AuthenticationMiddleware.parse_jwt_payload("")
+        assert parsed is None
+
+    @patch.dict(os.environ, {"MCP_AUTH_ENABLED": "false"})
+    def test_parse_jwt_payload_no_verification(self):
+        """Test that parse_jwt_payload does NOT verify signature."""
+        import jwt
+
+        secret1 = "secret1"
+        secret2 = "secret2"
+        payload = {"user": "testuser", "exp": int(time.time()) + 3600}
+
+        # Sign with secret1
+        token = jwt.encode(payload, secret1, algorithm="HS256")
+
+        # Parse should succeed even with wrong secret (no verification)
+        parsed = AuthenticationMiddleware.parse_jwt_payload(token)
+        assert parsed is not None
+        assert parsed["user"] == "testuser"
+
+        # verify_jwt_token should fail with wrong secret
+        is_valid, _, _ = AuthenticationMiddleware.verify_jwt_token(token, secret2)
+        assert is_valid is False
