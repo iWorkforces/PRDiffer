@@ -235,30 +235,6 @@ class TestFilePatchInfoExtensions:
 class TestPRDiffExtensions:
     """Tests for extended PRDiff data model."""
 
-    def test_new_fields_have_defaults(self):
-        """Test that new fields have sensible defaults."""
-        from prdiffer.domain.entities.pr_diff import PRDiff
-
-        diff = PRDiff(diff_content="test", commit_messages="message")
-
-        assert diff.files_changed == 0
-        assert diff.total_additions == 0
-        assert diff.total_deletions == 0
-        assert diff.generation_metadata is None
-        assert diff.file_summaries is None
-
-    def test_total_changes_property(self):
-        """Test total_changes property calculation."""
-        from prdiffer.domain.entities.pr_diff import PRDiff
-
-        diff = PRDiff(
-            diff_content="test",
-            total_additions=50,
-            total_deletions=30,
-        )
-
-        assert diff.total_changes == 80
-
     def test_has_content_true(self):
         """Test has_content returns True for non-empty content."""
         from prdiffer.domain.entities.pr_diff import PRDiff
@@ -275,54 +251,6 @@ class TestPRDiffExtensions:
 
         diff2 = PRDiff(diff_content="   ")
         assert diff2.has_content is False
-
-    def test_get_statistics(self):
-        """Test get_statistics method."""
-        from prdiffer.domain.entities.pr_diff import PRDiff
-
-        diff = PRDiff(
-            diff_content="test diff",
-            commit_messages="1. First\n2. Second\n3. Third",
-            files_changed=5,
-            total_additions=100,
-            total_deletions=50,
-        )
-
-        stats = diff.get_statistics()
-
-        assert stats["files_changed"] == 5
-        assert stats["total_additions"] == 100
-        assert stats["total_deletions"] == 50
-        assert stats["total_changes"] == 150
-        assert stats["has_content"] is True
-        assert stats["commit_count"] == 3
-
-    def test_get_response_envelope(self):
-        """Test get_response_envelope method."""
-        from prdiffer.domain.entities.pr_diff import PRDiff
-
-        diff = PRDiff(
-            diff_content="test diff",
-            commit_messages="1. First commit",
-            files_changed=3,
-            total_additions=50,
-            total_deletions=20,
-            generation_metadata={"cache_hit": True, "generation_time_ms": 150},
-            file_summaries=[{"filename": "test.py", "additions": 50, "deletions": 20}],
-        )
-
-        envelope = diff.get_response_envelope()
-
-        assert "content" in envelope
-        assert "statistics" in envelope
-        assert "metadata" in envelope
-        assert "file_summaries" in envelope
-
-        assert envelope["content"]["diff"] == "test diff"
-        assert envelope["content"]["commit_messages"] == "1. First commit"
-        assert envelope["statistics"]["files_changed"] == 3
-        assert envelope["metadata"]["cache_hit"] is True
-        assert len(envelope["file_summaries"]) == 1
 
 
 # =============================================================================
@@ -625,33 +553,17 @@ class TestPhase3Integration:
         smells = patch.detect_code_smells()
         assert len(smells) > 0  # Should detect TODO and print
 
-    def test_pr_diff_with_full_metadata(self):
-        """Test PRDiff with complete metadata."""
+    def test_pr_diff_simplified(self):
+        """Test PRDiff with simplified structure."""
         from prdiffer.domain.entities.pr_diff import PRDiff
 
         diff = PRDiff(
             diff_content="@@ -1,10 +1,15 @@\n-old\n+new",
-            commit_messages="1. Add feature\n2. Fix bug",
-            files_changed=5,
-            total_additions=100,
-            total_deletions=30,
-            generation_metadata={
-                "cache_hit": False,
-                "generation_time_ms": 250,
-                "parallel_processing": True,
-            },
-            file_summaries=[
-                {"filename": "file1.py", "additions": 50, "deletions": 10},
-                {"filename": "file2.py", "additions": 50, "deletions": 20},
-            ],
         )
 
-        # Get full response envelope
-        envelope = diff.get_response_envelope()
-
-        assert envelope["statistics"]["total_changes"] == 130
-        assert envelope["metadata"]["cache_hit"] is False
-        assert len(envelope["file_summaries"]) == 2
+        # Verify has_content works correctly
+        assert diff.has_content is True
+        assert diff.diff_content.startswith("@@")
 
     def test_error_handling_flow(self):
         """Test complete error handling flow."""

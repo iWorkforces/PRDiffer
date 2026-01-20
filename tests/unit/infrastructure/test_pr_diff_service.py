@@ -26,7 +26,7 @@ class DummyPullRequest:
 
 
 @pytest.mark.asyncio
-async def test_get_pr_diff_populates_metadata_and_summaries(monkeypatch):
+async def test_get_pr_diff_with_truncation(monkeypatch):
     service = GitHubPRDiffService(
         github_api_client=DummyGitHubAPI(),
         diff_generator=None,
@@ -49,7 +49,6 @@ async def test_get_pr_diff_populates_metadata_and_summaries(monkeypatch):
         "_generate_diff_content",
         lambda *_: ("x" * 50, diff_files),
     )
-    monkeypatch.setattr(service, "_get_commit_messages", lambda *_: "msg")
 
     service._diff_truncate_enabled = True
     service._diff_max_total_chars = 10
@@ -58,15 +57,7 @@ async def test_get_pr_diff_populates_metadata_and_summaries(monkeypatch):
     result = await service.get_pr_diff("owner", "repo", 1)
 
     assert result is not None
-    assert result.files_changed == 1
-    assert result.total_additions == 10
-    assert result.total_deletions == 2
-    assert result.generation_metadata["files_processed"] == 1
-    assert result.generation_metadata["diff_truncated"] is True
     assert result.diff_content.endswith("[TRUNC]")
-    assert result.file_summaries is not None
-    assert "Contains TODO comments" in result.file_summaries[0]["code_smell_indicators"]
-    assert result.file_summaries[0]["review_priority"] == "high"
 
 
 @pytest.mark.asyncio

@@ -52,15 +52,7 @@ class TestGetPRDiffUseCase:
         repo = "test-repo"
         pr_number = 123
         current_commit = "abc123"
-        fresh_pr_diff = PRDiff(
-            diff_content="test diff content",
-            commit_messages="Test commit",
-            files_changed=1,
-            total_additions=10,
-            total_deletions=5,
-            generation_metadata={"cache_hit": False},
-            file_summaries=[],
-        )
+        fresh_pr_diff = PRDiff(diff_content="test diff content")
 
         mock_cache.get.return_value = None  # Cache miss
         mock_pr_diff_service.get_pr_diff.return_value = fresh_pr_diff
@@ -87,15 +79,7 @@ class TestGetPRDiffUseCase:
         repo = "test-repo"
         pr_number = 123
         cached_commit = "abc123"
-        cached_pr_diff = PRDiff(
-            diff_content="cached diff content",
-            commit_messages="Cached commit",
-            files_changed=1,
-            total_additions=10,
-            total_deletions=5,
-            generation_metadata={"cache_hit": True},
-            file_summaries=[],
-        )
+        cached_pr_diff = PRDiff(diff_content="cached diff content")
 
         mock_cache.get.return_value = cached_pr_diff
         mock_pr_diff_service.get_latest_commit_sha.return_value = cached_commit
@@ -118,26 +102,8 @@ class TestGetPRDiffUseCase:
         owner = "test-owner"
         repo = "test-repo"
         pr_number = 123
-        _cached_commit = "old123"
         current_commit = "new456"
-        _cached_pr_diff = PRDiff(
-            diff_content="stale diff content",
-            commit_messages="Stale commit",
-            files_changed=1,
-            total_additions=5,
-            total_deletions=2,
-            generation_metadata={"cache_hit": True},
-            file_summaries=[],
-        )
-        fresh_pr_diff = PRDiff(
-            diff_content="fresh diff content",
-            commit_messages="Fresh commit",
-            files_changed=1,
-            total_additions=15,
-            total_deletions=3,
-            generation_metadata={"cache_hit": False},
-            file_summaries=[],
-        )
+        fresh_pr_diff = PRDiff(diff_content="fresh diff content")
 
         # Cache returns None (commit SHA mismatch)
         mock_cache.get.return_value = None
@@ -184,15 +150,7 @@ class TestGetPRDiffUseCase:
         pr_number = 456
         expected_cache_key = f"{owner}/{repo}/pr/{pr_number}"
         current_commit = "xyz789"
-        fresh_pr_diff = PRDiff(
-            diff_content="content",
-            commit_messages="msg",
-            files_changed=2,
-            total_additions=20,
-            total_deletions=10,
-            generation_metadata={},
-            file_summaries=[],
-        )
+        fresh_pr_diff = PRDiff(diff_content="content")
 
         mock_cache.get_cache_key.return_value = expected_cache_key
         mock_cache.get.return_value = None
@@ -219,15 +177,7 @@ class TestGetPRDiffUseCase:
 
         mock_cache.get.return_value = None
         mock_pr_diff_service.get_latest_commit_sha.return_value = expected_commit
-        mock_pr_diff_service.get_pr_diff.return_value = PRDiff(
-            diff_content="diff",
-            commit_messages="commit",
-            files_changed=1,
-            total_additions=1,
-            total_deletions=1,
-            generation_metadata={},
-            file_summaries=[],
-        )
+        mock_pr_diff_service.get_pr_diff.return_value = PRDiff(diff_content="diff")
 
         # Act
         await use_case.execute(owner, repo, pr_number)
@@ -271,15 +221,7 @@ class TestGetPRDiffUseCase:
         # Cache returns None (cache miss)
         mock_cache.get.return_value = None
         mock_pr_diff_service.get_latest_commit_sha.return_value = current_commit
-        mock_pr_diff_service.get_pr_diff.return_value = PRDiff(
-            diff_content="diff",
-            commit_messages="commit",
-            files_changed=1,
-            total_additions=1,
-            total_deletions=1,
-            generation_metadata={},
-            file_summaries=[],
-        )
+        mock_pr_diff_service.get_pr_diff.return_value = PRDiff(diff_content="diff")
 
         # Act
         result = await use_case.execute(owner, repo, pr_number)

@@ -25,10 +25,7 @@ def reset_cache_service():
 @pytest.fixture
 def sample_pr_diff():
     """Create a sample PRDiff for testing."""
-    return PRDiff(
-        diff_content="sample diff content",
-        commit_messages="Initial commit",
-    )
+    return PRDiff(diff_content="sample diff content")
 
 
 class TestCacheServiceInitialization:
@@ -177,7 +174,7 @@ class TestCacheServiceGetSet:
         service = CacheService()
         cache_key = service.get_cache_key("owner", "repo", 123)
 
-        new_diff = PRDiff(diff_content="new content", commit_messages="New commit")
+        new_diff = PRDiff(diff_content="new content")
         service.set(cache_key, "abc123", sample_pr_diff)
         service.set(cache_key, "def456", new_diff)
 

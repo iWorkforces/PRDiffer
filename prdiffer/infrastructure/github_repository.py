@@ -4,7 +4,6 @@ This is the refactored version using composition with extracted components.
 """
 
 import os
-from datetime import datetime, timezone
 from typing import Optional, Dict
 from github.Repository import Repository
 from github.PullRequest import PullRequest
@@ -359,23 +358,11 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
         )
         diff_content = "\n".join(extended_diffs)
 
-        total_additions = sum(file.num_plus_lines for file in diff_files)
-        total_deletions = sum(file.num_minus_lines for file in diff_files)
-        file_summaries = self._build_file_summaries(diff_files)
-
         diff_content, truncation_meta = apply_diff_limits(
             diff_content,
             self._diff_max_total_chars if self._diff_truncate_enabled else 0,
             self._diff_truncation_notice,
         )
-
-        generation_metadata = {
-            "generated_at": datetime.now(timezone.utc)
-            .isoformat()
-            .replace("+00:00", "Z"),
-            "files_processed": len(diff_files),
-        }
-        generation_metadata.update(truncation_meta)
 
         self._logger.info(f"Generated diff content for {len(diff_files)} files")
 
@@ -390,27 +377,7 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
             )
             self._logger.debug(f"Diff content preview:\n{safe_diff_preview}")
 
-        commit_messages = self._diff_generator.get_commit_messages(self._pull_request)
-
-        return PRDiff(
-            diff_content=diff_content,
-            commit_messages=commit_messages,
-            files_changed=len(diff_files),
-            total_additions=total_additions,
-            total_deletions=total_deletions,
-            generation_metadata=generation_metadata,
-            file_summaries=file_summaries,
-        )
-
-    def _build_file_summaries(self, diff_files: list) -> list[Dict]:
-        summaries: list[Dict] = []
-        for file_patch in diff_files:
-            file_patch.code_smell_indicators = file_patch.detect_code_smells()
-            file_patch.suggested_review_priority = (
-                file_patch.calculate_review_priority()
-            )
-            summaries.append(file_patch.get_summary())
-        return summaries
+        return PRDiff(diff_content=diff_content)
 
     def _get_merge_base_commits(self) -> tuple[str, str]:
         """Get base and head commit SHAs, using merge base for accurate comparison.

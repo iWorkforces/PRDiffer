@@ -267,7 +267,6 @@ def sample_pr_diff():
     """Create a sample PRDiff entity for testing."""
     return PRDiff(
         diff_content="@@ -1,5 +1,10 @@\n+new line\n old line\n",
-        commit_messages="1. Initial commit\n2. Add feature\n3. Fix bug",
     )
 
 
