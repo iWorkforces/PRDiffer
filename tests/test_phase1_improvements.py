@@ -541,7 +541,7 @@ class TestErrorMessageSanitization:
             "pr_diff_service": Mock(),
             "logger": Mock(),
             "github_repository_class": Mock(),
-            "url_validator": Mock(),
+            "input_validator": Mock(),
             "rate_limiter": Mock(),
             "metrics_tracker": Mock(),
             "pr_operation_handler": Mock(),

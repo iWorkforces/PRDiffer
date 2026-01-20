@@ -2,15 +2,30 @@
 
 This component provides authentication and authorization functionality
 for the MCP server, supporting API key-based access control with
-per-client rate limiting integration.
+per-client rate limiting integration and brute-force protection.
 """
 
+import base64
 import hashlib
+import json
 import os
 import logging
+import time
+from collections import defaultdict
+from dataclasses import dataclass, field
 from typing import Dict, Any, Tuple, Optional, Set
+from threading import RLock
 
 from ..interfaces.protocols import AuthenticationProtocol
+
+
+@dataclass
+class AuthFailureRecord:
+    """Record of authentication failures for rate limiting."""
+
+    count: int = 0
+    first_failure: float = field(default_factory=time.time)
+    last_failure: float = field(default_factory=time.time)
 
 
 class AuthenticationMiddleware(AuthenticationProtocol):
@@ -22,13 +37,30 @@ class AuthenticationMiddleware(AuthenticationProtocol):
     - Configuration-based enable/disable
     - Multiple API key support
     - Client identifier extraction for rate limiting
+    - Brute-force protection with exponential backoff
     """
 
-    def __init__(self, logger: Optional[Any] = None):
+    # Rate limiting configuration
+    DEFAULT_MAX_FAILURES_PER_MINUTE = 5
+    DEFAULT_LOCKOUT_DURATION = 60  # seconds
+    DEFAULT_FAILURE_WINDOW = 300  # 5 minutes
+
+    def __init__(
+        self,
+        logger: Optional[Any] = None,
+        max_failures_per_minute: int = DEFAULT_MAX_FAILURES_PER_MINUTE,
+        lockout_duration: int = DEFAULT_LOCKOUT_DURATION,
+        failure_window: int = DEFAULT_FAILURE_WINDOW,
+        check_token_expiration: bool = True,
+    ):
         """Initialize authentication middleware.
 
         Args:
             logger: Optional logger instance
+            max_failures_per_minute: Maximum failed attempts before lockout
+            lockout_duration: Duration of lockout in seconds
+            failure_window: Time window for counting failures in seconds
+            check_token_expiration: Whether to check JWT token expiration (default: True)
         """
         self._logger = logger or logging.getLogger(__name__)
 
@@ -39,6 +71,21 @@ class AuthenticationMiddleware(AuthenticationProtocol):
             "yes",
         )
         self._api_keys_env = os.getenv("MCP_API_KEYS", "")
+
+        # Brute-force protection settings
+        self._max_failures_per_minute = max_failures_per_minute
+        self._lockout_duration = lockout_duration
+        self._failure_window = failure_window
+
+        # Token expiration check setting
+        self._check_token_expiration = check_token_expiration
+
+        # Thread-safe failure tracking
+        self._lock = RLock()
+        self._auth_failures: Dict[str, AuthFailureRecord] = defaultdict(
+            AuthFailureRecord
+        )
+        self._locked_clients: Dict[str, float] = {}  # client_id -> unlock_time
 
         # Parse API keys from environment (comma-separated)
         self._api_keys: Set[str] = set()
@@ -67,6 +114,8 @@ class AuthenticationMiddleware(AuthenticationProtocol):
                 "enabled": self._auth_enabled,
                 "api_keys_configured": len(self._api_keys),
                 "admin_configured": self._admin_api_key_hash is not None,
+                "max_failures_per_minute": self._max_failures_per_minute,
+                "lockout_duration": self._lockout_duration,
             },
         )
 
@@ -84,8 +133,91 @@ class AuthenticationMiddleware(AuthenticationProtocol):
         """
         return hashlib.sha256(api_key.encode("utf-8")).hexdigest()
 
+    def _is_locked_out(self, client_identifier: str) -> bool:
+        """Check if a client is currently locked out.
+
+        Args:
+            client_identifier: The client identifier to check
+
+        Returns:
+            True if the client is locked out
+        """
+        current_time = time.time()
+        with self._lock:
+            # Check if client is in lockout
+            if client_identifier in self._locked_clients:
+                unlock_time = self._locked_clients[client_identifier]
+                if current_time < unlock_time:
+                    return True
+                # Lockout expired, remove it
+                del self._locked_clients[client_identifier]
+            return False
+
+    def _record_failure(self, client_identifier: str) -> None:
+        """Record an authentication failure for a client.
+
+        Args:
+            client_identifier: The client identifier
+        """
+        current_time = time.time()
+        with self._lock:
+            record = self._auth_failures[client_identifier]
+
+            # Clean up old failures outside the window
+            time_elapsed = current_time - record.first_failure
+            if time_elapsed <= 0:
+                # Edge case: same timestamp or clock adjustment, treat as immediate repeat
+                time_elapsed = (
+                    0.001  # Use small positive value to avoid division by zero
+                )
+            elif time_elapsed > self._failure_window:
+                record.count = 1
+                record.first_failure = current_time
+                time_elapsed = 0.001
+            else:
+                record.count += 1
+
+            record.last_failure = current_time
+
+            # Check if we need to lock out this client
+            # Calculate failures per minute
+            failures_per_minute = record.count / (time_elapsed / 60)
+
+            if failures_per_minute >= self._max_failures_per_minute:
+                # Lock out the client
+                unlock_time = current_time + self._lockout_duration
+                self._locked_clients[client_identifier] = unlock_time
+                self._logger.warning(
+                    f"Client locked out due to excessive failures: {client_identifier[:20]}... "
+                    f"(failures: {record.count}, lockout until: {unlock_time})"
+                )
+
+    def _record_success(self, client_identifier: str) -> None:
+        """Record a successful authentication and clear failures.
+
+        Args:
+            client_identifier: The client identifier
+        """
+        with self._lock:
+            # Clear any failure records for this client
+            if client_identifier in self._auth_failures:
+                del self._auth_failures[client_identifier]
+
+    def _get_client_identifier(self, api_key: Optional[str]) -> str:
+        """Get a client identifier for tracking authentication attempts.
+
+        Args:
+            api_key: The API key provided (may be None)
+
+        Returns:
+            Client identifier string
+        """
+        if api_key:
+            return f"key_{self._hash_api_key(api_key)[:16]}"
+        return "anonymous"
+
     def authenticate(self, api_key: Optional[str]) -> Tuple[bool, Optional[str]]:
-        """Authenticate a request using API key.
+        """Authenticate a request using API key with brute-force protection.
 
         Args:
             api_key: The API key to validate (may be None for unauthenticated requests)
@@ -94,23 +226,50 @@ class AuthenticationMiddleware(AuthenticationProtocol):
             Tuple of (is_authenticated, client_id) where:
             - is_authenticated: True if authentication succeeded
             - client_id: Client identifier for rate limiting (None if not authenticated)
+
+        Raises:
+            RuntimeError: If client is locked out due to too many failures
         """
         # If authentication is disabled, allow all requests
         if not self._auth_enabled:
             return True, self._default_client_id
 
+        # Get client identifier for tracking
+        client_identifier = self._get_client_identifier(api_key)
+
+        # Check if client is locked out
+        if self._is_locked_out(client_identifier):
+            self._logger.warning(
+                f"Authentication blocked: Client locked out: {client_identifier[:20]}..."
+            )
+            raise RuntimeError(
+                "Too many authentication failures. Please try again later."
+            )
+
         # No API key provided
         if not api_key:
+            self._record_failure(client_identifier)
             self._logger.warning(
                 "Authentication failed: No API key provided",
             )
             return False, None
+
+        # Check token expiration if enabled and a JWT-like token is provided
+        if self._check_token_expiration:
+            is_expired, error_message = self.is_token_expired(api_key)
+            if is_expired:
+                self._record_failure(client_identifier)
+                self._logger.warning(
+                    f"Authentication failed: {error_message}",
+                )
+                raise RuntimeError(f"Token validation failed: {error_message}")
 
         # Hash the provided API key for comparison
         provided_hash = self._hash_api_key(api_key)
 
         # Check admin API key first
         if self._admin_api_key_hash and provided_hash == self._admin_api_key_hash:
+            self._record_success(client_identifier)
             self._logger.debug(
                 "Admin authentication successful",
             )
@@ -120,13 +279,23 @@ class AuthenticationMiddleware(AuthenticationProtocol):
         if provided_hash in self._hashed_api_keys:
             # Use a truncated hash as client ID for rate limiting
             client_id = f"api_key_{provided_hash[:16]}"
+            self._record_success(client_identifier)
             self._logger.debug(
                 "API key authentication successful",
                 extra={"client_id": client_id},
             )
             return True, client_id
 
-        self._logger.warning("Authentication failed: Invalid API key")
+        # Authentication failed - record the failure
+        self._record_failure(client_identifier)
+        self._logger.warning(
+            "Authentication failed: Invalid API key",
+            extra={
+                "failures": self._auth_failures.get(
+                    client_identifier, AuthFailureRecord()
+                ).count
+            },
+        )
         return False, None
 
     def extract_client_identifier(
@@ -277,3 +446,79 @@ class AuthenticationMiddleware(AuthenticationProtocol):
             "admin_api_key_configured": self._admin_api_key_hash is not None,
             "default_client_id": self._default_client_id,
         }
+
+    @staticmethod
+    def parse_jwt_payload(token: str) -> Optional[Dict[str, Any]]:
+        """Parse JWT token payload without verification.
+
+        This method extracts and decodes the payload from a JWT token
+        without performing cryptographic verification. Use this only
+        for extracting metadata like expiration time.
+
+        Args:
+            token: The JWT token to parse
+
+        Returns:
+            The decoded payload dictionary, or None if parsing fails
+        """
+        try:
+            parts = token.split(".")
+            if len(parts) != 3:
+                return None
+
+            # Decode the payload (second part)
+            payload_b64 = parts[1]
+
+            # Add padding if necessary
+            padding = 4 - (len(payload_b64) % 4)
+            if padding != 4:
+                payload_b64 += "=" * padding
+
+            payload_json = base64.urlsafe_b64decode(payload_b64)
+            return json.loads(payload_json)
+        except Exception:
+            return None
+
+    def is_token_expired(
+        self, token: str, leeway_seconds: int = 60
+    ) -> Tuple[bool, Optional[str]]:
+        """Check if a token is expired.
+
+        Supports JWT tokens with 'exp' claim and GitHub fine-grained tokens
+        which may have expiration embedded in their metadata.
+
+        Args:
+            token: The token to check
+            leeway_seconds: Grace period in seconds for clock skew (default: 60)
+
+        Returns:
+            Tuple of (is_expired, error_message) where:
+            - is_expired: True if the token is expired or has invalid expiration
+            - error_message: None if valid, or error description if expired
+        """
+        # Try to parse as JWT
+        payload = self.parse_jwt_payload(token)
+
+        if payload:
+            exp_claim = payload.get("exp")
+            if exp_claim:
+                current_time = time.time()
+                expiration_time = exp_claim + leeway_seconds
+
+                if current_time >= expiration_time:
+                    # Calculate time remaining (negative = expired)
+                    time_remaining = expiration_time - current_time
+                    if time_remaining < 0:
+                        expired_for = abs(int(time_remaining))
+                        return True, f"Token expired {expired_for} seconds ago"
+
+                return False, None
+
+        # For non-JWT tokens (simple API keys), check if it's a GitHub fine-grained token
+        # GitHub fine-grained tokens with expiration have the exp_iat and exp claims
+        # We can't verify these without JWT signature, so we accept them as valid
+        # if they appear to be properly formatted
+
+        # If we can't determine expiration, assume valid (don't reject tokens
+        # that don't have clear expiration metadata)
+        return False, None

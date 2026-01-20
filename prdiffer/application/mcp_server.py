@@ -64,7 +64,6 @@ class FastMCPServer:
         authentication: Optional[AuthenticationProtocol] = None,
         # Security and request coalescing services from infrastructure
         input_validator: Optional[InputValidator] = None,
-        url_validator: Optional[InputValidator] = None,
         request_coalescing_service: Optional[RequestCoalescingService] = None,
     ):
         """Initialize the FastMCP server with dependency injection.
@@ -82,9 +81,8 @@ class FastMCPServer:
             health_monitor: Health monitor component implementing HealthMonitorProtocol
             server_configuration: Server configuration component implementing ServerConfigurationProtocol
             authentication: Authentication middleware component implementing AuthenticationProtocol
-            input_validator: Optional input validator factory function (for backward compatibility)
-            url_validator: Optional legacy URL validator alias for input_validator
-            request_coalescing_service: Optional request coalescing service factory function (for backward compatibility)
+            input_validator: Optional input validator instance
+            request_coalescing_service: Optional request coalescing service instance
         """
         self._settings_service = settings_service
         self._cache_service = cache_service
@@ -108,11 +106,8 @@ class FastMCPServer:
         else:
             self._authentication = authentication
 
-        # Initialize security validator - should be injected for Clean Architecture
-        if input_validator is None and url_validator is not None:
-            self._input_validator = url_validator
-        elif input_validator is None:
-            # Fallback to direct instantiation only for backward compatibility
+        # Initialize security validator - use injected or create default
+        if input_validator is None:
             from prdiffer.infrastructure.security.input_validator import (
                 InputValidator,
             )
@@ -121,9 +116,8 @@ class FastMCPServer:
         else:
             self._input_validator = input_validator
 
-        # Initialize request coalescing service - should be injected for Clean Architecture
+        # Initialize request coalescing service - use injected or create default
         if request_coalescing_service is None:
-            # Fallback to direct instantiation only for backward compatibility
             from prdiffer.infrastructure.request_coalescing import (
                 get_request_coalescing_service,
             )
@@ -131,23 +125,6 @@ class FastMCPServer:
             self._request_coalescing = get_request_coalescing_service()
         else:
             self._request_coalescing = request_coalescing_service
-
-        # Legacy fields for backward compatibility (will be removed in future versions)
-        # Rate limiting configuration
-        self._rate_limit_requests = 100  # Max requests per minute
-        self._rate_limit_window = 60  # 60 second window
-        self._request_timestamps: list[
-            float
-        ] = []  # Track request timestamps for rate limiting
-
-        # Request tracking for structured logging
-        self._request_counter = 0
-
-        # Metrics tracking
-        self._total_requests = 0
-        self._successful_requests = 0
-        self._failed_requests = 0
-        self._start_time = time.time()
 
         # Initialize server configuration
         self._server_configuration.setup_logging()
@@ -294,14 +271,25 @@ class FastMCPServer:
                 pr_url=pr_url,
             )
 
-            # Track total requests (legacy + new metrics)
-            self._total_requests += 1
-
             # Start tracking request time
             start_time = time.time()
 
             # Authenticate request
-            is_authenticated, client_id = self._authentication.authenticate(api_key)
+            try:
+                is_authenticated, client_id = self._authentication.authenticate(api_key)
+            except RuntimeError as e:
+                # Client is locked out due to too many failures
+                execution_time = time.time() - start_time
+                self._metrics_tracker.track_request(
+                    "get_pr_diff", False, execution_time
+                )
+                self._logger.warning(
+                    "Authentication rate limited",
+                    request_id=request_id,
+                    error=str(e),
+                )
+                raise ValueError(str(e))
+
             if not is_authenticated:
                 self._logger.warning(
                     "Authentication failed",
@@ -367,8 +355,6 @@ class FastMCPServer:
                 # Track successful request
                 execution_time = time.time() - start_time
                 self._metrics_tracker.track_request("get_pr_diff", True, execution_time)
-                # Legacy metrics for backward compatibility
-                self._successful_requests += 1
 
                 self._logger.info(
                     f"""Successfully fetched PR diff\n {pr_diff.diff_content}"""
@@ -387,8 +373,6 @@ class FastMCPServer:
                 self._metrics_tracker.track_request(
                     "get_pr_diff", False, execution_time
                 )
-                # Legacy metrics for backward compatibility
-                self._failed_requests += 1
 
                 # Security validation errors - provide safe error messages
                 self._logger.warning(
@@ -410,8 +394,6 @@ class FastMCPServer:
                 self._metrics_tracker.track_request(
                     "get_pr_diff", False, execution_time
                 )
-                # Legacy metrics for backward compatibility
-                self._failed_requests += 1
 
                 # Other validation errors - provide safe error messages
                 self._logger.warning(
@@ -426,14 +408,18 @@ class FastMCPServer:
                 safe_message = self._create_safe_error_message(e)
                 raise ValueError(f"Invalid request: {safe_message}")
 
-            except Exception as e:
+            except (
+                RuntimeError,
+                KeyError,
+                AttributeError,
+                TypeError,
+                ConnectionError,
+            ) as e:
                 # Track failed request
                 execution_time = time.time() - start_time
                 self._metrics_tracker.track_request(
                     "get_pr_diff", False, execution_time
                 )
-                # Legacy metrics for backward compatibility
-                self._failed_requests += 1
 
                 # GitHub API or other unexpected errors - log full details internally
                 self._logger.error(
@@ -458,7 +444,7 @@ class FastMCPServer:
             """
             try:
                 return await self._get_health_status()
-            except Exception as e:
+            except (RuntimeError, KeyError, AttributeError) as e:
                 # Log full error internally for debugging
                 self._logger.error(
                     "Failed to get health status",

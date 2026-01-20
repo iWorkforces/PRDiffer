@@ -136,3 +136,51 @@ file_processing.parallel_fetch_threshold = 10
 diff.truncate_enabled = true
 diff.max_total_chars = 200000
 diff.truncation_notice = "[DIFF TRUNCATED]"
+
+# Request coalescing settings
+request_coalescing.max_waiters = 100
+
+# File content cache settings
+cache.file_content_max_size = 1000
+cache.file_content_ttl = 600  # 10 minutes
+
+# Authentication brute-force protection settings
+auth.max_failures_per_minute = 5
+auth.lockout_duration = 60  # seconds
+auth.failure_window = 300  # 5 minutes
+
+# Security pattern configuration (regex patterns for input validation)
+# NOTE: Patterns use TOML string escaping - backslashes must be doubled
+# Command injection patterns - shell metacharacters and command substitution
+security.command_injection_patterns = [
+    "[;&|`$]",  # Shell metacharacters (note: [ is literal char in regex)
+    "\\$\\(",  # Command substitution $(
+    "`",  # Backticks
+]
+
+# Path traversal patterns
+security.path_traversal_patterns = [
+    "\\.\\.",  # Parent directory (Unix)
+    "~/",  # Home directory (Unix)
+    "/etc/",  # System directories (Unix)
+    "/var/",
+    "/usr/",
+    "[a-zA-Z]:\\\\",  # Windows absolute paths like C:\
+    "\\.\\\\",  # Windows parent directory
+    "\\\\\\\\",  # UNC paths like \\server\share
+]
+
+# SQL injection patterns
+security.sql_injection_patterns = [
+    "(?:--|#|/\\*|\\*/)",  # SQL comments
+    "\\b(?:union|select|insert|update|delete|drop|create|alter)\\b",  # SQL keywords
+    "(?:exec|execute|xp_)",  # Stored procedures
+]
+
+# API health tracker settings
+api_health.window_size = 100
+api_health.time_window = 300  # 5 minutes
+
+# Logging settings
+logging.format = "simple"  # Options: simple, json, structured
+logging.json_pretty = false  # Pretty-print JSON output (development only)
