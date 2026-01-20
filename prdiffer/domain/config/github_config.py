@@ -8,9 +8,11 @@ of individual parameters.
 from dataclasses import dataclass, field
 from typing import Tuple
 
+from .github_config_interface import GitHubConfigInterface
+
 
 @dataclass(frozen=True)
-class GitHubConfig:
+class GitHubConfig(GitHubConfigInterface):
     """Centralized configuration for GitHub API interactions.
 
     This immutable dataclass contains all GitHub-related settings in one place,
