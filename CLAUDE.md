@@ -398,6 +398,48 @@ The MCP server implements comprehensive security validation through the `InputVa
 4. Security exception handling at lines 290-314
 5. Safe logging with `sanitize_for_logging()` at lines 309, 329
 
+### Security Configuration
+
+**IMPORTANT**: Authentication is **enabled by default** for production security. When deploying or developing:
+
+```toml
+# In settings.toml
+[auth]
+enabled = true  # Default: ENABLED for security
+```
+
+**To disable authentication for local development**:
+```bash
+# Set environment variable before starting server
+export MCP_AUTH_ENABLED=false
+uv run python prdiffer/server.py
+```
+
+**To configure API keys**:
+```bash
+# Set one or more API keys
+export MCP_API_KEYS="your-api-key-1,your-api-key-2"
+
+# Set admin API key for elevated privileges
+export MCP_ADMIN_API_KEY="your-admin-api-key"
+```
+
+**Authentication Features**:
+- API key-based authentication with SHA-256 hashing
+- Per-client rate limiting to prevent abuse
+- Brute-force protection with lockout mechanism
+- Multiple API key support for different clients
+- Admin API key for elevated privileges
+
+**Environment Variable Reference**:
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `MCP_AUTH_ENABLED` | Enable/disable authentication | `true` |
+| `MCP_API_KEYS` | Comma-separated API keys | - |
+| `MCP_ADMIN_API_KEY` | Admin API key | - |
+| `MCP_MAX_FAILURES_PER_MINUTE` | Max auth failures before lockout | `5` |
+| `MCP_LOCKOUT_DURATION` | Lockout duration in seconds | `60` |
+
 ### Error Handling Patterns
 
 - **Security Validation**: All user inputs validated through `InputValidator` before processing

@@ -5,7 +5,6 @@ using GitHub API operations.
 """
 
 import os
-from datetime import datetime, timezone
 from typing import Optional
 
 import asyncer
@@ -133,15 +132,10 @@ class GitHubPRDiffService(PRDiffServiceInterface):
             if not pull_request:
                 return None
 
-            # Generate diff content and commit messages
+            # Generate diff content
             diff_content, diff_files = self._generate_diff_content(
                 repository, pull_request
             )
-            commit_messages = self._get_commit_messages(pull_request)
-
-            total_additions = sum(file.num_plus_lines for file in diff_files)
-            total_deletions = sum(file.num_minus_lines for file in diff_files)
-            file_summaries = self._build_file_summaries(diff_files)
 
             diff_content, truncation_meta = apply_diff_limits(
                 diff_content,
@@ -149,23 +143,7 @@ class GitHubPRDiffService(PRDiffServiceInterface):
                 self._diff_truncation_notice,
             )
 
-            generation_metadata = {
-                "generated_at": datetime.now(timezone.utc)
-                .isoformat()
-                .replace("+00:00", "Z"),
-                "files_processed": len(diff_files),
-            }
-            generation_metadata.update(truncation_meta)
-
-            pr_diff = PRDiff(
-                diff_content=diff_content,
-                commit_messages=commit_messages,
-                files_changed=len(diff_files),
-                total_additions=total_additions,
-                total_deletions=total_deletions,
-                generation_metadata=generation_metadata,
-                file_summaries=file_summaries,
-            )
+            pr_diff = PRDiff(diff_content=diff_content)
 
             self._logger.info(
                 "Generated diff content",
@@ -358,46 +336,6 @@ class GitHubPRDiffService(PRDiffServiceInterface):
             sanitized = sanitize_exception_for_logging(e)
             self._logger.error("Failed to get base commit SHA", extra=sanitized)
             return None
-
-    def _get_commit_messages(self, pull_request) -> Optional[str]:
-        """Get formatted commit messages from the pull request.
-
-        Args:
-            pull_request: GitHub pull request instance
-
-        Returns:
-            Optional[str]: Formatted commit messages, None on error
-        """
-        try:
-            if self._diff_generator:
-                # Use the diff generator if available
-                return self._diff_generator.get_commit_messages(pull_request)
-            else:
-                # Fallback: manual implementation
-                commit_list = pull_request.get_commits()
-                commit_messages = [commit.commit.message for commit in commit_list]
-                if commit_messages:
-                    return "\n".join(
-                        [
-                            f"{i + 1}. {message}"
-                            for i, message in enumerate(commit_messages)
-                        ]
-                    )
-            return None
-        except Exception as e:
-            sanitized = sanitize_exception_for_logging(e)
-            self._logger.error("Failed to get commit messages", extra=sanitized)
-            return None
-
-    def _build_file_summaries(self, diff_files: list[FilePatchInfo]) -> list[dict]:
-        summaries: list[dict] = []
-        for file_patch in diff_files:
-            file_patch.code_smell_indicators = file_patch.detect_code_smells()
-            file_patch.suggested_review_priority = (
-                file_patch.calculate_review_priority()
-            )
-            summaries.append(file_patch.get_summary())
-        return summaries
 
     def validate_repository_access(
         self,

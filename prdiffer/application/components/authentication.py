@@ -3,6 +3,12 @@
 This component provides authentication and authorization functionality
 for the MCP server, supporting API key-based access control with
 per-client rate limiting integration and brute-force protection.
+
+Security Note:
+- JWT signature verification is supported via verify_jwt_token() method
+- The parse_jwt_payload() method does NOT verify signatures and should
+  only be used for extracting metadata (like expiration time)
+- For authentication decisions, always use verify_jwt_token() or API keys
 """
 
 import base64
@@ -13,8 +19,11 @@ import logging
 import time
 from collections import defaultdict
 from dataclasses import dataclass, field
-from typing import Dict, Any, Tuple, Optional, Set
+from typing import Dict, Any, Tuple, Optional, Set, List
 from threading import RLock
+
+import jwt
+from jwt.exceptions import InvalidTokenError, ExpiredSignatureError
 
 from ..interfaces.protocols import AuthenticationProtocol
 
@@ -451,9 +460,12 @@ class AuthenticationMiddleware(AuthenticationProtocol):
     def parse_jwt_payload(token: str) -> Optional[Dict[str, Any]]:
         """Parse JWT token payload without verification.
 
-        This method extracts and decodes the payload from a JWT token
-        without performing cryptographic verification. Use this only
-        for extracting metadata like expiration time.
+        SECURITY WARNING: This method extracts and decodes the payload from a JWT token
+        WITHOUT performing cryptographic verification. Use this ONLY for extracting
+        metadata like expiration time for logging purposes.
+
+        NEVER use this method for authentication decisions. Always use verify_jwt_token()
+        for any security-critical operations.
 
         Args:
             token: The JWT token to parse
@@ -478,6 +490,71 @@ class AuthenticationMiddleware(AuthenticationProtocol):
             return json.loads(payload_json)
         except Exception:
             return None
+
+    @staticmethod
+    def verify_jwt_token(
+        token: str,
+        secret: str,
+        algorithms: Optional[List[str]] = None,
+        audience: Optional[str] = None,
+        issuer: Optional[str] = None,
+    ) -> Tuple[bool, Optional[Dict[str, Any]], Optional[str]]:
+        """Verify JWT token with signature validation.
+
+        This method performs cryptographic verification of the JWT signature
+        and validates the token's claims (expiration, audience, issuer).
+
+        Use this method for authentication decisions. The parse_jwt_payload()
+        method does NOT verify signatures and should only be used for metadata.
+
+        Args:
+            token: The JWT token to verify
+            secret: The JWT secret key for signature verification
+            algorithms: List of allowed algorithms (default: ["HS256"])
+            audience: Optional audience claim to validate
+            issuer: Optional issuer claim to validate
+
+        Returns:
+            Tuple of (is_valid, payload, error_message) where:
+            - is_valid: True if token is valid and signature verified
+            - payload: Decoded token payload if valid, None otherwise
+            - error_message: None if valid, or error description if invalid
+        """
+        if algorithms is None:
+            algorithms = ["HS256"]
+
+        try:
+            # Verify signature and decode token
+            payload = jwt.decode(
+                token,
+                secret,
+                algorithms=algorithms,
+                audience=audience,
+                issuer=issuer,
+                options={
+                    "verify_signature": True,  # Always verify signature
+                    "verify_exp": True,  # Verify expiration
+                    "verify_nbf": True,  # Verify not-before
+                    "verify_aud": audience is not None,
+                    "verify_iss": issuer is not None,
+                },
+            )
+            return True, payload, None
+
+        except ExpiredSignatureError:
+            return False, None, "Token has expired"
+        except jwt.InvalidSignatureError:
+            return False, None, "Invalid token signature"
+        except jwt.InvalidAudienceError:
+            return False, None, "Invalid token audience"
+        except jwt.InvalidIssuerError:
+            return False, None, "Invalid token issuer"
+        except jwt.InvalidAlgorithmError:
+            return False, None, "Invalid token algorithm"
+        except InvalidTokenError as e:
+            return False, None, f"Invalid token: {str(e)}"
+        except Exception as e:
+            return False, None, f"Token verification failed: {str(e)}"
 
     def is_token_expired(
         self, token: str, leeway_seconds: int = 60

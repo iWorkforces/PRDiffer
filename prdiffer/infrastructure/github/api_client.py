@@ -123,6 +123,8 @@ class GitHubAPIClient(GitHubAPIServiceInterface):
         self._cache_hits = 0
         self._cache_misses = 0
         self._cache_evictions = 0
+        self._cache_evictions_ttl = 0  # Track TTL-based evictions
+        self._cache_evictions_size = 0  # Track size-based evictions
 
     def initialize_client(
         self, github_token: Optional[str] = None, timeout: int = 30
@@ -207,10 +209,34 @@ class GitHubAPIClient(GitHubAPIServiceInterface):
         return bool(age < self._cache_ttl)
 
     def _evict_oldest_entries(self) -> None:
-        """Evict oldest entries when cache exceeds max size (LRU eviction)."""
+        """Evict oldest entries when cache exceeds max size (LRU eviction).
+
+        Also proactively removes expired entries to maintain cache hygiene.
+        """
+        current_time = time.time()
+
+        # First, remove any expired entries
+        expired_keys = []
+        for key, entry in self._file_content_cache.items():
+            age = current_time - float(entry["timestamp"])
+            if age >= self._cache_ttl:
+                expired_keys.append(key)
+
+        for key in expired_keys:
+            self._file_content_cache.pop(key)
+            self._cache_evictions_ttl += 1
+
+        if expired_keys:
+            self._logger.debug(
+                f"Cache eviction (TTL): removed {len(expired_keys)} expired entries "
+                f"[size={len(self._file_content_cache)}/{self._cache_max_size}]"
+            )
+
+        # Then, remove oldest entries if still over size limit
         while len(self._file_content_cache) >= self._cache_max_size:
             # OrderedDict.popitem(last=False) removes oldest entry
             evicted_key, _ = self._file_content_cache.popitem(last=False)
+            self._cache_evictions_size += 1
             self._cache_evictions += 1
             self._logger.debug(
                 f"Cache eviction (LRU): {evicted_key[0][:50]}... "

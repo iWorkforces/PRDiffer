@@ -198,8 +198,21 @@ class FastMCPServer:
         Raises:
             InvalidURLError: If the URL format is invalid or contains invalid characters
             SuspiciousOperationError: If the URL contains suspicious patterns
+            ValueError: If the URL is None, empty, or whitespace-only
         """
-        return self._input_validator.validate_github_url(pr_url)
+        # Validate input is not None or empty before processing
+        if pr_url is None:
+            raise ValueError("PR URL cannot be None")
+
+        if not isinstance(pr_url, str):
+            raise ValueError(f"PR URL must be a string, got {type(pr_url).__name__}")
+
+        pr_url_stripped = pr_url.strip()
+        if not pr_url_stripped:
+            raise ValueError("PR URL cannot be empty or whitespace-only")
+
+        # Delegate to input validator for full validation
+        return self._input_validator.validate_github_url(pr_url_stripped)
 
     def _check_rate_limit(self, client_id: str = "global"):
         """Check if the current request exceeds rate limits.
