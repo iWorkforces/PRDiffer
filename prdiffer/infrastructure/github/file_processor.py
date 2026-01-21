@@ -1,9 +1,8 @@
 """File processing service for GitHub repositories."""
 
+import inspect
 import threading
 import time
-import asyncio
-import inspect
 import anyio
 from typing import List, Optional, Dict, cast
 from github.File import File
@@ -181,21 +180,10 @@ class FileProcessor:
 
         # Second pass: batch process files that need content loading
         if files_to_load:
-            processed_files: List[FilePatchInfo]
-            if (
-                self._parallel_fetch_threshold > 0
-                and len(files_to_load) >= self._parallel_fetch_threshold
-            ):
-                # Use async parallel processing
-                processed_files = asyncio.run(
-                    self._process_files_with_content_parallel_async(
-                        files_to_load, repository, head_sha, base_sha
-                    )
-                )
-            else:
-                processed_files = self._process_files_with_content(
-                    files_to_load, repository, head_sha, base_sha
-                )
+            # Use synchronous batch processing for consistency
+            processed_files = self._process_files_with_content(
+                files_to_load, repository, head_sha, base_sha
+            )
             diff_files.extend(processed_files)
 
         if invalid_files_names:
@@ -432,7 +420,7 @@ class FileProcessor:
                     # Fallback to current filename if previous_filename not available
                     base_files.append(file.filename)
 
-        # Batch load content only for files that exist in each commit
+        # Batch load content - sequential processing to avoid blocking
         head_contents = (
             self._github_api_service.get_files_content_batch(
                 repository, head_files, head_sha
@@ -565,10 +553,8 @@ class FileProcessor:
         # Fall back to counting patch lines
         if patch:
             patch_lines = patch.splitlines(keepends=True)
-            num_plus_lines = len([line for line in patch_lines if line.startswith("+")])
-            num_minus_lines = len(
-                [line for line in patch_lines if line.startswith("-")]
-            )
+            num_plus_lines = sum(1 for line in patch_lines if line.startswith("+"))
+            num_minus_lines = sum(1 for line in patch_lines if line.startswith("-"))
             return num_plus_lines, num_minus_lines
 
         return 0, 0
