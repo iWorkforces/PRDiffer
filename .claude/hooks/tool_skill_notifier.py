@@ -15,7 +15,7 @@ import json
 import logging
 import os
 import sys
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 from typing import Dict, List, Optional
@@ -30,9 +30,7 @@ def setup_logger(name: str, level: int = logging.WARNING) -> logging.Logger:
     if not logger.handlers:
         handler = logging.StreamHandler(sys.stderr)
         handler.setLevel(level)
-        formatter = logging.Formatter(
-            "[%(name)s] %(levelname)s: %(message)s"
-        )
+        formatter = logging.Formatter("[%(name)s] %(levelname)s: %(message)s")
         handler.setFormatter(formatter)
         logger.addHandler(handler)
 
@@ -45,6 +43,7 @@ logger = setup_logger("tool_skill_notifier")
 
 class LogLevel(Enum):
     """Log level enumeration."""
+
     DEBUG = logging.DEBUG
     INFO = logging.INFO
     WARNING = logging.WARNING
@@ -103,10 +102,10 @@ class HookConfig:
 
     # ANSI color codes for terminal output
     color_header: str = "\033[96m"  # Cyan
-    color_tool: str = "\033[93m"    # Yellow
-    color_skill: str = "\033[92m"   # Green
-    color_dim: str = "\033[90m"     # Gray
-    color_reset: str = "\033[0m"    # Reset
+    color_tool: str = "\033[93m"  # Yellow
+    color_skill: str = "\033[92m"  # Green
+    color_dim: str = "\033[90m"  # Gray
+    color_reset: str = "\033[0m"  # Reset
 
     def __post_init__(self):
         """Validate and apply configuration settings."""
@@ -134,7 +133,7 @@ class HookConfig:
                 file_handler.setLevel(self.log_level)
                 formatter = logging.Formatter(
                     "[%(asctime)s] [%(name)s] %(levelname)s: %(message)s",
-                    datefmt="%Y-%m-%d %H:%M:%S"
+                    datefmt="%Y-%m-%d %H:%M:%S",
                 )
                 file_handler.setFormatter(formatter)
                 logger.addHandler(file_handler)
@@ -188,7 +187,9 @@ class HookEvent:
             if not prompt:
                 logger.debug("Empty prompt in hook event")
 
-            logger.info(f"Parsed hook event: session_id={session_id}, event={hook_event_name}")
+            logger.info(
+                f"Parsed hook event: session_id={session_id}, event={hook_event_name}"
+            )
 
             return cls(
                 session_id=session_id,
@@ -286,7 +287,8 @@ class MCPServerInspector:
         # Determine settings file path
         project_settings = Path(self.config.project_settings_path)
         settings_file = (
-            project_settings if project_settings.exists()
+            project_settings
+            if project_settings.exists()
             else Path(self.config.claude_settings_path)
         )
 
@@ -320,20 +322,26 @@ class MCPServerInspector:
 
                 for tool in server_tools:
                     if not isinstance(tool, dict):
-                        logger.warning(f"Invalid tool entry in server '{server_name}': {tool}")
+                        logger.warning(
+                            f"Invalid tool entry in server '{server_name}': {tool}"
+                        )
                         continue
 
                     tool_name = tool.get("name", "")
                     if not tool_name:
-                        logger.warning(f"Tool missing 'name' field in server '{server_name}'")
+                        logger.warning(
+                            f"Tool missing 'name' field in server '{server_name}'"
+                        )
                         continue
 
-                    tools.append({
-                        "name": tool_name,
-                        "description": tool.get("description", ""),
-                        "server_name": server_name,
-                        "type": "mcp_tool",
-                    })
+                    tools.append(
+                        {
+                            "name": tool_name,
+                            "description": tool.get("description", ""),
+                            "server_name": server_name,
+                            "type": "mcp_tool",
+                        }
+                    )
 
             logger.info(f"Successfully loaded {len(tools)} MCP tool(s)")
 
@@ -360,11 +368,31 @@ class SkillsInspector:
     """Inspects configured Skills."""
 
     KNOWN_SKILLS = {
-        "commit": {"name": "commit", "description": "Create git commits with formatted messages", "type": "skill"},
-        "linting": {"name": "linting", "description": "Run linting and fix code style issues", "type": "skill"},
-        "typecheck": {"name": "typecheck", "description": "Run static type checking", "type": "skill"},
-        "openspec:proposal": {"name": "openspec:proposal", "description": "Create OpenSpec proposals", "type": "skill"},
-        "openspec:apply": {"name": "openspec:apply", "description": "Apply OpenSpec changes", "type": "skill"},
+        "commit": {
+            "name": "commit",
+            "description": "Create git commits with formatted messages",
+            "type": "skill",
+        },
+        "linting": {
+            "name": "linting",
+            "description": "Run linting and fix code style issues",
+            "type": "skill",
+        },
+        "typecheck": {
+            "name": "typecheck",
+            "description": "Run static type checking",
+            "type": "skill",
+        },
+        "openspec:proposal": {
+            "name": "openspec:proposal",
+            "description": "Create OpenSpec proposals",
+            "type": "skill",
+        },
+        "openspec:apply": {
+            "name": "openspec:apply",
+            "description": "Apply OpenSpec changes",
+            "type": "skill",
+        },
     }
 
     def get_available_skills(self) -> List[Dict]:
@@ -376,9 +404,15 @@ class SkillsInspector:
         openspec_agents = Path("openspec/AGENTS.md")
         if openspec_agents.exists():
             # Add openspec skills
-            skills.extend([
-                {"name": "openspec:archive", "description": "Archive OpenSpec proposals", "type": "skill"},
-            ])
+            skills.extend(
+                [
+                    {
+                        "name": "openspec:archive",
+                        "description": "Archive OpenSpec proposals",
+                        "type": "skill",
+                    },
+                ]
+            )
 
         return skills
 
@@ -429,9 +463,7 @@ class MCPSkillNotifier:
                         continue
 
                     confidence = self.keyword_matcher.match(
-                        prompt,
-                        item_name,
-                        item_desc
+                        prompt, item_name, item_desc
                     )
 
                     logger.debug(
@@ -440,20 +472,22 @@ class MCPSkillNotifier:
                     )
 
                     if confidence >= self.config.keyword_min_confidence:
-                        suggestions.append(ToolSuggestion(
-                            name=item_name,
-                            type=item.get("type", "unknown"),
-                            description=item_desc,
-                            confidence=confidence,
-                            server_name=item.get("server_name"),
-                        ))
+                        suggestions.append(
+                            ToolSuggestion(
+                                name=item_name,
+                                type=item.get("type", "unknown"),
+                                description=item_desc,
+                                confidence=confidence,
+                                server_name=item.get("server_name"),
+                            )
+                        )
                 except Exception as e:
                     logger.warning(f"Error processing item {item}: {e}")
                     continue
 
             # Sort by confidence and limit
             suggestions.sort(key=lambda s: s.confidence, reverse=True)
-            final_suggestions = suggestions[:self.config.max_suggestions]
+            final_suggestions = suggestions[: self.config.max_suggestions]
 
             logger.info(
                 f"Returning {len(final_suggestions)} suggestion(s) "
@@ -472,24 +506,36 @@ class MCPSkillNotifier:
             return ""
 
         lines = []
-        lines.append(f"{self.config.color_header}{'='*60}{self.config.color_reset}")
-        lines.append(f"{self.config.color_header} Available Tools/Skills for this task:{self.config.color_reset}")
-        lines.append(f"{self.config.color_header}{'='*60}{self.config.color_reset}")
+        lines.append(f"{self.config.color_header}{'=' * 60}{self.config.color_reset}")
+        lines.append(
+            f"{self.config.color_header} Available Tools/Skills for this task:{self.config.color_reset}"
+        )
+        lines.append(f"{self.config.color_header}{'=' * 60}{self.config.color_reset}")
         lines.append("")
 
         for s in suggestions:
             icon = "🔧" if s.type == "mcp_tool" else "⚡"
-            color = self.config.color_tool if s.type == "mcp_tool" else self.config.color_skill
+            color = (
+                self.config.color_tool
+                if s.type == "mcp_tool"
+                else self.config.color_skill
+            )
 
             server_info = f" [{s.server_name}]" if s.server_name else ""
             lines.append(
                 f"{icon} {color}{s.name}{server_info}{self.config.color_reset}"
             )
-            lines.append(f"   {self.config.color_dim}{s.description}{self.config.color_reset}")
-            lines.append(f"   {self.config.color_dim}Confidence: {s.confidence:.0%}{self.config.color_reset}")
+            lines.append(
+                f"   {self.config.color_dim}{s.description}{self.config.color_reset}"
+            )
+            lines.append(
+                f"   {self.config.color_dim}Confidence: {s.confidence:.0%}{self.config.color_reset}"
+            )
             lines.append("")
 
-        lines.append(f"{self.config.color_dim}(Execution will continue automatically){self.config.color_reset}")
+        lines.append(
+            f"{self.config.color_dim}(Execution will continue automatically){self.config.color_reset}"
+        )
 
         return "\n".join(lines)
 
@@ -527,11 +573,17 @@ def main():
 
     # Parse configuration from environment if available
     log_level_str = os.environ.get("TOOL_SKILL_NOTIFIER_LOG_LEVEL", "").upper()
-    log_level = getattr(logging, log_level_str, logging.WARNING) if log_level_str else logging.WARNING
+    log_level = (
+        getattr(logging, log_level_str, logging.WARNING)
+        if log_level_str
+        else logging.WARNING
+    )
 
     try:
         config = HookConfig(log_level=log_level)
-        logger.info(f"Starting Tool/Skill notifier with log level {logging.getLevelName(log_level)}")
+        logger.info(
+            f"Starting Tool/Skill notifier with log level {logging.getLevelName(log_level)}"
+        )
 
         event = HookEvent.from_stdin()
 

@@ -23,6 +23,7 @@ from enum import Enum
 from pathlib import Path
 from typing import List, Optional
 
+
 # Configure logging
 def setup_logger(name: str, level: int = logging.WARNING) -> logging.Logger:
     """Set up a logger with consistent formatting."""
@@ -32,9 +33,7 @@ def setup_logger(name: str, level: int = logging.WARNING) -> logging.Logger:
     if not logger.handlers:
         handler = logging.StreamHandler(sys.stderr)
         handler.setLevel(level)
-        formatter = logging.Formatter(
-            "[%(name)s] %(levelname)s: %(message)s"
-        )
+        formatter = logging.Formatter("[%(name)s] %(levelname)s: %(message)s")
         handler.setFormatter(formatter)
         logger.addHandler(handler)
 
@@ -47,6 +46,7 @@ logger = setup_logger("sequential_thinking_enhancer")
 
 class LogLevel(Enum):
     """Log level enumeration."""
+
     DEBUG = logging.DEBUG
     INFO = logging.INFO
     WARNING = logging.WARNING
@@ -114,10 +114,10 @@ class HookConfig:
 
     # ANSI color codes for terminal output
     color_header: str = "\033[96m"  # Cyan
-    color_thought: str = "\033[93m"   # Yellow
+    color_thought: str = "\033[93m"  # Yellow
     color_enhanced: str = "\033[92m"  # Green
-    color_dim: str = "\033[90m"       # Gray
-    color_reset: str = "\033[0m"      # Reset
+    color_dim: str = "\033[90m"  # Gray
+    color_reset: str = "\033[0m"  # Reset
 
     def __post_init__(self):
         """Validate and apply configuration settings."""
@@ -137,7 +137,7 @@ class HookConfig:
                 file_handler.setLevel(self.log_level)
                 formatter = logging.Formatter(
                     "[%(asctime)s] [%(name)s] %(levelname)s: %(message)s",
-                    datefmt="%Y-%m-%d %H:%M:%S"
+                    datefmt="%Y-%m-%d %H:%M:%S",
                 )
                 file_handler.setFormatter(formatter)
                 logger.addHandler(file_handler)
@@ -180,7 +180,9 @@ class HookEvent:
             if not prompt:
                 logger.debug("Empty prompt in hook event")
 
-            logger.info(f"Parsed hook event: session_id={session_id}, event={hook_event_name}")
+            logger.info(
+                f"Parsed hook event: session_id={session_id}, event={hook_event_name}"
+            )
 
             return cls(
                 session_id=session_id,
@@ -247,7 +249,10 @@ class SequentialThinkingClient:
 
             # Check for sequential thinking server
             for server_name in server_names:
-                if "sequential" in server_name.lower() or "thinking" in server_name.lower():
+                if (
+                    "sequential" in server_name.lower()
+                    or "thinking" in server_name.lower()
+                ):
                     logger.info(f"Found sequential thinking MCP server: {server_name}")
                     return True
 
@@ -265,7 +270,9 @@ class SequentialThinkingClient:
             return project_settings
         return Path(self.config.claude_settings_path)
 
-    def analyze_prompt(self, prompt: str, max_iterations: int = 3) -> List[ThinkingStep]:
+    def analyze_prompt(
+        self, prompt: str, max_iterations: int = 3
+    ) -> List[ThinkingStep]:
         """
         Analyze the prompt using sequential thinking.
 
@@ -276,32 +283,40 @@ class SequentialThinkingClient:
         steps = []
 
         if not prompt or len(prompt) < self.config.min_prompt_length:
-            logger.debug(f"Prompt too short for enhancement: {len(prompt)} < {self.config.min_prompt_length}")
+            logger.debug(
+                f"Prompt too short for enhancement: {len(prompt)} < {self.config.min_prompt_length}"
+            )
             return steps
 
         # Step 1: Problem Definition
-        steps.append(ThinkingStep(
-            thought_number=1,
-            thought=self._define_problem(prompt),
-            next_thought_needed=True,
-            total_thoughts=3,
-        ))
+        steps.append(
+            ThinkingStep(
+                thought_number=1,
+                thought=self._define_problem(prompt),
+                next_thought_needed=True,
+                total_thoughts=3,
+            )
+        )
 
         # Step 2: Context Analysis
-        steps.append(ThinkingStep(
-            thought_number=2,
-            thought=self._analyze_context(prompt),
-            next_thought_needed=True,
-            total_thoughts=3,
-        ))
+        steps.append(
+            ThinkingStep(
+                thought_number=2,
+                thought=self._analyze_context(prompt),
+                next_thought_needed=True,
+                total_thoughts=3,
+            )
+        )
 
         # Step 3: Enhancement Guidance
-        steps.append(ThinkingStep(
-            thought_number=3,
-            thought=self._generate_guidance(prompt),
-            next_thought_needed=False,
-            total_thoughts=3,
-        ))
+        steps.append(
+            ThinkingStep(
+                thought_number=3,
+                thought=self._generate_guidance(prompt),
+                next_thought_needed=False,
+                total_thoughts=3,
+            )
+        )
 
         return steps
 
@@ -312,7 +327,9 @@ class SequentialThinkingClient:
 
         # Identify request type
         request_type = "general inquiry"
-        if any(word in prompt_lower for word in ["create", "build", "implement", "write"]):
+        if any(
+            word in prompt_lower for word in ["create", "build", "implement", "write"]
+        ):
             request_type = "creation/implementation task"
         elif any(word in prompt_lower for word in ["fix", "debug", "solve", "error"]):
             request_type = "debugging/problem-solving task"
@@ -327,8 +344,19 @@ class SequentialThinkingClient:
         """Analyze the context and requirements."""
         # Look for technical keywords
         technical_keywords = []
-        tech_terms = ["api", "database", "function", "class", "test", "bug",
-                     "feature", "deployment", "git", "merge", "branch"]
+        tech_terms = [
+            "api",
+            "database",
+            "function",
+            "class",
+            "test",
+            "bug",
+            "feature",
+            "deployment",
+            "git",
+            "merge",
+            "branch",
+        ]
 
         for term in tech_terms:
             if term.lower() in prompt.lower():
@@ -336,7 +364,9 @@ class SequentialThinkingClient:
 
         context_note = "Context analysis"
         if technical_keywords:
-            context_note += f" identified technical keywords: {', '.join(technical_keywords)}"
+            context_note += (
+                f" identified technical keywords: {', '.join(technical_keywords)}"
+            )
         else:
             context_note += " - general request without specific technical keywords"
 
@@ -348,11 +378,7 @@ class SequentialThinkingClient:
 
         # Check for complexity indicators
         prompt_lower = prompt.lower()
-        is_complex = (
-            len(prompt) > 200 or
-            "and" in prompt_lower.split() or
-            "," in prompt
-        )
+        is_complex = len(prompt) > 200 or "and" in prompt_lower.split() or "," in prompt
 
         if is_complex:
             guidance += "This appears to be a complex request. Consider: "
@@ -384,7 +410,9 @@ class PromptEnhancer:
             return None
 
         if not prompt or len(prompt.strip()) < self.config.min_prompt_length:
-            logger.debug(f"Prompt too short for enhancement: {len(prompt)} < {self.config.min_prompt_length}")
+            logger.debug(
+                f"Prompt too short for enhancement: {len(prompt)} < {self.config.min_prompt_length}"
+            )
             return None
 
         logger.info(f"Enhancing prompt: {prompt[:100]}...")
@@ -392,8 +420,7 @@ class PromptEnhancer:
         try:
             # Get sequential thinking analysis
             thinking_steps = self.thinking_client.analyze_prompt(
-                prompt,
-                max_iterations=self.config.max_thinking_iterations
+                prompt, max_iterations=self.config.max_thinking_iterations
             )
 
             if not thinking_steps:
@@ -403,7 +430,9 @@ class PromptEnhancer:
             # Format the enhanced context
             enhanced_context = self._format_enhanced_context(prompt, thinking_steps)
 
-            logger.info(f"Generated enhanced context with {len(thinking_steps)} thinking steps")
+            logger.info(
+                f"Generated enhanced context with {len(thinking_steps)} thinking steps"
+            )
             return enhanced_context
 
         except Exception as e:
@@ -412,7 +441,9 @@ class PromptEnhancer:
                 raise MCPClientError("Prompt enhancement failed", e) from e
             return None
 
-    def _format_enhanced_context(self, original_prompt: str, steps: List[ThinkingStep]) -> str:
+    def _format_enhanced_context(
+        self, original_prompt: str, steps: List[ThinkingStep]
+    ) -> str:
         """Format the enhanced context with thinking guidance."""
         lines = []
 
@@ -422,11 +453,15 @@ class PromptEnhancer:
         lines.append("")
 
         for step in steps:
-            lines.append(f"{self.config.color_thought}Thought {step.thought_number}/{step.total_thoughts}:{self.config.color_reset}")
+            lines.append(
+                f"{self.config.color_thought}Thought {step.thought_number}/{step.total_thoughts}:{self.config.color_reset}"
+            )
             lines.append(f"  {step.thought}")
             lines.append("")
 
-        lines.append(f"{self.config.color_enhanced}Enhanced Request:{self.config.color_reset}")
+        lines.append(
+            f"{self.config.color_enhanced}Enhanced Request:{self.config.color_reset}"
+        )
         lines.append("")
         lines.append("Based on the analysis above, please approach this request with:")
         lines.append("1. Clear understanding of the problem/request type")
@@ -488,17 +523,22 @@ def main():
 
     # Parse configuration from environment if available
     log_level_str = os.environ.get("SEQUENTIAL_THINKING_LOG_LEVEL", "").upper()
-    log_level = getattr(logging, log_level_str, logging.WARNING) if log_level_str else logging.WARNING
+    log_level = (
+        getattr(logging, log_level_str, logging.WARNING)
+        if log_level_str
+        else logging.WARNING
+    )
 
     # Check if enhancement is disabled via environment
-    enable_enhancement = os.environ.get("SEQUENTIAL_THINKING_ENABLE", "true").lower() == "true"
+    enable_enhancement = (
+        os.environ.get("SEQUENTIAL_THINKING_ENABLE", "true").lower() == "true"
+    )
 
     try:
-        config = HookConfig(
-            log_level=log_level,
-            enable_enhancement=enable_enhancement
+        config = HookConfig(log_level=log_level, enable_enhancement=enable_enhancement)
+        logger.info(
+            f"Starting Sequential Thinking Enhancer with log level {logging.getLevelName(log_level)}"
         )
-        logger.info(f"Starting Sequential Thinking Enhancer with log level {logging.getLevelName(log_level)}")
 
         event = HookEvent.from_stdin()
 
