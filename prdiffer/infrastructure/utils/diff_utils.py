@@ -23,6 +23,7 @@ class DiffProcessingConfig:
         chunk_size: Number of lines to process per chunk for large files
         max_diff_size: Maximum file size in lines for diff generation
     """
+
     large_file_threshold: int = DEFAULT_LARGE_FILE_THRESHOLD
     chunk_size: int = DEFAULT_DIFF_CHUNK_SIZE
     max_diff_size: int = DEFAULT_MAX_DIFF_SIZE
@@ -141,7 +142,11 @@ class DiffUtils(DiffServiceInterface):
         """
         # Use config values if not specified
         chunk_size = chunk_size if chunk_size is not None else self._config.chunk_size
-        large_file_threshold = large_file_threshold if large_file_threshold is not None else self._config.large_file_threshold
+        large_file_threshold = (
+            large_file_threshold
+            if large_file_threshold is not None
+            else self._config.large_file_threshold
+        )
         max_diff_size = self._config.max_diff_size
 
         orig_lines = original_file_str.splitlines()
@@ -232,9 +237,7 @@ class DiffUtils(DiffServiceInterface):
             return "\n".join(["", header] + body_lines)
         return ""
 
-    def is_large_file(
-        self, content: str, threshold: Optional[int] = None
-    ) -> bool:
+    def is_large_file(self, content: str, threshold: Optional[int] = None) -> bool:
         """Check if a file is considered large based on line count.
 
         Args:
@@ -244,7 +247,9 @@ class DiffUtils(DiffServiceInterface):
         Returns:
             bool: True if file exceeds threshold
         """
-        threshold = threshold if threshold is not None else self._config.large_file_threshold
+        threshold = (
+            threshold if threshold is not None else self._config.large_file_threshold
+        )
         return len(content.splitlines()) > threshold
 
     def get_file_line_count(self, content: str) -> int:
@@ -496,8 +501,7 @@ class DiffUtils(DiffServiceInterface):
 
 
 def get_diff_utils(
-    logger=None,
-    config: Optional[DiffProcessingConfig] = None
+    logger=None, config: Optional[DiffProcessingConfig] = None
 ) -> DiffUtils:
     """Get a diff utils instance.
 

@@ -1,9 +1,9 @@
 """GitHub API client for repository and pull request operations."""
 
+import asyncio
 import time
 from collections import OrderedDict
 from typing import Optional, Dict, List, Any, cast, Tuple, Type
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from github import Github, GithubException
 from github.Auth import Token
 from github.Repository import Repository
@@ -18,6 +18,10 @@ from prdiffer.infrastructure.utils.retry_handler import (
 from prdiffer.infrastructure.logging.console_logger import get_logger
 from prdiffer.infrastructure.logging.exception_utils import (
     sanitize_exception_for_logging,
+)
+from prdiffer.infrastructure.async_parallel_executor import (
+    AsyncParallelExecutor,
+    ErrorStrategy,
 )
 
 
@@ -142,6 +146,13 @@ class GitHubAPIClient(GitHubAPIServiceInterface):
         self._cache_evictions = 0
         self._cache_evictions_ttl = 0  # Track TTL-based evictions
         self._cache_evictions_size = 0  # Track size-based evictions
+
+        # Async parallel executor for concurrent operations
+        self._async_executor = AsyncParallelExecutor(
+            max_concurrent=4,  # Default max concurrent operations
+            error_strategy=ErrorStrategy.IGNORE,
+            logger=self._logger,
+        )
 
     def initialize_client(
         self, github_token: Optional[str] = None, timeout: int = 30
@@ -394,17 +405,71 @@ class GitHubAPIClient(GitHubAPIServiceInterface):
 
         return results
 
-    def get_files_content_batch_parallel(
+    async def _get_file_content_async(
+        self, repository: Repository, file_path: str, branch: str
+    ) -> str:
+        """Async version of get_file_content for parallel processing.
+
+        Args:
+            repository: GitHub repository instance
+            file_path: Path to the file in the repository
+            branch: Branch or commit SHA
+
+        Returns:
+            str: File content as string, empty string on error
+        """
+        # Check cache first (with TTL validation)
+        cache_key = (file_path, branch)
+        cached_content = self._cache_get(cache_key)
+        if cached_content is not None:
+            return cached_content
+
+        try:
+            content = self._retry_handler.execute_with_retry(
+                repository.get_contents,
+                file_path,
+                ref=branch,
+                context=OperationContext.FILE_CONTENT,
+            )
+
+            # get_contents can return either ContentFile or list[ContentFile]
+            if isinstance(content, list):
+                # Directory instead of file
+                self._logger.warning(
+                    f"Expected single file but got directory for path '{file_path}' "
+                    f"in branch '{branch}'. Found {len(content)} items."
+                )
+                file_content = ""
+            else:
+                # Single file content
+                file_content = self._extract_file_content(content)
+
+            # Cache the result with LRU eviction
+            self._cache_set(cache_key, file_content)
+            return file_content
+
+        except GITHUB_API_EXCEPTIONS as e:
+            exc = cast(Exception, e)
+            sanitized = sanitize_exception_for_logging(exc)
+            self._logger.warning(
+                f"Failed to get content for file '{file_path}' in branch '{branch}'",
+                extra=sanitized,
+            )
+            file_content = ""
+            # Cache even failures to avoid repeated API calls
+            self._cache_set(cache_key, file_content)
+            return file_content
+
+    async def _get_files_content_batch_parallel_async(
         self,
         repository: Repository,
         file_paths: List[str],
         branch: str,
         max_workers: int = 4,
     ) -> Dict[str, str]:
-        """Batch retrieve file contents in parallel from a specific branch.
+        """Async version of parallel batch file content retrieval.
 
-        Uses ThreadPoolExecutor for concurrent file fetching, which significantly
-        improves performance when fetching many files.
+        Uses AsyncParallelExecutor for concurrent file fetching.
 
         Args:
             repository: GitHub repository instance
@@ -430,36 +495,50 @@ class GitHubAPIClient(GitHubAPIServiceInterface):
         if not files_to_fetch:
             return results
 
-        # Fetch remaining files in parallel
+        # Fetch remaining files in parallel using async executor
         start_time = time.time()
-        with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            future_to_path = {
-                executor.submit(
-                    self.get_file_content, repository, file_path, branch
-                ): file_path
-                for file_path in files_to_fetch
-            }
+        fetched_contents = await self._async_executor.execute_batch(
+            lambda fp: self._get_file_content_async(repository, fp, branch),
+            files_to_fetch,
+        )
 
-            for future in as_completed(future_to_path):
-                file_path = future_to_path[future]
-                try:
-                    content = future.result()
-                    results[file_path] = content
-                except GITHUB_API_EXCEPTIONS as e:
-                    exc = cast(Exception, e)
-                    sanitized = sanitize_exception_for_logging(exc)
-                    self._logger.warning(
-                        f"Parallel fetch failed for '{file_path}'", extra=sanitized
-                    )
-                    results[file_path] = ""
+        # Process results
+        for file_path, content in zip(files_to_fetch, fetched_contents):
+            results[file_path] = content
 
         elapsed = time.time() - start_time
         self._logger.debug(
-            f"Parallel batch fetch: {len(files_to_fetch)} files in {elapsed:.2f}s "
+            f"Async parallel batch fetch: {len(files_to_fetch)} files in {elapsed:.2f}s "
             f"({elapsed / len(files_to_fetch) * 1000:.1f}ms/file avg)"
         )
 
         return results
+
+    def get_files_content_batch_parallel(
+        self,
+        repository: Repository,
+        file_paths: List[str],
+        branch: str,
+        max_workers: int = 4,
+    ) -> Dict[str, str]:
+        """Batch retrieve file contents in parallel from a specific branch.
+
+        Uses AsyncParallelExecutor internally with asyncer.asyncify() for backward compatibility.
+
+        Args:
+            repository: GitHub repository instance
+            file_paths: List of file paths to retrieve
+            branch: Branch or commit SHA
+            max_workers: Maximum number of concurrent workers (default: 4)
+
+        Returns:
+            Dict mapping file paths to their content (empty string on error)
+        """
+        return asyncio.run(
+            self._get_files_content_batch_parallel_async(
+                repository, file_paths, branch, max_workers
+            )
+        )
 
     def _extract_file_content(self, content: ContentFile) -> str:
         """Extract file content from ContentFile object.

@@ -24,7 +24,6 @@ from prdiffer.infrastructure.logging.exception_utils import (
 from prdiffer.infrastructure.github.api_client import get_github_api_client
 from prdiffer.infrastructure.github.file_processor import get_file_processor
 from prdiffer.infrastructure.github.diff_generator import get_diff_generator
-from prdiffer.infrastructure.github.parallel_executor import get_parallel_executor
 from prdiffer.infrastructure.utils.pattern_matcher import get_pattern_matcher
 from prdiffer.infrastructure.utils.diff_utils import get_diff_utils
 from prdiffer.infrastructure.utils.diff_limits import apply_diff_limits
@@ -175,12 +174,11 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
             max_parallel_workers=self.file_parallel_workers,
         )
 
-        # Initialize parallel executor for diff generation if enabled
+        # Note: Parallel executor disabled for simplicity.
+        # The async migration has moved parallel processing to FileProcessor and APIClient
+        # which use AsyncParallelExecutor internally.
+        # DiffGenerator will use sequential processing.
         self._parallel_executor = None
-        if self.diff_parallel_enabled:
-            self._parallel_executor = get_parallel_executor(
-                max_workers=self.diff_max_workers, timeout=self.diff_worker_timeout
-            )
 
         self._diff_generator = get_diff_generator(
             diff_utils=self._diff_utils,

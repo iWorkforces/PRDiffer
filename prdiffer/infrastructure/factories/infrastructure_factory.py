@@ -79,7 +79,9 @@ class InfrastructureFactory(InfrastructureFactoryInterface):
         settings_service = get_settings_service()
         # Read diff processing configuration from settings
         config = DiffProcessingConfig(
-            large_file_threshold=settings_service.get("diff.large_file_threshold", 5000),
+            large_file_threshold=settings_service.get(
+                "diff.large_file_threshold", 5000
+            ),
             chunk_size=settings_service.get("diff.chunk_size", 1000),
             max_diff_size=settings_service.get("diff.max_diff_size", 100000),
         )
