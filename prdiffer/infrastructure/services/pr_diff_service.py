@@ -5,9 +5,10 @@ using GitHub API operations.
 """
 
 import os
-from typing import Optional
+from typing import Optional, Tuple, Type, cast
 
 import asyncer
+from github import GithubException
 from prdiffer.domain.services.pr_diff_service import PRDiffServiceInterface
 from prdiffer.domain.services.github_api import GitHubAPIServiceInterface
 from prdiffer.domain.services.logger import LoggerServiceInterface
@@ -23,6 +24,23 @@ from prdiffer.infrastructure.logging.exception_utils import (
 from prdiffer.infrastructure.security.input_validator import InputValidator
 from prdiffer.infrastructure.settings import get_settings_service
 from prdiffer.infrastructure.utils.diff_limits import apply_diff_limits
+
+
+# Exceptions to catch in PR diff service operations
+# Note: We deliberately exclude KeyboardInterrupt, SystemExit, and GeneratorExit
+# to allow system-level exceptions to propagate for proper shutdown/cleanup.
+PR_SERVICE_EXCEPTIONS: Tuple[Type[BaseException], ...] = (
+    # GitHub-specific exceptions
+    GithubException,
+    # Network and timeout exceptions
+    TimeoutError,
+    ConnectionError,
+    OSError,
+    # Common runtime exceptions
+    RuntimeError,
+    ValueError,
+    TypeError,
+)
 
 
 class GitHubPRDiffService(PRDiffServiceInterface):
@@ -159,8 +177,9 @@ class GitHubPRDiffService(PRDiffServiceInterface):
 
             return pr_diff
 
-        except Exception as e:
-            sanitized = sanitize_exception_for_logging(e)
+        except PR_SERVICE_EXCEPTIONS as e:
+            exc = cast(Exception, e)
+            sanitized = sanitize_exception_for_logging(exc)
             self._logger.error(
                 "Failed to get PR diff",
                 repo_owner=repo_owner,
@@ -187,8 +206,9 @@ class GitHubPRDiffService(PRDiffServiceInterface):
 
             return pull_request.head.sha
 
-        except Exception as e:
-            sanitized = sanitize_exception_for_logging(e)
+        except PR_SERVICE_EXCEPTIONS as e:
+            exc = cast(Exception, e)
+            sanitized = sanitize_exception_for_logging(exc)
             self._logger.error(
                 "Failed to get latest commit SHA",
                 repo_owner=repo_owner,
@@ -304,8 +324,9 @@ class GitHubPRDiffService(PRDiffServiceInterface):
                         )
                 return "\n\n".join(diff_content_parts), diff_files
 
-        except Exception as e:
-            sanitized = sanitize_exception_for_logging(e)
+        except PR_SERVICE_EXCEPTIONS as e:
+            exc = cast(Exception, e)
+            sanitized = sanitize_exception_for_logging(exc)
             self._logger.error("Failed to generate diff content", extra=sanitized)
             return "", []
 
@@ -332,8 +353,9 @@ class GitHubPRDiffService(PRDiffServiceInterface):
                 return base_sha
 
             return None
-        except Exception as e:
-            sanitized = sanitize_exception_for_logging(e)
+        except PR_SERVICE_EXCEPTIONS as e:
+            exc = cast(Exception, e)
+            sanitized = sanitize_exception_for_logging(exc)
             self._logger.error("Failed to get base commit SHA", extra=sanitized)
             return None
 
@@ -354,9 +376,10 @@ class GitHubPRDiffService(PRDiffServiceInterface):
         try:
             repository = self._github_api.get_repository(f"{repo_owner}/{repo_name}")
             return repository is not None
-        except Exception as e:
+        except PR_SERVICE_EXCEPTIONS as e:
             # Log the error and return False for graceful degradation
-            sanitized = sanitize_exception_for_logging(e)
+            exc = cast(Exception, e)
+            sanitized = sanitize_exception_for_logging(exc)
             self._logger.error(
                 "Failed to validate repository access",
                 repo_owner=repo_owner,

@@ -2,9 +2,9 @@
 
 import time
 from collections import OrderedDict
-from typing import Optional, Dict, List, Any, cast
+from typing import Optional, Dict, List, Any, cast, Tuple, Type
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from github import Github
+from github import Github, GithubException
 from github.Auth import Token
 from github.Repository import Repository
 from github.PullRequest import PullRequest
@@ -18,6 +18,23 @@ from prdiffer.infrastructure.utils.retry_handler import (
 from prdiffer.infrastructure.logging.console_logger import get_logger
 from prdiffer.infrastructure.logging.exception_utils import (
     sanitize_exception_for_logging,
+)
+
+
+# Exceptions to catch in GitHub API operations
+# Note: We deliberately exclude KeyboardInterrupt, SystemExit, and GeneratorExit
+# to allow system-level exceptions to propagate for proper shutdown/cleanup.
+GITHUB_API_EXCEPTIONS: Tuple[Type[BaseException], ...] = (
+    # GitHub-specific exceptions
+    GithubException,
+    # Network and timeout exceptions
+    TimeoutError,
+    ConnectionError,
+    OSError,
+    # Common runtime exceptions
+    RuntimeError,
+    ValueError,
+    TypeError,
 )
 
 
@@ -149,10 +166,14 @@ class GitHubAPIClient(GitHubAPIServiceInterface):
 
         Returns:
             Repository instance if found, None otherwise
+
+        Raises:
+            RuntimeError: If GitHub client is not initialized
         """
         if not self._github_client:
-            self._logger.error("GitHub client not initialized")
-            return None
+            raise RuntimeError(
+                "GitHub client not initialized. Call initialize_client() before using get_repository()."
+            )
 
         try:
             result = self._retry_handler.execute_with_retry(
@@ -161,8 +182,9 @@ class GitHubAPIClient(GitHubAPIServiceInterface):
                 context=OperationContext.REPOSITORY_ACCESS,
             )
             return cast(Optional[Repository], result)
-        except Exception as e:
-            sanitized = sanitize_exception_for_logging(e)
+        except GITHUB_API_EXCEPTIONS as e:
+            exc = cast(Exception, e)
+            sanitized = sanitize_exception_for_logging(exc)
             self._logger.error(
                 f"Failed to get repository {repo_full_name}", extra=sanitized
             )
@@ -185,8 +207,9 @@ class GitHubAPIClient(GitHubAPIServiceInterface):
                 repository.get_pull, pr_number, context=OperationContext.PULL_REQUEST
             )
             return cast(Optional[PullRequest], result)
-        except Exception as e:
-            sanitized = sanitize_exception_for_logging(e)
+        except GITHUB_API_EXCEPTIONS as e:
+            exc = cast(Exception, e)
+            sanitized = sanitize_exception_for_logging(exc)
             self._logger.error(
                 f"Failed to get pull request #{pr_number}", extra=sanitized
             )
@@ -327,8 +350,9 @@ class GitHubAPIClient(GitHubAPIServiceInterface):
             self._cache_set(cache_key, file_content)
             return file_content
 
-        except Exception as e:
-            sanitized = sanitize_exception_for_logging(e)
+        except GITHUB_API_EXCEPTIONS as e:
+            exc = cast(Exception, e)
+            sanitized = sanitize_exception_for_logging(exc)
             self._logger.warning(
                 f"Failed to get content for file '{file_path}' in branch '{branch}'",
                 extra=sanitized,
@@ -421,8 +445,9 @@ class GitHubAPIClient(GitHubAPIServiceInterface):
                 try:
                     content = future.result()
                     results[file_path] = content
-                except Exception as e:
-                    sanitized = sanitize_exception_for_logging(e)
+                except GITHUB_API_EXCEPTIONS as e:
+                    exc = cast(Exception, e)
+                    sanitized = sanitize_exception_for_logging(exc)
                     self._logger.warning(
                         f"Parallel fetch failed for '{file_path}'", extra=sanitized
                     )

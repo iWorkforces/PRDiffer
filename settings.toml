@@ -89,7 +89,7 @@ mcp.host = "127.0.0.1"
 mcp.path = "/mcp"
 
 # Authentication settings
-[auth]
+[default.auth]
 enabled = true  # Enable/disable API key authentication (SECURITY: enabled by default for production)
 # To disable authentication for development/local use, set MCP_AUTH_ENABLED=false environment variable
 # API keys can be configured via environment variable MCP_API_KEYS (comma-separated)
@@ -98,11 +98,16 @@ enabled = true  # Enable/disable API key authentication (SECURITY: enabled by de
 
 # JWT token configuration (optional, for future JWT authentication support)
 # If you want to use JWT tokens for authentication, configure these settings:
-# auth.jwt.secret = "your-secret-key"  # Required for JWT signature verification
-# auth.jwt.algorithm = "HS256"  # JWT algorithm: HS256, RS256, etc.
-# auth.jwt.audience = null  # Optional audience claim validation
-# auth.jwt.issuer = null  # Optional issuer claim validation
+jwt.secret = ""  # Required for JWT signature verification (use MCP_JWT_SECRET env var)
+jwt.algorithm = "HS256"  # JWT algorithm: HS256, RS256, etc.
+jwt.audience = ""  # Optional audience claim validation
+jwt.issuer = ""  # Optional issuer claim validation
 # Environment variable: MCP_JWT_SECRET
+
+# Authentication brute-force protection settings
+max_failures_per_minute = 5
+lockout_duration = 60  # seconds
+failure_window = 300  # 5 minutes
 
 # Security headers for HTTP/SSE transports
 # NOTE: FastMCP runs on uvicorn. For production deployments, use a reverse proxy
@@ -163,11 +168,6 @@ circuit_breaker_registry.global_threshold_multiplier = 2  # Global breaker thres
 # File content cache settings
 cache.file_content_max_size = 1000
 cache.file_content_ttl = 600  # 10 minutes
-
-# Authentication brute-force protection settings
-auth.max_failures_per_minute = 5
-auth.lockout_duration = 60  # seconds
-auth.failure_window = 300  # 5 minutes
 
 # Security pattern configuration (regex patterns for input validation)
 # NOTE: Patterns use TOML string escaping - backslashes must be doubled

@@ -120,8 +120,9 @@ class PROperationHandler(PROperationHandlerProtocol):
                 init_method = getattr(repository, "initialize", None)
                 if callable(init_method):
                     await init_method()
-            except (AttributeError, TypeError):
-                pass  # Repository doesn't have initialize method or it's not callable
+            except AttributeError:
+                # Repository doesn't have an initialize method - this is expected
+                pass
 
             # Execute the repository directly (since we don't have a PRDiffService)
             pr_diff: Optional[PRDiff] = await repository.get_pr_diff()

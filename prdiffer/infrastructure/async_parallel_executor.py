@@ -16,9 +16,41 @@ from typing import (
     Awaitable,
     Tuple,
     Generic,
+    Type,
+    cast,
 )
 import anyio
 from prdiffer.infrastructure.logging.console_logger import get_logger
+
+# Exceptions to catch in parallel execution
+# Note: We deliberately exclude KeyboardInterrupt, SystemExit, and GeneratorExit
+# to allow system-level exceptions to propagate for proper shutdown/cleanup.
+OPERATIONAL_EXCEPTIONS: Tuple[Type[BaseException], ...] = (
+    TimeoutError,  # Timeout scenarios
+    ConnectionError,  # Network issues
+    OSError,  # File I/O errors
+    RuntimeError,  # General runtime errors
+    ValueError,  # Invalid values
+    TypeError,  # Type errors
+    KeyError,  # Missing key errors
+    IndexError,  # Index out of range
+    AttributeError,  # Attribute errors
+    LookupError,  # Base for KeyError, IndexError
+    EOFError,  # End of file
+    IOError,  # I/O errors
+    ImportError,  # Import errors
+    ArithmeticError,  # Arithmetic errors
+    FloatingPointError,  # Floating point errors
+    OverflowError,  # Overflow errors
+    ZeroDivisionError,  # Division by zero
+    AssertionError,  # Assertion failures
+    NameError,  # Name not found
+    UnboundLocalError,  # Unbound local variable
+    UnicodeError,  # Unicode errors
+    UnicodeDecodeError,  # Unicode decode errors
+    UnicodeEncodeError,  # Unicode encode errors
+    UnicodeTranslateError,  # Unicode translate errors
+)
 
 T = TypeVar("T")
 R = TypeVar("R")
@@ -144,10 +176,10 @@ class AsyncParallelExecutor:
                     result = await func(item)
                     if result is not None:
                         results.append(result)
-                except Exception as e:
+                except OPERATIONAL_EXCEPTIONS as e:
                     if self.error_strategy == ErrorStrategy.RAISE:
                         raise
-                    errors.append((item, e))
+                    errors.append((item, cast(Exception, e)))
                     self._logger.error(f"Error processing item {item}: {e}")
 
         try:
@@ -201,10 +233,10 @@ class AsyncParallelExecutor:
                     result = await func(item, context)
                     if result is not None:
                         results.append(result)
-                except Exception as e:
+                except OPERATIONAL_EXCEPTIONS as e:
                     if self.error_strategy == ErrorStrategy.RAISE:
                         raise
-                    errors.append((item, e))
+                    errors.append((item, cast(Exception, e)))
                     self._logger.error(f"Error processing item {item}: {e}")
 
         try:
@@ -271,10 +303,10 @@ class AsyncParallelExecutor:
                     result = await func(item)
                     if result is not None:
                         results.append(result)
-                except Exception as e:
+                except OPERATIONAL_EXCEPTIONS as e:
                     if self.error_strategy == ErrorStrategy.RAISE:
                         raise
-                    errors.append((item, e))
+                    errors.append((item, cast(Exception, e)))
                     self._logger.error(f"Error processing item {item}: {e}")
 
         try:
@@ -332,10 +364,10 @@ class AsyncParallelExecutor:
                     result = await func(item)
                     if result is not None:
                         results.append(result)
-                except Exception as e:
+                except OPERATIONAL_EXCEPTIONS as e:
                     if self.error_strategy == ErrorStrategy.RAISE:
                         raise
-                    errors.append((item, e))
+                    errors.append((item, cast(Exception, e)))
                     self._logger.error(f"Error processing item {item}: {e}")
                 finally:
                     async with lock:
@@ -394,8 +426,8 @@ class AsyncParallelExecutor:
                     r = await func(item)
                     if r is not None:
                         result.successful.append(r)
-                except Exception as e:
-                    result.failed.append((item, e))
+                except OPERATIONAL_EXCEPTIONS as e:
+                    result.failed.append((item, cast(Exception, e)))
                     self._logger.error(f"Error processing item {item}: {e}")
 
         try:

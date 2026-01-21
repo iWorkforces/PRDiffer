@@ -1,6 +1,7 @@
 import hashlib
 import time
 import threading
+from collections import OrderedDict
 from typing import Optional, Dict, Any, cast
 from prdiffer.domain.entities.pr_diff import PRDiff
 from prdiffer.domain.services import CacheServiceInterface
@@ -30,7 +31,8 @@ class CacheService(CacheServiceInterface):
         # Thread safety lock for cache operations
         self._lock = threading.RLock()
 
-        self.cache: Dict[str, Dict[str, Any]] = {}
+        # LRU cache using OrderedDict for memory-efficient storage with eviction
+        self.cache: OrderedDict[str, Dict[str, Any]] = OrderedDict()
         self.logger = get_logger()
 
         # Load cache hashing configuration
@@ -42,6 +44,9 @@ class CacheService(CacheServiceInterface):
         self._hash_algorithm = settings.get("cache.hash_algorithm", "md5")
         self._store_key_mapping = settings.get("cache.store_key_mapping", True)
         self._ttl = settings.get("cache.ttl", 600)  # Default 10 minutes
+        self._cache_max_size = settings.get(
+            "cache.max_size", 1000
+        )  # Default 1000 entries
 
         # Reverse mapping: hashed_key -> original_key (for debugging and stats)
         self._key_mapping: Dict[str, str] = {}
@@ -50,6 +55,8 @@ class CacheService(CacheServiceInterface):
         self._cache_hits = 0
         self._cache_misses = 0
         self._cache_expirations = 0
+        self._cache_evictions_ttl = 0  # Track TTL-based evictions
+        self._cache_evictions_size = 0  # Track size-based evictions
 
         if self._use_hashed_keys:
             self.logger.info(
@@ -156,6 +163,46 @@ class CacheService(CacheServiceInterface):
         age = time.time() - float(timestamp)
         return bool(age > self._ttl)
 
+    def _evict_oldest_if_needed(self) -> None:
+        """Evict oldest entries when cache exceeds max size (LRU eviction).
+
+        This must be called while holding the lock. Also proactively removes
+        expired entries to maintain cache hygiene.
+
+        Thread Safety: Must be called with self._lock held.
+        """
+        current_time = time.time()
+
+        # First, remove any expired entries (TTL-based eviction)
+        expired_keys = []
+        for key, entry in self.cache.items():
+            age = current_time - float(entry["timestamp"])
+            if age >= self._ttl:
+                expired_keys.append(key)
+
+        for key in expired_keys:
+            self.cache.pop(key)
+            self._key_mapping.pop(key, None)
+            self._cache_evictions_ttl += 1
+
+        if expired_keys:
+            self.logger.debug(
+                f"Cache eviction (TTL): removed {len(expired_keys)} expired entries "
+                f"[size={len(self.cache)}/{self._cache_max_size}]"
+            )
+
+        # Then, remove oldest entries if still over size limit (LRU eviction)
+        while len(self.cache) >= self._cache_max_size:
+            # OrderedDict.popitem(last=False) removes oldest entry
+            evicted_key, _ = self.cache.popitem(last=False)
+            self._key_mapping.pop(evicted_key, None)
+            self._cache_evictions_size += 1
+            original_key = self._get_original_key(evicted_key)
+            self.logger.debug(
+                f"Cache eviction (LRU): {original_key[:50]}... "
+                f"[size={len(self.cache)}/{self._cache_max_size}]"
+            )
+
     def get(self, cache_key: str, current_commit_sha: str) -> Optional[PRDiff]:
         """Get cached PR diff data if it exists, commit SHA matches, and not expired.
 
@@ -203,6 +250,8 @@ class CacheService(CacheServiceInterface):
 
             if cached_commit_sha == current_commit_sha and cached_result:
                 self._cache_hits += 1
+                # Mark as recently used by moving to end of OrderedDict
+                self.cache.move_to_end(internal_key)
                 self.logger.info(
                     "Cache hit",
                     cache_key=cache_key,
@@ -238,6 +287,14 @@ class CacheService(CacheServiceInterface):
         )
 
         with self._lock:
+            # If key exists, remove it first to update its position (move to end)
+            if internal_key in self.cache:
+                del self.cache[internal_key]
+            else:
+                # New entry - check if we need to evict
+                self._evict_oldest_if_needed()
+
+            # Add entry at the end (most recently used)
             self.cache[internal_key] = {
                 "commit_sha": commit_sha,
                 "data": data,
@@ -299,6 +356,7 @@ class CacheService(CacheServiceInterface):
         Returns:
             Dict[str, Any]: Cache statistics including:
                 - size: Number of cached entries
+                - max_size: Maximum cache size before LRU eviction
                 - keys: List of cache keys (original format if mapping enabled)
                 - total_entries: Total number of entries
                 - hashing_enabled: Whether key hashing is active
@@ -307,6 +365,8 @@ class CacheService(CacheServiceInterface):
                 - cache_hits: Number of cache hits
                 - cache_misses: Number of cache misses
                 - cache_expirations: Number of expired entries removed
+                - cache_evictions_ttl: Number of entries evicted due to TTL
+                - cache_evictions_size: Number of entries evicted due to size limit
                 - hit_rate_percent: Cache hit rate percentage
         """
         with self._lock:
@@ -317,11 +377,16 @@ class CacheService(CacheServiceInterface):
 
             base_stats = {
                 "size": len(self.cache),
+                "max_size": self._cache_max_size,
                 "total_entries": len(self.cache),
                 "ttl_seconds": self._ttl,
                 "cache_hits": self._cache_hits,
                 "cache_misses": self._cache_misses,
                 "cache_expirations": self._cache_expirations,
+                "cache_evictions_ttl": self._cache_evictions_ttl,
+                "cache_evictions_size": self._cache_evictions_size,
+                "cache_evictions": self._cache_evictions_ttl
+                + self._cache_evictions_size,
                 "hit_rate_percent": round(hit_rate, 2),
                 "hashing_enabled": self._use_hashed_keys,
             }
