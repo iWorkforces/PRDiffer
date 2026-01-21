@@ -1,0 +1,18 @@
+{
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 .claude/hooks/tool_skill_notifier.py"
+          },
+          {
+            "type": "command",
+            "command": "python3 .claude/hooks/sequential_thinking_enhancer.py"
+          }
+        ]
+      }
+    ]
+  }
+}
