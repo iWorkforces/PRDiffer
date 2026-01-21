@@ -443,9 +443,8 @@ class UnifiedRetryHandler(RetryServiceInterface):
                 return True
 
         # Standard transient error detection using pre-defined patterns
-        return (
-            self._is_rate_limit_error(error)
-            or any(pattern in error_str for pattern in TRANSIENT_ERROR_PATTERNS)
+        return self._is_rate_limit_error(error) or any(
+            pattern in error_str for pattern in TRANSIENT_ERROR_PATTERNS
         )
 
     def _is_rate_limit_error(self, error: Exception) -> bool:
@@ -605,20 +604,21 @@ class UnifiedRetryHandler(RetryServiceInterface):
         )
 
         if is_rate_limit:
-            message = (
-                "Rate limit hit%s, retrying in %.2fs (attempt %d)" % (
-                    context_str, delay, attempt + 1
-                )
+            message = "Rate limit hit%s, retrying in %.2fs (attempt %d)" % (
+                context_str,
+                delay,
+                attempt + 1,
             )
         else:
             # Truncate long error messages for cleaner logs
             error_msg = str(error)
             if len(error_msg) > 100:
                 error_msg = error_msg[:97] + "..."
-            message = (
-                "API error%s, retrying in %.2fs (attempt %d): %s" % (
-                    context_str, delay, attempt + 1, error_msg
-                )
+            message = "API error%s, retrying in %.2fs (attempt %d): %s" % (
+                context_str,
+                delay,
+                attempt + 1,
+                error_msg,
             )
 
         # Log at configured level
