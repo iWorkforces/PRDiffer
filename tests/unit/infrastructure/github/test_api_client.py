@@ -101,9 +101,9 @@ class TestGitHubAPIClient:
 
         stats = client.get_cache_stats()
 
-        assert stats["size"] == 2
-        assert "max_size" in stats
-        assert "ttl_seconds" in stats
+        assert stats["cache_size"] == 2
+        assert "cache_max_size" in stats
+        assert "cache_ttl_seconds" in stats
 
 
 @pytest.mark.asyncio

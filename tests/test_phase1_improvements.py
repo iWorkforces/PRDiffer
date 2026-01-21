@@ -267,8 +267,8 @@ class TestAsyncRetryHandler:
             nonlocal call_count
             call_count += 1
             if call_count < 3:
-                # Use "timeout" error which is retryable
-                raise Exception("Connection timeout error")
+                # Use TimeoutError which is in RETRY_EXCEPTIONS and has "timeout" keyword
+                raise TimeoutError("Connection timeout error")
             return "success"
 
         result = await retry_handler.execute_with_retry_async(eventually_successful)
@@ -281,10 +281,10 @@ class TestAsyncRetryHandler:
         """Test async retry raises after all attempts exhausted."""
 
         async def always_fails():
-            # Use "timeout" error which is retryable, so all retries are attempted
-            raise Exception("Connection timeout error")
+            # Use TimeoutError which is in RETRY_EXCEPTIONS and has "timeout" keyword
+            raise TimeoutError("Connection timeout error")
 
-        with pytest.raises(Exception, match="timeout"):
+        with pytest.raises(TimeoutError, match="timeout"):
             await retry_handler.execute_with_retry_async(always_fails)
 
     @pytest.mark.asyncio
@@ -296,8 +296,8 @@ class TestAsyncRetryHandler:
             nonlocal call_count
             call_count += 1
             if call_count == 1:
-                # Use "timeout" error which is retryable
-                raise Exception("Connection timeout")
+                # Use TimeoutError which is in RETRY_EXCEPTIONS and has "timeout" keyword
+                raise TimeoutError("Connection timeout")
             return "success"
 
         start_time = time.time()

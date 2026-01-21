@@ -281,8 +281,8 @@ class TestValidationErrorScenarios:
         # Arrange: None URL
         none_url = None
 
-        # Act & Assert: Should raise ValueError with descriptive message
-        with pytest.raises(ValueError, match="cannot be None"):
+        # Act & Assert: Should raise InvalidURLError
+        with pytest.raises(InvalidURLError, match="cannot be None"):
             server._parse_pr_url(none_url)
 
     def test_whitespace_only_url(self, server):
@@ -290,8 +290,8 @@ class TestValidationErrorScenarios:
         # Arrange: Whitespace-only URL
         whitespace_url = "   \t\n  "
 
-        # Act & Assert: Should raise ValueError with descriptive message
-        with pytest.raises(ValueError, match="whitespace-only"):
+        # Act & Assert: Should raise InvalidURLError
+        with pytest.raises(InvalidURLError, match="whitespace-only"):
             server._parse_pr_url(whitespace_url)
 
     def test_non_string_url(self, server):
@@ -299,8 +299,8 @@ class TestValidationErrorScenarios:
         # Arrange: Non-string URL (integer)
         non_string_url = 12345
 
-        # Act & Assert: Should raise ValueError with type information
-        with pytest.raises(ValueError, match="must be a string"):
+        # Act & Assert: Should raise InvalidURLError
+        with pytest.raises(InvalidURLError, match="must be a string"):
             server._parse_pr_url(non_string_url)
 
     def test_invalid_pr_number(self, server):

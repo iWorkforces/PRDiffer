@@ -255,9 +255,8 @@ class UnifiedRetryHandler(RetryServiceInterface):
                 exc = cast(Exception, e)
                 last_exception = exc
 
-                # Record failure if health tracking is enabled
-                if self._health_tracker:
-                    self._record_failure(exc)
+                # Record failure for circuit breaker (always) and health tracker (if enabled)
+                self._record_failure(exc)
 
                 # Check if this error should be retried
                 should_retry = self._should_retry_error(exc, context)
@@ -347,9 +346,8 @@ class UnifiedRetryHandler(RetryServiceInterface):
                 exc = cast(Exception, e)
                 last_exception = exc
 
-                # Record failure if health tracking is enabled
-                if self._health_tracker:
-                    self._record_failure(exc)
+                # Record failure for circuit breaker (always) and health tracker (if enabled)
+                self._record_failure(exc)
 
                 # Check if this error should be retried
                 should_retry = self._should_retry_error(exc, context)
