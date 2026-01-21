@@ -210,4 +210,4 @@ __marimo__/
 .env.*
 
 *.DS_Store
-.claude/
+

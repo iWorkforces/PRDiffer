@@ -2,7 +2,7 @@
 
 This directory contains security components for input validation and sanitization to prevent common security vulnerabilities in the PRDiffer MCP server.
 
-**Current Version:** 0.4.7
+**Current Version:** 0.4.8
 
 ## Overview
 

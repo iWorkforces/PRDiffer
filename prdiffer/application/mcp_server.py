@@ -1,5 +1,5 @@
 import time
-from typing import Optional, Callable, Literal, cast, TypeAlias
+from typing import Optional, Callable, Literal, cast, TypeAlias, NoReturn
 from fastmcp import FastMCP
 from prdiffer.version import __version__
 from prdiffer.domain.entities.pr_diff import PRDiff
@@ -256,6 +256,219 @@ class FastMCPServer:
         health_status["request_coalescing"] = await self._request_coalescing.get_stats()
         return health_status
 
+    async def _authenticate_request(
+        self, request_id: str, start_time: float, api_key: Optional[str]
+    ) -> Optional[str]:
+        """Authenticate the incoming request using API key if authentication is enabled.
+
+        Args:
+            request_id: Unique request identifier for tracing
+            start_time: Request start time for metrics tracking
+            api_key: Optional API key for authentication
+
+        Returns:
+            Optional[str]: Client ID if authentication successful, None for anonymous
+
+        Raises:
+            ValueError: If authentication fails or rate limit is exceeded
+        """
+        try:
+            is_authenticated, client_id = self._authentication.authenticate(api_key)
+        except RuntimeError as e:
+            execution_time = time.time() - start_time
+            self._metrics_tracker.track_request("get_pr_diff", False, execution_time)
+            self._logger.warning(
+                "Authentication rate limited",
+                request_id=request_id,
+                error=str(e),
+            )
+            raise ValueError(str(e))
+
+        if not is_authenticated:
+            self._logger.warning("Authentication failed", request_id=request_id)
+            raise ValueError(
+                "Authentication failed. Please provide a valid API key via the 'api_key' parameter."
+            )
+
+        return client_id
+
+    def _validate_and_sanitize_params(self, pr_url: str) -> tuple[str, str, int]:
+        """Validate and sanitize the input PR URL parameter.
+
+        Args:
+            pr_url: The GitHub PR URL to validate
+
+        Returns:
+            tuple[str, str, int]: Parsed (repo_owner, repo_name, pr_number)
+
+        Raises:
+            InputSanitizationError: If PR URL parameter is missing or invalid
+            InvalidURLError: If URL format is invalid or contains suspicious patterns
+        """
+        if not pr_url:
+            raise InputSanitizationError("PR URL parameter is required")
+
+        # Sanitize PR URL string (basic validation before detailed parsing)
+        pr_url = self._input_validator.sanitize_string(pr_url, max_length=2000)
+
+        # Parse and validate GitHub URL with security checks
+        return self._parse_pr_url(pr_url)
+
+    async def _execute_use_case_with_coalescing(
+        self, request_id: str, repo_owner: str, repo_name: str, pr_number: int
+    ) -> PRDiff:
+        """Execute the PR diff use case with request coalescing for concurrent requests.
+
+        Args:
+            request_id: Unique request identifier for tracing
+            repo_owner: Repository owner name
+            repo_name: Repository name
+            pr_number: Pull request number
+
+        Returns:
+            PRDiff: The PR diff result
+
+        Raises:
+            ValueError: If use case returns None
+        """
+        # Create coalescing key
+        coalesce_key = f"{repo_owner}/{repo_name}/pr/{pr_number}"
+
+        # Define the actual fetch function
+        async def fetch_pr_diff() -> PRDiff:
+            """Fetch PR diff - will be coalesced if multiple requests arrive."""
+            use_case = GetPRDiffUseCase(
+                pr_diff_service=self._pr_diff_service,
+                cache_service=self._cache_service,
+            )
+            result = await use_case.execute(
+                repo_owner=repo_owner, repo_name=repo_name, pr_number=pr_number
+            )
+
+            # Handle case where use case returns None
+            if result is None:
+                self._logger.error(
+                    "Use case returned None for PR diff",
+                    request_id=request_id,
+                    repo_owner=repo_owner,
+                    repo_name=repo_name,
+                    pr_number=pr_number,
+                )
+                raise ValueError("Failed to get PR diff - use case returned None")
+
+            return result
+
+        # Coalesce the request - if multiple concurrent requests for same PR,
+        # only one will actually fetch, others will wait and share the result
+        return await self._request_coalescing.coalesce(coalesce_key, fetch_pr_diff)
+
+    def _log_metrics_and_return_success(
+        self, start_time: float, pr_diff: PRDiff
+    ) -> PRDiff:
+        """Log successful request metrics and return the PR diff result.
+
+        Args:
+            start_time: Request start time
+            pr_diff: The PR diff result to return
+
+        Returns:
+            PRDiff: The unchanged PR diff result
+        """
+        execution_time = time.time() - start_time
+        self._metrics_tracker.track_request("get_pr_diff", True, execution_time)
+
+        self._logger.info(f"Successfully fetched PR diff\n {pr_diff.diff_content}")
+        return pr_diff
+
+    def _handle_security_exception(
+        self, exception: Exception, start_time: float, request_id: str, pr_url: str
+    ) -> NoReturn:
+        """Handle security validation exceptions with appropriate logging and re-raising.
+
+        Args:
+            exception: The security exception to handle
+            start_time: Request start time for metrics
+            request_id: Unique request identifier
+            pr_url: The PR URL (sanitized for logging)
+
+        Raises:
+            ValueError: Always raises with safe error message
+        """
+        execution_time = time.time() - start_time
+        self._metrics_tracker.track_request("get_pr_diff", False, execution_time)
+
+        self._logger.warning(
+            "Security validation error in PR diff request",
+            request_id=request_id,
+            pr_url=self._input_validator.sanitize_for_logging(pr_url)
+            if pr_url
+            else None,
+            error=str(exception),
+            error_type=type(exception).__name__,
+        )
+
+        safe_message = self._create_safe_error_message(exception)
+        raise ValueError(f"Invalid request: {safe_message}")
+
+    def _handle_validation_exception(
+        self, exception: Exception, start_time: float, request_id: str, pr_url: str
+    ) -> NoReturn:
+        """Handle general validation exceptions with appropriate logging and re-raising.
+
+        Args:
+            exception: The validation exception to handle
+            start_time: Request start time for metrics
+            request_id: Unique request identifier
+            pr_url: The PR URL (sanitized for logging)
+
+        Raises:
+            ValueError: Always raises with safe error message
+        """
+        execution_time = time.time() - start_time
+        self._metrics_tracker.track_request("get_pr_diff", False, execution_time)
+
+        self._logger.warning(
+            "Validation error in PR diff request",
+            request_id=request_id,
+            pr_url=self._input_validator.sanitize_for_logging(pr_url)
+            if pr_url
+            else None,
+            error=str(exception),
+        )
+
+        safe_message = self._create_safe_error_message(exception)
+        raise ValueError(f"Invalid request: {safe_message}")
+
+    def _handle_runtime_exception(
+        self, exception: Exception, start_time: float, request_id: str, pr_url: str
+    ) -> NoReturn:
+        """Handle runtime exceptions (GitHub API, network errors) with logging and re-raising.
+
+        Args:
+            exception: The runtime exception to handle
+            start_time: Request start time for metrics
+            request_id: Unique request identifier
+            pr_url: The PR URL (sanitized for logging)
+
+        Raises:
+            RuntimeError: Always raises with safe error message
+        """
+        execution_time = time.time() - start_time
+        self._metrics_tracker.track_request("get_pr_diff", False, execution_time)
+
+        self._logger.error(
+            "Failed to fetch PR diff",
+            request_id=request_id,
+            pr_url=self._input_validator.sanitize_for_logging(pr_url)
+            if pr_url
+            else None,
+            error=str(exception),
+            error_type=type(exception).__name__,
+        )
+
+        safe_message = self._create_safe_error_message(exception)
+        raise RuntimeError(f"Failed to fetch PR diff: {safe_message}")
+
     def _register_tools(self):
         """Register FastMCP tools with the server instance.
 
@@ -276,8 +489,8 @@ class FastMCPServer:
                 ValueError: If authentication fails or URL is invalid
                 RuntimeError: If rate limit is exceeded or API request fails
             """
-            # Generate request ID for tracing
             request_id = self._generate_request_id()
+            start_time = time.time()
 
             self._logger.info(
                 "Processing get_pr_diff request",
@@ -285,33 +498,10 @@ class FastMCPServer:
                 pr_url=pr_url,
             )
 
-            # Start tracking request time
-            start_time = time.time()
-
             # Authenticate request
-            try:
-                is_authenticated, client_id = self._authentication.authenticate(api_key)
-            except RuntimeError as e:
-                # Client is locked out due to too many failures
-                execution_time = time.time() - start_time
-                self._metrics_tracker.track_request(
-                    "get_pr_diff", False, execution_time
-                )
-                self._logger.warning(
-                    "Authentication rate limited",
-                    request_id=request_id,
-                    error=str(e),
-                )
-                raise ValueError(str(e))
-
-            if not is_authenticated:
-                self._logger.warning(
-                    "Authentication failed",
-                    request_id=request_id,
-                )
-                raise ValueError(
-                    "Authentication failed. Please provide a valid API key via the 'api_key' parameter."
-                )
+            client_id = await self._authenticate_request(
+                request_id, start_time, api_key
+            )
 
             # Use authenticated client_id for rate limiting
             # Fallback to "anonymous" if no client_id provided
@@ -321,59 +511,18 @@ class FastMCPServer:
                 # Check rate limit with client-specific identifier
                 self._check_rate_limit(rate_limit_client_id)
 
-                # Validate input parameters using InputValidator
-                if not pr_url:
-                    raise InputSanitizationError("PR URL parameter is required")
-
-                # Sanitize PR URL string (basic validation before detailed parsing)
-                pr_url = self._input_validator.sanitize_string(pr_url, max_length=2000)
-
-                # Parse and validate GitHub URL with security checks
-                repo_owner, repo_name, pr_number = self._parse_pr_url(pr_url)
-
-                # Create coalescing key
-                coalesce_key = f"{repo_owner}/{repo_name}/pr/{pr_number}"
-
-                # Define the actual fetch function
-                async def fetch_pr_diff() -> PRDiff:
-                    """Fetch PR diff - will be coalesced if multiple requests arrive."""
-                    use_case = GetPRDiffUseCase(
-                        pr_diff_service=self._pr_diff_service,
-                        cache_service=self._cache_service,
-                    )
-                    result = await use_case.execute(
-                        repo_owner=repo_owner, repo_name=repo_name, pr_number=pr_number
-                    )
-
-                    # Handle case where use case returns None
-                    if result is None:
-                        self._logger.error(
-                            "Use case returned None for PR diff",
-                            request_id=request_id,
-                            repo_owner=repo_owner,
-                            repo_name=repo_name,
-                            pr_number=pr_number,
-                        )
-                        raise ValueError(
-                            "Failed to get PR diff - use case returned None"
-                        )
-
-                    return result
-
-                # Coalesce the request - if multiple concurrent requests for same PR,
-                # only one will actually fetch, others will wait and share the result
-                pr_diff: PRDiff = await self._request_coalescing.coalesce(
-                    coalesce_key, fetch_pr_diff
+                # Validate and sanitize input parameters
+                repo_owner, repo_name, pr_number = self._validate_and_sanitize_params(
+                    pr_url
                 )
 
-                # Track successful request
-                execution_time = time.time() - start_time
-                self._metrics_tracker.track_request("get_pr_diff", True, execution_time)
-
-                self._logger.info(
-                    f"""Successfully fetched PR diff\n {pr_diff.diff_content}"""
+                # Execute use case with request coalescing
+                pr_diff = await self._execute_use_case_with_coalescing(
+                    request_id, repo_owner, repo_name, pr_number
                 )
-                return pr_diff
+
+                # Track successful request and return
+                return self._log_metrics_and_return_success(start_time, pr_diff)
 
             except (
                 InvalidURLError,
@@ -382,45 +531,10 @@ class FastMCPServer:
                 InputSanitizationError,
                 SuspiciousOperationError,
             ) as e:
-                # Track failed request
-                execution_time = time.time() - start_time
-                self._metrics_tracker.track_request(
-                    "get_pr_diff", False, execution_time
-                )
-
-                # Security validation errors - provide safe error messages
-                self._logger.warning(
-                    "Security validation error in PR diff request",
-                    request_id=request_id,
-                    pr_url=self._input_validator.sanitize_for_logging(pr_url)
-                    if pr_url
-                    else None,
-                    error=str(e),
-                    error_type=type(e).__name__,
-                )
-                # Use safe message that doesn't expose internal details
-                safe_message = self._create_safe_error_message(e)
-                raise ValueError(f"Invalid request: {safe_message}")
+                self._handle_security_exception(e, start_time, request_id, pr_url)
 
             except ValueError as e:
-                # Track failed request
-                execution_time = time.time() - start_time
-                self._metrics_tracker.track_request(
-                    "get_pr_diff", False, execution_time
-                )
-
-                # Other validation errors - provide safe error messages
-                self._logger.warning(
-                    "Validation error in PR diff request",
-                    request_id=request_id,
-                    pr_url=self._input_validator.sanitize_for_logging(pr_url)
-                    if pr_url
-                    else None,
-                    error=str(e),
-                )
-                # Use safe message that doesn't expose internal details
-                safe_message = self._create_safe_error_message(e)
-                raise ValueError(f"Invalid request: {safe_message}")
+                self._handle_validation_exception(e, start_time, request_id, pr_url)
 
             except (
                 RuntimeError,
@@ -429,25 +543,7 @@ class FastMCPServer:
                 TypeError,
                 ConnectionError,
             ) as e:
-                # Track failed request
-                execution_time = time.time() - start_time
-                self._metrics_tracker.track_request(
-                    "get_pr_diff", False, execution_time
-                )
-
-                # GitHub API or other unexpected errors - log full details internally
-                self._logger.error(
-                    "Failed to fetch PR diff",
-                    request_id=request_id,
-                    pr_url=self._input_validator.sanitize_for_logging(pr_url)
-                    if pr_url
-                    else None,
-                    error=str(e),
-                    error_type=type(e).__name__,
-                )
-                # Re-raise with safe error message that doesn't expose internals
-                safe_message = self._create_safe_error_message(e)
-                raise RuntimeError(f"Failed to fetch PR diff: {safe_message}")
+                self._handle_runtime_exception(e, start_time, request_id, pr_url)
 
         @self.mcp.tool()
         async def health():
