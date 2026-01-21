@@ -1,17 +1,17 @@
 from typing import Optional, Dict, Any, List
 import os
 import sys
+from functools import lru_cache
 from dynaconf import Dynaconf
 from prdiffer.domain.services import SettingsServiceInterface
 from prdiffer.domain.config import GitHubConfig
-from prdiffer.infrastructure.utils.cache_decorator import CachingMixin, cached_method
 
 
-class SettingsService(SettingsServiceInterface, CachingMixin):
-    """Settings service for reading TOML configuration files with Dynaconf and caching.
+class SettingsService(SettingsServiceInterface):
+    """Settings service for reading TOML configuration files with Dynaconf.
 
-    This service provides a centralized way to access application settings with
-    built-in caching for maximum performance using the CachingMixin decorator pattern.
+    This service provides a centralized way to access application settings using
+    functools.lru_cache for efficient caching with hashable return types.
 
     Attributes:
         settings: The Dynaconf instance for configuration management
@@ -20,19 +20,12 @@ class SettingsService(SettingsServiceInterface, CachingMixin):
     def __init__(
         self,
         settings_files: Optional[list] = None,
-        max_cache_size: int = 1000,
-        cache_ttl: int = 300,
     ):
         """Initialize the settings service with configuration files.
 
         Args:
             settings_files: List of TOML files to load. Defaults to ['settings.toml', '.secrets.toml']
-            max_cache_size: Maximum number of cache entries (default: 1000)
-            cache_ttl: Default TTL for cached settings in seconds (default: 300 = 5 minutes)
         """
-        # Initialize CachingMixin with configurable parameters
-        super().__init__(max_cache_size=max_cache_size, default_ttl=cache_ttl)
-
         if settings_files is None:
             settings_files = ["settings.toml", ".secrets.toml"]
 
@@ -43,9 +36,8 @@ class SettingsService(SettingsServiceInterface, CachingMixin):
             load_dotenv=True,
         )
 
-    @cached_method()
     def get(self, key: str, default: Any = None) -> Any:
-        """Get a configuration value with caching.
+        """Get a configuration value.
 
         Args:
             key: The configuration key to retrieve
@@ -56,7 +48,7 @@ class SettingsService(SettingsServiceInterface, CachingMixin):
         """
         return self.settings.get(key, default)
 
-    @cached_method()
+    @lru_cache(maxsize=1)
     def get_github_settings(self) -> Dict[str, Any]:
         """Get GitHub-related settings with caching.
 
@@ -109,6 +101,7 @@ class SettingsService(SettingsServiceInterface, CachingMixin):
             "context_aware_retry": get_with_fallback(
                 "github.context_aware_retry", True
             ),
+            # Convert lists to tuples for hashability
             "ignore_patterns": tuple(get_with_fallback("github.ignore_patterns", [])),
             "valid_extensions": tuple(get_with_fallback("github.valid_extensions", [])),
             "diff_parallel_enabled": get_with_fallback(
@@ -123,7 +116,7 @@ class SettingsService(SettingsServiceInterface, CachingMixin):
             ),
         }
 
-    @cached_method()
+    @lru_cache(maxsize=1)
     def get_github_config(self) -> GitHubConfig:
         """Get centralized GitHub configuration as a GitHubConfig dataclass.
 
@@ -188,9 +181,13 @@ class SettingsService(SettingsServiceInterface, CachingMixin):
             ),
             # File processing limits
             max_files_allowed=get_with_fallback("app.max_files_allowed", 50),
+            # Diff processing thresholds
+            large_file_threshold=get_with_fallback("diff.large_file_threshold", 5000),
+            chunk_size=get_with_fallback("diff.chunk_size", 1000),
+            max_diff_size=get_with_fallback("diff.max_diff_size", 100000),
         )
 
-    @cached_method()
+    @lru_cache(maxsize=1)
     def get_cache_settings(self) -> Dict[str, Any]:
         """Get cache-related settings with caching.
 
@@ -203,7 +200,7 @@ class SettingsService(SettingsServiceInterface, CachingMixin):
             "enabled": self.get("cache.enabled", True),
         }
 
-    @cached_method()
+    @lru_cache(maxsize=1)
     def get_app_settings(self) -> Dict[str, Any]:
         """Get general application settings with caching.
 
@@ -354,14 +351,15 @@ class SettingsService(SettingsServiceInterface, CachingMixin):
             return []
 
     # Explicitly override clear_cache to satisfy the abstract method requirement
-    # Even though CachingMixin provides this, we need to make it explicit for ABC
     def clear_cache(self) -> None:
         """Clear all cached settings.
 
-        Implementation delegates to CachingMixin's clear_cache method.
+        Clears the lru_cache for all cached methods.
         """
-        # Directly call CachingMixin's implementation instead of using super()
-        CachingMixin.clear_cache(self)
+        self.get_github_settings.cache_clear()
+        self.get_github_config.cache_clear()
+        self.get_cache_settings.cache_clear()
+        self.get_app_settings.cache_clear()
 
 
 # Global settings service instance

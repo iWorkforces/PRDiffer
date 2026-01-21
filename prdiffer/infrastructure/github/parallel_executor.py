@@ -1,4 +1,16 @@
-"""Parallel execution service for batch processing operations."""
+"""Parallel execution service for batch processing operations.
+
+NOTE: This class uses ThreadPoolExecutor for synchronous parallel processing.
+For new code requiring parallel execution, consider using AsyncParallelExecutor
+(prdiffer.infrastructure.async_parallel_executor) which provides:
+- Better performance for I/O-bound operations
+- Structured concurrency with anyio
+- Multiple error handling strategies
+- Progress tracking support
+
+Migration to async executor is planned for a future major version.
+See: docs/development-plan-improvements-v1.0.0.md for details.
+"""
 
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import List, Callable, Any, Optional, Dict
@@ -7,6 +19,12 @@ from prdiffer.infrastructure.logging.console_logger import get_logger
 
 class ParallelExecutor:
     """Service for executing operations in parallel using thread pools.
+
+    DEPRECATION NOTICE: This class uses ThreadPoolExecutor which is less efficient
+    for I/O-bound operations. Consider migrating to AsyncParallelExecutor for:
+    - 20%+ better performance for I/O-bound tasks
+    - Better resource utilization with async/await
+    - More sophisticated error handling strategies
 
     This class provides utilities for parallel execution of file processing,
     API calls, and other operations that can benefit from concurrent execution.

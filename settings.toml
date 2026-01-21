@@ -146,6 +146,12 @@ file_processing.chunk_size_kb = 64
 file_processing.concurrent_downloads = 3
 file_processing.parallel_fetch_threshold = 10
 
+# Diff processing thresholds (for chunked processing of large files)
+# These control when to use chunked diff generation to avoid O(N²) complexity
+diff.large_file_threshold = 5000     # Lines - threshold for chunked processing
+diff.chunk_size = 1000               # Lines per chunk for large files
+diff.max_diff_size = 100000          # Maximum lines - files larger return truncated message
+
 # Diff size limits
 diff.truncate_enabled = true
 diff.max_total_chars = 200000
