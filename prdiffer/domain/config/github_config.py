@@ -88,6 +88,11 @@ class GitHubConfig(GitHubConfigInterface):
     # File processing limits
     max_files_allowed: int = 50
 
+    # Diff processing thresholds (for chunked processing of large files)
+    large_file_threshold: int = 5000
+    chunk_size: int = 1000
+    max_diff_size: int = 100000
+
     @classmethod
     def from_dict(cls, config: dict) -> "GitHubConfig":
         """Create GitHubConfig from a dictionary.
@@ -135,6 +140,10 @@ class GitHubConfig(GitHubConfigInterface):
             diff_max_workers=config.get("diff_max_workers", 4),
             diff_worker_timeout=float(config.get("diff_worker_timeout", 30.0)),
             max_files_allowed=config.get("max_files_allowed", 50),
+            # Diff processing thresholds
+            large_file_threshold=config.get("large_file_threshold", 5000),
+            chunk_size=config.get("chunk_size", 1000),
+            max_diff_size=config.get("max_diff_size", 100000),
         )
 
     def to_dict(self) -> dict:
@@ -167,6 +176,9 @@ class GitHubConfig(GitHubConfigInterface):
             "diff_max_workers": self.diff_max_workers,
             "diff_worker_timeout": self.diff_worker_timeout,
             "max_files_allowed": self.max_files_allowed,
+            "large_file_threshold": self.large_file_threshold,
+            "chunk_size": self.chunk_size,
+            "max_diff_size": self.max_diff_size,
         }
 
     def with_overrides(self, **kwargs) -> "GitHubConfig":

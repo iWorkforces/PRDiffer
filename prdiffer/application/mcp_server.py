@@ -196,20 +196,21 @@ class FastMCPServer:
             tuple[str, str, int]: A tuple containing (repo_owner, repo_name, pr_number)
 
         Raises:
-            InvalidURLError: If the URL format is invalid or contains invalid characters
+            InvalidURLError: If the URL format is invalid, contains invalid characters, or is empty/whitespace-only
             SuspiciousOperationError: If the URL contains suspicious patterns
-            ValueError: If the URL is None, empty, or whitespace-only
         """
         # Validate input is not None or empty before processing
         if pr_url is None:
-            raise ValueError("PR URL cannot be None")
+            raise InvalidURLError("PR URL cannot be None")
 
         if not isinstance(pr_url, str):
-            raise ValueError(f"PR URL must be a string, got {type(pr_url).__name__}")
+            raise InvalidURLError(
+                f"PR URL must be a string, got {type(pr_url).__name__}"
+            )
 
         pr_url_stripped = pr_url.strip()
         if not pr_url_stripped:
-            raise ValueError("PR URL cannot be empty or whitespace-only")
+            raise InvalidURLError("PR URL cannot be empty or whitespace-only")
 
         # Delegate to input validator for full validation
         return self._input_validator.validate_github_url(pr_url_stripped)

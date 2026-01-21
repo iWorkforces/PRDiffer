@@ -253,19 +253,27 @@ class DiffGenerator:
         if not is_deletion_only:
             output = output.rstrip() + "\n__new hunk__\n"
             line_num = new_start_line
+            new_lines_output = []
             for line_new in hunk["new_lines"]:
                 # Skip deleted lines in new hunk display
                 if not line_new.startswith("-"):
-                    output += f"{line_num} {line_new}\n"
+                    new_lines_output.append(f"{line_num} {line_new}")
                     line_num += 1
+            output += "\n".join(new_lines_output)
+            if new_lines_output:
+                output += "\n"
         elif is_deletion_only and hunk["new_lines"]:
             # Show context lines even for deletion-only hunks
             output = output.rstrip() + "\n__new hunk__\n"
             line_num = new_start_line
+            new_lines_output = []
             for line_new in hunk["new_lines"]:
                 if not line_new.startswith("-"):
-                    output += f"{line_num} {line_new}\n"
+                    new_lines_output.append(f"{line_num} {line_new}")
                     line_num += 1
+            output += "\n".join(new_lines_output)
+            if new_lines_output:
+                output += "\n"
 
         # Format old content section if there are deletions
         if has_deletions:
@@ -274,13 +282,14 @@ class DiffGenerator:
             # For new files, there's no old content to number
             old_start_line = max(1, hunk["start1"])
             line_num = old_start_line
+            old_lines_output = []
             for line_old in hunk["old_lines"]:
                 # Add line numbers to old hunk for better context
-                if line_old.startswith("-"):
-                    output += f"{line_num} {line_old}\n"
-                else:
-                    output += f"{line_num} {line_old}\n"
+                old_lines_output.append(f"{line_num} {line_old}")
                 line_num += 1
+            output += "\n".join(old_lines_output)
+            if old_lines_output:
+                output += "\n"
 
         return output
 
@@ -342,9 +351,9 @@ class DiffGenerator:
         """
         try:
             commit_list = pull_request.get_commits()
-            commit_messages = [commit.commit.message for commit in commit_list]
             commit_messages_str = "\n".join(
-                [f"{i + 1}. {message}" for i, message in enumerate(commit_messages)]
+                f"{i + 1}. {commit.commit.message}"
+                for i, commit in enumerate(commit_list)
             )
         except Exception:
             commit_messages_str = ""

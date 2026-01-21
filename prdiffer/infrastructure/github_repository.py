@@ -24,7 +24,6 @@ from prdiffer.infrastructure.logging.exception_utils import (
 from prdiffer.infrastructure.github.api_client import get_github_api_client
 from prdiffer.infrastructure.github.file_processor import get_file_processor
 from prdiffer.infrastructure.github.diff_generator import get_diff_generator
-from prdiffer.infrastructure.github.parallel_executor import get_parallel_executor
 from prdiffer.infrastructure.utils.pattern_matcher import get_pattern_matcher
 from prdiffer.infrastructure.utils.diff_utils import get_diff_utils
 from prdiffer.infrastructure.utils.diff_limits import apply_diff_limits
@@ -175,12 +174,11 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
             max_parallel_workers=self.file_parallel_workers,
         )
 
-        # Initialize parallel executor for diff generation if enabled
+        # Note: Parallel executor disabled for simplicity.
+        # The async migration has moved parallel processing to FileProcessor and APIClient
+        # which use AsyncParallelExecutor internally.
+        # DiffGenerator will use sequential processing.
         self._parallel_executor = None
-        if self.diff_parallel_enabled:
-            self._parallel_executor = get_parallel_executor(
-                max_workers=self.diff_max_workers, timeout=self.diff_worker_timeout
-            )
 
         self._diff_generator = get_diff_generator(
             diff_utils=self._diff_utils,
@@ -229,44 +227,47 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
             self._logger.warning(
                 f"Repository not accessible: {repo_full_name}", extra=sanitized
             )
-            self._repository = None
+            # Re-raise immediately to preserve exception context
+            raise RuntimeError(
+                f"Failed to initialize repository {repo_full_name} - repository may not exist or access may be denied"
+            ) from e
         except GithubException as e:
             sanitized = sanitize_exception_for_logging(e)
             self._logger.error(
                 f"GitHub API error accessing repository {repo_full_name}",
                 extra=sanitized,
             )
-            self._repository = None
-
-        if self._repository is not None:
-            try:
-                self._pull_request = self._github_api_client.get_pull_request(
-                    self._repository, self._pr_number
-                )
-            except (UnknownObjectException, RateLimitExceededException) as e:
-                sanitized = sanitize_exception_for_logging(e)
-                self._logger.warning(
-                    f"Pull request #{self._pr_number} not accessible in {repo_full_name}",
-                    extra=sanitized,
-                )
-                self._pull_request = None
-            except GithubException as e:
-                sanitized = sanitize_exception_for_logging(e)
-                self._logger.error(
-                    f"GitHub API error fetching pull request #{self._pr_number}",
-                    extra=sanitized,
-                )
-                self._pull_request = None
-
-        if self._repository is None:
+            # Re-raise immediately to preserve exception context
             raise RuntimeError(
-                f"Failed to initialize repository {repo_full_name} - repository may not exist or access may be denied"
-            )
+                f"GitHub API error accessing repository {repo_full_name}"
+            ) from e
 
-        if self._pull_request is None:
+        try:
+            if self._repository is None:
+                raise RuntimeError(f"Repository {repo_full_name} is not initialized")
+            self._pull_request = self._github_api_client.get_pull_request(
+                self._repository, self._pr_number
+            )
+        except (UnknownObjectException, RateLimitExceededException) as e:
+            sanitized = sanitize_exception_for_logging(e)
+            self._logger.warning(
+                f"Pull request #{self._pr_number} not accessible in {repo_full_name}",
+                extra=sanitized,
+            )
+            # Re-raise immediately to preserve exception context
             raise RuntimeError(
                 f"Failed to initialize pull request #{self._pr_number} for repository {repo_full_name} - pull request may not exist or be inaccessible"
+            ) from e
+        except GithubException as e:
+            sanitized = sanitize_exception_for_logging(e)
+            self._logger.error(
+                f"GitHub API error fetching pull request #{self._pr_number}",
+                extra=sanitized,
             )
+            # Re-raise immediately to preserve exception context
+            raise RuntimeError(
+                f"GitHub API error fetching pull request #{self._pr_number}"
+            ) from e
 
         self._initialized = True
 

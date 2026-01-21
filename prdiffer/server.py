@@ -127,15 +127,36 @@ def main() -> None:
     repository_cache_service = get_repository_cache_service()
     logger = get_logger()
 
-    # Create server using factory pattern for proper dependency injection
-    server = create_mcp_server(
-        github_repository_class=GitHubPRDiffRepository,
-        settings_service=settings_service,
-        cache_service=cache_service,
-        repository_cache_service=repository_cache_service,
-        logger=logger,
-    )
-    server.run()
+    # Top-level exception handler for graceful shutdown
+    try:
+        # Create server using factory pattern for proper dependency injection
+        server = create_mcp_server(
+            github_repository_class=GitHubPRDiffRepository,
+            settings_service=settings_service,
+            cache_service=cache_service,
+            repository_cache_service=repository_cache_service,
+            logger=logger,
+        )
+        server.run()
+    except KeyboardInterrupt:
+        # Allow graceful exit on Ctrl+C
+        print("\n⚠️  Server shutdown requested by user", file=output_stream)
+        sys.exit(0)
+    except SystemExit as e:
+        # Allow sys.exit() to propagate
+        if e.code != 0:
+            logger.critical(f"Server exiting with code {e.code}")
+        sys.exit(e.code)
+    except Exception as e:
+        # Catch-all for any other unhandled exceptions
+        logger.critical(
+            "Server crashed with unhandled exception",
+            exc_info=True,
+            error_type=type(e).__name__,
+            error_message=str(e),
+        )
+        print(f"❌ Fatal error: {type(e).__name__}: {e}", file=output_stream)
+        sys.exit(1)
 
 
 if __name__ == "__main__":

@@ -30,7 +30,7 @@ from prdiffer.infrastructure.repository_cache_service import (
     get_repository_cache_service,
 )
 from prdiffer.infrastructure.github.api_client import GitHubAPIClient
-from prdiffer.infrastructure.utils.diff_utils import DiffUtils
+from prdiffer.infrastructure.utils.diff_utils import DiffUtils, DiffProcessingConfig
 from prdiffer.infrastructure.utils.pattern_matcher import PatternMatcher
 from prdiffer.infrastructure.utils.retry_handler import RetryHandler
 from prdiffer.infrastructure.github.diff_generator import (
@@ -76,7 +76,16 @@ class InfrastructureFactory(InfrastructureFactoryInterface):
 
     def create_diff_service(self) -> DiffServiceInterface:
         """Create diff service instance."""
-        return DiffUtils()
+        settings_service = get_settings_service()
+        # Read diff processing configuration from settings
+        config = DiffProcessingConfig(
+            large_file_threshold=settings_service.get(
+                "diff.large_file_threshold", 5000
+            ),
+            chunk_size=settings_service.get("diff.chunk_size", 1000),
+            max_diff_size=settings_service.get("diff.max_diff_size", 100000),
+        )
+        return DiffUtils(config=config.validate())
 
     def create_pattern_matching_service(self) -> PatternMatchingServiceInterface:
         """Create pattern matching service instance."""

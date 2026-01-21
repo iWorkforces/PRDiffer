@@ -12,7 +12,7 @@ The handler supports both synchronous and asynchronous operations:
 import time
 import random
 import threading
-from typing import Any, Callable, Optional, Dict, Coroutine, TypeVar
+from typing import Any, Callable, Optional, Dict, Coroutine, TypeVar, Tuple, Type, cast
 
 import anyio
 
@@ -21,6 +21,45 @@ from prdiffer.domain.services import RetryServiceInterface
 
 
 T = TypeVar("T")
+
+
+# Pre-defined error code sets for efficient lookups
+PERMANENT_ERROR_CODES = {"404", "401", "403"}
+SERVER_ERROR_CODES = {"500", "501", "502", "503", "504"}
+TRANSIENT_ERROR_PATTERNS = {"timeout", "connection", "network", "503", "502", "504"}
+
+# Exceptions to catch in retry operations
+# Note: We deliberately exclude KeyboardInterrupt, SystemExit, and GeneratorExit
+# to allow system-level exceptions to propagate for proper shutdown/cleanup.
+RETRY_EXCEPTIONS: Tuple[Type[BaseException], ...] = (
+    # Network and timeout exceptions (transient)
+    TimeoutError,
+    ConnectionError,
+    OSError,
+    # Common runtime exceptions
+    RuntimeError,
+    ValueError,
+    TypeError,
+    KeyError,
+    IndexError,
+    AttributeError,
+    LookupError,
+    EOFError,
+    IOError,
+    ImportError,
+    ArithmeticError,
+    FloatingPointError,
+    OverflowError,
+    ZeroDivisionError,
+    AssertionError,
+    NameError,
+    UnboundLocalError,
+    UnicodeError,
+    UnicodeDecodeError,
+    UnicodeEncodeError,
+    UnicodeTranslateError,
+    # GitHub exceptions will be caught because they inherit from Exception
+)
 
 
 class OperationContext(StrEnum):
@@ -215,34 +254,36 @@ class UnifiedRetryHandler(RetryServiceInterface):
 
                 return result
 
-            except Exception as e:
-                last_exception = e
+            except RETRY_EXCEPTIONS as e:
+                # Narrow type from BaseException to Exception since we excluded
+                # KeyboardInterrupt, SystemExit, and GeneratorExit from RETRY_EXCEPTIONS
+                exc = cast(Exception, e)
+                last_exception = exc
 
-                # Record failure if health tracking is enabled
-                if self._health_tracker:
-                    self._record_failure(e)
+                # Record failure for circuit breaker (always) and health tracker (if enabled)
+                self._record_failure(exc)
 
                 # Check if this error should be retried
-                should_retry = self._should_retry_error(e, context)
+                should_retry = self._should_retry_error(exc, context)
                 is_last_attempt = attempt == max_retries - 1
 
                 if not should_retry or is_last_attempt:
                     # Log permanent failure or final attempt
-                    self._log_permanent_failure(e, should_retry, is_last_attempt)
+                    self._log_permanent_failure(exc, should_retry, is_last_attempt)
                     raise
 
                 # Calculate delay (adaptive if enabled, basic otherwise)
                 if self.adaptive_retry_enabled:
                     delay = self._calculate_adaptive_delay(
-                        attempt, e, base_delay, backoff_multiplier
+                        attempt, exc, base_delay, backoff_multiplier
                     )
                 else:
                     delay = self._calculate_backoff(
-                        attempt, self._is_rate_limit_error(e)
+                        attempt, self._is_rate_limit_error(exc)
                     )
 
                 # Log the retry attempt
-                self._log_retry_attempt(attempt, delay, e, context)
+                self._log_retry_attempt(attempt, delay, exc, context)
 
                 time.sleep(delay)
 
@@ -304,34 +345,36 @@ class UnifiedRetryHandler(RetryServiceInterface):
 
                 return result
 
-            except Exception as e:
-                last_exception = e
+            except RETRY_EXCEPTIONS as e:
+                # Narrow type from BaseException to Exception since we excluded
+                # KeyboardInterrupt, SystemExit, and GeneratorExit from RETRY_EXCEPTIONS
+                exc = cast(Exception, e)
+                last_exception = exc
 
-                # Record failure if health tracking is enabled
-                if self._health_tracker:
-                    self._record_failure(e)
+                # Record failure for circuit breaker (always) and health tracker (if enabled)
+                self._record_failure(exc)
 
                 # Check if this error should be retried
-                should_retry = self._should_retry_error(e, context)
+                should_retry = self._should_retry_error(exc, context)
                 is_last_attempt = attempt == max_retries - 1
 
                 if not should_retry or is_last_attempt:
                     # Log permanent failure or final attempt
-                    self._log_permanent_failure(e, should_retry, is_last_attempt)
+                    self._log_permanent_failure(exc, should_retry, is_last_attempt)
                     raise
 
                 # Calculate delay (adaptive if enabled, basic otherwise)
                 if self.adaptive_retry_enabled:
                     delay = self._calculate_adaptive_delay(
-                        attempt, e, base_delay, backoff_multiplier
+                        attempt, exc, base_delay, backoff_multiplier
                     )
                 else:
                     delay = self._calculate_backoff(
-                        attempt, self._is_rate_limit_error(e)
+                        attempt, self._is_rate_limit_error(exc)
                     )
 
                 # Log the retry attempt
-                self._log_retry_attempt(attempt, delay, e, context)
+                self._log_retry_attempt(attempt, delay, exc, context)
 
                 # Use anyio.sleep() for non-blocking delay (async-compatible)
                 await anyio.sleep(delay)
@@ -376,13 +419,13 @@ class UnifiedRetryHandler(RetryServiceInterface):
         """
         error_str = str(error).lower()
 
-        # Basic error classification
+        # Basic error classification using pre-defined sets
         if "404" in error_str and not self.retry_on_404:
             return False
         if "403" in error_str and not self.retry_on_403:
             return False
         if (
-            any(f"{code}" in error_str for code in [500, 501, 502, 503, 504])
+            any(code in error_str for code in SERVER_ERROR_CODES)
             and not self.retry_on_500
         ):
             return False
@@ -399,15 +442,9 @@ class UnifiedRetryHandler(RetryServiceInterface):
                 # Be more aggressive with batch operation timeouts
                 return True
 
-        # Standard transient error detection
-        return (
-            self._is_rate_limit_error(error)
-            or "timeout" in error_str
-            or "connection" in error_str
-            or "network" in error_str
-            or "503" in error_str  # Service unavailable
-            or "502" in error_str  # Bad gateway
-            or "504" in error_str  # Gateway timeout
+        # Standard transient error detection using pre-defined patterns
+        return self._is_rate_limit_error(error) or any(
+            pattern in error_str for pattern in TRANSIENT_ERROR_PATTERNS
         )
 
     def _is_rate_limit_error(self, error: Exception) -> bool:
@@ -567,18 +604,21 @@ class UnifiedRetryHandler(RetryServiceInterface):
         )
 
         if is_rate_limit:
-            message = (
-                f"Rate limit hit{context_str}, retrying in {delay:.2f}s "
-                f"(attempt {attempt + 1})"
+            message = "Rate limit hit%s, retrying in %.2fs (attempt %d)" % (
+                context_str,
+                delay,
+                attempt + 1,
             )
         else:
             # Truncate long error messages for cleaner logs
             error_msg = str(error)
             if len(error_msg) > 100:
                 error_msg = error_msg[:97] + "..."
-            message = (
-                f"API error{context_str}, retrying in {delay:.2f}s "
-                f"(attempt {attempt + 1}): {error_msg}"
+            message = "API error%s, retrying in %.2fs (attempt %d): %s" % (
+                context_str,
+                delay,
+                attempt + 1,
+                error_msg,
             )
 
         # Log at configured level

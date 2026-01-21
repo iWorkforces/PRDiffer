@@ -3,6 +3,7 @@
 import difflib
 import re
 import threading
+from dataclasses import dataclass
 from typing import Union, Optional, List
 from prdiffer.domain.services import DiffServiceInterface
 
@@ -11,6 +12,33 @@ from prdiffer.domain.services import DiffServiceInterface
 DEFAULT_LARGE_FILE_THRESHOLD = 5000  # Lines
 DEFAULT_DIFF_CHUNK_SIZE = 1000  # Lines per chunk
 DEFAULT_MAX_DIFF_SIZE = 100000  # Maximum diff size (100K lines)
+
+
+@dataclass(frozen=True)
+class DiffProcessingConfig:
+    """Configuration for diff processing of large files.
+
+    Attributes:
+        large_file_threshold: Line count threshold for enabling chunked processing
+        chunk_size: Number of lines to process per chunk for large files
+        max_diff_size: Maximum file size in lines for diff generation
+    """
+
+    large_file_threshold: int = DEFAULT_LARGE_FILE_THRESHOLD
+    chunk_size: int = DEFAULT_DIFF_CHUNK_SIZE
+    max_diff_size: int = DEFAULT_MAX_DIFF_SIZE
+
+    def validate(self) -> "DiffProcessingConfig":
+        """Validate configuration and return a corrected version if needed.
+
+        Returns:
+            DiffProcessingConfig: Validated configuration with applied constraints
+        """
+        return DiffProcessingConfig(
+            large_file_threshold=max(100, min(50000, self.large_file_threshold)),
+            chunk_size=max(100, min(10000, self.chunk_size)),
+            max_diff_size=max(1000, min(1000000, self.max_diff_size)),
+        )
 
 
 class DiffUtils(DiffServiceInterface):
@@ -22,15 +50,17 @@ class DiffUtils(DiffServiceInterface):
 
     RE_HUNK_HEADER = re.compile(r"^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@[ ]?(.*)")
 
-    def __init__(self, logger=None):
+    def __init__(self, logger=None, config: Optional[DiffProcessingConfig] = None):
         """Initialize the diff utility.
 
         Args:
             logger: Logger instance for logging operations
+            config: Optional diff processing configuration (uses defaults if not provided)
         """
         self._logger = logger
         self._logger_fetched = logger is not None
         self._logger_lock = threading.Lock()
+        self._config = (config or DiffProcessingConfig()).validate()
 
     def _get_logger(self):
         """Get logger instance, lazily loading if needed to avoid circular imports.
@@ -93,8 +123,8 @@ class DiffUtils(DiffServiceInterface):
         self,
         original_file_str: str,
         new_file_str: str,
-        chunk_size: int = DEFAULT_DIFF_CHUNK_SIZE,
-        large_file_threshold: int = DEFAULT_LARGE_FILE_THRESHOLD,
+        chunk_size: Optional[int] = None,
+        large_file_threshold: Optional[int] = None,
     ) -> str:
         """Build a unified diff with chunked processing for large files.
 
@@ -104,18 +134,27 @@ class DiffUtils(DiffServiceInterface):
         Args:
             original_file_str: Original file content
             new_file_str: New file content
-            chunk_size: Number of lines per chunk (default: 1000)
-            large_file_threshold: Threshold for chunked processing (default: 5000 lines)
+            chunk_size: Number of lines per chunk (uses config default if not specified)
+            large_file_threshold: Threshold for chunked processing (uses config default if not specified)
 
         Returns:
             str: Unified diff patch, or "[LARGE FILE - DIFF TRUNCATED]" if too large
         """
+        # Use config values if not specified
+        chunk_size = chunk_size if chunk_size is not None else self._config.chunk_size
+        large_file_threshold = (
+            large_file_threshold
+            if large_file_threshold is not None
+            else self._config.large_file_threshold
+        )
+        max_diff_size = self._config.max_diff_size
+
         orig_lines = original_file_str.splitlines()
         new_lines = new_file_str.splitlines()
 
         # Check if file is too large
         max_lines = max(len(orig_lines), len(new_lines))
-        if max_lines > DEFAULT_MAX_DIFF_SIZE:
+        if max_lines > max_diff_size:
             return "[LARGE FILE - DIFF TRUNCATED: File exceeds maximum diff size]"
 
         # Use standard processing for small files
@@ -198,18 +237,19 @@ class DiffUtils(DiffServiceInterface):
             return "\n".join(["", header] + body_lines)
         return ""
 
-    def is_large_file(
-        self, content: str, threshold: int = DEFAULT_LARGE_FILE_THRESHOLD
-    ) -> bool:
+    def is_large_file(self, content: str, threshold: Optional[int] = None) -> bool:
         """Check if a file is considered large based on line count.
 
         Args:
             content: File content
-            threshold: Line count threshold (default: 5000)
+            threshold: Line count threshold (uses config default if not specified)
 
         Returns:
             bool: True if file exceeds threshold
         """
+        threshold = (
+            threshold if threshold is not None else self._config.large_file_threshold
+        )
         return len(content.splitlines()) > threshold
 
     def get_file_line_count(self, content: str) -> int:
@@ -283,7 +323,7 @@ class DiffUtils(DiffServiceInterface):
             max_lines = max(
                 len(original_file_str.splitlines()), len(new_file_str.splitlines())
             )
-            if max_lines > DEFAULT_LARGE_FILE_THRESHOLD:
+            if max_lines > self._config.large_file_threshold:
                 extended_patch_str = self.build_full_file_patch_chunked(
                     original_file_str, new_file_str
                 )
@@ -460,10 +500,16 @@ class DiffUtils(DiffServiceInterface):
         return section_header, size1, size2, start1, start2
 
 
-def get_diff_utils() -> DiffUtils:
+def get_diff_utils(
+    logger=None, config: Optional[DiffProcessingConfig] = None
+) -> DiffUtils:
     """Get a diff utils instance.
+
+    Args:
+        logger: Optional logger instance
+        config: Optional diff processing configuration
 
     Returns:
         DiffUtils: Diff utilities instance
     """
-    return DiffUtils()
+    return DiffUtils(logger=logger, config=config)
