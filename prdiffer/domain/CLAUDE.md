@@ -2,7 +2,7 @@
 
 This file provides guidance for working with the Domain Layer of PRDiffer.
 
-**Current Version:** 0.4.7
+**Current Version:** 0.4.8
 
 ## Domain Layer Overview
 
@@ -101,3 +101,14 @@ The `FilePatchInfo` entity represents the complete context of a file change:
 - **Extended Info**: Optional AI summaries and analysis
 
 This rich representation enables detailed diff analysis and supports various output formats in the application layer.
+
+## Related Documentation
+
+- **Infrastructure Layer**: `../infrastructure/CLAUDE.md` - Infrastructure implementations of domain interfaces
+- **Application Layer**: `../application/CLAUDE.md` - Application orchestration and MCP server
+- **Service Interfaces**: `services/CLAUDE.md` - Detailed service interface documentation
+- **Factory Interfaces**: `factories/CLAUDE.md` - Factory interface documentation
+- **Entity Documentation**: `entities/CLAUDE.md` - Core business entities
+- **Use Case Documentation**: `usecases/CLAUDE.md` - Business logic orchestration
+- **Main Package**: `../CLAUDE.md` - Overall architecture and package structure
+- **Testing**: `tests/unit/domain/CLAUDE.md` - Domain layer testing guide

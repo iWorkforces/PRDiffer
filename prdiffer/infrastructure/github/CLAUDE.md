@@ -2,7 +2,7 @@
 
 This file provides guidance for working with the GitHub infrastructure components of PRDiffer.
 
-**Current Version:** 0.4.7
+**Current Version:** 0.4.8
 
 ## Overview
 
@@ -18,11 +18,49 @@ This directory contains modular GitHub-related infrastructure components extract
 - Provides repository and pull request access with retry logic
 - Includes file content retrieval with caching for performance
 
-**Key Features:**
-- **Lazy Initialization**: Client objects created only when needed
-- **Retry Logic**: Exponential backoff with jitter for API failures
-- **Caching**: File content cache to avoid repeated API calls
-- **Error Handling**: Graceful fallbacks for missing files and rate limits
+**Public Methods:**
+
+**Initialization:**
+- `initialize_client(github_token: str, timeout: int)`: Initialize the PyGithub client
+  - Creates authenticated GitHub client instance
+  - Sets timeout for API operations
+  - Must be called before other methods
+
+**Repository Access:**
+- `get_repository(repo_full_name: str) -> Repository`: Get repository object by full name
+  - Returns PyGithub Repository object
+  - Format: "owner/repo"
+  - Raises `UnknownObjectException` if not found
+
+- `get_pull_request(repository: Repository, pr_number: int) -> PullRequest`: Get PR object
+  - Returns PyGithub PullRequest object
+  - Raises `UnknownObjectException` if not found
+
+**File Content Methods:**
+- `get_file_content(repository, file_path: str, branch: str) -> str`: Get single file content
+  - Returns file content as string
+  - Empty string if file not found
+
+- `get_files_content_batch(repository, file_paths: List[str], branch: str) -> Dict[str, str]`: Batch file content retrieval
+  - Returns dict mapping file_path -> content
+  - More efficient than individual calls
+
+**Cache Management:**
+- `clear_cache()`: Clear all cached file content
+  - Resets both memory cache and metadata
+  - Useful for testing or forced refresh
+
+- `get_cache_stats() -> Dict[str, Any]`: Get cache statistics
+  - Returns dict with cache performance metrics:
+    - `hits`: Number of cache hits
+    - `misses`: Number of cache misses
+    - `hit_rate`: Cache hit rate (0.0-1.0)
+    - `size`: Current cache size
+    - `ttl`: Cache time-to-live in seconds
+
+**Async Methods (Internal):**
+- `_get_file_content_async()`: Async version of get_file_content
+- `_get_files_content_batch_parallel_async()`: Parallel async batch retrieval
 
 **Usage Pattern:**
 ```python
@@ -30,7 +68,17 @@ client = get_github_api_client(max_retries=3, retry_delay=1.0, timeout=30)
 client.initialize_client(github_token="your_token")
 repo = client.get_repository("owner/repo")
 content = client.get_file_content(repo, "path/to/file.py", "branch")
+
+# Check cache performance
+stats = client.get_cache_stats()
+print(f"Cache hit rate: {stats['hit_rate']:.2%}")
 ```
+
+**Key Features:**
+- **Lazy Initialization**: Client objects created only when needed
+- **Retry Logic**: Exponential backoff with jitter for API failures
+- **Caching**: File content cache to avoid repeated API calls
+- **Error Handling**: Graceful fallbacks for missing files and rate limits
 
 ### File Processor (`file_processor.py`)
 
@@ -47,6 +95,58 @@ content = client.get_file_content(repo, "path/to/file.py", "branch")
 - **Parallel Processing**: Thread pool execution for concurrent file processing
 - **Content Limiting**: Respects `max_files_allowed` setting to avoid rate limits
 - **Thread Safety**: PR files cache protected with reentrant lock
+
+**Public Methods:**
+
+**File Retrieval:**
+- `get_pr_files(pull_request) -> PaginatedList[File]`: Get all files from PR with caching
+  - Returns PyGithub PaginatedList of File objects
+  - Uses thread-safe caching with 5-minute TTL
+  - Double-check locking pattern for performance
+  - Cache key: PullRequest object identity
+
+- `filter_files(files, ignore_patterns, valid_extensions) -> List[File]`: Filter files by patterns
+  - Returns list of filtered File objects
+  - Applies ignore patterns (wildcards supported)
+  - Validates file extensions against whitelist
+  - Returns empty list if no files match
+
+**Patch Processing:**
+- `process_files_to_patches(repository, files, base_sha, head_sha) -> Dict[str, FilePatchInfo]`: Process files to patches (sync)
+  - Returns dict mapping filename -> FilePatchInfo
+  - Loads full file content for all files
+  - Generates unified diffs with full context
+  - Gracefully degrades when file count exceeds limit
+
+- `process_files_to_patches_async(repository, files, base_sha, head_sha) -> Dict[str, FilePatchInfo]`: Async patch processing
+  - Same as sync version but uses async parallel execution
+  - Better performance for large PRs
+  - Uses AsyncParallelExecutor for concurrent operations
+  - Returns same data structure as sync version
+
+**Internal Processing Methods:**
+- `_process_files_with_content_parallel_async()`: Parallel async file processing with content loading
+  - Processes multiple files concurrently using anyio task groups
+  - Respects max_files_allowed limit from settings
+  - Falls back to patch-only mode when limit exceeded
+  - Thread-safe with proper error handling
+
+- `_create_file_patch_with_content()`: Creates FilePatchInfo with full content
+  - Generates unified diff with base and head content
+  - Handles rename-only files (no content needed)
+  - Calculates statistics (additions, deletions)
+  - Returns None for binary files or errors
+
+- `_generate_patch_from_content()`: Generates unified diff from file contents
+  - Uses difflib.unified_diff for patch generation
+  - Handles multiple encoding attempts (UTF-8, latin-1, etc.)
+  - Returns empty string for binary files
+  - Includes full file context (not minimal hunks)
+
+- `_is_rename_only()`: Detects rename-only changes
+  - Checks status for RENAMED status code (R[0-9]+)
+  - Returns True if file was renamed without content changes
+  - Used to skip content loading for renames
 
 **Thread Safety Implementation**:
 

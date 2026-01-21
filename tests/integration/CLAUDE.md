@@ -2,7 +2,7 @@
 
 This file provides guidance for working with integration tests in PRDiffer.
 
-**Current Version:** 0.4.7
+**Current Version:** 0.4.8
 
 ## Overview
 

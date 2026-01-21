@@ -2,7 +2,7 @@
 
 This file provides guidance for working with the Application Layer of PRDiffer.
 
-**Current Version:** 0.4.7
+**Current Version:** 0.4.8
 
 ## Application Layer Overview
 
@@ -126,3 +126,11 @@ async with Client("http://127.0.0.1:9102/mcp") as client:
 ```
 
 This application layer provides a clean separation between the MCP protocol interface and the domain business logic, making it easy to modify either the external interface or internal processing independently.
+
+## Related Documentation
+
+- **Domain Layer**: `../domain/CLAUDE.md` - Domain entities, use cases, and interfaces
+- **Infrastructure Layer**: `../infrastructure/CLAUDE.md` - Infrastructure implementations
+- **Components**: `components/CLAUDE.md` - Application components (auth, rate limiting, metrics)
+- **Main Package**: `../CLAUDE.md` - Overall architecture and package structure
+- **Testing**: `tests/unit/application/CLAUDE.md` - Application layer testing guide
