@@ -5,7 +5,7 @@ covering file filtering, thread safety, and batch processing.
 """
 
 import pytest
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 from threading import Thread
 
 from prdiffer.infrastructure.github.file_processor import FileProcessor
@@ -168,9 +168,9 @@ class TestFileProcessorBatchProcessing:
 
         # Mock the get_files_content_batch method on the internal github_api_service
         # The method returns a dict mapping filename -> decoded content string
-        file_processor._github_api_service.get_files_content_batch = Mock(return_value={
-            "test.py": "def hello():\n    print('world')"
-        })
+        file_processor._github_api_service.get_files_content_batch = Mock(
+            return_value={"test.py": "def hello():\n    print('world')"}
+        )
 
         # Create mock repository
         mock_repo = Mock()

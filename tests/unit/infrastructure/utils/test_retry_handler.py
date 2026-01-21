@@ -142,7 +142,6 @@ class TestRetryHandlerCircuitBreaker:
         # Execute until circuit breaker opens (after threshold failures)
         # First call: initial attempt + retries (total max_retries attempts)
         # Each attempt calls failing_func which records the failure
-        from prdiffer.infrastructure.utils.circuit_breaker import CircuitBreaker
 
         # First execution - should trigger retries and record failures
         with pytest.raises(ConnectionError):
@@ -151,7 +150,11 @@ class TestRetryHandlerCircuitBreaker:
         # Circuit breaker should be open now after reaching failure threshold
         # Check the state using the enum value
         from prdiffer.infrastructure.utils.circuit_breaker import CircuitState
-        assert retry_handler_with_circuit_breaker._circuit_breaker.state == CircuitState.OPEN
+
+        assert (
+            retry_handler_with_circuit_breaker._circuit_breaker.state
+            == CircuitState.OPEN
+        )
 
 
 class TestRetryHandlerErrorClassification:

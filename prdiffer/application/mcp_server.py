@@ -204,7 +204,9 @@ class FastMCPServer:
             raise InvalidURLError("PR URL cannot be None")
 
         if not isinstance(pr_url, str):
-            raise InvalidURLError(f"PR URL must be a string, got {type(pr_url).__name__}")
+            raise InvalidURLError(
+                f"PR URL must be a string, got {type(pr_url).__name__}"
+            )
 
         pr_url_stripped = pr_url.strip()
         if not pr_url_stripped:
