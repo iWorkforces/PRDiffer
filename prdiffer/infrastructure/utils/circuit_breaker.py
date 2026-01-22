@@ -263,6 +263,9 @@ class GlobalCircuitBreakerRegistry:
                     instance = super().__new__(cls)
                     instance._initialized = False
                     cls._instance = instance
+        # Type narrowing: instance is guaranteed to be initialized here
+        if cls._instance is None:
+            raise RuntimeError("Singleton instance not initialized")
         return cls._instance
 
     def __init__(
