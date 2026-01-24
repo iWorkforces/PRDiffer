@@ -72,6 +72,62 @@ Abstract factory interfaces for creating infrastructure services while maintaini
 
 **Implementation:** `InfrastructureFactory` in `infrastructure/factories/`
 
+### Error Handling (`errors.py`, `exceptions.py`)
+
+The domain layer provides comprehensive error handling with structured error codes and exception hierarchy.
+
+**Error Codes** (`errors.py`):
+- **15 standardized error codes** across 5 categories (E1xxx-E5xxx)
+- **ErrorCode dataclass**: code, name, message, remediation, category
+- Categories:
+  - E1xxx: Input validation (E1001-E1006)
+  - E2xxx: Authentication/authorization (E2001-E2003)
+  - E3xxx: Rate limiting (E3001-E3003)
+  - E4xxx: Resource not found (E4001-E4004)
+  - E5xxx: Internal server (E5001-E5005)
+
+**Exception Hierarchy** (`exceptions.py`):
+- **27 exception types** organized into 9 categories
+- **Base**: `PRDifferException` with message and details
+- Categories:
+  - Authentication (6): AuthenticationError, InvalidTokenError, ExpiredTokenError, MissingTokenError, AuthorizationError, InsufficientPermissionsError
+  - Rate Limiting (3): RateLimitError, GlobalRateLimitError, UserRateLimitError
+  - Validation (5): ValidationError, InvalidURLError, InvalidRepositoryError, InvalidPRNumberError, UnsupportedFormatError
+  - GitHub API (7): GitHubAPIError, RepositoryNotFoundError, PRNotFoundError, FileNotFoundError, GitHubAuthenticationError, GitHubConnectionError, GitHubRateLimitError
+  - Cache (3): CacheError, CacheInvalidationError, CacheCorruptionError
+  - Configuration (4): ConfigurationError, MissingConfigurationError, InvalidConfigurationError, SecretsError
+  - Processing (4): ProcessingError, DiffGenerationError, FileProcessingError, PatternMatchingError
+  - Resource (4): ResourceError, ResourceExhaustedError, MemoryLimitError, TimeoutError
+  - Security (4): SecurityError, SuspiciousOperationError, InputSanitizationError, SignatureVerificationError
+
+### Configuration (`config/`)
+
+The domain layer provides frozen configuration objects for type-safe settings management.
+
+**GitHubConfig** (`github_config.py`):
+- **Frozen dataclass** with 20+ configuration fields
+- **Configuration Groups**:
+  - Basic API Settings: rate_limit, timeout, max_retries, retry_delay
+  - Smart Retry: retry_on_404 (false), retry_on_403 (true), retry_on_500 (true)
+  - Circuit Breaker & Adaptive Retry: circuit_breaker_enabled, failure_threshold, timeout, adaptive_retry_enabled, max_adaptive_delay
+  - File Filtering: ignore_patterns (tuple), valid_extensions (tuple) - 60+ file types
+  - Parallel Diff Processing: diff_parallel_enabled, diff_parallel_threshold (3), diff_max_workers (4), diff_worker_timeout (30.0)
+  - File Processing Limits: max_files_allowed (50), large_file_threshold, chunk_size, max_diff_size
+- **Methods**:
+  - `from_dict(config)`: Factory method for dict-to-instance
+  - `to_dict()`: Instance-to-dict conversion
+  - `with_overrides(**kwargs)`: Config cloning with overrides
+  - `should_ignore_file(filename)`: fnmatch pattern matching
+  - `has_valid_extension(filename)`: Extension validation
+  - `should_process_file(filename)`: Combined validation
+
+**Constants** (`constants.py`):
+- **Limits**: URL/input validation, GitHub API, cache, request coalescing, file processing, circuit breaker, parallel processing
+- **Thresholds**: File change thresholds (SIGNIFICANT_CHANGES, LARGE_CHANGES), retry thresholds, lockout duration
+- **Defaults**: MCP server, authentication, cache, logging, token validation
+- **Timeouts**: API and request timeouts
+- **RegularExpressions**: GitHub URL patterns, command injection, path traversal, SQL injection, Git ref validation
+
 ## Development Guidelines
 
 ### When Modifying Entities

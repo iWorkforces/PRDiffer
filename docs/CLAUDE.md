@@ -10,21 +10,63 @@ The `docs/` directory is intended for project documentation, user guides, API re
 
 ## Documentation Structure
 
-### Recommended Structure
+### Current Documentation Files
+
 ```
 docs/
-├── CLAUDE.md                  # This file - documentation guidance
-├── README.md                  # Main documentation overview
-├── API.md                     # API reference documentation
-├── USER_GUIDE.md              # User guide and tutorials
-├── DEVELOPMENT.md             # Development setup and guidelines
-├── ARCHITECTURE.md            # System architecture overview
-├── DEPLOYMENT.md              # Deployment instructions
-└── images/                    # Documentation images and diagrams
-    ├── architecture.png
-    ├── workflow.png
-    └── sequence-diagrams/
+├── CLAUDE.md                           # This file - documentation guidance
+├── ARCHITECTURE.md                     # Clean architecture documentation with diagrams (681 lines)
+├── API.md                              # API reference, tools, request/response formats (557 lines)
+├── DEPLOYMENT.md                       # Production deployment guide (730 lines)
+├── SecurityOperationsGuide.md          # Security threat modeling and incident response (897 lines)
+├── development-plan.md                 # Development roadmap with priorities (93 lines)
+├── development-plan-high-priority.md   # High-priority improvements (299 lines, 5.5 day effort)
+├── development-plan-improvements-v1.0.0.md  # Enhancement plan
+├── development-plan-v0.5.0.md          # Legacy development plan
+├── implementation-plan.md              # Detailed task breakdown v0.6.0 (573 lines)
+├── performance-optimization-plan.md    # Performance optimization tasks (367 lines, 48 opportunities)
+└── claude-improvement-plan.md          # Claude Code integration improvements
 ```
+
+### Key Documentation Files
+
+**ARCHITECTURE.md** (681 lines):
+- Clean Architecture principles with diagrams
+- Layer dependencies and data flow
+- Component relationships
+- Design patterns used
+
+**API.md** (557 lines):
+- MCP tool reference (`get_pr_diff`, `health`)
+- Request/response formats with examples
+- Error handling documentation
+- Multiple language examples (Python, TypeScript, cURL)
+
+**DEPLOYMENT.md** (730 lines):
+- Systemd service configuration
+- Nginx reverse proxy setup
+- Docker deployment options
+- Environment configuration
+- Production best practices
+
+**SecurityOperationsGuide.md** (897 lines):
+- Threat modeling with attack surface analysis
+- Penetration testing procedures
+- Incident response workflows (P0-P3 severity levels)
+- Security monitoring and alerting
+- Security checklists (pre-deployment, post-incident)
+
+**implementation-plan.md** (573 lines):
+- Detailed task breakdown for v0.6.0
+- Phase-based development approach
+- Task dependencies and priorities
+- Testing requirements per phase
+
+**performance-optimization-plan.md** (367 lines):
+- 48 performance optimization opportunities
+- Benchmarking targets
+- Configuration tuning recommendations
+- Performance trade-offs analysis
 
 ## Documentation Types
 
