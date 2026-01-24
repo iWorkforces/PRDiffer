@@ -426,6 +426,29 @@ Concrete implementation of `PRDiffServiceInterface` from the domain layer.
 
 See `services/CLAUDE.md` for detailed documentation.
 
+### Utility Components (`utils/`)
+
+Additional utility components discovered in the infrastructure layer:
+
+**GlobalCircuitBreakerRegistry** (`circuit_breaker.py`)
+- Global registry for circuit breakers across the application
+- Per-endpoint circuit breakers for targeted protection
+- Global circuit breaker for system-wide protection
+- Statistics aggregation across all breakers
+- Methods: `get_breaker(endpoint)`, `can_execute(endpoint)`, `record_success/failure(endpoint)`, `get_all_stats()`, `get_open_breakers()`
+
+**apply_diff_limits** (`diff_limits.py`)
+- Enforces diff size limits and returns truncation metadata
+- `apply_diff_limits(diff_content, max_chars, truncation_notice)` - Applies character limits to diff content
+- Prevents memory exhaustion from large diffs
+
+**ExceptionSanitizer** (additional methods in `exception_utils.py`)
+- `sanitize_exception_message(message)` - Sanitizes exception message
+- `sanitize_traceback(traceback, frame_limit=None)` - Sanitizes traceback with frame limit
+- `sanitize_exception_for_logging(exception)` - Creates safe logging representation
+- `redact_auth_header(header_value)` - Redacts authorization header values
+- Redaction patterns: GitHub tokens, generic tokens, passwords, emails (u***@d***.com), IPs (192.168.*.*), API keys in URLs/headers
+
 ## Thread Safety Guarantees
 
 The infrastructure layer implements comprehensive thread safety mechanisms to ensure correct behavior under concurrent access:

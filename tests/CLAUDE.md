@@ -4,27 +4,66 @@ This file provides guidance for working with the test suite in PRDiffer.
 
 **Current Version:** 0.4.8
 
-## OverviewPRDiffer
+## Overview
 
-The `tests/` directory contains the complete test suite for the CCPRAgents project, including unit tests, integration tests, and test utilities. Tests are organized to mirror the main package structure and follow pytest conventions.
+The `tests/` directory contains the complete test suite for the PRDifferMCP project, including **50+ test files** organized across unit, integration, and performance layers. Tests mirror the Clean Architecture structure and follow pytest conventions with comprehensive security, thread safety, and async testing.
 
-## Directory Structure
+## Test Organization
 
 ```
 tests/
-├── __init__.py                      # Test package initialization
-├── CLAUDE.md                        # This file
-├── unit/                            # Unit tests
-│   ├── __init__.py
-│   └── infrastructure/              # Infrastructure layer tests
-│       ├── __init__.py
-│       └── test_input_validator.py  # Security validation tests
-├── integration/                     # Integration tests
-│   ├── __init__.py
-│   └── mcp_server_manual_test.py   # Manual MCP server testing
-├── test_cache_hashing.py           # Cache key hashing tests
-├── test_github_client.py           # GitHub client tests
-└── test_parallel_diff.py           # Parallel diff processing tests
+├── unit/                                    # Unit Tests
+│   ├── application/                         # Application Layer Tests
+│   │   ├── components/                      # Component tests
+│   │   │   ├── test_authentication.py       # Authentication (API keys, SHA-256, JWT)
+│   │   │   ├── test_health_monitor.py       # Health monitoring tests
+│   │   │   ├── test_metrics_tracker.py      # Metrics tracking tests
+│   │   │   └── test_rate_limiter.py         # Rate limiting tests
+│   │   └── test_mcp_server_health_status.py # MCP server health tests
+│   ├── domain/                              # Domain Layer Tests
+│   │   ├── entities/                        # Entity tests
+│   │   │   ├── test_file_patch_info.py      # FilePatchInfo entity
+│   │   │   └── test_pr_diff.py              # PRDiff entity
+│   │   ├── services/                        # Service interface tests
+│   │   │   └── test_service_interfaces.py   # Service interface tests
+│   │   └── usecases/                        # Use case tests
+│   │       └── test_pr_diff_usecases.py     # GetPRDiffUseCase tests
+│   └── infrastructure/                      # Infrastructure Layer Tests
+│       ├── github/                          # GitHub component tests
+│       │   ├── test_api_client.py           # GitHub API client
+│       │   ├── test_diff_generator.py       # Diff generator
+│       │   └── test_file_processor.py       # File processor
+│       ├── utils/                           # Utility tests
+│       │   └── test_cache_decorator.py      # Cache decorator (skipped)
+│       ├── test_api_client.py               # GitHub API client tests
+│       ├── test_api_health_tracker.py       # API health monitoring
+│       ├── test_async_parallel_executor.py  # Async parallel execution (743 lines)
+│       ├── test_cache_service.py            # Cache service (492 lines)
+│       ├── test_circuit_breaker.py         # Circuit breaker (678 lines)
+│       ├── test_console_logger.py           # Console logger
+│       ├── test_diff_limits.py              # Diff limits testing
+│       ├── test_input_validator.py          # Security validation (571 lines)
+│       ├── test_pr_diff_service.py          # PR diff service
+│       ├── test_rate_limiter.py             # Rate limiter tests
+│       ├── test_retry_handler.py            # Retry logic (242 lines)
+│       ├── test_settings_service.py         # Settings service
+│       └── [additional infrastructure tests]
+├── integration/                             # Integration Tests
+│   ├── test_complete_workflow.py            # End-to-end workflow tests
+│   ├── test_error_scenarios.py              # Error handling tests
+│   ├── test_real_github_api.py              # Real GitHub API integration
+│   ├── test_security.py                     # Security validation tests
+│   └── mcp_server_manual_test.py            # Manual testing utility
+├── performance/                             # Performance Tests
+│   └── test_performance.py                  # Performance benchmarks (375 lines)
+├── conftest.py                              # Main pytest fixtures (497 lines)
+├── test_cache_hashing.py                    # Cache hashing tests
+├── test_github_client.py                    # GitHub client tests
+├── test_phase1_improvements.py              # Phase 1 critical fixes (707 lines)
+├── test_phase2_improvements.py              # Phase 2 diff optimization (724 lines)
+├── test_phase3_improvements.py              # Phase 3 API enhancement (587 lines)
+├── test_phase4_improvements.py              # Phase 4 architecture refinement (698 lines)
+└── test_version_consistency.py              # Version consistency tests
 ```
 
 ## Test Configuration
@@ -45,9 +84,107 @@ asyncio_default_fixture_loop_scope = "function"
 
 | Marker | Description |
 |--------|-------------|
-| `@pytest.mark.unit` | Unit tests (isolated, fast) |
+| `@pytest.mark.unit` | Unit tests (isolated, fast, no external dependencies) |
 | `@pytest.mark.integration` | Integration tests (may use external services) |
 | `@pytest.mark.slow` | Slow-running tests |
+| `@pytest.mark.security` | Security and vulnerability tests |
+| `@pytest.mark.thread_safety` | Thread safety and concurrency tests |
+
+## Phase-Based Test Organization
+
+The test suite is organized into **4 improvement phases** for tracking development progress:
+
+### Phase 1: Critical Fixes
+Tests for critical infrastructure improvements:
+- LRU cache fixes
+- TTL (time-to-live) implementation
+- Retry handler improvements
+- Circuit breaker pattern
+- ReDoS (regular expression denial of service) fixes
+- Test file: `test_phase1_improvements.py` (707 lines)
+
+### Phase 2: Diff Builder Optimization
+Tests for diff generation performance improvements:
+- Binary file handling
+- Chunked processing for large files
+- Streaming diff generation
+- Parallel file content fetching
+- Test file: `test_phase2_improvements.py` (724 lines)
+
+### Phase 3: API Enhancement
+Tests for API and data model improvements:
+- Extended FilePatchInfo with metadata
+- Enhanced PRDiff with structured data
+- Structured error codes implementation
+- Test file: `test_phase3_improvements.py` (587 lines)
+
+### Phase 4: Architecture Refinement
+Tests for architectural improvements:
+- GitHubConfig dataclass implementation
+- AsyncParallelExecutor with anyio
+- GlobalCircuitBreakerRegistry
+- Test file: `test_phase4_improvements.py` (698 lines)
+
+## Comprehensive Test Features
+
+### Security Testing (571 lines)
+**File**: `test_input_validator.py`
+
+Comprehensive security validation tests:
+- SQL injection prevention patterns
+- Command injection prevention (shell metacharacters, command substitution)
+- Path traversal prevention (parent directory, system directories)
+- XSS attack prevention
+- GitHub URL validation with strict patterns
+- Repository identifier validation (owner/repo naming rules)
+- Token format validation
+- User ID validation
+- Safe logging sanitization
+
+### Thread Safety Testing
+Multiple thread safety test scenarios:
+- **Concurrent Cache Operations**: 100 threads testing cache get/set operations
+- **Circuit Breaker**: Concurrent failures/successes with 5 threads
+- **Request Coalescing**: Thread-safe deduplication with anyio primitives
+- **Double-Check Locking**: Pattern verification for performance and safety
+
+### Async Testing with anyio
+Full async/await support with anyio primitives:
+- pytest-asyncio compatibility
+- Anyio task group testing
+- Timeout handling tests (`anyio.fail_after()`)
+- Task cancellation tests
+- Semaphore and Lock mocking
+
+### Performance Testing
+**File**: `tests/performance/test_performance.py` (375 lines)
+
+Performance benchmarks:
+- URL validation throughput (10k URLs/sec target)
+- API key hashing performance
+- Authentication performance
+- Pattern matching performance
+- Memory efficiency tests (bounded deque usage)
+- Request coalescing efficiency
+
+## Coverage Goals
+
+| Layer | Target Coverage |
+|-------|----------------|
+| Overall | >80% |
+| Domain | >90% (critical business logic) |
+| Infrastructure | >75% (external dependencies) |
+| Application | >85% (application orchestration) |
+
+## Test Statistics
+
+**Total Test Files**: 50+
+**Total Lines of Test Code**: ~15,000+
+**Test Organization**: Mirrors Clean Architecture structure
+**Key Test Files**:
+- Most comprehensive: `test_input_validator.py` (571 lines)
+- Most complex: `test_async_parallel_executor.py` (743 lines)
+- Most coverage: `test_phase2_improvements.py` (724 lines)
 
 ## Running Tests
 

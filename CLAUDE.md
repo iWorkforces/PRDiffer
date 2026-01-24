@@ -198,17 +198,51 @@ The codebase follows Clean Architecture with these layers:
   - FastMCP server exposing `get_pr_diff` tool
   - Tool registration and request handling
   - Dependency injection orchestration
+  - 13 injected dependencies for comprehensive PR diff retrieval
 - **Components** (`components/`):
-  - `URLValidator`: GitHub URL parsing and validation
-  - `RateLimiter`: Request rate limiting
-  - `MetricsTracker`: Performance metrics collection
-  - `PROperationHandler`: PR operations coordination
-  - `HealthMonitor`: Server health checks
-  - `ServerConfiguration`: Runtime configuration
+  - `AuthenticationMiddleware` (602 lines): API key authentication with SHA-256 hashing
+    - SHA-256 hashed API keys (never stored in plaintext)
+    - Admin API key support with elevated privileges
+    - Brute-force protection with exponential backoff
+    - Client lockout mechanism (5 failures per minute = 60s lockout)
+    - JWT token parsing and expiration checking
+    - Runtime API key management (add/remove)
+    - Multiple authentication headers support (X-API-Key, Authorization Bearer)
+    - Thread-safe with `threading.RLock()`
+  - `RateLimiter` (214 lines): Per-client rate limiting
+    - Token bucket algorithm: 100 requests per minute per client
+    - Automatic cleanup of inactive clients (1 hour TTL)
+    - Global rate monitoring across all clients
+    - Thread-safe with `threading.Lock()`
+  - `MetricsTracker` (220 lines): Request metrics tracking
+    - Request counting (total, successful, failed)
+    - Operation-specific metrics (execution time, success rate)
+    - Uptime tracking with human-readable format
+    - Request ID generation (REQ-{timestamp}-{counter})
+  - `HealthMonitor` (114 lines): Server health checks
+    - Aggregates metrics from metrics tracker and rate limiter
+    - Health status: healthy/degraded/unhealthy
+    - Status thresholds: success rate < 80% OR remaining rate limit < 10% = degraded
+  - `ServerConfiguration` (157 lines): Runtime configuration
+    - Logging configuration from settings
+    - Transport validation (stdio, http, sse, streamable-http)
+    - Port validation (1-65535 for non-stdio transports)
+    - Configuration validation with warnings/errors
+  - `PROperationHandler` (264 lines): PR operations coordination
+    - PR diff fetching via GitHub API
+    - Repository caching for efficiency
+    - URL parsing with regex: `r"https://github\.com/([^/]+)/([^/]+)/pull/(\d+)"`
+    - Lazy repository initialization
 - **Factory** (`factory.py`):
   - `create_mcp_server`: Component wiring and injection
-- **Interfaces** (`interfaces/`):
-  - Protocol definitions for component contracts
+  - Two factory functions: primary (with interfaces) and legacy (backward compatibility)
+- **Interfaces** (`interfaces/protocols.py` - 230 lines):
+  - `RateLimiterProtocol`: check_rate_limit(), increment_rate_limit(), get_rate_limit_info()
+  - `MetricsTrackerProtocol`: track_request(), get_metrics_summary(), generate_request_id()
+  - `PROperationHandlerProtocol`: get_pr_diff(), describe_pr(), approve_pr(), review_pr(), update_pr_changelog()
+  - `HealthMonitorProtocol`: check_health()
+  - `ServerConfigurationProtocol`: setup_logging(), get_server_info(), get_mcp_instructions()
+  - `AuthenticationProtocol`: authenticate(), extract_client_identifier(), is_authentication_enabled(), get_status()
 
 ### Interface Layer
 
@@ -453,6 +487,83 @@ export MCP_ADMIN_API_KEY="your-admin-api-key"
 - **Health Monitoring**: API health tracking to detect and respond to performance degradation
 - **Safe Error Logging**: All error logs use `sanitize_for_logging()` to prevent log injection
 
+#### Structured Error Codes
+
+The domain layer defines standardized error codes (`prdiffer/domain/errors.py`):
+
+**Error Categories**:
+- **E1xxx**: Input validation errors (E1001-E1006)
+- **E2xxx**: Authentication/authorization errors (E2001-E2003)
+- **E3xxx**: Rate limiting errors (E3001-E3003)
+- **E4xxx**: Resource not found errors (E4001-E4004)
+- **E5xxx**: Internal server errors (E5001-E5005)
+
+**Error Code Structure**:
+```python
+@dataclass(frozen=True)
+class ErrorCode:
+    code: str           # e.g., "E1001_INVALID_URL"
+    name: str           # e.g., "Invalid URL"
+    message: str        # User-friendly error message
+    remediation: str    # How to fix the error
+    category: ErrorCategory
+```
+
+#### Exception Hierarchy
+
+The domain layer provides a comprehensive exception hierarchy (`prdiffer/domain/exceptions.py`):
+
+**Base Exception**: `PRDifferException` with message and details
+
+**Exception Categories** (27 total):
+- **Authentication**: AuthenticationError, InvalidTokenError, ExpiredTokenError, MissingTokenError, AuthorizationError, InsufficientPermissionsError
+- **Rate Limiting**: RateLimitError, GlobalRateLimitError, UserRateLimitError
+- **Validation**: ValidationError, InvalidURLError, InvalidRepositoryError, InvalidPRNumberError, UnsupportedFormatError
+- **GitHub API**: GitHubAPIError, RepositoryNotFoundError, PRNotFoundError, FileNotFoundError, GitHubAuthenticationError, GitHubConnectionError, GitHubRateLimitError
+- **Cache**: CacheError, CacheInvalidationError, CacheCorruptionError
+- **Configuration**: ConfigurationError, MissingConfigurationError, InvalidConfigurationError, SecretsError
+- **Processing**: ProcessingError, DiffGenerationError, FileProcessingError, PatternMatchingError
+- **Resource**: ResourceError, ResourceExhaustedError, MemoryLimitError, TimeoutError
+- **Security**: SecurityError, SuspiciousOperationError, InputSanitizationError, SignatureVerificationError
+
+**Helper Functions**:
+- `get_exception_details(exception)`: Extracts exception metadata
+- `wrap_github_exception(exception)`: Wraps PyGithub exceptions
+
+### Domain Configuration
+
+#### GitHubConfig
+
+The `GitHubConfig` dataclass (`prdiffer/domain/config/github_config.py`) provides frozen configuration for GitHub operations:
+
+**Configuration Groups**:
+- **Basic API Settings**: rate_limit, timeout, max_retries, retry_delay
+- **Smart Retry**: retry_on_404 (false), retry_on_403 (true), retry_on_500 (true), retry_log_level, permanent_failure_log_level
+- **Circuit Breaker & Adaptive Retry**: circuit_breaker_enabled, circuit_breaker_failure_threshold, circuit_breaker_timeout, adaptive_retry_enabled, max_adaptive_delay, api_health_tracking, context_aware_retry
+- **File Filtering**: ignore_patterns (tuple), valid_extensions (tuple) - 60+ file types supported
+- **Parallel Diff Processing**: diff_parallel_enabled, diff_parallel_threshold (3), diff_max_workers (4), diff_worker_timeout (30.0)
+- **File Processing Limits**: max_files_allowed (50), large_file_threshold, chunk_size, max_diff_size
+
+**Methods**:
+- `from_dict(config)`: Factory method for dict-to-instance conversion
+- `to_dict()`: Instance-to-dict conversion
+- `with_overrides(**kwargs)`: Config cloning with overrides
+- `should_use_circuit_breaker`, `should_use_adaptive_retry`, `should_track_api_health`, `should_use_parallel_diff`: Derived boolean properties
+- `should_ignore_file(filename)`: Uses fnmatch for pattern matching
+- `has_valid_extension(filename)`: Extension validation
+- `should_process_file(filename)`: Combined validation (ignore patterns + valid extensions)
+
+#### Constants
+
+Centralized constants (`prdiffer/domain/constants.py`):
+
+**Classes**:
+- **Limits**: URL/input validation, GitHub API, cache, request coalescing, file processing, circuit breaker, parallel processing limits
+- **Thresholds**: File change thresholds (SIGNIFICANT_CHANGES, LARGE_CHANGES), retry thresholds, lockout duration
+- **Defaults**: MCP server, authentication, cache, logging, token validation defaults
+- **Timeouts**: API and request timeouts
+- **RegularExpressions**: GitHub URL patterns, command injection, path traversal, SQL injection, Git ref validation patterns
+
 ### Caching System
 
 - **Commit-Based Caching**: PR diff data is cached using the latest commit SHA as cache key
@@ -568,6 +679,145 @@ The settings service uses manual caching instead of `@lru_cache` because:
   - Parameters sanitized to prevent injection attacks
   - Security exceptions caught and logged safely
   - Failed security validations tracked in metrics
+
+## Test Structure
+
+The codebase has a comprehensive test suite with **50+ test files** organized across unit, integration, and performance layers:
+
+### Test Organization
+
+```
+tests/
+├── unit/                                    # Unit Tests
+│   ├── application/                         # Application Layer Tests
+│   │   ├── components/                      # Component tests
+│   │   │   ├── test_authentication.py
+│   │   │   ├── test_health_monitor.py
+│   │   │   ├── test_metrics_tracker.py
+│   │   │   └── test_rate_limiter.py
+│   ├── domain/                              # Domain Layer Tests
+│   │   ├── entities/                        # Entity tests
+│   │   ├── services/                        # Service interface tests
+│   │   ├── usecases/                        # Use case tests
+│   └── infrastructure/                      # Infrastructure Layer Tests
+│       ├── github/                          # GitHub component tests
+│       ├── utils/                           # Utility tests
+│       └── [infrastructure component tests]
+├── integration/                             # Integration Tests
+│   ├── test_complete_workflow.py
+│   ├── test_error_scenarios.py
+│   ├── test_security.py
+│   └── test_real_github_api.py
+└── performance/                             # Performance Tests
+    └── test_performance.py
+```
+
+### Test Markers
+
+- `@pytest.mark.unit` - Unit tests (isolated, fast, no external dependencies)
+- `@pytest.mark.integration` - Integration tests (may use external services)
+- `@pytest.mark.slow` - Slow-running tests
+- `@pytest.mark.security` - Security and vulnerability tests
+- `@pytest.mark.thread_safety` - Thread safety and concurrency tests
+
+### Key Test Features
+
+**Comprehensive Security Testing**:
+- 571 lines of validation tests in `test_input_validator.py`
+- SQL injection, command injection, path traversal prevention tests
+- Rate limiting and brute-force protection tests
+
+**Phase-Based Organization**:
+- Phase 1: Critical fixes (LRU cache, TTL, retry handler, circuit breaker)
+- Phase 2: Diff builder optimization (binary files, chunked processing, streaming)
+- Phase 3: API enhancement (extended FilePatchInfo, PRDiff, error codes)
+- Phase 4: Architecture refinement (GitHubConfig, AsyncParallelExecutor, circuit breakers)
+
+**Thread Safety Testing**:
+- Concurrent cache operations (100 threads)
+- Circuit breaker concurrent failures/successes
+- Request coalescing thread safety
+
+**Async Testing**:
+- Full pytest-asyncio support
+- Anyio task group testing
+- Timeout handling tests
+
+### Coverage Goals
+
+| Layer | Target Coverage |
+|-------|----------------|
+| Overall | >80% |
+| Domain | >90% (critical business logic) |
+| Infrastructure | >75% (external dependencies) |
+| Application | >85% (application orchestration) |
+
+## OpenSpec System
+
+PRDifferMCP uses **OpenSpec** for spec-driven development workflow:
+
+### OpenSpec Directory Structure
+
+```
+openspec/
+├── AGENTS.md                   # Instructions for AI coding assistants (456 lines)
+├── project.md                  # Project conventions and metadata (230 lines)
+├── specs/                      # Current truth - what IS built
+│   └── [capability]/
+│       ├── spec.md             # Requirements and scenarios
+│       └── design.md           # Technical patterns (optional)
+├── changes/                    # Proposals - what SHOULD change
+│   ├── [change-id]/
+│   │   ├── proposal.md        # Why, what, impact
+│   │   ├── tasks.md           # Implementation checklist
+│   │   ├── design.md          # Technical decisions (optional)
+│   │   └── specs/             # Delta changes
+│   └── archive/              # Completed changes (YYYY-MM-DD-[name]/)
+```
+
+### OpenSpec Workflow (Three-Stage)
+
+**Stage 1: Creating Changes**
+- Create proposal for new features, breaking changes, architecture shifts
+- Skip for bug fixes, typos, non-breaking updates
+- Choose unique kebab-case `change-id` (verb-led)
+
+**Stage 2: Implementing Changes**
+1. Read proposal.md
+2. Read design.md (if exists)
+3. Read tasks.md
+4. Implement tasks sequentially
+5. Update checklist when complete
+
+**Stage 3: Archiving Changes**
+1. Move `changes/[name]/` → `changes/archive/YYYY-MM-DD-[name]/`
+2. Update specs/ if capabilities changed
+3. Run `openspec validate --strict`
+
+### Key Commands
+
+```bash
+openspec list                  # List active changes
+openspec list --specs          # List specifications
+openspec show [item]           # Display change or spec
+openspec validate [item]       # Validate changes or specs
+openspec archive <change-id>   # Archive after deployment
+```
+
+### Spec File Format Requirements
+
+**Critical**: Scenario formatting must use `#### Scenario:` (4 hashes)
+```markdown
+#### Scenario: User login success
+- **WHEN** valid credentials provided
+- **THEN** return JWT token
+```
+
+**Delta Operations**:
+- `## ADDED Requirements` - New capabilities
+- `## MODIFIED Requirements` - Changed behavior (must include full requirement)
+- `## REMOVED Requirements` - Deprecated features
+- `## RENAMED Requirements` - Only name changes
 
 ## Code Search with mgrep
 
