@@ -2,6 +2,9 @@
 
 This module defines the interfaces that each component must implement,
 ensuring loose coupling and enabling easy testing with mocks.
+
+These protocols are placed in the domain layer to maintain Clean Architecture
+principles - the domain layer should not depend on the application layer.
 """
 
 from typing import Dict, Any, Tuple, Protocol, Optional
@@ -84,10 +87,15 @@ class PROperationHandlerProtocol(Protocol):
         """
         ...
 
+    # TODO: Future feature - not yet implemented
+    # This method will provide comprehensive PR description including title,
+    # author, reviewers, status, mergeability, and associated commits.
     async def describe_pr(
         self, pr_url: str, commit_messages: str, diff_content: str
     ) -> str:
         """Generate PR description based on commit messages and diff.
+
+        TODO: Future feature - not yet implemented
 
         Args:
             pr_url: GitHub PR URL
@@ -99,10 +107,15 @@ class PROperationHandlerProtocol(Protocol):
         """
         ...
 
+    # TODO: Future feature - not yet implemented
+    # This method will approve a pull request via GitHub API with
+    # approval commit message, reviewer authentication, and approval state verification.
     async def approve_pr(
         self, pr_url: str, commit_messages: str, diff_content: str
     ) -> str:
         """Generate PR approval message.
+
+        TODO: Future feature - not yet implemented
 
         Args:
             pr_url: GitHub PR URL
@@ -114,10 +127,15 @@ class PROperationHandlerProtocol(Protocol):
         """
         ...
 
+    # TODO: Future feature - not yet implemented
+    # This method will submit a PR review with review comments, approval/rejection state,
+    # line-by-line comments, and review summary.
     async def review_pr(
         self, pr_url: str, commit_messages: str, diff_content: str
     ) -> str:
         """Generate PR review.
+
+        TODO: Future feature - not yet implemented
 
         Args:
             pr_url: GitHub PR URL
@@ -129,10 +147,15 @@ class PROperationHandlerProtocol(Protocol):
         """
         ...
 
+    # TODO: Future feature - not yet implemented
+    # This method will update PR changelog with new commits added to PR,
+    # summary of changes, and updated diff information.
     async def update_pr_changelog(
         self, pr_url: str, commit_messages: str, diff_content: str
     ) -> str:
         """Update PR changelog.
+
+        TODO: Future feature - not yet implemented
 
         Args:
             pr_url: GitHub PR URL
@@ -164,8 +187,13 @@ class ServerConfigurationProtocol(Protocol):
         """Set up logging configuration."""
         ...
 
+    # TODO: Future feature - not yet implemented
+    # This method will return server information including version, transport mode,
+    # configuration summary, and feature flags.
     def get_server_info(self) -> Dict[str, Any]:
         """Get server information and configuration.
+
+        TODO: Future feature - not yet implemented
 
         Returns:
             Dictionary containing server information
@@ -197,10 +225,15 @@ class AuthenticationProtocol(Protocol):
         """
         ...
 
+    # TODO: Future feature - not yet implemented
+    # This method will extract client identifier from requests using API key based
+    # identification, IP address fallback, and request metadata.
     def extract_client_identifier(
         self, headers: Dict[str, str]
     ) -> Tuple[Optional[str], Optional[str]]:
         """Extract client identifier from request headers.
+
+        TODO: Future feature - not yet implemented
 
         Args:
             headers: Request headers dictionary
@@ -212,8 +245,13 @@ class AuthenticationProtocol(Protocol):
         """
         ...
 
+    # TODO: Future feature - not yet implemented
+    # This method will query authentication status including current authentication state,
+    # enabled/disabled status, and configuration source.
     def is_authentication_enabled(self) -> bool:
         """Check if authentication is enabled.
+
+        TODO: Future feature - not yet implemented
 
         Returns:
             True if authentication is required

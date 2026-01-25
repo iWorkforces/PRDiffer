@@ -95,7 +95,7 @@ class SecurityPatterns:
                     path_traversal=path if path else defaults.path_traversal,
                     sql_injection=sql if sql else defaults.sql_injection,
                 )
-        except Exception:
+        except (KeyError, ValueError, TypeError):
             # If settings loading fails, use defaults
             pass
 

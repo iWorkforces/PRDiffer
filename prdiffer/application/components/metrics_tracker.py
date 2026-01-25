@@ -4,7 +4,7 @@ import time
 import logging
 import threading
 from typing import Dict, Any, Optional
-from ..interfaces.protocols import MetricsTrackerProtocol
+from prdiffer.domain.interfaces.protocols import MetricsTrackerProtocol
 
 
 class MetricsTracker(MetricsTrackerProtocol):

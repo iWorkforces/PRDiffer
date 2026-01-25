@@ -589,7 +589,7 @@ class FileProcessor:
             )
             patch = "".join(diff)
             return patch
-        except Exception:
+        except (TypeError, ValueError, AttributeError):
             self._logger.error(f"Failed to generate patch for file: {filename}")
             return ""
 

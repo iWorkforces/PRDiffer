@@ -126,11 +126,11 @@ class RequestCoalescingService:
             except TimeoutError:
                 self._logger.error(f"Coalesced request timed out for key '{key}'")
                 raise
-            except Exception:
+            except (RuntimeError, AttributeError, KeyError):
                 self._logger.error(f"Coalesced request failed for key '{key}'")
                 raise
             finally:
-                # Decrement waiter count for coalesced requests (cleanup)
+                # Clean up even on failure
                 await self._decrement_waiter(key)
 
         # Phase 3: Create new request (double-check pattern with proper locking)
@@ -169,7 +169,7 @@ class RequestCoalescingService:
             except TimeoutError:
                 self._logger.error(f"Coalesced request timed out for key '{key}'")
                 raise
-            except Exception:
+            except (RuntimeError, AttributeError, KeyError):
                 self._logger.error(f"Coalesced request failed for key '{key}'")
                 raise
             finally:

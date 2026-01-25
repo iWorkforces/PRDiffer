@@ -285,7 +285,7 @@ class SettingsService(SettingsServiceInterface):
                 return list(self.settings.settings_files)
             else:
                 return []
-        except Exception:
+        except (AttributeError, TypeError, KeyError):
             return []
 
     # Explicitly override clear_cache to satisfy the abstract method requirement

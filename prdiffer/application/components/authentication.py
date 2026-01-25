@@ -12,6 +12,7 @@ Security Note:
 """
 
 import base64
+import binascii
 import hashlib
 import json
 import os
@@ -25,7 +26,7 @@ from threading import RLock
 import jwt
 from jwt.exceptions import InvalidTokenError, ExpiredSignatureError
 
-from ..interfaces.protocols import AuthenticationProtocol
+from prdiffer.domain.interfaces.protocols import AuthenticationProtocol
 
 
 @dataclass
@@ -488,7 +489,7 @@ class AuthenticationMiddleware(AuthenticationProtocol):
 
             payload_json = base64.urlsafe_b64decode(payload_b64)
             return json.loads(payload_json)
-        except Exception:
+        except (ValueError, json.JSONDecodeError, binascii.Error):
             return None
 
     @staticmethod

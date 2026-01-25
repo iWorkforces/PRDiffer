@@ -13,7 +13,7 @@ from prdiffer.domain.services.diff import DiffServiceInterface
 from prdiffer.domain.services.pattern_matching import PatternMatchingServiceInterface
 from prdiffer.domain.services.retry import RetryServiceInterface
 
-from prdiffer.application.interfaces.protocols import (
+from prdiffer.domain.interfaces.protocols import (
     RateLimiterProtocol,
     MetricsTrackerProtocol,
     PROperationHandlerProtocol,

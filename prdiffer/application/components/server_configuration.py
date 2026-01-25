@@ -2,7 +2,7 @@
 
 import logging
 from typing import Dict, Any, Optional, List, TypedDict
-from ..interfaces.protocols import ServerConfigurationProtocol
+from prdiffer.domain.interfaces.protocols import ServerConfigurationProtocol
 from prdiffer.version import __version__
 
 
