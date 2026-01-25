@@ -6,22 +6,10 @@ import json
 import threading
 import time
 from collections import OrderedDict
-from typing import Any, Callable, Dict, Optional, Tuple, Set, Protocol, TypeVar, cast
+from typing import Any, Callable, Dict, Optional, Tuple, Set, TypeVar, cast
 
 # Type variable for generic function signatures
 F = TypeVar("F", bound=Callable[..., Any])
-
-
-class CacheableMethod(Protocol):
-    """Protocol for methods that have been decorated with caching."""
-
-    def __call__(self, *args: Any, **kwargs: Any) -> Any:
-        """Call the cached method."""
-        ...
-
-    def clear_cache(self) -> None:
-        """Clear the cache for this method."""
-        ...
 
 
 class CachingMixin:
@@ -311,87 +299,5 @@ def cached_method(ttl: Optional[int] = None, key_prefix: Optional[str] = None):
         setattr(wrapper, "clear_cache", clear_method_cache)
 
         return cast(F, wrapper)
-
-    return decorator
-
-
-def conditional_cache(condition: Callable[[Any], bool], ttl: Optional[int] = None):
-    """Decorator that caches based on a condition function.
-
-    Thread-safe: All cache operations protected by lock.
-
-    Args:
-        condition: Function that takes the result and returns True if it should be cached
-        ttl: Time-to-live for cache entries in seconds
-
-    Returns:
-        Decorated method with conditional caching
-
-    Example:
-        class MyService(CachingMixin):
-            @conditional_cache(lambda result: result is not None, ttl=60)
-            def maybe_expensive(self, param: str) -> Optional[str]:
-                # Only cache non-None results
-                return might_return_none(param)
-    """
-
-    def decorator(method: Callable) -> Callable:
-        @functools.wraps(method)
-        def wrapper(self, *args, **kwargs):
-            # Ensure the class has CachingMixin
-            if not isinstance(self, CachingMixin):
-                raise TypeError(
-                    "@conditional_cache can only be used on methods of classes "
-                    "that inherit from CachingMixin."
-                )
-
-            # Generate cache key (use getattr for type safety)
-            method_name = getattr(method, "__name__", repr(method))
-            cache_key = _generate_cache_key(method_name, args, kwargs)
-
-            with self._cache_lock:
-                # Clean up expired entries periodically
-                if (self._cache_hits + self._cache_misses) % 10 == 0:
-                    pass  # Will do cleanup outside lock
-
-                # Check cache and validate TTL
-                if cache_key in self._method_cache:
-                    entry = self._method_cache[cache_key]
-                    current_time = time.time()
-                    if current_time <= entry.get("expires_at", float("inf")):
-                        self._method_cache.move_to_end(cache_key)
-                        self._cache_hits += 1
-                        return entry["value"]
-                    else:
-                        del self._method_cache[cache_key]
-
-            # Periodic cleanup done outside main lock
-            if (self._cache_hits + self._cache_misses) % 10 == 0:
-                self._evict_expired_entries()
-
-            # Cache miss - execute method
-            with self._cache_lock:
-                self._cache_misses += 1
-
-            result = method(self, *args, **kwargs)
-
-            # Store in cache only if condition is met
-            if condition(result):
-                entry_ttl = ttl if ttl is not None else self._default_ttl
-                expires_at = time.time() + entry_ttl if entry_ttl > 0 else float("inf")
-
-                with self._cache_lock:
-                    self._method_cache[cache_key] = {
-                        "value": result,
-                        "expires_at": expires_at,
-                        "created_at": time.time(),
-                    }
-
-                # Enforce size limit (uses its own lock)
-                self._enforce_size_limit()
-
-            return result
-
-        return wrapper
 
     return decorator

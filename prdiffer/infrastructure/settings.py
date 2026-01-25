@@ -1,6 +1,5 @@
 from typing import Optional, Dict, Any, List
 import os
-import sys
 from functools import lru_cache
 from dynaconf import Dynaconf
 from prdiffer.domain.services import SettingsServiceInterface
@@ -216,52 +215,6 @@ class SettingsService(SettingsServiceInterface):
             "log_format": self.get("app.log_format", "simple"),
         }
 
-    def validate_setting(self, key: str, value: Any) -> bool:
-        """Validate a single setting value.
-
-        Args:
-            key: Configuration key to validate
-            value: Value to validate
-
-        Returns:
-            bool: True if valid, False otherwise
-        """
-        try:
-            # Basic type and range validation for common settings
-            if key.endswith(".rate_limit"):
-                return isinstance(value, int) and 1 <= value <= 100000
-            elif key.endswith(".timeout"):
-                return isinstance(value, int) and 1 <= value <= 300
-            elif key.endswith(".max_retries"):
-                return isinstance(value, int) and 0 <= value <= 20
-            elif key.endswith(".retry_delay"):
-                return isinstance(value, (int, float)) and 0.1 <= value <= 30.0
-            elif key.endswith(".debug") or key.endswith(".enabled"):
-                return isinstance(value, bool)
-            elif key.endswith(".port"):
-                return isinstance(value, int) and 1 <= value <= 65535
-            elif key.endswith(".log_level"):
-                return value in ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
-            elif key.endswith(".ignore_patterns") or key.endswith(".valid_extensions"):
-                return isinstance(value, (list, tuple)) and all(
-                    isinstance(item, str) for item in value
-                )
-
-            # Default validation - just check that value is not None for required settings
-            required_keys = [
-                "app.debug",
-                "app.log_level",
-                "github.rate_limit",
-                "github.timeout",
-            ]
-            if key in required_keys:
-                return value is not None
-
-            return True  # Allow any value for unvalidated keys
-
-        except Exception:
-            return False
-
     def get_configuration_warnings(self) -> List[str]:
         """Get configuration warnings for potential issues.
 
@@ -317,21 +270,6 @@ class SettingsService(SettingsServiceInterface):
             self.get("app.debug", False)
             or os.getenv("ENV_FOR_DYNACONF") == "development"
         )
-
-    def get_environment_info(self) -> Dict[str, Any]:
-        """Get environment and configuration information.
-
-        Returns:
-            Dict[str, Any]: Environment and configuration details
-        """
-        return {
-            "environment": os.getenv("ENV_FOR_DYNACONF", "default"),
-            "debug_mode": self.is_development_mode(),
-            "configuration_files": self._get_loaded_config_files(),
-            "warnings": self.get_configuration_warnings(),
-            "python_version": sys.version.split()[0],
-            "platform": sys.platform,
-        }
 
     def _get_loaded_config_files(self) -> List[str]:
         """Get list of loaded configuration files.

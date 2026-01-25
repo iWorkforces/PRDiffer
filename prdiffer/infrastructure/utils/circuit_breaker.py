@@ -477,33 +477,3 @@ def get_global_circuit_breaker_registry(
             default_timeout=default_timeout,
         )
     return _global_circuit_breaker_registry
-
-
-def get_circuit_breaker(
-    failure_threshold: int = 5, timeout: float = 60.0
-) -> CircuitBreaker:
-    """Get a configured circuit breaker instance.
-
-    Args:
-        failure_threshold: Number of failures before opening the circuit
-        timeout: Time in seconds to keep circuit open before trying again
-
-    Returns:
-        CircuitBreaker: Configured circuit breaker instance
-    """
-    return CircuitBreaker(failure_threshold=failure_threshold, timeout=timeout)
-
-
-def get_circuit_breaker_for_endpoint(endpoint: str) -> CircuitBreaker:
-    """Get a circuit breaker for a specific endpoint from the global registry.
-
-    This is a convenience function that uses the global registry.
-
-    Args:
-        endpoint: Endpoint identifier (e.g., "github_api", "repo_content")
-
-    Returns:
-        CircuitBreaker: Circuit breaker for the endpoint
-    """
-    registry = get_global_circuit_breaker_registry()
-    return registry.get_breaker(endpoint)

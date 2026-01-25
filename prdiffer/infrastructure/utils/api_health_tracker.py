@@ -135,22 +135,6 @@ class APIHealthTracker:
         recommended_delay = base_delay * delay_multiplier
         return min(recommended_delay, max_delay)
 
-    def should_use_circuit_breaker(self) -> bool:
-        """Determine if circuit breaker should be triggered based on health.
-
-        Returns:
-            bool: True if circuit breaker should be used
-        """
-        health_score = self.get_health_score()
-        recent_calls = self._get_recent_calls(time.time())
-
-        # Trigger circuit breaker if health is very poor and we have recent failures
-        if health_score < 0.3 and len(recent_calls) >= 5:
-            recent_failures = sum(1 for call in recent_calls[-5:] if not call.success)
-            return recent_failures >= 4  # 4 out of last 5 calls failed
-
-        return False
-
     def get_error_pattern(self) -> Dict[str, int]:
         """Get recent error patterns.
 

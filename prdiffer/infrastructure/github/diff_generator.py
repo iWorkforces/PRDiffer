@@ -2,14 +2,13 @@
 
 import re
 import time
-from typing import List, Dict, Optional, AsyncGenerator, Callable, Any
+from typing import List, Dict, Optional
 from prdiffer.domain.entities.file_patch import FilePatchInfo
 from prdiffer.domain.services import DiffServiceInterface
 from prdiffer.infrastructure.logging.console_logger import get_logger
 from prdiffer.infrastructure.logging.exception_utils import (
     sanitize_exception_for_logging,
 )
-import anyio
 
 
 class DiffGenerator:
@@ -337,28 +336,6 @@ class DiffGenerator:
         section_header = res[4] if len(res) > 4 else ""
         return section_header, size1, size2, start1, start2
 
-    def get_commit_messages(self, pull_request) -> str:
-        """Retrieve and format all commit messages from the pull request.
-
-        Args:
-            pull_request: GitHub pull request object
-
-        Returns:
-            str: Formatted string with numbered commit messages, empty string on error
-
-        Note:
-            Each commit message is prefixed with its sequence number (1-based)
-        """
-        try:
-            commit_list = pull_request.get_commits()
-            commit_messages_str = "\n".join(
-                f"{i + 1}. {commit.commit.message}"
-                for i, commit in enumerate(commit_list)
-            )
-        except Exception:
-            commit_messages_str = ""
-        return commit_messages_str
-
     def _process_single_file_for_diff(
         self, indexed_file_data: tuple
     ) -> Optional[tuple]:
@@ -520,152 +497,6 @@ class DiffGenerator:
         )
 
         return extended_diffs
-
-    async def generate_extended_diff_stream(
-        self,
-        diff_files: List[FilePatchInfo],
-        add_line_numbers_to_hunks: bool = False,
-        batch_size: int = 10,
-        on_progress: Optional[Callable[[int, int], Any]] = None,
-    ) -> AsyncGenerator[str, None]:
-        """Generate extended diffs as an async stream for memory-efficient processing.
-
-        Yields diff strings one file at a time instead of building a complete list,
-        which is more memory-efficient for large PRs.
-
-        Args:
-            diff_files: List of FilePatchInfo objects to process
-            add_line_numbers_to_hunks: Whether to add line numbers to hunks
-            batch_size: Number of files to process in each batch (for progress reporting)
-            on_progress: Optional callback for progress updates (files_done, total_files)
-
-        Yields:
-            Extended diff strings, one per file
-        """
-        total_files = len(diff_files)
-        processed_count = 0
-        start_time = time.time()
-
-        self._logger.debug(
-            f"Starting streaming diff generation for {total_files} files"
-        )
-
-        for i, file in enumerate(diff_files):
-            original_file_content_str = file.base_file
-            new_file_content_str = file.head_file
-            patch = file.patch
-
-            if not patch:
-                processed_count += 1
-                continue
-
-            try:
-                # Extend each patch with extra lines of context
-                extended_patch = self._diff_utils.extend_patch(
-                    original_file_content_str, patch, new_file_str=new_file_content_str
-                )
-
-                if not extended_patch:
-                    self._logger.warning(
-                        f"Failed to extend patch for file: {file.filename}"
-                    )
-                    processed_count += 1
-                    continue
-
-                is_first_file = i == 0
-
-                if add_line_numbers_to_hunks:
-                    full_extended_patch = (
-                        self._decouple_and_convert_to_hunks_with_lines_numbers(
-                            extended_patch, file, is_first_file=is_first_file
-                        )
-                    )
-                else:
-                    # Add separator and file header
-                    separator = "" if is_first_file else "\n---"
-                    full_extended_patch = f"{separator}{'' if is_first_file else '\n\n'}## Full file path: `{file.filename.strip()}`\n{extended_patch.rstrip()}\n"
-                    if is_first_file:
-                        full_extended_patch = f"\n{full_extended_patch}"
-
-                processed_count += 1
-
-                # Report progress at batch boundaries
-                if on_progress and processed_count % batch_size == 0:
-                    on_progress(processed_count, total_files)
-
-                # Yield control to allow other async operations
-                await anyio.sleep(0)
-
-                yield full_extended_patch
-
-            except Exception as e:
-                sanitized = sanitize_exception_for_logging(e)
-                self._logger.error(
-                    f"Error processing file {file.filename} in stream", extra=sanitized
-                )
-                processed_count += 1
-                continue
-
-        # Final progress callback
-        if on_progress:
-            on_progress(processed_count, total_files)
-
-        elapsed_time = time.time() - start_time
-        self._logger.debug(
-            f"Streaming diff generation completed: {processed_count}/{total_files} files "
-            f"in {elapsed_time:.2f}s"
-        )
-
-    async def generate_single_diff(
-        self,
-        file: FilePatchInfo,
-        add_line_numbers_to_hunks: bool = False,
-        is_first_file: bool = False,
-    ) -> Optional[str]:
-        """Generate extended diff for a single file asynchronously.
-
-        This method is useful for processing files individually in async contexts.
-
-        Args:
-            file: FilePatchInfo object to process
-            add_line_numbers_to_hunks: Whether to add line numbers to hunks
-            is_first_file: Whether this is the first file in the diff
-
-        Returns:
-            Extended diff string, or None if processing fails
-        """
-        patch = file.patch
-        if not patch:
-            return None
-
-        try:
-            # Yield control before CPU-intensive work
-            await anyio.sleep(0)
-
-            extended_patch = self._diff_utils.extend_patch(
-                file.base_file, patch, new_file_str=file.head_file
-            )
-
-            if not extended_patch:
-                return None
-
-            if add_line_numbers_to_hunks:
-                return self._decouple_and_convert_to_hunks_with_lines_numbers(
-                    extended_patch, file, is_first_file=is_first_file
-                )
-            else:
-                separator = "" if is_first_file else "\n---"
-                full_extended_patch = f"{separator}{'' if is_first_file else '\n\n'}## Full file path: `{file.filename.strip()}`\n{extended_patch.rstrip()}\n"
-                if is_first_file:
-                    full_extended_patch = f"\n{full_extended_patch}"
-                return full_extended_patch
-
-        except Exception as e:
-            sanitized = sanitize_exception_for_logging(e)
-            self._logger.error(
-                f"Error generating single diff for {file.filename}", extra=sanitized
-            )
-            return None
 
 
 def get_diff_generator(

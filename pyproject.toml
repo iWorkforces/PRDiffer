@@ -44,7 +44,7 @@ dependencies = [
     "aiodns>=4.0.0",
     "httpx-aiohttp>=0.1.12",
     "pydantic-core>=2.41.5",
-    "pyjwt>=2.10.1"
+    "pyjwt>=2.10.1",
 ]
 
 [project.urls]
@@ -71,6 +71,7 @@ dev = [
     "pytest-cov>=7.0.0",
     "pytest-xdist>=3.8.0",
     "ty>=0.0.13",
+    "vulture>=2.14",
 ]
 
 [tool.pytest.ini_options]

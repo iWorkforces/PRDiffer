@@ -116,25 +116,6 @@ class TestAPIHealthTracker:
         delay = self.tracker.get_recommended_delay(base_delay=1.0, max_delay=30.0)
         assert delay > 1.0  # Should increase delay for poor health
 
-    def test_should_use_circuit_breaker_false(self):
-        """Test circuit breaker should not trigger with healthy API."""
-        for _ in range(5):
-            self.tracker.record_call(duration=0.5, success=True)
-
-        assert self.tracker.should_use_circuit_breaker() is False
-
-    def test_should_use_circuit_breaker_true(self):
-        """Test circuit breaker should trigger with very poor health."""
-        # Record mostly failed calls (4 out of 5 in recent calls should fail)
-        # Need health_score < 0.3
-        # With failures at slow durations, time component will be 0
-        # Health score = 0 * 0.7 + 0 = 0 (perfectly poor health)
-        for _ in range(5):
-            self.tracker.record_call(duration=10.0, success=False, error_type="Error")
-
-        # 5 out of 5 failures with slow responses should trigger circuit breaker
-        assert self.tracker.should_use_circuit_breaker() is True
-
     def test_get_error_pattern(self):
         """Test error pattern tracking."""
         self.tracker.record_call(duration=1.0, success=False, error_type="Timeout")

@@ -10,8 +10,8 @@ This module provides comprehensive input validation to prevent:
 """
 
 import re
-from typing import Pattern
 from dataclasses import dataclass
+from typing import Pattern, TYPE_CHECKING
 
 from prdiffer.domain.exceptions import (
     InvalidURLError,
@@ -21,21 +21,36 @@ from prdiffer.domain.exceptions import (
     SuspiciousOperationError,
 )
 
+if TYPE_CHECKING:
+    from prdiffer.infrastructure.settings import SettingsService
+
 
 @dataclass
 class SecurityPatterns:
-    """Configurable security patterns loaded from settings."""
+    """Configurable security patterns loaded from settings.
+
+    This dataclass provides configurable security patterns for detecting
+    malicious input patterns. Patterns can be loaded from settings or
+    use default values.
+
+    Attributes:
+        command_injection: List of regex patterns for command injection detection
+        path_traversal: List of regex patterns for path traversal detection
+        sql_injection: List of regex patterns for SQL injection detection
+    """
 
     command_injection: list[str]
     path_traversal: list[str]
     sql_injection: list[str]
 
     @classmethod
-    def from_settings(cls, settings_service) -> "SecurityPatterns":
+    def from_settings(
+        cls, settings_service: "SettingsService | None"
+    ) -> "SecurityPatterns":
         """Load patterns from settings service.
 
         Args:
-            settings_service: Settings service instance
+            settings_service: Settings service instance (optional)
 
         Returns:
             SecurityPatterns instance with configured patterns
@@ -86,9 +101,48 @@ class SecurityPatterns:
 
         return defaults
 
+    def compile_command_injection(self) -> Pattern:
+        """Compile command injection patterns into a single regex.
+
+        Returns:
+            Compiled regex pattern
+        """
+        return re.compile("|".join(self.command_injection), re.IGNORECASE)
+
+    def compile_path_traversal(self) -> Pattern:
+        """Compile path traversal patterns into a single regex.
+
+        Returns:
+            Compiled regex pattern
+        """
+        return re.compile("|".join(self.path_traversal), re.IGNORECASE)
+
+    def compile_sql_injection(self) -> Pattern:
+        """Compile SQL injection patterns into a single regex.
+
+        Returns:
+            Compiled regex pattern
+        """
+        return re.compile("|".join(self.sql_injection), re.IGNORECASE)
+
 
 class InputValidator:
-    """Validates and sanitizes user inputs for security."""
+    """Validates and sanitizes user inputs for security.
+
+    This validator can be used in three ways:
+    1. Class methods: InputValidator.validate_github_url(url) - uses default patterns
+    2. Instance with defaults: validator = InputValidator() - uses default patterns
+    3. Instance with custom patterns: validator = InputValidator(security_patterns) - uses custom patterns
+
+    Example with custom patterns from settings:
+        from prdiffer.infrastructure.settings import get_settings_service
+        from prdiffer.infrastructure.security.input_validator import InputValidator, SecurityPatterns
+
+        settings = get_settings_service()
+        patterns = SecurityPatterns.from_settings(settings)
+        validator = InputValidator(security_patterns=patterns)
+        owner, repo, pr = validator.validate_github_url(url)
+    """
 
     # Class-level patterns (fallback when settings not available)
     _COMMAND_INJECTION_PATTERNS = [
@@ -142,6 +196,37 @@ class InputValidator:
         r"^[a-zA-Z0-9]([a-zA-Z0-9_\-./]*[a-zA-Z0-9])?$"
     )
 
+    def __init__(self, security_patterns: SecurityPatterns | None = None):
+        """Initialize the InputValidator with optional custom security patterns.
+
+        Args:
+            security_patterns: Optional SecurityPatterns instance for custom pattern matching.
+                If None, uses default class-level patterns.
+
+        Example:
+            >>> # Use default patterns
+            >>> validator = InputValidator()
+
+            >>> # Use custom patterns from settings
+            >>> from prdiffer.infrastructure.settings import get_settings_service
+            >>> settings = get_settings_service()
+            >>> patterns = SecurityPatterns.from_settings(settings)
+            >>> validator = InputValidator(security_patterns=patterns)
+        """
+        self._security_patterns = security_patterns
+        if security_patterns is not None:
+            # Compile custom patterns for instance use
+            self._command_injection_compiled = (
+                security_patterns.compile_command_injection()
+            )
+            self._path_traversal_compiled = security_patterns.compile_path_traversal()
+            self._sql_injection_compiled = security_patterns.compile_sql_injection()
+        else:
+            # Use class-level compiled patterns (will be accessed via class in methods)
+            self._command_injection_compiled = None
+            self._path_traversal_compiled = None
+            self._sql_injection_compiled = None
+
     @classmethod
     def validate_github_url(cls, url: str) -> tuple[str, str, int]:
         """Validate and parse a GitHub PR URL.
@@ -170,7 +255,8 @@ class InputValidator:
             )
 
         # Check for suspicious patterns
-        if cls._contains_suspicious_patterns(url):
+        # Use global validator for backward compatibility with classmethod
+        if _validator._check_suspicious_patterns_instance(url):
             raise SuspiciousOperationError(
                 "URL contains suspicious patterns", details={"url": url[:100]}
             )
@@ -189,14 +275,13 @@ class InputValidator:
         cls._validate_github_owner(owner)
         cls._validate_repo_name(repo)
 
+        # Validate PR number using the dedicated validation method
         try:
             pr_number = int(pr_number_str)
-            if pr_number <= 0:
-                raise InvalidPRNumberError("PR number must be positive")
-            if pr_number > 1000000:  # Reasonable upper limit
-                raise InvalidPRNumberError("PR number too large")
         except ValueError:
             raise InvalidPRNumberError(f"Invalid PR number: {pr_number_str}")
+
+        pr_number = cls.validate_pr_number(pr_number)
 
         return owner, repo, pr_number
 
@@ -309,7 +394,8 @@ class InputValidator:
             raise InputSanitizationError("String contains null bytes")
 
         # Check for suspicious patterns
-        if cls._contains_suspicious_patterns(value):
+        # Use global validator for backward compatibility with classmethod
+        if _validator._check_suspicious_patterns_instance(value):
             raise SuspiciousOperationError("String contains suspicious patterns")
 
         # Remove control characters except common whitespace
@@ -344,6 +430,85 @@ class InputValidator:
             raise InvalidPRNumberError("PR number too large (max 1000000)")
 
         return pr_number
+
+    @classmethod
+    def validate_file_path(cls, file_path: str) -> str:
+        """Validate a file path for cache keys, storage, and other safe operations.
+
+        This validation prevents:
+        - Path traversal attacks (../../etc/passwd)
+        - Absolute paths being used where relative paths expected
+        - Excessively long paths that could cause issues
+        - Suspicious patterns that could indicate injection attempts
+
+        Args:
+            file_path: File path to validate
+
+        Returns:
+            Validated file path
+
+        Raises:
+            InputSanitizationError: If path is invalid
+            SuspiciousOperationError: If path contains suspicious patterns
+
+        Examples:
+            >>> validate_file_path("cache/pr_123.json")
+            'cache/pr_123.json'
+            >>> validate_file_path("data/backup.tar.gz")
+            'data/backup.tar.gz'
+        """
+        if not isinstance(file_path, str):
+            raise InputSanitizationError("File path must be a string")
+
+        if not file_path:
+            raise InputSanitizationError("File path cannot be empty")
+
+        # Normalize the path to prevent bypass attempts with ./ or extra slashes
+        file_path = file_path.replace("\\", "/")  # Normalize Windows paths
+        while "//" in file_path:
+            file_path = file_path.replace("//", "/")
+
+        # Check length limits
+        if len(file_path) > 500:
+            raise InputSanitizationError("File path too long (max 500 characters)")
+
+        # Check for path traversal using pre-compiled pattern
+        if cls._PATH_TRAVERSAL_COMPILED.search(file_path):
+            raise SuspiciousOperationError(
+                "File path contains path traversal patterns",
+                details={"path": file_path[:100]},
+            )
+
+        # Ensure path doesn't start with / (absolute path)
+        if file_path.startswith("/"):
+            raise InputSanitizationError(
+                "Absolute paths not allowed (use relative paths)",
+                details={"path": file_path[:50]},
+            )
+
+        # Check for suspicious patterns in file extensions
+        # Warn about potentially dangerous file extensions
+        dangerous_extensions = [
+            ".exe",
+            ".bat",
+            ".cmd",
+            ".com",
+            ".scr",  # Executables
+            ".sh",
+            ".bash",
+            ".zsh",
+            ".ps1",
+            ".psm1",  # Scripts
+            ".dll",
+            ".so",
+            ".dylib",  # Libraries
+        ]
+        file_ext = file_path.rsplit(".", 1)[-1].lower() if "." in file_path else ""
+        if file_ext in dangerous_extensions:
+            # Log warning but allow - could be legitimate in some contexts
+            pass  # Could add logging here if needed
+
+        return file_path
 
     @classmethod
     def validate_token(cls, token: str) -> str:
@@ -433,7 +598,8 @@ class InputValidator:
             raise InputSanitizationError("Branch name too long (max 255 characters)")
 
         # Check for suspicious patterns
-        if cls._contains_suspicious_patterns(branch):
+        # Use global validator for backward compatibility with classmethod
+        if _validator._check_suspicious_patterns_instance(branch):
             raise SuspiciousOperationError(
                 "Branch name contains suspicious patterns",
                 details={"branch": branch[:100]},
@@ -470,11 +636,11 @@ class InputValidator:
 
         return branch
 
-    @classmethod
-    def _contains_suspicious_patterns(cls, value: str) -> bool:
-        """Check if value contains suspicious patterns.
+    def _check_suspicious_patterns_instance(self, value: str) -> bool:
+        """Instance method for checking suspicious patterns.
 
-        Uses pre-compiled combined patterns for performance (Task 3.4).
+        Uses instance-level custom patterns if available, otherwise falls back
+        to class-level default patterns for performance (Task 3.4).
 
         Args:
             value: Value to check
@@ -482,49 +648,46 @@ class InputValidator:
         Returns:
             True if suspicious patterns found
         """
-        # Use pre-compiled patterns for efficiency
-        if cls._COMMAND_INJECTION_COMPILED.search(value):
+        # Use instance patterns if available (custom SecurityPatterns)
+        if self._security_patterns is not None:
+            # When security_patterns is not None, compiled patterns are guaranteed to be set
+            assert self._command_injection_compiled is not None
+            assert self._path_traversal_compiled is not None
+            assert self._sql_injection_compiled is not None
+
+            if self._command_injection_compiled.search(value):
+                return True
+            if self._path_traversal_compiled.search(value):
+                return True
+            if self._sql_injection_compiled.search(value):
+                return True
+            return False
+
+        # Fall back to class-level default patterns
+        if self._COMMAND_INJECTION_COMPILED.search(value):
             return True
-        if cls._PATH_TRAVERSAL_COMPILED.search(value):
+        if self._PATH_TRAVERSAL_COMPILED.search(value):
             return True
-        if cls._SQL_INJECTION_COMPILED.search(value):
+        if self._SQL_INJECTION_COMPILED.search(value):
             return True
         return False
 
     @classmethod
-    def validate_file_path(cls, file_path: str) -> str:
-        """Validate a file path (for cache keys, etc.).
+    def _contains_suspicious_patterns(cls, value: str) -> bool:
+        """Check if value contains suspicious patterns (classmethod for backward compatibility).
+
+        This method provides backward compatibility for tests and code that call
+        this method as a classmethod. For new code with custom patterns,
+        create an instance with SecurityPatterns and call _check_suspicious_patterns_instance.
 
         Args:
-            file_path: File path to validate
+            value: Value to check
 
         Returns:
-            Validated file path
-
-        Raises:
-            InputSanitizationError: If path is suspicious
+            True if suspicious patterns found
         """
-        if not isinstance(file_path, str):
-            raise InputSanitizationError("File path must be a string")
-
-        if not file_path:
-            raise InputSanitizationError("File path cannot be empty")
-
-        if len(file_path) > 500:
-            raise InputSanitizationError("File path too long")
-
-        # Check for path traversal using pre-compiled pattern
-        if cls._PATH_TRAVERSAL_COMPILED.search(file_path):
-            raise SuspiciousOperationError(
-                "File path contains suspicious patterns",
-                details={"path": file_path[:100]},
-            )
-
-        # Ensure path doesn't start with /
-        if file_path.startswith("/"):
-            raise InputSanitizationError("Absolute paths not allowed")
-
-        return file_path
+        # Use the global validator instance for classmethod calls
+        return _validator._check_suspicious_patterns_instance(value)
 
     @classmethod
     def sanitize_for_logging(cls, value: str, max_length: int = 200) -> str:
@@ -584,3 +747,47 @@ def validate_user_id(user_id: str) -> str:
 def validate_branch_name(branch: str) -> str:
     """Convenience function for branch/ref name validation."""
     return _validator.validate_branch_name(branch)
+
+
+def validate_pr_number(pr_number: int) -> int:
+    """Convenience function for PR number validation.
+
+    Args:
+        pr_number: PR number to validate
+
+    Returns:
+        Validated PR number
+
+    Raises:
+        InvalidPRNumberError: If PR number is invalid
+
+    Example:
+        >>> validate_pr_number(123)
+        123
+        >>> validate_pr_number(0)  # Raises InvalidPRNumberError
+    """
+    return _validator.validate_pr_number(pr_number)
+
+
+def validate_file_path(file_path: str) -> str:
+    """Convenience function for file path validation.
+
+    Useful for validating cache keys, file storage paths, and any user-provided
+    file paths to prevent path traversal attacks.
+
+    Args:
+        file_path: File path to validate
+
+    Returns:
+        Validated file path
+
+    Raises:
+        InputSanitizationError: If path is invalid
+        SuspiciousOperationError: If path contains suspicious patterns
+
+    Example:
+        >>> validate_file_path("cache/pr_123.json")
+        'cache/pr_123.json'
+        >>> validate_file_path("../etc/passwd")  # Raises SuspiciousOperationError
+    """
+    return _validator.validate_file_path(file_path)

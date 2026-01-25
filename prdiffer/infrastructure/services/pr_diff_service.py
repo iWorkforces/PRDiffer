@@ -172,7 +172,7 @@ class GitHubPRDiffService(CachingMixin, PRDiffServiceInterface):
                 repository, pull_request
             )
 
-            diff_content, truncation_meta = apply_diff_limits(
+            diff_content, _truncation_meta = apply_diff_limits(
                 diff_content,
                 self._diff_max_total_chars if self._diff_truncate_enabled else 0,
                 self._diff_truncation_notice,
@@ -343,7 +343,7 @@ class GitHubPRDiffService(CachingMixin, PRDiffServiceInterface):
                 repository, pull_request
             )
 
-            diff_content, truncation_meta = apply_diff_limits(
+            diff_content, _truncation_meta = apply_diff_limits(
                 diff_content,
                 self._diff_max_total_chars if self._diff_truncate_enabled else 0,
                 self._diff_truncation_notice,

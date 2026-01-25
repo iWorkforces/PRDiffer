@@ -1,6 +1,5 @@
 """GitHub API client for repository and pull request operations."""
 
-import asyncio
 import time
 from collections import OrderedDict
 from typing import Optional, Dict, List, Any, cast, Tuple, Type
@@ -100,9 +99,6 @@ class GitHubAPIClient(GitHubAPIServiceInterface):
             file_content_cache_ttl: TTL for file content cache entries in seconds
         """
         self._github_client: Optional[Github] = None
-        self._max_retries = max_retries
-        self._retry_delay = retry_delay
-        self._timeout = timeout
         self._logger = logger or get_logger()
 
         # File content cache configuration (LRU with TTL)
@@ -514,32 +510,6 @@ class GitHubAPIClient(GitHubAPIServiceInterface):
 
         return results
 
-    def get_files_content_batch_parallel(
-        self,
-        repository: Repository,
-        file_paths: List[str],
-        branch: str,
-        max_workers: int = 4,
-    ) -> Dict[str, str]:
-        """Batch retrieve file contents in parallel from a specific branch.
-
-        Uses AsyncParallelExecutor internally with asyncer.asyncify() for backward compatibility.
-
-        Args:
-            repository: GitHub repository instance
-            file_paths: List of file paths to retrieve
-            branch: Branch or commit SHA
-            max_workers: Maximum number of concurrent workers (default: 4)
-
-        Returns:
-            Dict mapping file paths to their content (empty string on error)
-        """
-        return asyncio.run(
-            self._get_files_content_batch_parallel_async(
-                repository, file_paths, branch, max_workers
-            )
-        )
-
     def _extract_file_content(self, content: ContentFile) -> str:
         """Extract file content from ContentFile object.
 
@@ -552,35 +522,6 @@ class GitHubAPIClient(GitHubAPIServiceInterface):
         if content and hasattr(content, "decoded_content") and content.decoded_content:
             return str(content.decoded_content.decode())
         return ""
-
-    def clear_cache(self):
-        """Clear the file content cache."""
-        self._file_content_cache.clear()
-
-    def get_cache_stats(self) -> Dict[str, Any]:
-        """Get cache statistics including LRU and TTL metrics.
-
-        Returns:
-            Dict containing cache statistics including hits, misses, evictions
-        """
-        total_requests = self._cache_hits + self._cache_misses
-        hit_rate = (
-            (self._cache_hits / total_requests * 100) if total_requests > 0 else 0
-        )
-
-        return {
-            "cache_size": len(self._file_content_cache),
-            "cache_max_size": self._cache_max_size,
-            "cache_ttl_seconds": self._cache_ttl,
-            "cache_hits": self._cache_hits,
-            "cache_misses": self._cache_misses,
-            "cache_evictions": self._cache_evictions,
-            "cache_hit_rate_percent": round(hit_rate, 2),
-            "cache_keys": [
-                (k[0][:50] + "..." if len(k[0]) > 50 else k[0], k[1][:8])
-                for k in self._file_content_cache.keys()
-            ],
-        }
 
 
 def get_github_api_client(

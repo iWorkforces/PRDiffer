@@ -7,7 +7,6 @@ for the same resource when multiple concurrent requests arrive.
 import anyio
 from typing import Dict, Any, Optional, Callable, Awaitable
 from dataclasses import dataclass, field
-from datetime import datetime
 from prdiffer.infrastructure.logging.console_logger import get_logger
 from prdiffer.infrastructure.settings import get_settings_service
 
@@ -24,7 +23,6 @@ class CoalescedRequest:
     event: anyio.Event = field(default_factory=anyio.Event)
     result: Optional[Any] = None
     exception: Optional[BaseException] = None
-    created_at: datetime = field(default_factory=datetime.now)
     request_count: int = 1
 
 
