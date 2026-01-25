@@ -10,7 +10,8 @@ from functools import wraps
 from typing import Optional, Dict, Tuple, Callable
 from threading import RLock
 from prdiffer.domain.services import RepositoryCacheServiceInterface
-from prdiffer.infrastructure import GitHubPRDiffRepository
+
+from prdiffer.infrastructure.github_repository import GitHubPRDiffRepository
 from prdiffer.infrastructure.logging.console_logger import get_logger
 
 

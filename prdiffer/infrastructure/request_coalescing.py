@@ -7,7 +7,6 @@ for the same resource when multiple concurrent requests arrive.
 import anyio
 from typing import Dict, Any, Optional, Callable, Awaitable
 from dataclasses import dataclass, field
-from datetime import datetime
 from prdiffer.infrastructure.logging.console_logger import get_logger
 from prdiffer.infrastructure.settings import get_settings_service
 
@@ -24,7 +23,6 @@ class CoalescedRequest:
     event: anyio.Event = field(default_factory=anyio.Event)
     result: Optional[Any] = None
     exception: Optional[BaseException] = None
-    created_at: datetime = field(default_factory=datetime.now)
     request_count: int = 1
 
 
@@ -128,11 +126,11 @@ class RequestCoalescingService:
             except TimeoutError:
                 self._logger.error(f"Coalesced request timed out for key '{key}'")
                 raise
-            except Exception:
+            except (RuntimeError, AttributeError, KeyError):
                 self._logger.error(f"Coalesced request failed for key '{key}'")
                 raise
             finally:
-                # Decrement waiter count for coalesced requests (cleanup)
+                # Clean up even on failure
                 await self._decrement_waiter(key)
 
         # Phase 3: Create new request (double-check pattern with proper locking)
@@ -171,7 +169,7 @@ class RequestCoalescingService:
             except TimeoutError:
                 self._logger.error(f"Coalesced request timed out for key '{key}'")
                 raise
-            except Exception:
+            except (RuntimeError, AttributeError, KeyError):
                 self._logger.error(f"Coalesced request failed for key '{key}'")
                 raise
             finally:

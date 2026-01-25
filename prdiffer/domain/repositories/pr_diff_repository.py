@@ -38,6 +38,18 @@ class PRDiffRepositoryInterface(ABC):
         pass
 
     @abstractmethod
+    async def initialize(self) -> None:
+        """Initialize the repository.
+
+        This method should be called before any operations to set up
+        the repository connection and validate access.
+
+        Raises:
+            RuntimeError: If initialization fails (e.g., repository not accessible)
+        """
+        pass
+
+    @abstractmethod
     async def get_pr_diff(self) -> PRDiff:
         """Get the PR diff data.
 

@@ -192,6 +192,20 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
         self._pull_request: Optional[PullRequest] = None
         self._initialized: bool = False
 
+    async def initialize(self) -> None:
+        """Initialize the repository connection.
+
+        This method sets up the GitHub client and validates repository access.
+
+        Raises:
+            RuntimeError: If the repository is not accessible
+        """
+        self._initialize_github_objects()
+        if not self._initialized:
+            raise RuntimeError(
+                f"Failed to initialize repository {self._repo_owner}/{self._repo_name}"
+            )
+
     @property
     def repo_owner(self) -> str:
         """Repository owner/organization name."""
@@ -359,7 +373,7 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
         )
         diff_content = "\n".join(extended_diffs)
 
-        diff_content, truncation_meta = apply_diff_limits(
+        diff_content, _truncation_meta = apply_diff_limits(
             diff_content,
             self._diff_max_total_chars if self._diff_truncate_enabled else 0,
             self._diff_truncation_notice,

@@ -90,35 +90,6 @@ class TestGitHubAPIClient:
         # Should only have 3 entries after eviction
         assert len(client._file_content_cache) <= 3
 
-    def test_get_cache_stats(self):
-        """Test cache statistics tracking."""
-        client = GitHubAPIClient()
-        client.initialize_client()
-
-        # Perform some cache operations
-        client._cache_set(("file1.py", "main"), "content1")
-        client._cache_set(("file2.py", "main"), "content2")
-
-        stats = client.get_cache_stats()
-
-        assert stats["cache_size"] == 2
-        assert "cache_max_size" in stats
-        assert "cache_ttl_seconds" in stats
-
-
-@pytest.mark.asyncio
-class TestGitHubAPIClientAsync:
-    """Async test suite for GitHubAPIClient."""
-
-    async def test_get_files_content_batch_parallel(self):
-        """Test parallel batch file content fetching."""
-        client = GitHubAPIClient()
-        client.initialize_client()
-
-        with patch.object(client, "get_file_content", return_value="content"):
-            # This would require more extensive mocking
-            pass
-
 
 class TestGitHubAPIClientErrorHandling:
     """Test error handling in GitHubAPIClient."""

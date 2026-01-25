@@ -4,7 +4,7 @@ import time
 import logging
 from typing import Dict, List, Optional, Any
 from collections import defaultdict
-from ..interfaces.protocols import RateLimiterProtocol
+from prdiffer.domain.interfaces.protocols import RateLimiterProtocol
 
 
 class RateLimiter(RateLimiterProtocol):

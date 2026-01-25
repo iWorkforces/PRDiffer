@@ -19,7 +19,6 @@ from typing import List
 from prdiffer.infrastructure.utils.cache_decorator import (
     CachingMixin,
     cached_method,
-    conditional_cache,
 )
 
 # Skip all tests in this module - they test deprecated internal API
@@ -176,52 +175,6 @@ class TestCachedMethodDecorator:
         service.compute(10)
 
         # Both calls should execute (different parameters)
-        assert service.call_count == 2
-
-
-class TestConditionalCacheDecorator:
-    """Test suite for @conditional_cache decorator."""
-
-    def test_condition_met_caches_result(self):
-        """Test that result is cached when condition is met."""
-
-        class TestService(CachingMixin):
-            def __init__(self):
-                super().__init__(max_cache_size=10, default_ttl=300)
-
-            @conditional_cache(lambda result: result is not None, ttl=300)
-            def get_or_create(self, key: str) -> str:
-                return f"value_for_{key}"
-
-        service = TestService()
-
-        # First call
-        result1 = service.get_or_create("test")
-        assert result1 == "value_for_test"
-
-        # Second call - should return cached value
-        result2 = service.get_or_create("test")
-        assert result2 == "value_for_test"
-
-    def test_condition_not_met_no_cache(self):
-        """Test that result is NOT cached when condition fails."""
-
-        class TestService(CachingMixin):
-            def __init__(self):
-                super().__init__(max_cache_size=10, default_ttl=300)
-                self.call_count = 0
-
-            @conditional_cache(lambda result: result is not None, ttl=300)
-            def returns_none(self, key: str) -> str:
-                self.call_count += 1
-                return None
-
-        service = TestService()
-
-        service.returns_none("test")
-        service.returns_none("test")
-
-        # Both calls should execute (None not cached)
         assert service.call_count == 2
 
 

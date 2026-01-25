@@ -21,7 +21,7 @@ from prdiffer.domain.exceptions import (
     SuspiciousOperationError,
 )
 
-from .interfaces.protocols import (
+from prdiffer.domain.interfaces.protocols import (
     RateLimiterProtocol,
     MetricsTrackerProtocol,
     PROperationHandlerProtocol,

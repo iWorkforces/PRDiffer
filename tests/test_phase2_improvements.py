@@ -10,7 +10,7 @@ This module contains unit tests for Phase 2 improvements including:
 """
 
 import pytest
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 
 # =============================================================================
 # Phase 2.1: Binary File Handling Tests (diff_utils.py)
@@ -69,9 +69,9 @@ class TestBinaryFileHandling:
         # Binary content should return binary marker
         binary_original = "Hello\x00World"
         binary_new = "New\x00Content"
-        patch = "@@ diff"
+        diff_patch = "@@ diff"
 
-        result = diff_utils.extend_patch(binary_original, patch, binary_new)
+        result = diff_utils.extend_patch(binary_original, diff_patch, binary_new)
         assert result == "[BINARY FILE - DIFF NOT AVAILABLE]"
 
     def test_extend_patch_processes_text_files(self):
@@ -82,9 +82,9 @@ class TestBinaryFileHandling:
 
         original = "line1\nline2"
         new = "line1\nline2\nline3"
-        patch = "@@ -1,2 +1,3 @@"
+        diff_patch = "@@ -1,2 +1,3 @@"
 
-        result = diff_utils.extend_patch(original, patch, new)
+        result = diff_utils.extend_patch(original, diff_patch, new)
         assert result != "[BINARY FILE - DIFF NOT AVAILABLE]"
         assert "@@ -" in result
 
@@ -96,34 +96,6 @@ class TestBinaryFileHandling:
 
 class TestChunkedProcessing:
     """Tests for chunked processing of large files."""
-
-    def test_is_large_file_below_threshold(self):
-        """Test files below threshold are not considered large."""
-        from prdiffer.infrastructure.utils.diff_utils import DiffUtils
-
-        diff_utils = DiffUtils()
-
-        small_content = "line\n" * 100  # 100 lines
-        assert diff_utils.is_large_file(small_content, threshold=5000) is False
-
-    def test_is_large_file_above_threshold(self):
-        """Test files above threshold are considered large."""
-        from prdiffer.infrastructure.utils.diff_utils import DiffUtils
-
-        diff_utils = DiffUtils()
-
-        large_content = "line\n" * 6000  # 6000 lines
-        assert diff_utils.is_large_file(large_content, threshold=5000) is True
-
-    def test_get_file_line_count(self):
-        """Test line count calculation."""
-        from prdiffer.infrastructure.utils.diff_utils import DiffUtils
-
-        diff_utils = DiffUtils()
-
-        assert diff_utils.get_file_line_count("") == 0
-        assert diff_utils.get_file_line_count("single line") == 1
-        assert diff_utils.get_file_line_count("line1\nline2\nline3") == 3
 
     def test_build_chunk_hunk_with_changes(self):
         """Test chunk hunk generation with actual changes."""
@@ -193,221 +165,12 @@ class TestChunkedProcessing:
 # Phase 2.3: Streaming Diff Generation Tests (diff_generator.py)
 # =============================================================================
 
-
-class TestStreamingDiffGeneration:
-    """Tests for streaming diff generation support."""
-
-    @pytest.fixture
-    def mock_diff_utils(self):
-        """Create mock diff utils service."""
-        mock = Mock()
-        mock.extend_patch.return_value = "@@ -1,3 +1,3 @@\n-old\n+new"
-        return mock
-
-    @pytest.fixture
-    def diff_generator(self, mock_diff_utils):
-        """Create DiffGenerator with mocked dependencies."""
-        from prdiffer.infrastructure.github.diff_generator import DiffGenerator
-
-        return DiffGenerator(diff_utils=mock_diff_utils)
-
-    @pytest.fixture
-    def sample_file_patches(self):
-        """Create sample FilePatchInfo objects."""
-        from prdiffer.domain.entities.file_patch import FilePatchInfo, EDIT_TYPE
-
-        return [
-            FilePatchInfo(
-                base_file="old content 1",
-                head_file="new content 1",
-                patch="@@ -1 +1 @@\n-old\n+new",
-                filename="file1.py",
-                edit_type=EDIT_TYPE.MODIFIED,
-                num_plus_lines=1,
-                num_minus_lines=1,
-            ),
-            FilePatchInfo(
-                base_file="old content 2",
-                head_file="new content 2",
-                patch="@@ -1 +1 @@\n-old2\n+new2",
-                filename="file2.py",
-                edit_type=EDIT_TYPE.MODIFIED,
-                num_plus_lines=1,
-                num_minus_lines=1,
-            ),
-        ]
-
-    @pytest.mark.asyncio
-    async def test_generate_extended_diff_stream_yields_results(
-        self, diff_generator, sample_file_patches
-    ):
-        """Test that streaming generator yields diff strings."""
-        results = []
-        async for diff in diff_generator.generate_extended_diff_stream(
-            sample_file_patches
-        ):
-            results.append(diff)
-
-        assert len(results) == 2
-        assert all(isinstance(r, str) for r in results)
-
-    @pytest.mark.asyncio
-    async def test_generate_extended_diff_stream_progress_callback(
-        self, diff_generator, sample_file_patches
-    ):
-        """Test that progress callback is called."""
-        progress_calls = []
-
-        def on_progress(done, total):
-            progress_calls.append((done, total))
-
-        async for _ in diff_generator.generate_extended_diff_stream(
-            sample_file_patches, batch_size=1, on_progress=on_progress
-        ):
-            pass
-
-        # Progress should be called at batch boundaries
-        assert len(progress_calls) >= 1
-
-    @pytest.mark.asyncio
-    async def test_generate_extended_diff_stream_skips_empty_patches(
-        self, diff_generator
-    ):
-        """Test that files without patches are skipped."""
-        from prdiffer.domain.entities.file_patch import FilePatchInfo, EDIT_TYPE
-
-        files = [
-            FilePatchInfo(
-                base_file="",
-                head_file="new",
-                patch="",  # Empty patch
-                filename="empty.py",
-                edit_type=EDIT_TYPE.ADDED,
-                num_plus_lines=0,
-                num_minus_lines=0,
-            ),
-        ]
-
-        results = []
-        async for diff in diff_generator.generate_extended_diff_stream(files):
-            results.append(diff)
-
-        # Empty patches should be skipped
-        assert len(results) == 0
-
-    @pytest.mark.asyncio
-    async def test_generate_single_diff_success(self, diff_generator):
-        """Test single diff generation."""
-        from prdiffer.domain.entities.file_patch import FilePatchInfo, EDIT_TYPE
-
-        file = FilePatchInfo(
-            base_file="old",
-            head_file="new",
-            patch="@@ -1 +1 @@\n-old\n+new",
-            filename="test.py",
-            edit_type=EDIT_TYPE.MODIFIED,
-            num_plus_lines=1,
-            num_minus_lines=1,
-        )
-
-        result = await diff_generator.generate_single_diff(file)
-
-        assert result is not None
-        assert isinstance(result, str)
-
-    @pytest.mark.asyncio
-    async def test_generate_single_diff_empty_patch(self, diff_generator):
-        """Test single diff generation with empty patch."""
-        from prdiffer.domain.entities.file_patch import FilePatchInfo, EDIT_TYPE
-
-        file = FilePatchInfo(
-            base_file="",
-            head_file="new",
-            patch="",
-            filename="test.py",
-            edit_type=EDIT_TYPE.ADDED,
-            num_plus_lines=0,
-            num_minus_lines=0,
-        )
-
-        result = await diff_generator.generate_single_diff(file)
-
-        assert result is None
+# Tests removed - streaming methods were deprecated and removed
 
 
 # =============================================================================
 # Phase 2.4: Parallel Batch Fetching Tests (api_client.py)
 # =============================================================================
-
-
-class TestParallelBatchFetching:
-    """Tests for parallel batch file fetching."""
-
-    @pytest.fixture
-    def api_client(self):
-        """Create GitHub API client for testing."""
-        from prdiffer.infrastructure.github.api_client import GitHubAPIClient
-
-        client = GitHubAPIClient(
-            max_retries=1,
-            retry_delay=0.1,
-            file_content_cache_max_size=100,
-            file_content_cache_ttl=60,
-        )
-        return client
-
-    def test_parallel_batch_fetch_uses_cache(self, api_client):
-        """Test that parallel batch fetch uses cache for already cached files."""
-        # Pre-populate cache
-        api_client._cache_set(("file1.py", "branch"), "cached content 1")
-        api_client._cache_set(("file2.py", "branch"), "cached content 2")
-
-        mock_repo = Mock()
-
-        results = api_client.get_files_content_batch_parallel(
-            mock_repo, ["file1.py", "file2.py"], "branch"
-        )
-
-        # Should get from cache without API calls
-        assert results["file1.py"] == "cached content 1"
-        assert results["file2.py"] == "cached content 2"
-
-    def test_parallel_batch_fetch_fetches_uncached(self, api_client):
-        """Test that parallel batch fetch fetches uncached files."""
-        mock_repo = Mock()
-        mock_content = Mock()
-        mock_content.decoded_content = b"file content"
-        mock_repo.get_contents.return_value = mock_content
-
-        # Initialize the client
-        api_client._github_client = Mock()
-
-        with patch.object(
-            api_client._retry_handler,
-            "execute_with_retry",
-            return_value=mock_content,
-        ):
-            results = api_client.get_files_content_batch_parallel(
-                mock_repo, ["file1.py"], "branch"
-            )
-
-            assert "file1.py" in results
-
-    def test_parallel_batch_fetch_handles_errors(self, api_client):
-        """Test that parallel batch fetch handles errors gracefully."""
-        mock_repo = Mock()
-
-        with patch.object(
-            api_client,
-            "get_file_content",
-            side_effect=Exception("API Error"),
-        ):
-            results = api_client.get_files_content_batch_parallel(
-                mock_repo, ["file1.py"], "branch"
-            )
-
-            # Should return empty string on error
-            assert results["file1.py"] == ""
 
 
 class TestFileProcessorParallelContent:
@@ -660,45 +423,6 @@ class TestLineNumberingEdgeCases:
 
 class TestPhase2Integration:
     """Integration tests for Phase 2 improvements."""
-
-    @pytest.mark.asyncio
-    async def test_streaming_with_binary_file_handling(self):
-        """Test streaming diff generation with binary file handling."""
-        from prdiffer.infrastructure.github.diff_generator import DiffGenerator
-        from prdiffer.infrastructure.utils.diff_utils import DiffUtils
-        from prdiffer.domain.entities.file_patch import FilePatchInfo, EDIT_TYPE
-
-        diff_utils = DiffUtils()
-        generator = DiffGenerator(diff_utils=diff_utils)
-
-        # Create a mix of binary and text files
-        files = [
-            FilePatchInfo(
-                base_file="normal text",
-                head_file="modified text",
-                patch="@@ -1 +1 @@\n-normal text\n+modified text",
-                filename="text.py",
-                edit_type=EDIT_TYPE.MODIFIED,
-                num_plus_lines=1,
-                num_minus_lines=1,
-            ),
-            FilePatchInfo(
-                base_file="binary\x00content",
-                head_file="new\x00binary",
-                patch="@@ binary diff @@",
-                filename="binary.bin",
-                edit_type=EDIT_TYPE.MODIFIED,
-                num_plus_lines=1,
-                num_minus_lines=1,
-            ),
-        ]
-
-        results = []
-        async for diff in generator.generate_extended_diff_stream(files):
-            results.append(diff)
-
-        # Both should be processed (binary file gets marker)
-        assert len(results) == 2
 
     def test_chunked_processing_maintains_diff_integrity(self):
         """Test that chunked processing produces valid diffs."""

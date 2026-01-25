@@ -17,8 +17,7 @@ from prdiffer.domain.services.pattern_matching import PatternMatchingServiceInte
 from prdiffer.domain.services.retry import RetryServiceInterface
 from prdiffer.domain.services.pr_diff_service import PRDiffServiceInterface
 
-# Interface imports for infrastructure components
-from prdiffer.application.interfaces.protocols import (
+from prdiffer.domain.interfaces.protocols import (
     RateLimiterProtocol,
     MetricsTrackerProtocol,
     PROperationHandlerProtocol,

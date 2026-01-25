@@ -599,18 +599,19 @@ class TestGlobalCircuitBreakerRegistry:
 
 
 class TestCircuitBreakerForEndpoint:
-    """Tests for get_circuit_breaker_for_endpoint convenience function."""
+    """Tests for getting circuit breaker from global registry."""
 
-    def test_get_circuit_breaker_for_endpoint(self):
-        """Test convenience function for getting endpoint breaker."""
+    def test_get_circuit_breaker_from_registry(self):
+        """Test getting circuit breaker from global registry."""
         from prdiffer.infrastructure.utils.circuit_breaker import (
-            get_circuit_breaker_for_endpoint,
+            get_global_circuit_breaker_registry,
         )
 
         # Reset singleton
         _reset_circuit_breaker_registry()
 
-        breaker = get_circuit_breaker_for_endpoint("api_endpoint")
+        registry = get_global_circuit_breaker_registry()
+        breaker = registry.get_breaker("api_endpoint")
 
         assert breaker is not None
         assert breaker.state.value == "closed"

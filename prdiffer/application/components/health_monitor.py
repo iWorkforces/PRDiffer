@@ -2,7 +2,7 @@
 
 import logging
 from typing import Dict, Any, Optional
-from ..interfaces.protocols import HealthMonitorProtocol
+from prdiffer.domain.interfaces.protocols import HealthMonitorProtocol
 
 
 class HealthMonitor(HealthMonitorProtocol):

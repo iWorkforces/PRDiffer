@@ -13,8 +13,6 @@ from prdiffer.infrastructure.utils.circuit_breaker import (
     CircuitState,
     CircuitBreakerOpenException,
     get_global_circuit_breaker_registry,
-    get_circuit_breaker,
-    get_circuit_breaker_for_endpoint,
 )
 
 
@@ -464,31 +462,31 @@ class TestCircuitBreakerRecovery:
 
 @pytest.mark.unit
 class TestCircuitBreakerFactoryFunctions:
-    """Test suite for circuit breaker factory functions."""
+    """Test suite for circuit breaker direct instantiation."""
 
-    def test_get_circuit_breaker(self):
-        """Test get_circuit_breaker returns configured breaker."""
-        breaker = get_circuit_breaker(failure_threshold=7, timeout=45.0)
+    def test_direct_instantiation_with_custom_values(self):
+        """Test direct CircuitBreaker instantiation with custom values."""
+        breaker = CircuitBreaker(failure_threshold=7, timeout=45.0)
 
         assert breaker.failure_threshold == 7
         assert breaker.timeout == 45.0
         assert breaker.state == CircuitState.CLOSED
 
-    def test_get_circuit_breaker_for_endpoint(self):
-        """Test get_circuit_breaker_for_endpoint returns endpoint breaker."""
+    def test_get_breaker_from_registry(self):
+        """Test getting a circuit breaker from the global registry."""
         registry = get_global_circuit_breaker_registry()
 
-        breaker = get_circuit_breaker_for_endpoint("custom_endpoint")
+        breaker = registry.get_breaker("custom_endpoint")
 
         assert breaker is not None
         # Verify it's the same breaker from registry
         assert breaker is registry.get_breaker("custom_endpoint")
 
-    def test_get_circuit_breaker_for_endpoint_uses_registry(self):
-        """Test get_circuit_breaker_for_endpoint uses global registry."""
+    def test_registry_returns_same_breaker_for_same_endpoint(self):
+        """Test that registry returns the same breaker for the same endpoint."""
         registry = get_global_circuit_breaker_registry()
 
-        breaker1 = get_circuit_breaker_for_endpoint("endpoint1")
+        breaker1 = registry.get_breaker("endpoint1")
         breaker2 = registry.get_breaker("endpoint1")
 
         assert breaker1 is breaker2

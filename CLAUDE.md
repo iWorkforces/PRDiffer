@@ -752,6 +752,81 @@ tests/
 | Infrastructure | >75% (external dependencies) |
 | Application | >85% (application orchestration) |
 
+## Feature Status
+
+### Fully Implemented ✅
+
+The following features are fully implemented and production-ready:
+
+- ✅ **PR Diff Retrieval** - Complete PR diff with full file context via GitHub API
+- ✅ **Commit-Based Caching** - Automatic cache invalidation on new commits
+- ✅ **File Filtering** - Ignore patterns and valid extension filtering
+- ✅ **Authentication** - API key-based authentication with SHA-256 hashing
+- ✅ **Rate Limiting** - Per-client rate limiting (100 req/min) with token bucket algorithm
+- ✅ **Health Monitoring** - Server health checks and metrics aggregation
+- ✅ **Metrics Tracking** - Request counting, success rates, execution time tracking
+- ✅ **Input Validation** - Comprehensive security validation (SQL injection, command injection, path traversal, XSS prevention)
+- ✅ **Retry Logic** - Exponential backoff with jitter for transient failures
+- ✅ **Circuit Breaker** - Failure prevention with automatic recovery
+- ✅ **Async Parallel Processing** - Concurrent file operations using anyio
+- ✅ **Thread Safety** - Full thread-safety guarantees across all components
+
+### Planned Features (TODO) 🚧
+
+The following features are planned but not yet implemented. See `ROADMAP.md` for detailed planning and implementation timeline.
+
+#### PR Operations (Phase 1 - v0.5.0)
+- 🚧 **Describe PR** - Generate comprehensive PR description with author, reviewers, status, mergeability
+- 🚧 **Approve PR** - Approve pull requests via GitHub API
+- 🚧 **Review PR** - Submit PR reviews with comments and approval state
+- 🚧 **Update Changelog** - Update PR changelog with new commits
+
+*Protocol definitions: `prdiffer/application/interfaces/protocols.py:87-145`*
+
+#### Runtime Admin Features (Phase 2 - v0.6.0)
+- 🚧 **Runtime API Key Management** - Add/remove API keys dynamically without restart
+- 🚧 **Authentication Status Query** - Query authentication status and configuration
+- 🚧 **JWT Token Verification** - Full JWT token verification with signature validation
+
+*Implementation: `prdiffer/application/components/authentication.py` - Methods exist, awaiting admin interface*
+
+#### Configuration Utilities (Phase 3 - v0.7.0)
+- 🚧 **Circuit Breaker Control** - Per-endpoint circuit breaker configuration
+- 🚧 **Adaptive Retry Control** - Enable/disable adaptive retry delays
+- 🚧 **API Health Tracking** - Performance metrics and error rate monitoring
+- 🚧 **Parallel Diff Processing** - Configure parallel processing thresholds
+
+*Configuration: `prdiffer/domain/config/github_config.py` - Properties defined for future use*
+
+#### Monitoring & Debugging (Phase 4 - v0.8.0)
+- 🚧 **Detailed Health Status** - Component-level health breakdown
+- 🚧 **Client Information** - Active clients list, request counts, rate limit status
+- 🚧 **Metrics Reset** - Reset metrics tracking (preserve uptime)
+- 🚧 **Circuit Breaker Statistics** - Global statistics and open breaker list
+
+*Utilities: `prdiffer/application/components/health_monitor.py`, `rate_limiter.py`, `metrics_tracker.py`*
+
+### Runtime Management Features (Implemented but not exposed via API)
+
+The following features are fully implemented but require an admin interface to use:
+
+- ✅ `AuthenticationComponent.add_api_key(api_key)` - Add API key at runtime
+- ✅ `AuthenticationComponent.remove_api_key(api_key)` - Remove API key at runtime
+- ✅ `AuthenticationComponent.get_configured_api_keys_count()` - Get API key count
+- ✅ `AuthenticationComponent.extract_client_identifier(headers)` - Extract client from headers
+- ✅ `AuthenticationComponent.is_authentication_enabled()` - Check auth status
+- ✅ `AuthenticationComponent.verify_jwt_token()` - JWT token verification
+
+*Location: `prdiffer/application/components/authentication.py`*
+
+**Note:** These methods can be called programmatically but are not exposed via MCP tools. They await an admin API or CLI interface.
+
+### Documentation References
+
+- **Full Roadmap:** `ROADMAP.md` - Detailed planning with version targets
+- **Dead Code Analysis:** `.reports/dead-code-analysis.md` - Analysis of unused code
+- **Development Plan:** `.reports/refactor-clean-development-plan.md` - Implementation tasks
+
 ## OpenSpec System
 
 PRDifferMCP uses **OpenSpec** for spec-driven development workflow:

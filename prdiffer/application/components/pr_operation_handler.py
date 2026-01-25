@@ -3,12 +3,12 @@
 import re
 from typing import Dict, Any, Optional, Tuple
 
-from ..interfaces.protocols import PROperationHandlerProtocol
+from prdiffer.domain.interfaces.protocols import PROperationHandlerProtocol
 from prdiffer.domain.entities.pr_diff import PRDiff
 from prdiffer.domain.services.cache import CacheServiceInterface
+from prdiffer.domain.services.logger import LoggerServiceInterface
 from prdiffer.domain.services.repository_cache import RepositoryCacheServiceInterface
 from prdiffer.domain.repositories.pr_diff_repository import PRDiffRepositoryInterface
-from prdiffer.infrastructure.logging.console_logger import get_logger
 
 
 class PROperationHandler(PROperationHandlerProtocol):
@@ -19,7 +19,7 @@ class PROperationHandler(PROperationHandlerProtocol):
         github_repository_class,
         cache_service: CacheServiceInterface,
         repository_cache_service: RepositoryCacheServiceInterface,
-        logger: Optional[Any] = None,
+        logger: LoggerServiceInterface,
     ):
         """Initialize PR operation handler.
 
@@ -27,12 +27,12 @@ class PROperationHandler(PROperationHandlerProtocol):
             github_repository_class: Class for creating GitHub repository instances
             cache_service: Cache service for storing PR data
             repository_cache_service: Repository cache service
-            logger: Optional logger instance
+            logger: Logger service instance (injected via dependency inversion)
         """
         self._github_repository_class = github_repository_class
         self._cache_service = cache_service
         self._repository_cache_service = repository_cache_service
-        self._logger = logger or get_logger()
+        self._logger = logger
 
     def _parse_pr_url(self, pr_url: str) -> Tuple[str, str, int]:
         """Parse GitHub PR URL to extract repository and PR information.
@@ -115,14 +115,9 @@ class PROperationHandler(PROperationHandlerProtocol):
             # Execute use case with automatic caching
             # repository is guaranteed to be set at this point
 
-            # Initialize the repository with settings if it has an initialize method
-            try:
-                init_method = getattr(repository, "initialize", None)
-                if callable(init_method):
-                    await init_method()
-            except AttributeError:
-                # Repository doesn't have an initialize method - this is expected
-                pass
+            # Initialize the repository with settings
+            if hasattr(repository, "initialize") and callable(repository.initialize):
+                await repository.initialize()
 
             # Execute the repository directly (since we don't have a PRDiffService)
             pr_diff: Optional[PRDiff] = await repository.get_pr_diff()
@@ -185,7 +180,7 @@ class PROperationHandler(PROperationHandlerProtocol):
 
         Args:
             pr_url: GitHub PR URL
-            commit_messages: Commit messages from the PR
+            commit_messages: Commit messages from the PR (unused in current implementation)
             diff_content: Diff content of the PR
 
         Returns:
@@ -194,6 +189,8 @@ class PROperationHandler(PROperationHandlerProtocol):
         Raises:
             NotImplementedError: This feature is not yet implemented
         """
+        # Parameters are part of protocol interface but not used in stub implementation
+        _ = commit_messages, diff_content  # Mark as intentionally unused
         raise NotImplementedError(
             "PR description generation is not yet implemented. "
             "This feature is planned for a future release."
@@ -206,7 +203,7 @@ class PROperationHandler(PROperationHandlerProtocol):
 
         Args:
             pr_url: GitHub PR URL
-            commit_messages: Commit messages from the PR
+            commit_messages: Commit messages from the PR (unused in current implementation)
             diff_content: Diff content of the PR
 
         Returns:
@@ -215,6 +212,8 @@ class PROperationHandler(PROperationHandlerProtocol):
         Raises:
             NotImplementedError: This feature is not yet implemented
         """
+        # Parameters are part of protocol interface but not used in stub implementation
+        _ = commit_messages, diff_content  # Mark as intentionally unused
         raise NotImplementedError(
             "PR approval generation is not yet implemented. "
             "This feature is planned for a future release."
@@ -227,7 +226,7 @@ class PROperationHandler(PROperationHandlerProtocol):
 
         Args:
             pr_url: GitHub PR URL
-            commit_messages: Commit messages from the PR
+            commit_messages: Commit messages from the PR (unused in current implementation)
             diff_content: Diff content of the PR
 
         Returns:
@@ -236,6 +235,8 @@ class PROperationHandler(PROperationHandlerProtocol):
         Raises:
             NotImplementedError: This feature is not yet implemented
         """
+        # Parameters are part of protocol interface but not used in stub implementation
+        _ = commit_messages, diff_content  # Mark as intentionally unused
         raise NotImplementedError(
             "PR review generation is not yet implemented. "
             "This feature is planned for a future release."
@@ -248,7 +249,7 @@ class PROperationHandler(PROperationHandlerProtocol):
 
         Args:
             pr_url: GitHub PR URL
-            commit_messages: Commit messages from the PR
+            commit_messages: Commit messages from the PR (unused in current implementation)
             diff_content: Diff content of the PR
 
         Returns:
@@ -257,6 +258,8 @@ class PROperationHandler(PROperationHandlerProtocol):
         Raises:
             NotImplementedError: This feature is not yet implemented
         """
+        # Parameters are part of protocol interface but not used in stub implementation
+        _ = commit_messages, diff_content  # Mark as intentionally unused
         raise NotImplementedError(
             "PR changelog update is not yet implemented. "
             "This feature is planned for a future release."
