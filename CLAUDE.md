@@ -2,17 +2,17 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-**Current Version:** 0.4.8
+**Current Version:** 0.4.9
 
 # OpenSpec Instructions
 
 These instructions are for AI assistants working in this project.
 
-Always open `@/openspec/AGENTS.md` when the request:
+Always open `@/openspec/AGENTS.md` when you request:
 
 - Mentions planning or proposals (words like proposal, spec, change, plan)
 - Introduces new capabilities, breaking changes, architecture shifts, or big performance/security work
-- Sounds ambiguous and you need the authoritative spec before coding
+- Sounds ambiguous and you need authoritative spec before coding
 
 Use `@/openspec/AGENTS.md` to learn:
 
@@ -20,7 +20,7 @@ Use `@/openspec/AGENTS.md` to learn:
 - Spec format and conventions
 - Project structure and guidelines
 
-Keep this managed block so 'openspec update' can refresh the instructions.
+Keep this managed block so 'openspec update' can refresh instructions.
 
 PRDiffer Overview
 
@@ -132,18 +132,28 @@ The codebase follows Clean Architecture with these layers:
   - `PatternMatchingServiceInterface`: File pattern matching
   - `RetryServiceInterface`: Retry logic with exponential backoff
   - `PRDiffServiceInterface`: PR diff operations abstraction
+  - `LogLevel`: Enum for logging levels (DEBUG, INFO, WARNING, ERROR, CRITICAL)
 - **Factory Interfaces** (`domain/factories/`): Dependency injection abstractions
   - `InfrastructureFactoryInterface`: Abstract factory for creating infrastructure services
+- **VCS Provider Registry**:
+  - `VCSProviderRegistry`: Centralized VCS provider management and auto-detection
 
 ### Infrastructure Layer (`prdiffer/infrastructure/`)
 
 - **GitHub Integration**:
-  - `GitHubPRDiffRepository`: PyGithub implementation of `PRDiffRepositoryInterface`
-  - **GitHub Components** (`github/`):
-    - `api_client`: GitHub API client wrapper
-    - `file_processor`: File filtering and validation
-    - `diff_generator`: Unified diff generation
-    - `parallel_executor`: Concurrent file processing
+  - `GitHubPRDiffRepository`: PyGithub implementation of `PRDiffRepositoryInterface` with DI support
+- **VCS Provider Abstraction** (`vcs_providers/`):
+  - `GitHubVCSRepository`: GitHub-specific implementation
+  - `GitLabVCSRepository`: GitLab-specific implementation (mock/stub)
+  - Extensible for other providers (Bitbucket, Gitea, etc.)
+- **Dependency Injection Infrastructure**:
+  - `ServiceContainer`: DI container for managing service lifecycles
+  - `ServiceFactory`: Factory for creating service instances
+- **GitHub Components** (`github/`):
+  - `api_client`: GitHub API client wrapper
+  - `file_processor`: File filtering and validation
+  - `diff_generator`: Unified diff generation
+  - `parallel_executor`: Concurrent file processing
 - **Security Components** (`security/`):
   - `InputValidator`: Comprehensive input validation and sanitization
     - SQL injection prevention
@@ -185,20 +195,30 @@ The codebase follows Clean Architecture with these layers:
   - `ConsoleLogger`: Structured console output with ANSI colors
 - **Factory Implementation** (`factories/`):
   - `InfrastructureFactory`: Concrete implementation of `InfrastructureFactoryInterface`
-  - Creates all infrastructure service instances with proper dependency injection
-  - Provides singleton access for shared services (settings, logger, cache)
+    - Creates all infrastructure service instances with proper dependency injection
+    - Provides singleton access for shared services (settings, logger, cache)
 - **Service Implementations** (`services/`):
   - `GitHubPRDiffService`: Concrete implementation of `PRDiffServiceInterface`
-  - Provides PR diff operations using GitHub API with graceful error handling
-  - Orchestrates diff generation workflow with DiffGenerator and FileProcessor
+    - Provides PR diff operations using GitHub API with graceful error handling
+    - Orchestrates diff generation workflow with DiffGenerator and FileProcessor
 
 ### Application Layer (`prdiffer/application/`)
 
+- **Plugin System** (`plugin_manager.py`):
+  - `PluginManager`: Manages MCP tool plugins
+    - Plugin discovery and registration
+    - Enabled/disabled state management
+    - Tool execution orchestration
+- **Plugin Interface** (`interfaces/tool_plugin.py`):
+  - `MCPToolPlugin`: Abstract base for MCP tool plugins
+    - Tool metadata (name, description)
+    - Execute interface with **kwargs
+- **Plugin Implementations** (`plugins/`):
+  - `get_pr_diff_plugin`: Get PR diff tool as plugin
 - **MCP Server** (`mcp_server.py`):
-  - FastMCP server exposing `get_pr_diff` tool
+  - FastMCP server exposing tools
   - Tool registration and request handling
   - Dependency injection orchestration
-  - 13 injected dependencies for comprehensive PR diff retrieval
 - **Components** (`components/`):
   - `AuthenticationMiddleware` (602 lines): API key authentication with SHA-256 hashing
     - SHA-256 hashed API keys (never stored in plaintext)
@@ -208,7 +228,7 @@ The codebase follows Clean Architecture with these layers:
     - JWT token parsing and expiration checking
     - Runtime API key management (add/remove)
     - Multiple authentication headers support (X-API-Key, Authorization Bearer)
-    - Thread-safe with `threading.RLock()`
+    - Thread-safe with `threading.Lock()`
   - `RateLimiter` (214 lines): Per-client rate limiting
     - Token bucket algorithm: 100 requests per minute per client
     - Automatic cleanup of inactive clients (1 hour TTL)
@@ -233,16 +253,16 @@ The codebase follows Clean Architecture with these layers:
     - Repository caching for efficiency
     - URL parsing with regex: `r"https://github\.com/([^/]+)/([^/]+)/pull/(\d+)"`
     - Lazy repository initialization
-- **Factory** (`factory.py`):
-  - `create_mcp_server`: Component wiring and injection
-  - Two factory functions: primary (with interfaces) and legacy (backward compatibility)
-- **Interfaces** (`interfaces/protocols.py` - 230 lines):
-  - `RateLimiterProtocol`: check_rate_limit(), increment_rate_limit(), get_rate_limit_info()
-  - `MetricsTrackerProtocol`: track_request(), get_metrics_summary(), generate_request_id()
-  - `PROperationHandlerProtocol`: get_pr_diff(), describe_pr(), approve_pr(), review_pr(), update_pr_changelog()
-  - `HealthMonitorProtocol`: check_health()
-  - `ServerConfigurationProtocol`: setup_logging(), get_server_info(), get_mcp_instructions()
-  - `AuthenticationProtocol`: authenticate(), extract_client_identifier(), is_authentication_enabled(), get_status()
+  - **Factory** (`factory.py`):
+    - `create_mcp_server`: Component wiring and injection
+    - Two factory functions: primary (with interfaces) and legacy (backward compatibility)
+  - **Interfaces** (`interfaces/protocols.py` - 230 lines):
+    - `RateLimiterProtocol`: check_rate_limit(), increment_rate_limit(), get_rate_limit_info()
+    - `MetricsTrackerProtocol`: track_request(), get_metrics_summary(), generate_request_id()
+    - `PROperationHandlerProtocol`: get_pr_diff(), describe_pr(), approve_pr(), review_pr(), update_pr_changelog()
+    - `HealthMonitorProtocol`: check_health()
+    - `ServerConfigurationProtocol`: setup_logging(), get_server_info(), get_mcp_instructions()
+    - `AuthenticationProtocol`: authenticate(), extract_client_identifier(), is_authentication_enabled(), get_status()
 
 ### Interface Layer
 
@@ -266,7 +286,7 @@ github.max_retries = 3
 github.retry_delay = 1
 ```
 
-**Smart Retry Settings** (NEW):
+**Smart Retry Settings**:
 ```toml
 github.retry_on_404 = false   # Don't retry 404 errors (file not found)
 github.retry_on_403 = true    # Retry 403 errors (might be rate limiting)
@@ -275,7 +295,7 @@ github.retry_log_level = "DEBUG"
 github.permanent_failure_log_level = "INFO"
 ```
 
-**Circuit Breaker and Adaptive Retry** (NEW):
+**Circuit Breaker and Adaptive Retry**:
 ```toml
 github.circuit_breaker_enabled = true
 github.circuit_breaker_failure_threshold = 5
@@ -286,7 +306,7 @@ github.api_health_tracking = true
 github.context_aware_retry = true
 ```
 
-**Parallel Diff Processing** (NEW):
+**Parallel Diff Processing**:
 ```toml
 github.diff_parallel_enabled = true
 github.diff_parallel_threshold = 3    # Minimum files to trigger parallel processing
@@ -316,10 +336,13 @@ github.valid_extensions = [".py", ".js", ".ts", ".md", ".yml"]
 - **Diff Generation**: Full-file context diffs using `DiffUtils` with multiple encoding support
 - **Authentication**: Handles authentication via parameters or `GITHUB_TOKEN` environment variable
 - **Merge Base Handling**: Uses merge base commits for accurate diff comparison (handles parallel merges)
+- **VCS Provider Abstraction**: Multi-provider support through `VCSProviderRegistry`
+  - Auto-detects provider from repository URLs
+  - Extensible for adding new providers (GitLab, Bitbucket, etc.)
 
 ### Async Infrastructure
 
-The project uses **anyio** as the async compatibility layer, providing backend-agnostic async operations:
+The project uses **anyio** as async compatibility layer, providing backend-agnostic async operations:
 
 **Migration Note**: The codebase was migrated from `asyncio` to `anyio` for better abstraction and compatibility with multiple async backends (asyncio, trio, etc.)
 
@@ -345,7 +368,7 @@ The project uses **anyio** as the async compatibility layer, providing backend-a
 
 #### Request Coalescing
 
-- **Purpose**: Prevents duplicate API calls when multiple concurrent requests arrive for the same resource
+- **Purpose**: Prevents duplicate API calls when multiple concurrent requests arrive for same resource
 - **Implementation**: `RequestCoalescingService` uses anyio primitives for thread-safe deduplication
 - **Key Features**:
   - Atomic state management with `anyio.Lock`
@@ -403,7 +426,7 @@ The MCP server supports multiple transport modes configured in `settings.toml`:
 
 ### Security and Input Validation
 
-The MCP server implements comprehensive security validation through the `InputValidator` class integrated into `FastMCPServer`:
+The MCP server implements comprehensive security validation through `InputValidator` class integrated into `FastMCPServer`:
 
 **Input Validation Features**:
 - **URL Validation**: GitHub PR URLs are validated against strict patterns with length limits (max 2000 chars)
@@ -530,6 +553,41 @@ The domain layer provides a comprehensive exception hierarchy (`prdiffer/domain/
 - `get_exception_details(exception)`: Extracts exception metadata
 - `wrap_github_exception(exception)`: Wraps PyGithub exceptions
 
+### Dependency Injection
+
+The codebase implements dependency injection for improved testability and loose coupling:
+
+**DI Infrastructure**:
+- `ServiceContainer` (`prdiffer/infrastructure/di_container.py`):
+  - `register_singleton()`: Register singleton services
+  - `register_transient()`: Register transient services
+  - `get()`: Get service instance
+  - Thread-safe operations with Lock
+  - Lifecycle management (singleton vs transient)
+
+- `ServiceFactory` (`prdiffer/infrastructure/service_factory.py`):
+  - `get_service_factory()`: Get or create global factory
+  - Provides centralized service creation
+  - Supports optional dependency injection
+
+**DI Usage Pattern**:
+```python
+from prdiffer.infrastructure.di_container import get_container
+from prdiffer.infrastructure.service_factory import get_service_factory
+
+class SomeClass:
+    def __init__(self, container=None, settings=None, logger=None):
+        self._container = container or get_container()
+        self._factory = get_service_factory(logger=logger)
+        self._logger = logger or self._factory.get_logger()
+        self._settings = settings or self._factory.get_settings_service()
+```
+
+**Backward Compatibility**:
+- All infrastructure classes support optional DI parameters
+- Fallback to singleton functions when DI parameters not provided
+- Maintains compatibility with existing code paths
+
 ### Domain Configuration
 
 #### GitHubConfig
@@ -570,7 +628,6 @@ Centralized constants (`prdiffer/domain/constants.py`):
 - **Automatic Invalidation**: Cache is automatically invalidated when new commits are pushed to the PR
 - **Memory Cache**: In-memory caching with commit SHA tracking for freshness
 - **Cache Service**: Singleton `CacheService` with commit-based invalidation logic
-- **Key Hashing**: MD5-based cache key hashing to reduce memory usage for long repository names (configurable)
 
 **Cache Key Structure**:
 
@@ -604,10 +661,66 @@ cache.store_key_mapping = true          # Store reverse mapping for debugging
 **Log Output Example** (with hashing enabled):
 
 ```
-Cache set [cache_key=karcher-digital/iotc-device-management/pr/163 hash=a7b3c4d5... commit_sha=919da4e...]
+Cache set [cache_key=karther-digital/iotc-device-management/pr/163 hash=a7b3c4d5... commit_sha=919da4e...]
 ```
 
 **Caching is Automatic**: Caching is always enabled and uses commit-based invalidation to ensure fresh data is returned when PRs change.
+
+### VCS Provider System
+
+The project implements multi-provider VCS abstraction:
+
+**Components**:
+- `VCSDiffRepositoryInterface` (`prdiffer/domain/interfaces/vcs_provider.py`):
+  - Abstract interface for VCS diff retrieval
+  - Methods: `get_pr_diff()`, `get_latest_commit_sha()`, `supports_repository()`, `initialize()`
+- `VCSProviderRegistry` (`prdiffer/domain/vcs_provider_registry.py`):
+  - Auto-detects VCS provider from repository URLs
+  - Maintains provider registry (GitHub, GitLab, extensible)
+- `GitHubVCSRepository` (`prdiffer/infrastructure/vcs_providers/github_repository.py`):
+  - GitHub-specific implementation
+- `GitLabVCSRepository` (`prdiffer/infrastructure/vcs_providers/gitlab_repository.py`):
+  - GitLab-specific implementation (mock/stub for demonstration)
+
+**Usage Pattern**:
+```python
+from prdiffer.domain.vcs_provider_registry import VCSProviderRegistry
+
+registry = VCSProviderRegistry()
+
+# Auto-detect provider from URL
+provider = registry.get_provider(url="https://github.com/owner/repo/pull/123")
+if provider:
+    diff = await provider.get_pr_diff()
+```
+
+**Adding New VCS Providers**:
+1. Implement `VCSDiffRepositoryInterface` in `prdiffer/infrastructure/vcs_providers/`
+2. Register provider in `VCSProviderRegistry` using `register_provider(name, provider_class, url_pattern)`
+3. Add imports to `prdiffer/domain/vcs_provider_registry.py`
+
+### Plugin System
+
+**Components**:
+- `MCPToolPlugin` (`prdiffer/application/interfaces/tool_plugin.py`):
+  - Abstract base for MCP tool plugins
+  - Properties: `name`, `description`, `parameters`
+  - Methods: `enabled()`, `execute(**kwargs)`
+- `PluginManager` (`prdiffer/application/plugin_manager.py`):
+  - Plugin discovery and registration
+  - Enabled/disabled state management
+  - Tool execution orchestration
+- `get_pr_diff_plugin` (`prdiffer/application/plugins/get_pr_diff_plugin.py`):
+  - Get PR diff tool as plugin
+
+**Usage Pattern**:
+```python
+from prdiffer.application.plugin_manager import PluginManager
+
+manager = PluginManager()
+plugin = manager.get_plugin("get_pr_diff")
+result = await plugin.execute(pr_url="https://github.com/...")
+```
 
 ## Important Implementation Notes
 
@@ -674,7 +787,7 @@ The settings service uses manual caching instead of `@lru_cache` because:
   - **User ID Validation**: Validates user identifiers (max 100 chars, alphanumeric with @.-_)
   - **Safe Logging**: Sanitizes values for secure logging (max 200 chars, printable chars only)
   - **Convenience Functions**: Module-level functions (validate_github_url, sanitize_string, etc.)
-- **Integration**: Integrated into `FastMCPServer` (application/mcp_server.py:84)
+  - **Integration**: Integrated into `FastMCPServer` (application/mcp_server.py:84)
   - All PR URLs validated before processing
   - Parameters sanitized to prevent injection attacks
   - Security exceptions caught and logged safely
@@ -697,8 +810,8 @@ tests/
 │   │   │   └── test_rate_limiter.py
 │   ├── domain/                              # Domain Layer Tests
 │   │   ├── entities/                        # Entity tests
-│   │   ├── services/                        # Service interface tests
-│   │   ├── usecases/                        # Use case tests
+│   ├── services/                        # Service interface tests
+│   ├── usecases/                        # Use case tests
 │   └── infrastructure/                      # Infrastructure Layer Tests
 │       ├── github/                          # GitHub component tests
 │       ├── utils/                           # Utility tests
@@ -732,6 +845,7 @@ tests/
 - Phase 2: Diff builder optimization (binary files, chunked processing, streaming)
 - Phase 3: API enhancement (extended FilePatchInfo, PRDiff, error codes)
 - Phase 4: Architecture refinement (GitHubConfig, AsyncParallelExecutor, circuit breakers)
+- Phase 5+: VCS providers, plugin system, dependency injection
 
 **Thread Safety Testing**:
 - Concurrent cache operations (100 threads)
@@ -746,7 +860,7 @@ tests/
 ### Coverage Goals
 
 | Layer | Target Coverage |
-|-------|----------------|
+|--------|-----------------|
 | Overall | >80% |
 | Domain | >90% (critical business logic) |
 | Infrastructure | >75% (external dependencies) |
@@ -759,6 +873,7 @@ tests/
 The following features are fully implemented and production-ready:
 
 - ✅ **PR Diff Retrieval** - Complete PR diff with full file context via GitHub API
+- ✅ **Multi-Provider VCS Support** - GitHub and GitLab with extensible provider registry
 - ✅ **Commit-Based Caching** - Automatic cache invalidation on new commits
 - ✅ **File Filtering** - Ignore patterns and valid extension filtering
 - ✅ **Authentication** - API key-based authentication with SHA-256 hashing
@@ -770,35 +885,49 @@ The following features are fully implemented and production-ready:
 - ✅ **Circuit Breaker** - Failure prevention with automatic recovery
 - ✅ **Async Parallel Processing** - Concurrent file operations using anyio
 - ✅ **Thread Safety** - Full thread-safety guarantees across all components
+- ✅ **Plugin System** - Modular MCP tool plugin architecture
+- ✅ **Dependency Injection** - DI container and factory for testability
+- ✅ **VCS Provider Registry** - Auto-detection and extensible provider support
+
+### Refactoring Completed ✅ (v0.4.9)
+
+The following refactoring work was completed in v0.4.9:
+
+- ✅ **Dependency Injection Infrastructure** - ServiceContainer and ServiceFactory added
+- ✅ **GitHub Repository with DI** - Updated to support optional dependency injection parameters
+- ✅ **VCS Provider Abstraction** - Multi-provider system with registry
+- ✅ **Plugin System** - Modular tool plugin architecture implemented
+- ✅ **Clean Architecture** - Proper layer separation and dependency flow
+- ✅ **Testability** - All classes accept dependencies for easy mocking
 
 ### Planned Features (TODO) 🚧
 
 The following features are planned but not yet implemented. See `ROADMAP.md` for detailed planning and implementation timeline.
 
-#### PR Operations (Phase 1 - v0.5.0)
+#### PR Operations
 - 🚧 **Describe PR** - Generate comprehensive PR description with author, reviewers, status, mergeability
 - 🚧 **Approve PR** - Approve pull requests via GitHub API
 - 🚧 **Review PR** - Submit PR reviews with comments and approval state
 - 🚧 **Update Changelog** - Update PR changelog with new commits
 
-*Protocol definitions: `prdiffer/application/interfaces/protocols.py:87-145`*
+*Protocol definitions: `prdiffer/application/interfaces/protocols.py`*
 
-#### Runtime Admin Features (Phase 2 - v0.6.0)
+#### Runtime Admin Features
 - 🚧 **Runtime API Key Management** - Add/remove API keys dynamically without restart
 - 🚧 **Authentication Status Query** - Query authentication status and configuration
 - 🚧 **JWT Token Verification** - Full JWT token verification with signature validation
 
-*Implementation: `prdiffer/application/components/authentication.py` - Methods exist, awaiting admin interface*
+*Implementation: `prdiffer/application/components/authentication.py`*
 
-#### Configuration Utilities (Phase 3 - v0.7.0)
+#### Configuration Utilities
 - 🚧 **Circuit Breaker Control** - Per-endpoint circuit breaker configuration
 - 🚧 **Adaptive Retry Control** - Enable/disable adaptive retry delays
 - 🚧 **API Health Tracking** - Performance metrics and error rate monitoring
 - 🚧 **Parallel Diff Processing** - Configure parallel processing thresholds
 
-*Configuration: `prdiffer/domain/config/github_config.py` - Properties defined for future use*
+*Configuration: `prdiffer/domain/config/github_config.py`*
 
-#### Monitoring & Debugging (Phase 4 - v0.8.0)
+#### Monitoring & Debugging
 - 🚧 **Detailed Health Status** - Component-level health breakdown
 - 🚧 **Client Information** - Active clients list, request counts, rate limit status
 - 🚧 **Metrics Reset** - Reset metrics tracking (preserve uptime)
@@ -821,11 +950,12 @@ The following features are fully implemented but require an admin interface to u
 
 **Note:** These methods can be called programmatically but are not exposed via MCP tools. They await an admin API or CLI interface.
 
-### Documentation References
+## Documentation References
 
 - **Full Roadmap:** `ROADMAP.md` - Detailed planning with version targets
+- **Comprehensive Development Plan:** `COMPREHENSIVE-DEVELOPMENT-PLAN.md` - Implementation tasks and status
+- **Architecture Guides:** See individual `AGENTS.md` files in each directory
 - **Dead Code Analysis:** `.reports/dead-code-analysis.md` - Analysis of unused code
-- **Development Plan:** `.reports/refactor-clean-development-plan.md` - Implementation tasks
 
 ## OpenSpec System
 

@@ -989,6 +989,75 @@ python -m cProfile -o profile_trio.stats -c "import anyio; anyio.run(main, backe
 python -m cProfile -o profile_asyncio.stats -c "import anyio; anyio.run(main, backend='asyncio')"
 ```
 
+## Recent Changes (v0.4.9)
+
+### VCS Provider System (NEW)
+**Purpose**: Multi-provider VCS abstraction supporting GitHub, GitLab, and extensible providers
+
+**Key Files:**
+- `prdiffer/domain/vcs_provider_registry.py` - VCS provider registry in domain layer
+- `prdiffer/domain/interfaces/vcs_provider.py` - VCSDiffRepositoryInterface (domain abstraction)
+- `prdiffer/infrastructure/vcs_providers/github_repository.py` - GitHub provider implementation
+- `prdiffer/infrastructure/vcs_providers/gitlab_repository.py` - GitLab provider (mock/stub)
+
+**Usage Pattern:**
+```python
+from prdiffer.domain.vcs_provider_registry import VCSProviderRegistry
+
+registry = VCSProviderRegistry()
+provider = registry.get_provider(url="https://github.com/owner/repo/pull/123")
+diff = await provider.get_pr_diff()
+```
+
+**Architecture:**
+- Domain layer defines VCSDiffRepositoryInterface (abstract)
+- Infrastructure layer implements providers (GitHub, GitLab)
+- VCSProviderRegistry auto-detects provider from URL patterns
+- Extensible for adding Bitbucket, Gitea, etc.
+
+### Dependency Injection Infrastructure (NEW)
+**Purpose**: DI container and factory for testability and loose coupling
+
+**Key Files:**
+- `prdiffer/infrastructure/di_container.py` - ServiceContainer for managing service lifecycles
+- `prdiffer/infrastructure/service_factory.py` - ServiceFactory for centralized service creation
+
+**Features:**
+- Singleton and transient service registration
+- Thread-safe operations with Lock
+- Backward compatible with existing singleton patterns
+- Constructor injection support throughout infrastructure
+
+**Usage Pattern:**
+```python
+from prdiffer.infrastructure.di_container import get_container
+from prdiffer.domain.services.logger import LoggerServiceInterface
+
+class SomeClass:
+    def __init__(self, container=None):
+        self._container = container or get_container()
+        self._logger = self._container.get(LoggerServiceInterface)
+```
+
+### Plugin System (NEW in Application Layer)
+**Purpose**: Modular MCP tool plugin architecture
+
+**Key Files:**
+- `prdiffer/application/interfaces/tool_plugin.py` - MCPToolPlugin interface
+- `prdiffer/application/plugin_manager.py` - PluginManager for discovery and execution
+- `prdiffer/application/plugins/get_pr_diff_plugin.py` - First plugin implementation
+
+**Features:**
+- Plugin discovery and registration
+- Enabled/disabled state management
+- Tool execution orchestration
+
+### Architecture Improvements
+- Clean Architecture compliance verified
+- Proper layer separation maintained
+- Zero circular dependencies
+- All classes accept dependencies for easy mocking
+
 ## Related Documentation
 
 - **Domain Layer**: `../domain/CLAUDE.md` - Domain entities, use cases, and interfaces
