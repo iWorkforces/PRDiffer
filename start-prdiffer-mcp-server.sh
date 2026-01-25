@@ -383,30 +383,5 @@ if ! health_check; then
     exit 1
 fi
 
-# Display connection information
-case "$TRANSPORT" in
-    http|sse|streamable-http)
-        echo ""
-        echo -e "${GREEN}═══════════════════════════════════════════════════════════════${NC}"
-        echo -e "${GREEN}🎉 Server is running!${NC}"
-        echo -e "${GREEN}═══════════════════════════════════════════════════════════════${NC}"
-        echo -e "${CYAN}Transport:${NC} $TRANSPORT"
-        echo -e "${CYAN}Port:${NC}      $PORT"
-        echo -e "${CYAN}PID:${NC}       $SERVER_PID"
-        echo ""
-        echo -e "${YELLOW}Server is ready to accept connections${NC}"
-        echo ""
-        ;;
-    stdio)
-        echo ""
-        echo -e "${GREEN}═══════════════════════════════════════════════════════════════${NC}"
-        echo -e "${GREEN}🎉 Server is running!${NC}"
-        echo -e "${GREEN}═══════════════════════════════════════════════════════════════${NC}"
-        echo -e "${CYAN}Transport:${NC} $TRANSPORT (stdio)"
-        echo -e "${CYAN}PID:${NC}       $SERVER_PID"
-        echo ""
-        ;;
-esac
-
 # Wait for the server process to complete
 wait $SERVER_PID
