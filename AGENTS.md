@@ -1,36 +1,122 @@
-<!-- OPENSPEC:START -->
-# OpenSpec Instructions
+# PROJECT KNOWLEDGE BASE
 
-These instructions are for AI assistants working in this project.
+**Generated:** 2026-01-26T10:01:22Z
+**Commit:** 4e0fb4ab (simplify claude file)
+**Branch:** upstream
+**Version:** 0.4.9
 
-## Always open `@/openspec/AGENTS.md` when the request
+## OVERVIEW
+Python 3.14+ MCP server for GitHub PR diff analysis with Clean Architecture (Domain → Application → Infrastructure). FastMCP framework, Pydantic v2, anyio async.
 
-- Mentions planning or proposals (words like proposal, spec, change, plan)
-- Introduces new capabilities, breaking changes, architecture shifts, or big performance/security work
-- Sounds ambiguous and you need the authoritative spec before coding
+## STRUCTURE
+```
+PRDifferMCP/
+├── prdiffer/
+│   ├── domain/           # Pure business logic (entities, interfaces, VCS registry)
+│   ├── infrastructure/   # External integrations (GitHub, caching, DI, VCS providers)
+│   └── application/     # MCP server, components, plugin system
+├── tests/               # Unit/integration (pytest, 863+ tests, ~70% coverage)
+├── openspec/            # Spec-driven development workflow
+└── settings.toml        # Dynaconf configuration
+```
 
-## Use `@/openspec/AGENTS.md` to learn
+## WHERE TO LOOK
+| Task | Location | Notes |
+|------|----------|-------|
+| **Add VCS provider** | `prdiffer/domain/vcs_provider_registry.py`, `prdiffer/infrastructure/vcs_providers/` | Implement VCSDiffRepositoryInterface, register in registry |
+| **Add MCP tool** | `prdiffer/application/plugins/` | Extend MCPToolPlugin interface, register in PluginManager |
+| **Modify DI** | `prdiffer/infrastructure/di_container.py`, `prdiffer/infrastructure/service_factory.py` | Use ServiceContainer for singletons, ServiceFactory for creation |
+| **Add exception** | `prdiffer/domain/exceptions.py`, `prdiffer/domain/errors.py` | Follow E{category}{number}_{NAME} format |
+| **Config changes** | `settings.toml` | Dynaconf groups: mcp, github, smart_retry, circuit_breaker |
 
-- How to create and apply change proposals
-- Spec format and conventions
-- Project structure and guidelines
+## CODE MAP
+| Symbol | Type | Location | Role |
+|--------|------|----------|------|
+| PRDiff | Entity | `prdiffer/domain/entities/` | Core diff model |
+| VCSDiffRepositoryInterface | Interface | `prdiffer/domain/interfaces/vcs_provider.py` | VCS provider contract |
+| VCSProviderRegistry | Registry | `prdiffer/domain/vcs_provider_registry.py` | Provider auto-detection |
+| ServiceContainer | DI | `prdiffer/infrastructure/di_container.py` | Singleton/transient services |
+| PluginManager | Plugin | `prdiffer/application/plugin_manager.py` | Tool plugin discovery |
+| InputValidator | Security | `prdiffer/infrastructure/security/` | Comprehensive validation |
 
-## Leverages MCP (Model Context Protocol) servers for enhanced capabilities
+## CONVENTIONS
 
-1. **Sequential Thinking Tools MCP** (`mcp__sequentialthinking-tools__sequentialthinking_tools`)
-   - Used for structured analysis and validation
-   - Provides step-by-step reasoning for impact scoring and recommendations
+### Clean Architecture
+- **Domain**: Pure Python, no external deps. Define interfaces only.
+- **Infrastructure**: Implements domain interfaces. Handles I/O/network.
+- **Application**: Orchestrates. Imports from both layers.
+- **Layer direction**: Only outer layers import inner layers (Application → Infrastructure → Domain).
 
-2. **Tavily MCP** (`mcp__tavily-mcp__tavily-search`, `mcp__tavily-mcp__tavily-extract`)
-   - Used for researching industry best practices and standards
-   - Provides real-time validation against OWASP, NIST, WCAG, and other standards
-   - Enables anti-pattern detection and production readiness checks
+### Dependency Injection
+- Constructor injection preferred. Optional DI params with singleton fallbacks.
+- `container=None` pattern for testability.
+- ServiceContainer for singletons, ServiceFactory for creation.
 
-3. **Context7 MCP** (`mcp__context7__resolve-library-id`, `mcp__context7__get-library-docs`)
-   - Used for technology-specific guidance
-   - Provides framework and library best practices
-   - Enables stack-aware question generation
+### Async
+- **anyio** for backend-agnostic async. Native async preferred over threading.
+- AsyncParallelExecutor (anyio task groups) > ParallelExecutor (threads).
+- Primitives: Semaphore (concurrency), Lock (exclusion), Event (signaling), create_task_group() (structured concurrency).
 
-Keep this managed block so 'openspec update' can refresh the instructions.
+### Configuration
+- **Dynaconf** via settings.toml. Manual caching (no @lru_cache) due to hashability.
+- Environment vars: GITHUB_TOKEN, MCP_AUTH_ENABLED, MCP_API_KEYS.
 
-<!-- OPENSPEC:END -->
+### Error Codes
+- Format: `E{category}{number}_{NAME}` (e.g., E1001_VALIDATION_ERROR)
+- Categories: 1xxx validation, 2xxx auth, 3xxx rate limiting, 4xxx not found, 5xxx server errors.
+
+### Testing
+- **pytest** with markers: `@pytest.mark.unit`, `@pytest.mark.integration`, `@pytest.mark.slow`, `@pytest.mark.security`, `@pytest.mark.thread_safety`.
+- Coverage: Overall >80%, Domain >90%, Infrastructure >75%, Application >85%.
+
+## ANTI-PATTERNS (THIS PROJECT)
+
+- **NO imports from outer layers in domain** → Domain must stay pure.
+- **NO direct PyGithub in application** → Use infrastructure services.
+- **NO @lru_cache on settings** → Use manual caching (Dynaconf unhashable).
+- **NO async/await mixed with blocking I/O** → Use AsyncParallelExecutor for non-blocking calls.
+- **NO type error suppression** → Never use `as any`, `@ts-ignore`, `@type: ignore`.
+- **NO empty catch blocks** → Always log or handle exceptions.
+
+## UNIQUE STYLES
+
+- **VCS Provider Registry**: Auto-detection from URL patterns. Extensible for GitHub/GitLab/Bitbucket.
+- **Plugin System**: MCPToolPlugin interface for modular tools. PluginManager discovers and executes.
+- **Commit-Based Caching**: MD5 hash keys, auto-invalidate on commit changes.
+- **Full-File Diff**: Uses difflib.SequenceMatcher, not just hunks.
+- **Security**: InputValidator detects injection patterns (command, path traversal, SQL), sanitizes logs.
+
+## COMMANDS
+```bash
+# Environment setup
+uv install              # Install dependencies
+uv install --dev        # Install dev deps
+
+# Linting
+./start-lint.sh --check      # Check only
+./start-lint.sh --fix        # Auto-fix
+./start-lint.sh --format     # Format code
+./start-lint.sh --all        # Complete workflow
+
+# Type checking
+./start-type-check.sh --check
+./start-type-check.sh --stats
+
+# Unit testing
+./start-unittest.sh --run         # All tests
+./start-unittest.sh --coverage    # With coverage
+./start-unittest.sh --parallel    # Parallel execution
+
+# Server
+uv run python prdiffer/server.py
+TRANSPORT=sse PORT=9102 uv run python prdiffer/server.py
+```
+
+## NOTES
+
+- **Authentication enabled by default** (production). Disable: `export MCP_AUTH_ENABLED=false`.
+- **VCS provider auto-detection** from URL. Implement new providers: VCSDiffRepositoryInterface + register in VCSProviderRegistry.
+- **Plugin registration** requires implementing MCPToolPlugin and registering in PluginManager.
+- **Retry logic**: 404/403/500 with smart retry, circuit breaker, exponential backoff.
+- **File filtering**: Pattern-based ignores, extension allowlist, max_files_allowed limit.
+- **Test markers for filtering**: `-m unit`, `-m integration`, `-m slow`, `-m security`.

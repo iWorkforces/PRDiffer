@@ -2,11 +2,11 @@
 
 This file provides guidance for working with the Domain Layer of PRDiffer.
 
-**Current Version:** 0.4.8
+**Current Version:** 0.4.9
 
 ## Domain Layer Overview
 
-The domain layer contains the core business logic and entities, following Domain-Driven Design principles. It has no dependencies on external frameworks or infrastructure.
+The domain layer contains core business logic and entities, following Domain-Driven Design principles. It has no dependencies on external frameworks or infrastructure.
 
 ## Key Components
 
@@ -23,17 +23,42 @@ The domain layer contains the core business logic and entities, following Domain
   - `language`: Optional programming language detection
   - `ai_file_summary`: Optional AI-generated summary
 
-**PRDiff Models** (`pr_diff.py`)
-- `PRDiff`: Pydantic model for PR information with commit messages and diff content
+**PRDiff** (`pr_diff.py`)
+- Pydantic model for PR information with commit messages and diff content
 - Uses Pydantic for validation and serialization
+- Contains:
+  - `diff_content`: Combined diff for all files
+  - `commit_messages`: List of commit messages
+  - `file_patches`: List of FilePatchInfo objects
+  - `base_commit_sha`: Base commit SHA
+  - `head_commit_sha`: Head commit SHA
+  - `file_count`: Number of files changed
 
 ### Repository Interfaces (`repositories/`)
 
 **PRDiffRepositoryInterface** (`pr_diff_repository.py`)
-- Abstract interface defining the contract for PR diff data retrieval
+- Abstract interface defining contract for PR diff data retrieval
 - Properties: `repo_owner`, `repo_name`, `pr_number`
-- Methods: `async get_pr_diff()`, `get_latest_commit_sha()`
-- Implemented by infrastructure layer (GitHubPRDiffRepository)
+- Methods: `async get_pr_diff()`, `async get_latest_commit_sha()`, `async initialize()`
+
+### VCS Provider Abstraction (NEW in v0.4.9)
+
+**VCS Provider Registry** (`vcs_provider_registry.py`)
+- Centralized multi-provider VCS management system
+- Auto-detects VCS provider from repository URLs
+- Supports extensible provider registration
+- Methods:
+  - `register_provider(name, provider_class, url_pattern)` - Register new VCS provider
+  - `get_provider(url)` - Auto-detect and retrieve appropriate provider
+  - `list_providers()` - List all registered providers
+
+**VCSDiffRepositoryInterface** (`interfaces/vcs_provider.py`)
+- Abstract interface for VCS diff retrieval across multiple platforms
+- Methods:
+  - `async get_pr_diff()` - Get PR diff from VCS
+  - `async get_latest_commit_sha()` - Get latest head commit SHA
+  - `async initialize()` - Initialize repository connection
+  - `supports_repository(url)` - Check if URL is supported
 
 ### Use Cases (`usecases/`)
 
@@ -50,7 +75,7 @@ Abstract interfaces for domain services. See `services/CLAUDE.md` for detailed d
 
 **Key Interfaces:**
 - `CacheServiceInterface` - Caching operations
-- `LoggerServiceInterface` - Structured logging
+- `LoggerServiceInterface` - Structured logging with LogLevel enum
 - `SettingsServiceInterface` - Configuration management
 - `GitHubAPIServiceInterface` - GitHub API operations
 - `PRDiffServiceInterface` - PR diff operations
@@ -63,14 +88,12 @@ Abstract interfaces for domain services. See `services/CLAUDE.md` for detailed d
 
 Abstract factory interfaces for creating infrastructure services while maintaining dependency inversion.
 
-**InfrastructureFactoryInterface** (`infrastructure_factory.py`)
+**InfrastructureFactoryInterface** (`infrastructure_factory_interface.py`)
 - Provides methods to create all infrastructure services
 - Enables application layer to obtain service instances without coupling to implementations
 - Creates core services (cache, logger, settings)
 - Creates GitHub integration services (API client, diff service, pattern matcher)
 - Creates application components (URL validator, rate limiter, metrics tracker)
-
-**Implementation:** `InfrastructureFactory` in `infrastructure/factories/`
 
 ### Error Handling (`errors.py`, `exceptions.py`)
 
@@ -126,7 +149,7 @@ The domain layer provides frozen configuration objects for type-safe settings ma
 - **Thresholds**: File change thresholds (SIGNIFICANT_CHANGES, LARGE_CHANGES), retry thresholds, lockout duration
 - **Defaults**: MCP server, authentication, cache, logging, token validation
 - **Timeouts**: API and request timeouts
-- **RegularExpressions**: GitHub URL patterns, command injection, path traversal, SQL injection, Git ref validation
+- **RegularExpressions**: GitHub URL patterns, command injection, path traversal, SQL injection, Git ref validation patterns
 
 ## Development Guidelines
 
@@ -137,10 +160,16 @@ The domain layer provides frozen configuration objects for type-safe settings ma
 - Add new EDIT_TYPE values as needed for different change types
 
 ### When Adding Use Cases
-- Follow the dependency inversion principle
+- Follow dependency inversion principle
 - Accept repository interfaces, not concrete implementations
 - Keep business logic in use cases, not in entities or repositories
 - Use async/await for I/O operations
+
+### When Working with Configuration
+- GitHubConfig is frozen - use `with_overrides()` for modifications
+- All configuration values are type-safe
+- Use should_* methods for derived boolean checks
+- File validation combines ignore patterns + valid extensions
 
 ### Data Flow Pattern
 1. **Application Layer** → calls use case
@@ -148,9 +177,16 @@ The domain layer provides frozen configuration objects for type-safe settings ma
 3. **Infrastructure Repository** → implements interface, returns domain entities
 4. **Domain Entities** → pure business objects with no external dependencies
 
+### VCS Provider Integration (NEW)
+The domain layer now supports multi-provider VCS:
+1. Create provider implementing `VCSDiffRepositoryInterface`
+2. Register provider in `VCSProviderRegistry`
+3. Application layer uses registry to auto-detect provider from URLs
+4. Provider is selected based on URL pattern matching
+
 ## File Change Processing
 
-The `FilePatchInfo` entity represents the complete context of a file change:
+The `FilePatchInfo` entity represents complete context of a file change:
 - **Content**: Full file content before (`base_file`) and after (`head_file`) changes
 - **Diff**: Unified diff format in `patch` field
 - **Metadata**: Change type, statistics, language detection
@@ -166,5 +202,6 @@ This rich representation enables detailed diff analysis and supports various out
 - **Factory Interfaces**: `factories/CLAUDE.md` - Factory interface documentation
 - **Entity Documentation**: `entities/CLAUDE.md` - Core business entities
 - **Use Case Documentation**: `usecases/CLAUDE.md` - Business logic orchestration
+- **VCS Provider Documentation**: See `interfaces/vcs_provider.py` for VCS abstraction details
 - **Main Package**: `../CLAUDE.md` - Overall architecture and package structure
 - **Testing**: `tests/unit/domain/CLAUDE.md` - Domain layer testing guide

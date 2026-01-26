@@ -341,10 +341,79 @@ async with Client("http://127.0.0.1:9102/mcp") as client:
 
 This application layer provides a clean separation between the MCP protocol interface and the domain business logic, making it easy to modify either the external interface or internal processing independently.
 
+## Recent Changes (v0.4.9)
+
+### Plugin System (NEW)
+**Purpose**: Modular MCP tool architecture for extensibility and easier maintenance
+
+**Key Files:**
+- `interfaces/tool_plugin.py` - MCPToolPlugin interface
+- `plugin_manager.py` - Plugin discovery and execution
+
+**Features:**
+- Plugin registration with enabled/disabled state management
+- Tool execution orchestration through PluginManager
+- First plugin: `get_pr_diff_plugin` - Get PR diff as modular tool
+
+**Usage Pattern:**
+```python
+from prdiffer.application.plugin_manager import PluginManager
+
+manager = PluginManager()
+plugin = manager.get_plugin("get_pr_diff")
+result = await plugin.execute(pr_url="https://github.com/...")
+```
+
+### VCS Provider Integration (NEW)
+**Purpose**: Multi-provider support through domain layer VCSProviderRegistry
+
+**Integration Points:**
+- PROperationHandler uses VCSProviderRegistry to auto-detect provider
+- Supports GitHub and GitLab providers
+- Extensible for adding Bitbucket, Gitea, etc.
+
+**Usage in PROperationHandler:**
+```python
+from prdiffer.domain.vcs_provider_registry import VCSProviderRegistry
+
+registry = VCSProviderRegistry()
+provider = registry.get_provider(url=pr_url)
+if provider:
+    diff = await provider.get_pr_diff()
+```
+
+### Dependency Injection Support (NEW)
+**Purpose**: Constructor injection for testability and loose coupling
+
+**Key Changes:**
+- Application components now accept optional DI parameters
+- Factory functions provide backward compatibility
+- All components use ServiceContainer or ServiceFactory
+
+**Example:**
+```python
+from prdiffer.infrastructure.di_container import get_container
+from prdiffer.infrastructure.service_factory import get_service_factory
+
+class SomeComponent:
+    def __init__(self, container=None, logger=None):
+        self._container = container or get_container()
+        factory = get_service_factory(logger=logger)
+        self._logger = logger or factory.get_logger()
+```
+
+### Architecture Improvements
+- Clean Architecture compliance verified
+- Proper layer separation maintained
+- Zero circular dependencies
+- All classes accept dependencies for easy mocking
+
 ## Related Documentation
 
 - **Domain Layer**: `../domain/CLAUDE.md` - Domain entities, use cases, and interfaces
 - **Infrastructure Layer**: `../infrastructure/CLAUDE.md` - Infrastructure implementations
-- **Components**: `components/CLAUDE.md` - Application components (auth, rate limiting, metrics)
+- **Components**: `components/CLAUDE.md` - Application components (auth, rate limiting, metrics, health, configuration, operation handler, plugin manager)
+- **Interfaces**: `interfaces/CLAUDE.md` - Application-level protocols (MCPToolPlugin)
+- **Services**: `services/CLAUDE.md` - Application-level services
 - **Main Package**: `../CLAUDE.md` - Overall architecture and package structure
 - **Testing**: `tests/unit/application/CLAUDE.md` - Application layer testing guide

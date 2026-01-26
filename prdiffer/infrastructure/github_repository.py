@@ -15,11 +15,13 @@ from github.GithubException import (
 import asyncer
 from prdiffer.domain.entities.pr_diff import PRDiff
 from prdiffer.domain.repositories import PRDiffRepositoryInterface
+from prdiffer.domain.services.logger import LoggerServiceInterface, LogLevel
 from prdiffer.infrastructure.settings import SettingsService, get_settings_service
 from prdiffer.infrastructure.logging.console_logger import get_logger
 from prdiffer.infrastructure.logging.exception_utils import (
     sanitize_exception_for_logging,
 )
+from prdiffer.infrastructure.security.input_validator import InputValidator
 
 from prdiffer.infrastructure.github.api_client import get_github_api_client
 from prdiffer.infrastructure.github.file_processor import get_file_processor
@@ -27,7 +29,6 @@ from prdiffer.infrastructure.github.diff_generator import get_diff_generator
 from prdiffer.infrastructure.utils.pattern_matcher import get_pattern_matcher
 from prdiffer.infrastructure.utils.diff_utils import get_diff_utils
 from prdiffer.infrastructure.utils.diff_limits import apply_diff_limits
-from prdiffer.infrastructure.security.input_validator import InputValidator
 
 
 class GitHubPRDiffRepository(PRDiffRepositoryInterface):
@@ -48,22 +49,32 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
         repo_name: str,
         pr_number: int,
         github_token: Optional[str] = None,
+        settings_service: Optional[SettingsService] = None,
+        logger: Optional[LoggerServiceInterface] = None,
+        input_validator: Optional[InputValidator] = None,
     ):
-        """Initialize the GitHub repository with repository details and optional authentication.
+        """Initialize GitHub repository with repository details and optional authentication.
 
         Args:
-            repo_owner: The owner/organization of the repository
-            repo_name: The name of the repository
+            repo_owner: The owner/organization of repository
+            repo_name: The name of repository
             pr_number: The pull request number
             github_token: GitHub personal access token. If not provided,
                          uses GITHUB_TOKEN environment variable or anonymous access.
+            settings_service: Optional settings service for DI
+            logger: Optional logger service for DI
+            input_validator: Optional input validator for DI
         """
         self._repo_owner = repo_owner
         self._repo_name = repo_name
         self._pr_number = pr_number
 
-        # Initialize settings service
-        self.settings_service: SettingsService = get_settings_service()
+        self.settings_service: SettingsService = (
+            settings_service or get_settings_service()
+        )
+        self._logger = logger or get_logger()
+        self._input_validator = input_validator or InputValidator()
+
         github_settings = self.settings_service.get_github_settings()
         app_settings = self.settings_service.get_app_settings()
 
@@ -381,10 +392,7 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
 
         self._logger.info(f"Generated diff content for {len(diff_files)} files")
 
-        # Optimize logging: avoid double truncation and intermediate string creation
-        # Only create preview if debug logging is enabled
-        if self._logger.is_enabled_for("DEBUG"):
-            # Only slice once - use the min of our limit and the slice
+        if self._logger.should_log(LogLevel.DEBUG):
             preview_length = min(1000, len(diff_content))
             safe_diff_preview = self._input_validator.sanitize_for_logging(
                 diff_content[:preview_length],
@@ -485,7 +493,13 @@ _repository_cache: Dict[str, "GitHubPRDiffRepository"] = {}
 
 
 def get_github_repository(
-    repo_owner: str, repo_name: str, pr_number: int, github_token: Optional[str] = None
+    repo_owner: str,
+    repo_name: str,
+    pr_number: int,
+    github_token: Optional[str] = None,
+    settings_service: Optional[SettingsService] = None,
+    logger: Optional[LoggerServiceInterface] = None,
+    input_validator: Optional[InputValidator] = None,
 ) -> GitHubPRDiffRepository:
     """Get a GitHub repository instance (singleton pattern per repository/PR).
 
@@ -497,6 +511,9 @@ def get_github_repository(
         repo_name: Repository name
         pr_number: Pull request number
         github_token: GitHub personal access token (optional)
+        settings_service: Optional settings service for DI
+        logger: Optional logger service for DI
+        input_validator: Optional input validator for DI
 
     Returns:
         GitHubPRDiffRepository: The repository instance
@@ -510,7 +527,13 @@ def get_github_repository(
 
     if cache_key not in _repository_cache:
         _repository_cache[cache_key] = GitHubPRDiffRepository(
-            repo_owner, repo_name, pr_number, github_token
+            repo_owner,
+            repo_name,
+            pr_number,
+            github_token,
+            settings_service,
+            logger,
+            input_validator,
         )
 
     return _repository_cache[cache_key]
