@@ -1,0 +1,17 @@
+{
+  "lsp": {
+    "pyright": {
+      "workspace": {
+        "scanFiles": true,
+        "maxFileSize": 10485760,
+        "watchFiles": true
+      },
+      "python": {
+        "analysis": {
+          "autoSearchPaths": true,
+          "useLibraryCodeForTypes": true
+        }
+      }
+    }
+  }
+}
