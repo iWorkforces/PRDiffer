@@ -1,43 +1,46 @@
 # AGENTS.md - Application Layer
 
-MCP server implementation, FastMCP components, and orchestration.
+MCP server, FastMCP components, plugin system, orchestration.
 
-## Guidelines
+## OVERVIEW
+FastMCP server setup, MCP tool plugins, component wiring, dependency injection orchestration.
 
-- Import domain interfaces from `prdiffer.domain`
-- Import infrastructure implementations from `prdiffer.infrastructure`
-- Use FastMCP decorators for tool definitions
-- Dependency injection via factory pattern
-- Return Pydantic models for MCP responses
-
-## Common Patterns
-
-### MCP Tool Definition
-```python
-from fastmcp import FastMCP
-from prdiffer.application.components import PROperationHandler
-
-mcp = FastMCP("PRDiffer")
-
-@mcp.tool()
-def get_pr_diff(pr_url: str) -> dict:
-    """Get PR diff with full file context."""
-    handler = PROperationHandler()
-    return handler.get_diff(pr_url)
+## STRUCTURE
+```
+prdiffer/application/
+├── components/         # MCP components (auth, rate limiting, health, metrics)
+├── plugins/            # MCP tool plugins
+├── interfaces/         # MCP-specific protocols
+├── mcp_server.py       # FastMCP server
+├── plugin_manager.py   # Plugin discovery
+└── factory.py          # Application factory
 ```
 
-### Component Pattern
-```python
-class HealthMonitor:
-    def __init__(self, logger: LoggerInterface):
-        self._logger = logger
-    
-    def check_health(self) -> dict:
-        pass
-```
+## WHERE TO LOOK
+| Task | Location | Notes |
+|------|----------|-------|
+| **Add MCP tool** | `plugins/` | Implement MCPToolPlugin |
+| **Add component** | `components/` | Accept dependencies via DI |
+| **Register plugin** | `plugin_manager.py` | Use register_plugin() |
 
-## Files
+## CONVENTIONS
 
-- `mcp_server.py`: FastMCP server setup
-- `factory.py`: Application factory for dependency injection
-- `components/`: MCP components (auth, rate limiting, health, metrics)
+### MCP Tools
+- Use FastMCP @mcp.tool() decorator
+- Return Pydantic models
+- Use PROperationHandler for PR operations
+
+### Components
+- Constructor injection
+- Health check methods
+- Metrics tracking
+
+### Plugin System
+- Implement MCPToolPlugin interface
+- Auto-discovery by PluginManager
+- Register via factory or manually
+
+## ANTI-PATTERNS
+
+- **NO direct PyGithub** → Use infrastructure services
+- **NO business logic** → Domain layer only

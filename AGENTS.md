@@ -1,144 +1,122 @@
-# AGENTS.md - PRDifferMCP
+# PROJECT KNOWLEDGE BASE
 
-Root-level architecture guidance for AI coding assistants.
+**Generated:** 2026-01-26T10:01:22Z
+**Commit:** 4e0fb4ab (simplify claude file)
+**Branch:** upstream
+**Version:** 0.4.9
 
-## Overview
+## OVERVIEW
+Python 3.14+ MCP server for GitHub PR diff analysis with Clean Architecture (Domain → Application → Infrastructure). FastMCP framework, Pydantic v2, anyio async.
 
-PRDifferMCP is a Python 3.14+ MCP (Model Context Protocol) server that provides GitHub PR diff analysis capabilities. Built with FastMCP framework, follows Clean Architecture principles with domain-driven design.
-
-**Current Version:** 0.4.9
-
-## Architecture Summary
-
-The codebase is organized into three main layers:
-
-### Domain Layer (`prdiffer/domain/`)
-- **Entities**: Core business objects (PRDiff, FilePatchInfo)
-- **Services**: Business logic interfaces (GitHubAPIServiceInterface, CacheServiceInterface, LoggerServiceInterface, etc.)
-- **Repositories**: Data access contracts (PRDiffRepositoryInterface, VCSDiffRepositoryInterface)
-- **Interfaces**: Protocol definitions (LoggerServiceInterface, GitHubConfigInterface, etc.)
-- **Factories**: Dependency injection abstractions (InfrastructureFactoryInterface)
-- **Config**: Configuration models and interfaces (GitHubConfig)
-- **Exceptions**: Custom exception hierarchy (PRDifferException with details dict)
-- **Errors**: Structured error codes (format: `E{category}{number}_{NAME}`)
-- **VCS Provider Registry**: Centralized multi-provider VCS management
-
-### Infrastructure Layer (`prdiffer/infrastructure/`)
-- **GitHub Integration**: PyGithub implementation with DI support
-- **VCS Providers**: Multi-provider abstraction (GitHub, GitLab, extensible)
-- **Services**: SettingsService, CacheService, RepositoryCacheService, RequestCoalescingService, etc.
-- **Components**: GitHubAPIClient, FileProcessor, DiffGenerator
-- **Utilities**: RetryHandler, PatternMatcher, DiffUtils, CircuitBreaker, APIHealthTracker
-- **Factories**: InfrastructureFactory for creating service instances
-- **Logging**: ConsoleLogger with ANSI colors
-- **Security**: InputValidator for comprehensive input validation
-- **DI Infrastructure**: ServiceContainer for dependency injection, ServiceFactory for service creation
-- **Async Infrastructure**: AsyncParallelExecutor, RequestCoalescingService with anyio primitives
-
-### Application Layer (`prdiffer/application/`)
-- **MCP Server**: FastMCP server implementation with tool registration
-- **Components**: AuthenticationMiddleware, RateLimiter, MetricsTracker, HealthMonitor, PROperationHandler, ServerConfiguration
-- **Plugin System**: PluginManager for MCP tool plugins with modular architecture
-- **Interfaces**: MCP-specific protocols (MCPToolInterface)
-- **Factory**: Component wiring and dependency injection
-
-## Key Architectural Features (v0.4.9)
-
-### Multi-Provider VCS System
-- VCS provider abstraction with registry pattern
-- Auto-detection of provider from repository URLs
-- Extensible for adding GitLab, Bitbucket, etc.
-- Location: `prdiffer/domain/vcs_provider_registry.py`, `prdiffer/domain/interfaces/vcs_provider.py`
-
-### Dependency Injection Infrastructure
-- ServiceContainer: DI container for singleton and transient services
-- ServiceFactory: Centralized factory for service creation
-- Constructor injection support throughout infrastructure
-- Backward compatible with singleton fallbacks
-
-### Plugin System
-- MCPToolPlugin interface for modular tool development
-- PluginManager for plugin discovery and execution
-- get_pr_diff_plugin as first implementation
-
-### Clean Architecture Adherence
-- Proper layer separation (Domain → Application → Infrastructure)
-- Domain layer has no external dependencies
-- Infrastructure layer implements domain interfaces
-- Application layer coordinates components
-- All classes accept dependencies for easy mocking in tests
-
-## Directory Structure Reference
-
-See individual `AGENTS.md` files in each directory for detailed guidance:
-- Root: Overall architecture and project overview (this file)
-- `prdiffer/domain/AGENTS.md`: Domain layer entities, services, repositories, interfaces, config, VCS registry
-- `prdiffer/infrastructure/AGENTS.md`: Infrastructure components, VCS providers, DI system
-- `prdiffer/application/AGENTS.md`: Application components, services, plugin system
-- `prdiffer/domain/interfaces/AGENTS.md`: Domain protocol definitions
-- `openspec/AGENTS.md`: OpenSpec workflow guidance
-
-## Quick Start Guide
-
-### Environment Setup
-```bash
-# Install dependencies (requires Python 3.14+)
-uv install
-
-# Install development dependencies
-uv install --dev
+## STRUCTURE
+```
+PRDifferMCP/
+├── prdiffer/
+│   ├── domain/           # Pure business logic (entities, interfaces, VCS registry)
+│   ├── infrastructure/   # External integrations (GitHub, caching, DI, VCS providers)
+│   └── application/     # MCP server, components, plugin system
+├── tests/               # Unit/integration (pytest, 863+ tests, ~70% coverage)
+├── openspec/            # Spec-driven development workflow
+└── settings.toml        # Dynaconf configuration
 ```
 
-### Development Commands
+## WHERE TO LOOK
+| Task | Location | Notes |
+|------|----------|-------|
+| **Add VCS provider** | `prdiffer/domain/vcs_provider_registry.py`, `prdiffer/infrastructure/vcs_providers/` | Implement VCSDiffRepositoryInterface, register in registry |
+| **Add MCP tool** | `prdiffer/application/plugins/` | Extend MCPToolPlugin interface, register in PluginManager |
+| **Modify DI** | `prdiffer/infrastructure/di_container.py`, `prdiffer/infrastructure/service_factory.py` | Use ServiceContainer for singletons, ServiceFactory for creation |
+| **Add exception** | `prdiffer/domain/exceptions.py`, `prdiffer/domain/errors.py` | Follow E{category}{number}_{NAME} format |
+| **Config changes** | `settings.toml` | Dynaconf groups: mcp, github, smart_retry, circuit_breaker |
+
+## CODE MAP
+| Symbol | Type | Location | Role |
+|--------|------|----------|------|
+| PRDiff | Entity | `prdiffer/domain/entities/` | Core diff model |
+| VCSDiffRepositoryInterface | Interface | `prdiffer/domain/interfaces/vcs_provider.py` | VCS provider contract |
+| VCSProviderRegistry | Registry | `prdiffer/domain/vcs_provider_registry.py` | Provider auto-detection |
+| ServiceContainer | DI | `prdiffer/infrastructure/di_container.py` | Singleton/transient services |
+| PluginManager | Plugin | `prdiffer/application/plugin_manager.py` | Tool plugin discovery |
+| InputValidator | Security | `prdiffer/infrastructure/security/` | Comprehensive validation |
+
+## CONVENTIONS
+
+### Clean Architecture
+- **Domain**: Pure Python, no external deps. Define interfaces only.
+- **Infrastructure**: Implements domain interfaces. Handles I/O/network.
+- **Application**: Orchestrates. Imports from both layers.
+- **Layer direction**: Only outer layers import inner layers (Application → Infrastructure → Domain).
+
+### Dependency Injection
+- Constructor injection preferred. Optional DI params with singleton fallbacks.
+- `container=None` pattern for testability.
+- ServiceContainer for singletons, ServiceFactory for creation.
+
+### Async
+- **anyio** for backend-agnostic async. Native async preferred over threading.
+- AsyncParallelExecutor (anyio task groups) > ParallelExecutor (threads).
+- Primitives: Semaphore (concurrency), Lock (exclusion), Event (signaling), create_task_group() (structured concurrency).
+
+### Configuration
+- **Dynaconf** via settings.toml. Manual caching (no @lru_cache) due to hashability.
+- Environment vars: GITHUB_TOKEN, MCP_AUTH_ENABLED, MCP_API_KEYS.
+
+### Error Codes
+- Format: `E{category}{number}_{NAME}` (e.g., E1001_VALIDATION_ERROR)
+- Categories: 1xxx validation, 2xxx auth, 3xxx rate limiting, 4xxx not found, 5xxx server errors.
+
+### Testing
+- **pytest** with markers: `@pytest.mark.unit`, `@pytest.mark.integration`, `@pytest.mark.slow`, `@pytest.mark.security`, `@pytest.mark.thread_safety`.
+- Coverage: Overall >80%, Domain >90%, Infrastructure >75%, Application >85%.
+
+## ANTI-PATTERNS (THIS PROJECT)
+
+- **NO imports from outer layers in domain** → Domain must stay pure.
+- **NO direct PyGithub in application** → Use infrastructure services.
+- **NO @lru_cache on settings** → Use manual caching (Dynaconf unhashable).
+- **NO async/await mixed with blocking I/O** → Use AsyncParallelExecutor for non-blocking calls.
+- **NO type error suppression** → Never use `as any`, `@ts-ignore`, `@type: ignore`.
+- **NO empty catch blocks** → Always log or handle exceptions.
+
+## UNIQUE STYLES
+
+- **VCS Provider Registry**: Auto-detection from URL patterns. Extensible for GitHub/GitLab/Bitbucket.
+- **Plugin System**: MCPToolPlugin interface for modular tools. PluginManager discovers and executes.
+- **Commit-Based Caching**: MD5 hash keys, auto-invalidate on commit changes.
+- **Full-File Diff**: Uses difflib.SequenceMatcher, not just hunks.
+- **Security**: InputValidator detects injection patterns (command, path traversal, SQL), sanitizes logs.
+
+## COMMANDS
 ```bash
-# Lint code
-./start-lint.sh --check
-./start-lint.sh --fix
-./start-lint.sh --format
+# Environment setup
+uv install              # Install dependencies
+uv install --dev        # Install dev deps
+
+# Linting
+./start-lint.sh --check      # Check only
+./start-lint.sh --fix        # Auto-fix
+./start-lint.sh --format     # Format code
+./start-lint.sh --all        # Complete workflow
 
 # Type checking
 ./start-type-check.sh --check
 ./start-type-check.sh --stats
 
 # Unit testing
-./start-unittest.sh --run
-./start-unittest.sh --coverage
+./start-unittest.sh --run         # All tests
+./start-unittest.sh --coverage    # With coverage
+./start-unittest.sh --parallel    # Parallel execution
+
+# Server
+uv run python prdiffer/server.py
+TRANSPORT=sse PORT=9102 uv run python prdiffer/server.py
 ```
 
-## Key Technologies
+## NOTES
 
-- **FastMCP**: MCP server framework
-- **PyGithub**: GitHub API client
-- **Pydantic v2**: Data validation
-- **anyio**: Async compatibility layer
-- **Dynaconf**: Configuration management
-- **OpenSpec**: Spec-driven development workflow
-
-## Documentation References
-
-- **Full Roadmap:** `ROADMAP.md` - Detailed planning with version targets
-- **Comprehensive Development Plan:** `COMPREHENSIVE-DEVELOPMENT-PLAN.md` - Implementation tasks and status
-- **Architecture Guides:** Individual `AGENTS.md` files in each directory
-
-## Code Quality Standards
-
-- **Linting**: 0 errors with ruff
-- **Type Checking**: 0 errors with ty
-- **Testing**: 863+ tests passing, ~70% coverage
-- **Architecture**: Clean Architecture with proper layer separation
-- **Documentation**: Comprehensive AGENTS.md files across all layers
-
-## Recent Refactoring (v0.4.9)
-
-### Phase 0-4: Foundation Complete
-- Dependency injection infrastructure (ServiceContainer, ServiceFactory)
-- VCS provider abstraction (multi-provider system)
-- Plugin system (modular tool architecture)
-- Clean architecture compliance (no layer violations, no circular dependencies)
-
-### Next Development Focus
-
-- Continue refactoring smaller components per COMPREHENSIVE-DEVELOPMENT-PLAN.md
-- Add more VCS providers (Bitbucket, Gitea)
-- Implement additional MCP tools (describe PR, approve PR, review PR)
-- Expand test coverage to >85%
+- **Authentication enabled by default** (production). Disable: `export MCP_AUTH_ENABLED=false`.
+- **VCS provider auto-detection** from URL. Implement new providers: VCSDiffRepositoryInterface + register in VCSProviderRegistry.
+- **Plugin registration** requires implementing MCPToolPlugin and registering in PluginManager.
+- **Retry logic**: 404/403/500 with smart retry, circuit breaker, exponential backoff.
+- **File filtering**: Pattern-based ignores, extension allowlist, max_files_allowed limit.
+- **Test markers for filtering**: `-m unit`, `-m integration`, `-m slow`, `-m security`.

@@ -2,89 +2,48 @@
 
 Pure business logic layer. No external dependencies, frameworks, or I/O operations.
 
-## Guidelines
+## OVERVIEW
+Core business models, service interfaces, data contracts, and VCS provider registry.
 
-- Pure Python - no imports from `infrastructure` or `application`
-- Define interfaces/contracts only, not implementations
-- Entities: immutable data models with validation
-- Services: business logic without side effects
-- Use Pydantic for data validation (BaseModel)
-- Exceptions: define hierarchy in `exceptions.py`
-- Error codes: structured codes in `errors.py`
+## STRUCTURE
+```
+prdiffer/domain/
+├── entities/           # Core business objects (PRDiff, FilePatchInfo)
+├── services/          # Business logic interfaces
+├── repositories/       # Data access contracts
+├── interfaces/         # Protocol definitions
+├── exceptions.py       # Custom exception hierarchy
+├── errors.py          # Structured error codes
+└── vcs_provider_registry.py  # VCS provider auto-detection
+```
 
-## Common Patterns
+## WHERE TO LOOK
+| Task | Location | Notes |
+|------|----------|-------|
+| **Add business model** | `entities/` | Use Pydantic BaseModel |
+| **Add service interface** | `services/` | Abstract methods only |
+| **Add VCS provider** | `vcs_provider_registry.py`, `infrastructure/vcs_providers/` | Register provider |
+
+## CONVENTIONS
 
 ### Entities
-```python
-from pydantic import BaseModel, Field
-
-class PRDiff(BaseModel):
-    diff_content: str = Field(default="", description="Combined diff content")
-
-    @property
-    def has_content(self) -> bool:
-        return bool(self.diff_content and self.diff_content.strip())
-```
+- Use Pydantic BaseModel for validation
+- Immutable data models with Field descriptions
+- Property methods for derived state
 
 ### Service Interfaces
-```python
-from abc import ABC, abstractmethod
-from typing import Optional, Dict, Any
+- ABC with @abstractmethod
+- No implementation in domain
+- Type hints required
 
-class GitHubAPIServiceInterface(ABC):
-    @abstractmethod
-    def get_repository(self, repo_full_name: str) -> Optional[Repository]:
-        pass
-```
+### VCS Provider Registry
+- Auto-detect from URL patterns
+- Register providers with url_pattern
+- VCSDiffRepositoryInterface contract
 
-### Custom Exceptions
-```python
-class PRDifferException(Exception):
-    def __init__(self, message: str, details: Optional[Dict[str, Any]] = None):
-        super().__init__(message)
-        self.message = message
-        self.details: Dict[str, Any] = details or {}
-```
+## ANTI-PATTERNS
 
-## Files Reference
-
-- `entities/`: Domain models (PRDiff, FilePatchInfo)
-- `services/`: Business logic interfaces
-- `repositories/`: Data access contracts
-- `interfaces/`: Protocol definitions
-- `exceptions.py`: Custom exception hierarchy
-- `errors.py`: Structured error codes (E{category}{number}_{NAME})
-- `vcs_provider_registry.py`: VCS provider registry for multi-provider support
-
-## VCS Provider Registry
-
-The `vcs_provider_registry.py` module provides centralized VCS provider management:
-
-### Purpose
-- Auto-detect VCS provider from repository URLs
-- Register and retrieve VCS implementations
-- Support multiple VCS platforms (GitHub, GitLab, Bitbucket, etc.)
-
-### Usage Pattern
-```python
-from prdiffer.domain.vcs_provider_registry import VCSProviderRegistry
-
-registry = VCSProviderRegistry()
-
-# Auto-detect provider from URL
-provider = registry.get_provider(url="https://github.com/owner/repo/pull/123")
-if provider:
-    diff = await provider.get_pr_diff()
-```
-
-### Adding New VCS Providers
-
-1. Implement `VCSDiffRepositoryInterface` in `prdiffer/infrastructure/vcs_providers/`
-2. Register provider in `VCSProviderRegistry` using:
-   - `register_provider(name, provider_class, url_pattern)`
-   - `supports_repository(url)` method to match URLs
-3. Add imports to `prdiffer/domain/vcs_provider_registry.py`
-
-### Current Providers
-- GitHub: `prdiffer.infrastructure.vcs_providers.github_repository.GitHubVCSRepository`
-- GitLab: `prdiffer.infrastructure.vcs_providers.gitlab_repository.GitLabVCSRepository`
+- **NO external imports** → Keep domain pure
+- **NO I/O operations** → Infrastructure only
+- **NO framework deps** → Pydantic only
+- **NO implementation** → Interfaces/contracts only

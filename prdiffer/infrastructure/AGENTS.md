@@ -1,111 +1,52 @@
 # AGENTS.md - Infrastructure Layer
 
-External integrations: GitHub API, caching, logging, utilities, VCS providers.
+External integrations: GitHub API, caching, logging, utilities, VCS providers, DI container.
 
-## Guidelines
+## OVERVIEW
+Implements domain interfaces, handles I/O/network, provides VCS providers, manages dependencies.
 
-- Implement domain interfaces
-- Handle I/O, network, filesystem operations
-- Use PyGithub for GitHub API
-- Implement retry logic with circuit breaker
-- Log with sanitized sensitive data
-- Use dependency injection for testability (ServiceContainer, ServiceFactory)
-- Support multiple VCS providers (GitHub, GitLab, extensible)
-
-## Common Patterns
-
-### Infrastructure Service with DI
-```python
-from prdiffer.domain.services import LoggerServiceInterface
-from prdiffer.infrastructure.di_container import get_container
-from prdiffer.infrastructure.service_factory import get_service_factory
-
-class SomeInfrastructureService:
-    def __init__(self, container=None, logger=None):
-        self._container = container or get_container()
-        factory = get_service_factory(logger=logger)
-        self._logger = logger or factory.get_logger()
+## STRUCTURE
+```
+prdiffer/infrastructure/
+├── github/              # GitHub API client
+├── vcs_providers/       # Multi-provider VCS abstraction
+├── utils/               # Utilities (retry, circuit breaker, diff)
+├── logging/             # Logging infrastructure
+├── security/            # Input validation
+├── factories/           # Infrastructure factories
+├── services/            # Infrastructure services
+├── di_container.py      # ServiceContainer DI
+├── service_factory.py   # ServiceFactory
+└── *Repository.py       # Repository implementations
 ```
 
-### Using ServiceContainer
-```python
-from prdiffer.infrastructure.di_container import get_container
-from prdiffer.domain.services.logger import LoggerServiceInterface
+## WHERE TO LOOK
+| Task | Location | Notes |
+|------|----------|-------|
+| **Add GitHub integration** | `github/`, `*_repository.py` | Use PyGithub |
+| **Add VCS provider** | `vcs_providers/` | Implement VCSDiffRepositoryInterface |
+| **Add DI service** | `di_container.py`, `service_factory.py` | Register singleton/transient |
+| **Add utility** | `utils/` | Pure functions preferred |
 
-class SomeClass:
-    def __init__(self, container=None):
-        self._container = container or get_container()
-        self._logger = self._container.get(LoggerServiceInterface)
-```
-
-### Using ServiceFactory
-```python
-from prdiffer.infrastructure.service_factory import get_service_factory
-
-def get_some_service():
-    factory = get_service_factory()
-    return factory.get_some_service()
-```
-
-## Subdirectories
-
-- `github/`: GitHub API client implementation
-- `vcs_providers/`: Multi-provider VCS abstraction (GitHub, GitLab, extensible)
-- `utils/`: Utility functions and helpers
-- `logging/`: Logging infrastructure
-- `security/`: Security utilities
-- `factories/`: Infrastructure factories
-- `services/`: Infrastructure services
-
-## Key Files
+## CONVENTIONS
 
 ### Dependency Injection
-- `di_container.py`: Dependency injection container (ServiceContainer)
-  - `register_singleton()`: Register singleton services
-  - `register_transient()`: Register transient services
-  - `get()`: Get service instance
-  - Thread-safe operations with Lock
+- Constructor injection with `container=None` fallback
+- ServiceContainer for singletons, ServiceFactory for creation
+- Backward compatible with singletons
 
-- `service_factory.py`: Service factory for dependency injection
-  - `get_service_factory()`: Get or create global factory
-  - Provides centralized service creation
-  - Supports optional dependency injection
+### Error Handling
+- RetryHandler with exponential backoff
+- CircuitBreaker for failure thresholds
+- APIHealthTracker for monitoring
 
-### VCS Provider System
-- `domain/vcs_provider_registry.py`: VCS provider registry in domain layer
-  - `domain/interfaces/vcs_provider.py`: VCSDiffRepositoryInterface
+### Caching
+- MD5 hash keys
+- Commit-based invalidation
+- TTL support
 
-- `vcs_providers/github_repository.py`: GitHub VCS provider
-  - Implements VCSDiffRepositoryInterface
-  - Wraps GitHubPRDiffRepository with backward compatibility
+## ANTI-PATTERNS
 
-- `vcs_providers/gitlab_repository.py`: GitLab VCS provider (mock/stub)
-  - Implements VCSDiffRepositoryInterface
-  - Extensible pattern for adding more providers
-
-### GitHub Components
-- `github_repository.py`: GitHub repository implementation with DI support
-  - Accepts optional: settings_service, logger, input_validator
-  - Uses factory functions for components
-  - Maintains backward compatibility with singleton fallbacks
-
-### Other Key Services
-- `repository_cache_service.py`: Cache service for repository data
-- `cache_service.py`: Generic cache implementation
-- `settings.py`: Configuration service (uses dynaconf)
-- `async_parallel_executor.py`: Parallel execution utility with anyio
-- `request_coalescing.py`: Request deduplication service
-
-## New Architecture Features (v0.4.9)
-
-### Multi-Provider VCS Support
-- Auto-detection of VCS provider from repository URLs
-- Centralized provider registry in domain layer
-- Extensible provider registration pattern
-- Support for GitHub and GitLab with foundation for more providers
-
-### Dependency Injection Infrastructure
-- ServiceContainer with singleton and transient service lifecycles
-- ServiceFactory for centralized service creation
-- Constructor injection support throughout infrastructure
-- Backward compatible with singleton fallbacks
+- **NO direct PyGithub in application** → Use infrastructure services
+- **NO blocking I/O mixed with async** → Use AsyncParallelExecutor
+- **NO empty catch blocks** → Always log
