@@ -324,6 +324,171 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
         """
         return await asyncer.asyncify(self._get_pr_diff_sync)()
 
+    async def approve_pr_with_comment(self, pr_url: str, compliment: str) -> str:
+        """Approve a GitHub PR with a compliment comment.
+
+        This method:
+        1. Parses the PR URL to extract owner, repo, and PR number
+        2. Validates PR exists and is accessible
+        3. Calls pr.create_review() with event="APPROVE" and the compliment as body
+        4. Returns success message or raises exceptions loudly on failures
+
+        Args:
+            pr_url: The full GitHub PR URL (e.g., https://github.com/owner/repo/pull/123)
+            compliment: The compliment text to include in the approval review
+
+        Returns:
+            str: Success message indicating PR was approved
+
+        Raises:
+            InvalidURLError: If PR URL format is invalid
+            RuntimeError: If GitHub objects failed to initialize
+            GithubException: If PR approval fails (404, 403, rate limit, etc.)
+        """
+        # Import URL parser
+        from prdiffer.infrastructure.utils.url_parser import parse_github_pr_url
+
+        # Validate inputs
+        if not compliment:
+            raise ValueError("Compliment cannot be empty")
+
+        if not isinstance(compliment, str):
+            raise ValueError(
+                f"Compliment must be a string, got {type(compliment).__name__}"
+            )
+
+        # Sanitize compliment for logging
+        safe_compliment = self._input_validator.sanitize_for_logging(
+            compliment, max_length=500
+        )
+
+        # Parse PR URL to get components
+        repo_owner, repo_name, pr_number = parse_github_pr_url(pr_url)
+
+        # Check if parsed components match current instance
+        if repo_owner != self._repo_owner or repo_name != self._repo_name:
+            self._logger.warning(
+                f"PR URL components do not match repository instance: "
+                f"expected {self._repo_owner}/{self._repo_name}, got {repo_owner}/{repo_name}",
+                pr_url=pr_url[:100],
+            )
+
+        if pr_number != self._pr_number:
+            self._logger.warning(
+                f"PR number does not match repository instance: "
+                f"expected {self._pr_number}, got {pr_number}",
+                pr_url=pr_url[:100],
+            )
+
+        self._logger.info(
+            f"Approving PR #{pr_number} in {repo_owner}/{repo_name}",
+            pr_number=pr_number,
+            repo=repo_name,
+            owner=repo_owner,
+            compliment=safe_compliment,
+        )
+
+        # Initialize GitHub objects if not already initialized
+        self._initialize_github_objects()
+
+        # Verify PR exists and is accessible
+        if self._pull_request is None:
+            raise RuntimeError(
+                f"Failed to access pull request #{pr_number} "
+                f"in repository {repo_owner}/{repo_name} - "
+                "pull request may not exist or be inaccessible"
+            )
+
+        try:
+            # Call create_review() with APPROVE event and compliment as body
+            # This single call both approves the PR and posts the comment
+            review = self._pull_request.create_review(
+                event="APPROVE",
+                body=compliment,
+            )
+
+            self._logger.info(
+                f"Successfully approved PR #{pr_number}",
+                pr_number=pr_number,
+                review_id=review.id if hasattr(review, "id") else "unknown",
+            )
+
+            return f"Successfully approved PR #{pr_number} in {repo_owner}/{repo_name}"
+
+        except GithubException as e:
+            sanitized = sanitize_exception_for_logging(e)
+
+            if "404" in str(e).lower() or "not found" in str(e).lower():
+                self._logger.error(
+                    f"Pull request #{pr_number} not found in {repo_owner}/{repo_name}",
+                    extra=sanitized,
+                    pr_number=pr_number,
+                )
+                raise RuntimeError(
+                    f"Pull request #{pr_number} not found in repository {repo_owner}/{repo_name}"
+                ) from e
+
+            if "403" in str(e).lower() or "forbidden" in str(e).lower():
+                self._logger.error(
+                    f"Permission denied for PR #{pr_number} - insufficient permissions",
+                    extra=sanitized,
+                    pr_number=pr_number,
+                )
+                raise RuntimeError(
+                    f"Insufficient permissions to approve PR #{pr_number} - "
+                    "ensure token has 'repo' scope and write access"
+                ) from e
+
+            if "429" in str(e).lower() or "rate limit" in str(e).lower():
+                self._logger.warning(
+                    f"GitHub API rate limit exceeded while approving PR #{pr_number}",
+                    extra=sanitized,
+                    pr_number=pr_number,
+                )
+                raise RuntimeError(
+                    "GitHub API rate limit exceeded - please retry later"
+                ) from e
+
+            self._logger.error(
+                f"GitHub API error while approving PR #{pr_number}",
+                extra=sanitized,
+                pr_number=pr_number,
+            )
+            raise RuntimeError(
+                f"GitHub API error while approving PR #{pr_number}"
+            ) from e
+
+            if "403" in str(e).lower() or "forbidden" in str(e).lower():
+                self._logger.error(
+                    f"Permission denied for PR #{pr_number} - insufficient permissions",
+                    extra=sanitized,
+                    pr_number=pr_number,
+                )
+                raise RuntimeError(
+                    f"Insufficient permissions to approve PR #{pr_number} - "
+                    "ensure token has 'repo' scope and write access"
+                ) from e
+
+            if "429" in str(e).lower() or "rate limit" in str(e).lower():
+                self._logger.warning(
+                    f"GitHub API rate limit exceeded while approving PR #{pr_number}",
+                    extra=sanitized,
+                    pr_number=pr_number,
+                )
+                raise RuntimeError(
+                    "GitHub API rate limit exceeded - please retry later"
+                ) from e
+
+            # Generic GitHub API error
+            self._logger.error(
+                f"GitHub API error while approving PR #{pr_number}",
+                extra=sanitized,
+                pr_number=pr_number,
+            )
+            raise RuntimeError(
+                f"GitHub API error while approving PR #{pr_number}"
+            ) from e
+
     def _get_latest_commit_sha_sync(self) -> str:
         self._initialize_github_objects()
 

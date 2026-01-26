@@ -565,6 +565,92 @@ class FastMCPServer:
                 safe_message = self._create_safe_error_message(e)
                 return {"status": "unhealthy", "error": safe_message}
 
+        @self.mcp.tool()
+        async def approve_pr(
+            pr_url: str, compliment: str, api_key: Optional[str] = None
+        ) -> str:
+            """Approve a GitHub PR with a compliment comment.
+
+            This method approves a pull request with a provided compliment text.
+
+            Args:
+                pr_url: The full GitHub PR URL (e.g., https://github.com/owner/repo/pull/123)
+                compliment: The compliment text to include in the approval review
+                api_key: Optional API key for authentication (required if authentication is enabled)
+
+            Returns:
+                str: Success message indicating PR was approved
+
+            Raises:
+                ValueError: If authentication fails, URL is invalid, or compliment is missing
+                RuntimeError: If rate limit is exceeded or API request fails
+            """
+            request_id = self._generate_request_id()
+            start_time = time.time()
+
+            self._logger.info(
+                "Processing approve_pr request",
+                request_id=request_id,
+                pr_url=pr_url[:100],
+            )
+
+            # Authenticate request
+            client_id = await self._authenticate_request(
+                request_id, start_time, api_key
+            )
+
+            # Use authenticated client_id for rate limiting
+            rate_limit_client_id = client_id or "anonymous"
+
+            try:
+                # Check rate limit with client-specific identifier
+                self._check_rate_limit(rate_limit_client_id)
+
+                # Validate PR URL
+                from prdiffer.infrastructure.security.input_validator import (
+                    InputValidator,
+                )
+
+                if not InputValidator.validate_github_url(pr_url):
+                    raise ValueError("Invalid GitHub PR URL format")
+
+                # Create repository instance for this PR
+                repo_owner, repo_name, pr_number = InputValidator.validate_github_url(
+                    pr_url
+                )
+
+                # Get repository instance
+                repository = self._github_repository_class(
+                    repo_owner, repo_name, pr_number
+                )
+
+                # Validate compliment
+                if not compliment or not isinstance(compliment, str):
+                    raise ValueError("Compliment must be a non-empty string")
+
+                # Approve PR with compliment
+                result = await repository.approve_pr_with_comment(
+                    pr_url=pr_url,
+                    compliment=compliment,
+                )
+
+                execution_time = time.time() - start_time
+                self._metrics_tracker.track_request("approve_pr", True, execution_time)
+
+                self._logger.info(f"Successfully approved PR\n{result}")
+                return result
+
+            except ValueError as e:
+                self._handle_validation_exception(e, start_time, request_id, pr_url)
+            except (
+                RuntimeError,
+                KeyError,
+                AttributeError,
+                TypeError,
+                ConnectionError,
+            ) as e:
+                self._handle_runtime_exception(e, start_time, request_id, pr_url)
+
     def run(self):
         """Start the FastMCP server with configured transport and port.
 

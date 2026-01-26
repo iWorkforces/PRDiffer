@@ -66,3 +66,27 @@ class PRDiffRepositoryInterface(ABC):
             str: The latest head commit SHA
         """
         pass
+
+    @abstractmethod
+    async def approve_pr_with_comment(self, pr_url: str, compliment: str) -> str:
+        """Approve a GitHub PR with a compliment comment.
+
+        This method:
+        1. Parses PR URL to extract owner, repo, and PR number
+        2. Validates PR exists and is accessible
+        3. Calls pr.create_review() with event="APPROVE" and compliment as body
+        4. Returns success message or raises exceptions loudly on failures
+
+        Args:
+            pr_url: The full GitHub PR URL (e.g., https://github.com/owner/repo/pull/123)
+            compliment: The compliment text to include in the approval review
+
+        Returns:
+            str: Success message indicating PR was approved
+
+        Raises:
+            InvalidURLError: If PR URL format is invalid
+            RuntimeError: If GitHub objects failed to initialize
+            GithubException: If PR approval fails (404, 403, rate limit, etc.)
+        """
+        pass
