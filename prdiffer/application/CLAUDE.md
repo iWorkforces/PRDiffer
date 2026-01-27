@@ -2,17 +2,56 @@
 
 This file provides guidance for working with the Application Layer of PRDiffer.
 
-**Current Version:** 0.4.8
+**Current Version:** 0.4.9
 
-## Application Layer Overview
-
-The application layer orchestrates the use cases and provides the external interface via FastMCP. It serves as the entry point for MCP clients and handles tool registration and request processing.
+## OVERVIEW
+FastMCP server setup, MCP tool plugins, component wiring, dependency injection orchestration. MCP server, FastMCP components, plugin system, orchestration.
 
 **Architecture:**
 - FastMCP server (615 lines) with 13 injected dependencies
 - 7 application components with protocol-based interfaces
 - Factory-based dependency injection for loose coupling
 - Comprehensive security with authentication and rate limiting
+
+## STRUCTURE
+```
+prdiffer/application/
+├── components/         # MCP components (auth, rate limiting, health, metrics)
+├── plugins/            # MCP tool plugins
+├── interfaces/         # MCP-specific protocols
+├── mcp_server.py       # FastMCP server
+├── plugin_manager.py   # Plugin discovery
+└── factory.py          # Application factory
+```
+
+## WHERE TO LOOK
+| Task | Location | Notes |
+|------|----------|-------|
+| **Add MCP tool** | `plugins/` | Implement MCPToolPlugin |
+| **Add component** | `components/` | Accept dependencies via DI |
+| **Register plugin** | `plugin_manager.py` | Use register_plugin() |
+
+## CONVENTIONS
+
+### MCP Tools
+- Use FastMCP @mcp.tool() decorator
+- Return Pydantic models
+- Use PROperationHandler for PR operations
+
+### Components
+- Constructor injection
+- Health check methods
+- Metrics tracking
+
+### Plugin System
+- Implement MCPToolPlugin interface
+- Auto-discovery by PluginManager
+- Register via factory or manually
+
+## ANTI-PATTERNS
+
+- **NO direct PyGithub** → Use infrastructure services
+- **NO business logic** → Domain layer only
 
 ## Application Components
 
@@ -71,7 +110,7 @@ Per-client rate limiting using token bucket algorithm.
 
 **Algorithm:**
 - Token bucket style: Tracks timestamps in sliding window (last 60s)
-- Removes timestamps outside the window before counting
+- Removes timestamps outside of window before counting
 - LRU cleanup for expired clients
 
 **Metrics:**
@@ -220,8 +259,6 @@ def is_authentication_enabled(self) -> bool
 def get_status(self) -> Dict[str, Any]
 ```
 
-## Key Components (Legacy Section)
-
 ## Key Components
 
 ### FastMCPServer (`mcp_server.py`)
@@ -238,7 +275,7 @@ def get_status(self) -> Dict[str, Any]
 **Key Methods:**
 - `__init__()`: Server setup, tool registration, logging initialization
 - `_parse_pr_url()`: Extracts owner/repo/PR number from GitHub URLs
-- `_register_tools()`: Defines the `get_pr_diff` MCP tool with authentication
+- `_register_tools()`: Defines `get_pr_diff` MCP tool with authentication
 - `_authenticate_request()`: Validates API key when authentication is enabled
 - `run()`: Starts server with configured transport (stdio/http/sse)
 
@@ -286,14 +323,14 @@ The server supports multiple MCP transport protocols via settings:
 
 ### Settings Dependencies
 - `mcp.transport`: Transport protocol selection
-- `mcp.port`: Server port (default: 9102)  
+- `mcp.port`: Server port (default: 9102)
 - `mcp.host`: Server host (default: "127.0.0.1")
 - All GitHub and application settings are passed through to infrastructure layer
 
 ## Development Guidelines
 
 ### Adding New Tools
-When adding MCP tools to the server:
+When adding MCP tools to server:
 1. Define tool function with `@self.mcp.tool()` decorator
 2. Add proper docstring with parameter descriptions
 3. Use domain use cases for business logic
@@ -316,8 +353,8 @@ Extend this pattern if supporting additional URL formats.
 - Failed security validations tracked in metrics for security monitoring
 
 ### Testing Integration Points
-When testing the application layer:
-- Mock the GitHubPRDiffRepository for unit tests
+When testing application layer:
+- Mock GitHubPRDiffRepository for unit tests
 - Use FastMCP test client for integration testing
 - Test URL parsing edge cases
 - Verify proper error propagation and logging
@@ -338,8 +375,6 @@ async with Client("http://127.0.0.1:9102/mcp") as client:
         "pr_url": "https://github.com/owner/repo/pull/123"
     })
 ```
-
-This application layer provides a clean separation between the MCP protocol interface and the domain business logic, making it easy to modify either the external interface or internal processing independently.
 
 ## Recent Changes (v0.4.9)
 
@@ -417,3 +452,5 @@ class SomeComponent:
 - **Services**: `services/CLAUDE.md` - Application-level services
 - **Main Package**: `../CLAUDE.md` - Overall architecture and package structure
 - **Testing**: `tests/unit/application/CLAUDE.md` - Application layer testing guide
+
+This application layer provides a clean separation between MCP protocol interface and domain business logic, making it easy to modify either external interface or internal processing independently.

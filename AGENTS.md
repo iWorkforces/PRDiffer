@@ -1,7 +1,7 @@
 # PROJECT KNOWLEDGE BASE
 
-**Generated:** 2026-01-26T10:01:22Z
-**Commit:** 4e0fb4ab (simplify claude file)
+**Generated:** 2026-01-27T00:30:26Z
+**Commit:** d92fa0b1 (Add `approve_pr` mcp tool)
 **Branch:** upstream
 **Version:** 0.4.9
 
