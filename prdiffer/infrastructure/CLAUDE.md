@@ -2,11 +2,56 @@
 
 This file provides guidance for working with the Infrastructure Layer of PRDiffer.
 
-**Current Version:** 0.4.8
+**Current Version:** 0.4.9
 
-## Infrastructure Layer Overview
+## OVERVIEW
+Implements domain interfaces, handles I/O/network, provides VCS providers, manages dependencies. External integrations: GitHub API, caching, logging, utilities, VCS providers, DI container.
 
-The infrastructure layer contains external integrations, data access implementations, and cross-cutting concerns like settings and logging. This layer implements interfaces defined in the domain layer.
+## STRUCTURE
+```
+prdiffer/infrastructure/
+├── github/              # GitHub API client
+├── vcs_providers/       # Multi-provider VCS abstraction
+├── utils/               # Utilities (retry, circuit breaker, diff)
+├── logging/             # Logging infrastructure
+├── security/            # Input validation
+├── factories/           # Infrastructure factories
+├── services/            # Infrastructure services
+├── di_container.py      # ServiceContainer DI
+├── service_factory.py   # ServiceFactory
+└── *Repository.py       # Repository implementations
+```
+
+## WHERE TO LOOK
+| Task | Location | Notes |
+|------|----------|-------|
+| **Add GitHub integration** | `github/`, `*_repository.py` | Use PyGithub |
+| **Add VCS provider** | `vcs_providers/` | Implement VCSDiffRepositoryInterface |
+| **Add DI service** | `di_container.py`, `service_factory.py` | Register singleton/transient |
+| **Add utility** | `utils/` | Pure functions preferred |
+
+## CONVENTIONS
+
+### Dependency Injection
+- Constructor injection with `container=None` fallback
+- ServiceContainer for singletons, ServiceFactory for creation
+- Backward compatible with singletons
+
+### Error Handling
+- RetryHandler with exponential backoff
+- CircuitBreaker for failure thresholds
+- APIHealthTracker for monitoring
+
+### Caching
+- MD5 hash keys
+- Commit-based invalidation
+- TTL support
+
+## ANTI-PATTERNS
+
+- **NO direct PyGithub in application** → Use infrastructure services
+- **NO blocking I/O mixed with async** → Use AsyncParallelExecutor
+- **NO empty catch blocks** → Always log
 
 ## Key Components
 
@@ -48,7 +93,7 @@ def get_github_repository(
 **Critical Implementation Details:**
 
 **Caching Architecture:**
-- Settings service uses manual caching instead of `@lru_cache` 
+- Settings service uses manual caching instead of `@lru_cache`
 - Reason: Dynaconf objects are not hashable, causing `TypeError: unhashable type: 'list'`
 - Solution: Manual cache variables with list-to-tuple conversion for hashability
 
@@ -106,107 +151,6 @@ The `_get_merge_base_commits()` method (line 383) ensures accurate diff comparis
 - GitHub, MCP, cache, and application settings sections
 - File filtering patterns and extensions
 
-### GitHub API Configuration
-
-The GitHub API integration provides comprehensive configuration options for managing API interactions, retry behavior, circuit breaking, and performance optimization.
-
-**Basic API Settings** (in `settings.toml`):
-```toml
-# GitHub API settings
-github.rate_limit = 5000          # API rate limit (requests per hour)
-github.timeout = 30               # Request timeout in seconds
-github.max_retries = 3            # Maximum retry attempts for failed requests
-github.retry_delay = 1            # Base delay between retries (seconds)
-```
-
-**Smart Retry Settings** (Phase 2):
-```toml
-# Smart retry settings
-github.retry_on_404 = false       # Don't retry 404 errors (file not found - permanent)
-github.retry_on_403 = true        # Retry 403 errors (might be rate limiting)
-github.retry_on_500 = true        # Retry 5xx server errors (transient)
-github.retry_log_level = "DEBUG"  # Log retry attempts at DEBUG level
-github.permanent_failure_log_level = "INFO"  # Log permanent failures at INFO level
-```
-
-**Circuit Breaker Configuration** (Phase 3):
-```toml
-# Circuit breaker pattern - prevents cascading failures
-github.circuit_breaker_enabled = true           # Enable circuit breaker pattern
-github.circuit_breaker_failure_threshold = 5    # Failures before opening circuit
-github.circuit_breaker_timeout = 60             # Seconds to keep circuit open
-```
-
-The circuit breaker pattern provides:
-- **Closed State**: Normal operation, requests flow through
-- **Open State**: Circuit is open after threshold failures, requests fail fast
-- **Half-Open State**: Test if service has recovered after timeout
-
-**Adaptive Retry Configuration** (Phase 3):
-```toml
-# Adaptive retry with health-aware backoff
-github.adaptive_retry_enabled = true    # Enable adaptive retry delays
-github.max_adaptive_delay = 30          # Maximum adaptive delay (seconds)
-```
-
-Adaptive retry adjusts delays based on:
-- API health metrics (response times, error rates)
-- Recent failure patterns
-- Exponential backoff with jitter
-- Maximum delay cap to prevent excessive waits
-
-**API Health Tracking** (Phase 3):
-```toml
-# API performance monitoring
-github.api_health_tracking = true       # Track API health metrics
-github.context_aware_retry = true       # Enable context-aware retry strategies
-```
-
-Health tracking provides:
-- Response time monitoring (p50, p95, p99)
-- Error rate tracking by error type
-- Health-based backoff adjustment
-- Performance degradation detection
-
-**Parallel Diff Processing** (Phase 3):
-```toml
-# Parallel diff generation for large PRs
-github.diff_parallel_enabled = true     # Enable parallel diff generation
-github.diff_parallel_threshold = 3      # Minimum files to trigger parallel processing
-github.diff_max_workers = 4             # Maximum worker threads for parallel processing
-github.diff_worker_timeout = 30.0       # Timeout per file in seconds
-```
-
-Parallel processing provides:
-- Concurrent file content retrieval
-- Faster diff generation for large PRs
-- Configurable worker pool size
-- Per-file timeout protection
-
-**File Filtering Configuration**:
-```toml
-# File filtering patterns
-github.ignore_patterns = [
-    "*.lock", "package-lock.json", "*.log", "*.tmp", "*.bak",
-    "node_modules/", "dist/", "build/", ".git/", "__pycache__/"
-]
-
-github.valid_extensions = [
-    ".py", ".js", ".ts", ".jsx", ".tsx", ".vue", ".svelte",
-    ".java", ".kt", ".scala", ".cpp", ".c", ".h", ".hpp",
-    ".go", ".rs", ".rb", ".php", ".swift", ".md", ".json", ".yml"
-]
-```
-
-**Configuration Trade-offs:**
-
-| Setting | Performance | Reliability | Memory Usage |
-|---------|-------------|--------------|--------------|
-| `diff_parallel_enabled=true` | Higher (concurrent) | Same | Higher |
-| `circuit_breaker_enabled=true` | Same (fast fail) | Higher | Lower |
-| `adaptive_retry_enabled=true` | Variable | Higher | Same |
-| `api_health_tracking=true` | Slight overhead | Higher | Low |
-
 ### Cache Services
 
 **CacheService (`cache_service.py`)**
@@ -245,7 +189,7 @@ cache.store_key_mapping = true          # Store hash→original mapping
 - **Internal Storage**: Uses MD5 hash when hashing is enabled
 - **Logging Format**: `Cache set [cache_key=owner/repo/pr/123 hash=a7b3c4d5... commit_sha=abc123]`
 - **Memory Trade-off**: Hash (32 bytes) + mapping overhead vs. variable-length original keys
-- **Hash Consistency**: Same key always produces same hash (MD5 deterministic)
+- **Hash Consistency**: Same key always produces the same hash (MD5 deterministic)
 
 **Benefits of Hashing:**
 - **Memory Efficiency**: Fixed-length keys reduce memory for repos with long names
@@ -274,7 +218,7 @@ cache.store_key_mapping = true          # Store hash→original mapping
 ### Request Coalescing Service (`request_coalescing.py`)
 
 **RequestCoalescingService**
-- Deduplicates concurrent requests for the same resource
+- Deduplicates concurrent requests for same resource
 - Uses anyio primitives (Lock, Event) for thread-safe operation
 - Prevents duplicate GitHub API calls when multiple concurrent requests arrive
 - Implements singleton pattern via `get_request_coalescing_service()`
@@ -381,7 +325,7 @@ results = await executor.execute_with_progress(
 ### Factory Implementation (`factories/`)
 
 **InfrastructureFactory** (`infrastructure_factory.py`)
-Concrete implementation of `InfrastructureFactoryInterface` from the domain layer.
+Concrete implementation of `InfrastructureFactoryInterface` from domain layer.
 
 **Purpose:**
 - Creates all infrastructure service instances
@@ -401,12 +345,10 @@ def get_infrastructure_factory() -> InfrastructureFactoryInterface:
     return InfrastructureFactory()
 ```
 
-See `factories/CLAUDE.md` for detailed documentation.
-
 ### Service Implementations (`services/`)
 
 **GitHubPRDiffService** (`pr_diff_service.py`)
-Concrete implementation of `PRDiffServiceInterface` from the domain layer.
+Concrete implementation of `PRDiffServiceInterface` from domain layer.
 
 **Purpose:**
 - Provides PR diff operations using GitHub API
@@ -424,14 +366,12 @@ Concrete implementation of `PRDiffServiceInterface` from the domain layer.
 - `FileProcessor` - File filtering and validation
 - `LoggerService` - Structured logging
 
-See `services/CLAUDE.md` for detailed documentation.
-
 ### Utility Components (`utils/`)
 
-Additional utility components discovered in the infrastructure layer:
+Additional utility components discovered in infrastructure layer:
 
 **GlobalCircuitBreakerRegistry** (`circuit_breaker.py`)
-- Global registry for circuit breakers across the application
+- Global registry for circuit breakers across application
 - Per-endpoint circuit breakers for targeted protection
 - Global circuit breaker for system-wide protection
 - Statistics aggregation across all breakers
@@ -618,445 +558,6 @@ The infrastructure layer has been migrated from raw `asyncio` to `anyio` for:
 - **anyio.Event**: Async event signaling for request result notification
 - **anyio.create_task_group()**: Parallel task execution with structured concurrency
 - **anyio.fail_after()**: Timeout protection for async operations
-
-This infrastructure layer provides robust external integrations while maintaining clean separation from domain logic through well-defined interfaces.
-
-## Performance Benchmarks
-
-### Baseline Metrics
-
-The following baseline metrics were measured using the standard configuration (GitHub API, authenticated requests, 100Mbps network):
-
-| Metric | Value | Conditions | Measurement Method |
-|--------|-------|------------|-------------------|
-| **API Call Latency (p50)** | 180ms | Single file fetch | Time from request to response |
-| **API Call Latency (p95)** | 450ms | Single file fetch | 95th percentile of requests |
-| **API Call Latency (p99)** | 850ms | Single file fetch | 99th percentile of requests |
-| **Small PR (<10 files)** | 2-5s | Full PR diff processing | End-to-end processing time |
-| **Medium PR (10-50 files)** | 8-20s | Full PR diff processing | End-to-end processing time |
-| **Large PR (50-100 files)** | 30-60s | Full PR diff processing | End-to-end processing time |
-| **Cache Hit Rate** | 85-95% | Repeated PR requests | Cache hits vs total requests |
-| **Memory Usage** | 50-150MB | Typical PR processing | Peak memory during processing |
-| **Memory Usage** | 200-500MB | Large PR (100+ files) | Peak memory during processing |
-
-### Optimization Results
-
-**String Concatenation Optimization** (v0.4.8):
-- **Before**: O(n²) complexity with `+=` operator
-- **After**: O(n) complexity with list join
-- **Improvement**: 40-60% faster for large diffs (>1000 lines)
-- **Measured**: Large diff (5000 lines) reduced from 850ms to 340ms
-
-**Parallel Processing Gains**:
-- **Sequential**: 30s for 50-file PR
-- **Parallel (4 workers)**: 12s for 50-file PR
-- **Improvement**: 2.5x faster for I/O-bound operations
-- **Threshold**: Parallel processing enabled when `diff_parallel_threshold >= 3`
-
-**Caching Effectiveness**:
-- **Cache Hit**: 50-100ms response time (memory read)
-- **Cache Miss**: 2-60s response time (GitHub API fetch)
-- **Improvement**: 50-600x faster on cache hit
-- **Commit Validation**: Automatic invalidation when PR updated
-
-**Request Coalescing Benefits**:
-- **Without Coalescing**: 10 concurrent requests = 10 API calls
-- **With Coalescing**: 10 concurrent requests = 1 API call
-- **Improvement**: 10x reduction in API calls under high concurrency
-- **Rate Limit Protection**: Prevents exhaustion from duplicate requests
-
-### Configuration Tuning Recommendations
-
-Based on benchmarking data, optimal configuration varies by use case:
-
-**For Small PRs (<10 files)**:
-```toml
-github.diff_parallel_enabled = false     # Sequential is faster
-github.max_retries = 2                   # Reduce retries
-cache.ttl = 300                          # Shorter cache TTL
-```
-
-**For Medium PRs (10-50 files)**:
-```toml
-github.diff_parallel_enabled = true
-github.diff_parallel_threshold = 3       # Default threshold
-github.diff_max_workers = 4              # Default workers
-cache.ttl = 600                          # Default cache TTL
-```
-
-**For Large PRs (50+ files)**:
-```toml
-github.diff_parallel_enabled = true
-github.diff_parallel_threshold = 1       # Always parallel
-github.diff_max_workers = 8              # More workers
-github.diff_worker_timeout = 60.0        # Longer timeout
-app.max_files_allowed = 100              # Allow more files
-```
-
-**For High Concurrency**:
-```toml
-async_parallel_executor.max_concurrent = 20   # Increase parallelism
-request_coalescing.max_waiters = 200          # Allow more waiters
-github.circuit_breaker_enabled = true         # Prevent cascading failures
-github.adaptive_retry_enabled = true          # Adjust to load
-```
-
-### Performance Trade-offs
-
-| Configuration | Performance | Reliability | Memory Usage | Recommended For |
-|---------------|-------------|--------------|--------------|-----------------|
-| `diff_parallel_enabled=true` | Higher | Same | Higher | PRs with 10+ files |
-| `circuit_breaker_enabled=true` | Same | Higher | Lower | Production deployments |
-| `adaptive_retry_enabled=true` | Variable | Higher | Same | Unreliable networks |
-| `api_health_tracking=true` | Slight overhead | Higher | Low | Production monitoring |
-| `diff_max_workers=8` | Higher | Same | Higher | Large PRs only |
-| `max_files_allowed=100` | Same | Same | Higher | Large PR analysis |
-
-### Performance Monitoring
-
-To collect performance metrics in production:
-
-```python
-# Enable API health tracking
-github.api_health_tracking = true
-
-# Monitor cache performance
-cache_stats = cache_service.get_stats()
-print(f"Hit rate: {cache_stats['hit_rate']:.2%}")
-print(f"Cache size: {cache_stats['size']}")
-
-# Monitor API health
-health_tracker = api_health_tracker
-print(f"Error rate: {health_tracker.get_error_rate():.2%}")
-print(f"Avg latency: {health_tracker.get_avg_latency():.0f}ms")
-```
-
-### Performance Testing
-
-To reproduce benchmarks:
-
-```bash
-# Run performance tests
-pytest tests/unit/test_performance.py -v
-
-# Profile specific operations
-python -m cProfile -o profile.stats prdiffer/server.py
-python -c "import pstats; pstats.Stats('profile.stats').sort_stats('cumulative').print_stats(20)"
-```
-
-## Anyio Backend Selection
-
-The infrastructure layer uses `anyio` as an async compatibility layer, enabling the use of multiple async backends. This provides flexibility in choosing the async runtime that best suits your deployment environment.
-
-### Available Backends
-
-#### asyncio (Default)
-
-**Description**: Python's built-in async/await runtime library
-
-**When to Use**:
-- **Default Choice**: Best for most deployments
-- **Compatibility**: Works with all Python async libraries
-- **Debugging**: Excellent tooling and debugging support
-- **Ecosystem**: Largest ecosystem of async libraries
-
-**Pros**:
-- Built into Python standard library (3.7+)
-- Excellent debugging support with `python -m asyncio`
-- Compatible with FastAPI, aiohttp, and other popular frameworks
-- Mature and well-documented
-
-**Cons**:
-- Can have higher memory overhead than trio
-- Task cancellation semantics can be complex
-
-**Configuration**:
-```bash
-# asyncio is the default backend - no configuration needed
-python prdiffer/server.py
-```
-
-#### trio
-
-**Description**: A Python library for structured concurrency
-
-**When to Use**:
-- **Structured Concurrency**: When you need cleaner async semantics
-- **Testing**: For more predictable async test behavior
-- **Cancellation**: When you need robust cancellation handling
-
-**Pros**:
-- Cleaner concurrency model with nurseries (task groups)
-- More predictable cancellation semantics
-- Better error messages for concurrency issues
-- Lower memory overhead in some scenarios
-
-**Cons**:
-- Smaller ecosystem than asyncio
-- Not compatible with all async libraries
-- Requires additional dependency installation
-
-**Configuration**:
-```bash
-# Install trio backend
-uv pip install trio
-
-# Use trio backend
-ANYIO_BACKEND=trio python prdiffer/server.py
-```
-
-#### curio
-
-**Description**: A Python library for performing concurrent I/O
-
-**When to Use**:
-- **Experimental**: For experimentation with alternative async models
-- **Low-Level Control**: When you need fine-grained control over I/O operations
-
-**Pros**:
-- Lightweight and efficient
-- Simple, clean API
-- Good for low-level network programming
-
-**Cons**:
-- Smallest ecosystem of the three backends
-- Less mature than asyncio and trio
-- Not compatible with most async libraries
-
-**Configuration**:
-```bash
-# Install curio backend
-uv pip install curio
-
-# Use curio backend
-ANYIO_BACKEND=curio python prdiffer/server.py
-```
-
-### Selection Criteria
-
-#### Platform Compatibility
-
-| Backend | Windows | Linux | macOS | Python 3.14 | Notes |
-|---------|---------|-------|-------|-------------|-------|
-| asyncio | ✅ | ✅ | ✅ | ✅ | Built-in, best compatibility |
-| trio | ✅ | ✅ | ✅ | ✅ | Full support |
-| curio | ✅ | ✅ | ✅ | ⚠️ | May have issues with latest Python |
-
-#### Feature Requirements
-
-| Feature | asyncio | trio | curio | Recommendation |
-|---------|---------|------|-------|----------------|
-| HTTP/WebSocket Libraries | ✅ | ⚠️ | ⚠️ | Use asyncio for web services |
-| Task Cancellation | ⚠️ | ✅ | ✅ | Use trio for complex cancellation |
-| Structured Concurrency | ⚠️ | ✅ | ✅ | Use trio for clean async patterns |
-| Ecosystem Compatibility | ✅ | ⚠️ | ⚠️ | Use asyncio for library integration |
-| Debugging Support | ✅ | ✅ | ⚠️ | Use asyncio for best debugging |
-
-#### Performance Characteristics
-
-| Backend | Memory Usage | Task Spawn Overhead | I/O Efficiency | Best For |
-|---------|--------------|---------------------|----------------|----------|
-| asyncio | Higher | Low | High | I/O-bound operations |
-| trio | Lower | Low | High | Structured concurrency |
-| curio | Lowest | Very Low | High | Low-level I/O operations |
-
-### Migration Guide
-
-#### Switching Backends
-
-**Step 1: Install the Backend**
-```bash
-# For trio
-uv pip install trio
-
-# For curio
-uv pip install curio
-```
-
-**Step 2: Set Environment Variable**
-```bash
-# Set backend via environment variable
-export ANYIO_BACKEND=trio
-# or
-export ANYIO_BACKEND=curio
-```
-
-**Step 3: Test Your Code**
-```bash
-# Run tests with new backend
-pytest tests/unit/ -v
-
-# Test manually
-python prdiffer/server.py
-```
-
-#### Backend-Specific Code
-
-The codebase is designed to be backend-agnostic. However, if you need backend-specific functionality:
-
-**Using asyncio-specific features**:
-```python
-import anyio
-
-async def operation_with_asyncio_features():
-    # Get the native backend
-    backend = await anyio.current_time()  # Works with all backends
-
-    # If you need asyncio-specific features:
-    if anyio.current_backend().name == "asyncio":
-        import asyncio
-        # Use asyncio-specific features
-        task = asyncio.current_task()
-```
-
-**Using trio-specific features**:
-```python
-import anyio
-
-async def operation_with_trio_features():
-    if anyio.current_backend().name == "trio":
-        import trio
-        # Use trio-specific features
-        await trio.sleep(0)  # Checkpoint
-```
-
-### Recommended Configuration by Use Case
-
-**Production Deployment (asyncio)**:
-```bash
-# Default configuration - no changes needed
-python prdiffer/server.py
-```
-
-**Development/Testing (trio)**:
-```bash
-# Use trio for cleaner async semantics during development
-export ANYIO_BACKEND=trio
-python prdiffer/server.py
-```
-
-**High-Performance Low-Overhead (curio)**:
-```bash
-# Experimental: use curio for minimal overhead
-export ANYIO_BACKEND=curio
-python prdiffer/server.py
-```
-
-### Backend Compatibility Notes
-
-**pytest-asyncio Integration**:
-- Works seamlessly with asyncio backend (default)
-- For trio, use `pytest-trio` instead of `pytest-asyncio`
-- For curio, limited pytest support
-
-**MCP Server Integration**:
-- FastMCP uses asyncio internally
-- Recommended to use asyncio backend for MCP server deployment
-- Other backends may work but are not officially tested
-
-**Testing with Different Backends**:
-```bash
-# Test with asyncio (default)
-pytest tests/unit/ -v
-
-# Test with trio
-ANYIO_BACKEND=trio pytest tests/unit/ -v
-
-# Test with curio
-ANYIO_BACKEND=curio pytest tests/unit/ -v
-```
-
-### Troubleshooting
-
-**Issue**: "Backend not found" error
-```bash
-# Solution: Install the backend
-uv pip install trio  # or curio
-```
-
-**Issue**: Tests pass with asyncio but fail with trio
-```bash
-# Solution: Check for asyncio-specific code
-# Look for direct imports of asyncio modules
-grep -r "import asyncio" prdiffer/
-grep -r "from asyncio" prdiffer/
-```
-
-**Issue**: Performance degradation with new backend
-```bash
-# Solution: Profile with different backends
-python -m cProfile -o profile_trio.stats -c "import anyio; anyio.run(main, backend='trio')"
-python -m cProfile -o profile_asyncio.stats -c "import anyio; anyio.run(main, backend='asyncio')"
-```
-
-## Recent Changes (v0.4.9)
-
-### VCS Provider System (NEW)
-**Purpose**: Multi-provider VCS abstraction supporting GitHub, GitLab, and extensible providers
-
-**Key Files:**
-- `prdiffer/domain/vcs_provider_registry.py` - VCS provider registry in domain layer
-- `prdiffer/domain/interfaces/vcs_provider.py` - VCSDiffRepositoryInterface (domain abstraction)
-- `prdiffer/infrastructure/vcs_providers/github_repository.py` - GitHub provider implementation
-- `prdiffer/infrastructure/vcs_providers/gitlab_repository.py` - GitLab provider (mock/stub)
-
-**Usage Pattern:**
-```python
-from prdiffer.domain.vcs_provider_registry import VCSProviderRegistry
-
-registry = VCSProviderRegistry()
-provider = registry.get_provider(url="https://github.com/owner/repo/pull/123")
-diff = await provider.get_pr_diff()
-```
-
-**Architecture:**
-- Domain layer defines VCSDiffRepositoryInterface (abstract)
-- Infrastructure layer implements providers (GitHub, GitLab)
-- VCSProviderRegistry auto-detects provider from URL patterns
-- Extensible for adding Bitbucket, Gitea, etc.
-
-### Dependency Injection Infrastructure (NEW)
-**Purpose**: DI container and factory for testability and loose coupling
-
-**Key Files:**
-- `prdiffer/infrastructure/di_container.py` - ServiceContainer for managing service lifecycles
-- `prdiffer/infrastructure/service_factory.py` - ServiceFactory for centralized service creation
-
-**Features:**
-- Singleton and transient service registration
-- Thread-safe operations with Lock
-- Backward compatible with existing singleton patterns
-- Constructor injection support throughout infrastructure
-
-**Usage Pattern:**
-```python
-from prdiffer.infrastructure.di_container import get_container
-from prdiffer.domain.services.logger import LoggerServiceInterface
-
-class SomeClass:
-    def __init__(self, container=None):
-        self._container = container or get_container()
-        self._logger = self._container.get(LoggerServiceInterface)
-```
-
-### Plugin System (NEW in Application Layer)
-**Purpose**: Modular MCP tool plugin architecture
-
-**Key Files:**
-- `prdiffer/application/interfaces/tool_plugin.py` - MCPToolPlugin interface
-- `prdiffer/application/plugin_manager.py` - PluginManager for discovery and execution
-- `prdiffer/application/plugins/get_pr_diff_plugin.py` - First plugin implementation
-
-**Features:**
-- Plugin discovery and registration
-- Enabled/disabled state management
-- Tool execution orchestration
-
-### Architecture Improvements
-- Clean Architecture compliance verified
-- Proper layer separation maintained
-- Zero circular dependencies
-- All classes accept dependencies for easy mocking
 
 ## Related Documentation
 
