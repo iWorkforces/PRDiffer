@@ -22,6 +22,11 @@ github.retry_on_500 = true   # Retry 5xx server errors
 github.retry_log_level = "DEBUG"  # Log retry attempts at DEBUG level instead of WARNING
 github.permanent_failure_log_level = "INFO"  # Log permanent failures at INFO level
 
+# Rate limit retry thresholds
+github.retry.rate_limit_remaining_threshold = 1  # Treat remaining <= threshold as rate-limited
+github.retry.rate_limit_reset_buffer = 1         # Seconds to add to reset-based delays
+github.retry.secondary_rate_limit_backoff = 60   # Base delay for secondary rate limits (seconds)
+
 # Phase 3: Advanced error handling and context-aware strategies
 github.circuit_breaker_enabled = true  # Enable circuit breaker pattern
 github.circuit_breaker_failure_threshold = 5  # Failures before opening circuit
