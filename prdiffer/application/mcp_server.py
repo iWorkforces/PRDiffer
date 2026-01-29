@@ -1,6 +1,7 @@
 import time
 import hashlib
 import hmac
+import json
 from typing import Optional, Callable, Literal, TypeAlias, NoReturn, cast
 from fastmcp import FastMCP
 from starlette.responses import JSONResponse
@@ -395,6 +396,10 @@ class FastMCPServer:
             self._logger.debug(
                 f"PR diff content preview (sanitized): {sanitized_preview}"
             )
+
+        self._logger.info(
+            "PR Diff (Pretty JSON):\n" + json.dumps(pr_diff.model_dump(), indent=2)
+        )
 
         return pr_diff
 
