@@ -14,6 +14,7 @@ from prdiffer.domain.services.github_api import GitHubAPIServiceInterface
 from prdiffer.domain.services.logger import LoggerServiceInterface
 from prdiffer.domain.entities.pr_diff import PRDiff
 from prdiffer.domain.entities.file_patch import FilePatchInfo, EDIT_TYPE
+from prdiffer.domain.entities.file_diff_response import FileDiffResponse, FileStats
 from prdiffer.infrastructure.github.api_client import GitHubAPIClient
 from prdiffer.infrastructure.github.diff_generator import DiffGenerator
 from prdiffer.infrastructure.github.file_processor import FileProcessor
@@ -23,7 +24,6 @@ from prdiffer.infrastructure.logging.exception_utils import (
 )
 from prdiffer.infrastructure.security.input_validator import InputValidator
 from prdiffer.infrastructure.settings import get_settings_service
-from prdiffer.infrastructure.utils.diff_limits import apply_diff_limits
 from prdiffer.infrastructure.utils.cache_decorator import (
     CachingMixin,
     cached_method,
@@ -168,27 +168,28 @@ class GitHubPRDiffService(CachingMixin, PRDiffServiceInterface):
                 return None
 
             # Generate diff content using async parallel processing
-            diff_content, diff_files = await self._generate_diff_content_async(
+            diff_files = await self._generate_diff_content_async(
                 repository, pull_request
             )
 
-            diff_content, _truncation_meta = apply_diff_limits(
-                diff_content,
-                self._diff_max_total_chars if self._diff_truncate_enabled else 0,
-                self._diff_truncation_notice,
-            )
+            # Convert FilePatchInfo list to FileDiffResponse list
+            file_responses = [
+                self._convert_file_patch_info_to_response(file_patch)
+                for file_patch in diff_files
+            ]
 
-            pr_diff = PRDiff(diff_content=diff_content)
+            pr_diff = PRDiff(files=file_responses)
 
             self._logger.info(
                 "Generated diff content (async parallel)",
                 repo_owner=repo_owner,
                 repo_name=repo_name,
                 pr_number=pr_number,
+                num_files=len(file_responses),
             )
 
             preview = InputValidator.sanitize_for_logging(
-                diff_content[:1000], max_length=1000
+                f"Files: {len(file_responses)}", max_length=1000
             )
             self._logger.debug("Diff content preview", preview=preview)
 
@@ -339,27 +340,26 @@ class GitHubPRDiffService(CachingMixin, PRDiffServiceInterface):
                 return None
 
             # Generate diff content
-            diff_content, diff_files = self._generate_diff_content(
-                repository, pull_request
-            )
+            diff_files = self._generate_diff_content(repository, pull_request)
 
-            diff_content, _truncation_meta = apply_diff_limits(
-                diff_content,
-                self._diff_max_total_chars if self._diff_truncate_enabled else 0,
-                self._diff_truncation_notice,
-            )
+            # Convert FilePatchInfo list to FileDiffResponse list
+            file_responses = [
+                self._convert_file_patch_info_to_response(file_patch)
+                for file_patch in diff_files
+            ]
 
-            pr_diff = PRDiff(diff_content=diff_content)
+            pr_diff = PRDiff(files=file_responses)
 
             self._logger.info(
                 "Generated diff content",
                 repo_owner=repo_owner,
                 repo_name=repo_name,
                 pr_number=pr_number,
+                num_files=len(file_responses),
             )
 
             preview = InputValidator.sanitize_for_logging(
-                diff_content[:1000], max_length=1000
+                f"Files: {len(file_responses)}", max_length=1000
             )
             self._logger.debug("Diff content preview", preview=preview)
 
@@ -459,24 +459,81 @@ class GitHubPRDiffService(CachingMixin, PRDiffServiceInterface):
 
         return status_mapping.get(status, EDIT_TYPE.UNKNOWN)
 
-    def _generate_diff_content(
-        self, repository, pull_request
-    ) -> tuple[str, list[FilePatchInfo]]:
-        """Generate diff content for the pull request.
+    def _convert_file_patch_info_to_response(
+        self, file_patch: FilePatchInfo
+    ) -> FileDiffResponse:
+        """Convert FilePatchInfo to FileDiffResponse for PRDiff structure.
+
+        Field mapping from FilePatchInfo to FileDiffResponse:
+        - filename → path
+        - edit_type → status
+        - num_plus_lines → stats.additions
+        - num_minus_lines → stats.deletions
+        - patch → diff
+
+        Args:
+            file_patch: FilePatchInfo object from domain layer
+
+        Returns:
+            FileDiffResponse: Converted object for structured response
+        """
+        stats = FileStats(
+            additions=file_patch.num_plus_lines, deletions=file_patch.num_minus_lines
+        )
+        return FileDiffResponse(
+            path=file_patch.filename,
+            status=file_patch.edit_type,
+            stats=stats,
+            diff=file_patch.patch or "",
+        )
+
+    def _generate_diff_content(self, repository, pull_request) -> list[FilePatchInfo]:
+        """Generate diff content for a pull request.
+
+        Returns FilePatchInfo list instead of concatenated string.
+        Breaking change: diff_content concatenation removed.
 
         Args:
             repository: GitHub repository instance
             pull_request: GitHub pull request instance
 
         Returns:
-            tuple[str, list[FilePatchInfo]]: Combined diff content and file metadata,
-            empty string/list on error
+            list[FilePatchInfo]: File metadata and patch content,
+            empty list on error
         """
         try:
             # Get the latest commit SHA for the PR
             latest_commit_sha = pull_request.head.sha
             if not latest_commit_sha:
-                return "", []
+                return []
+
+            # Get the base commit SHA (merge base)
+            base_commit_sha = self._get_base_commit_sha(repository, pull_request)
+            if not base_commit_sha:
+                return []
+
+            # Get and process files
+            github_files = pull_request.get_files()
+            if not github_files:
+                return []
+
+            # Process files to create FilePatchInfo objects with content
+            if self._file_processor:
+                # Use the proper file processor if available
+                diff_files = self._file_processor.process_files_to_patches(
+                    list(github_files), repository, latest_commit_sha, base_commit_sha
+                )
+            else:
+                # Fallback to simple conversion
+                diff_files = self._convert_github_files_to_file_patch_info(github_files)
+
+            return diff_files
+
+        except PR_SERVICE_EXCEPTIONS as e:
+            exc = cast(Exception, e)
+            sanitized = sanitize_exception_for_logging(exc)
+            self._logger.error("Failed to generate diff content", extra=sanitized)
+            return []
 
             # Get the base commit SHA (merge base)
             base_commit_sha = self._get_base_commit_sha(repository, pull_request)

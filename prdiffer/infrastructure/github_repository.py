@@ -14,6 +14,7 @@ from github.GithubException import (
 )
 import asyncer
 from prdiffer.domain.entities.pr_diff import PRDiff
+from prdiffer.domain.entities.file_diff_response import FileDiffResponse
 from prdiffer.domain.repositories import PRDiffRepositoryInterface
 from prdiffer.domain.services.logger import LoggerServiceInterface, LogLevel
 from prdiffer.infrastructure.settings import SettingsService, get_settings_service
@@ -28,7 +29,7 @@ from prdiffer.infrastructure.github.file_processor import get_file_processor
 from prdiffer.infrastructure.github.diff_generator import get_diff_generator
 from prdiffer.infrastructure.utils.pattern_matcher import get_pattern_matcher
 from prdiffer.infrastructure.utils.diff_utils import get_diff_utils
-from prdiffer.infrastructure.utils.diff_limits import apply_diff_limits
+from prdiffer.infrastructure.services.pr_diff_service import GitHubPRDiffService
 
 
 class GitHubPRDiffRepository(PRDiffRepositoryInterface):
@@ -537,28 +538,28 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
             filtered_files, self._repository, head_sha, base_sha
         )
 
-        extended_diffs = self._diff_generator.generate_extended_diff(
-            diff_files, add_line_numbers_to_hunks=False
+        service = GitHubPRDiffService(
+            github_api_client=self._github_api_client,
+            diff_generator=self._diff_generator,
+            file_processor=self._file_processor,
+            logger=self._logger,
         )
-        diff_content = "\n".join(extended_diffs)
+        # Convert FilePatchInfo list to FileDiffResponse list
+        file_responses: list[FileDiffResponse] = [
+            service._convert_file_patch_info_to_response(file_patch)
+            for file_patch in diff_files
+        ]
 
-        diff_content, _truncation_meta = apply_diff_limits(
-            diff_content,
-            self._diff_max_total_chars if self._diff_truncate_enabled else 0,
-            self._diff_truncation_notice,
-        )
-
-        self._logger.info(f"Generated diff content for {len(diff_files)} files")
+        self._logger.info(f"Generated diff content for {len(file_responses)} files")
 
         if self._logger.should_log(LogLevel.DEBUG):
-            preview_length = min(1000, len(diff_content))
             safe_diff_preview = self._input_validator.sanitize_for_logging(
-                diff_content[:preview_length],
+                f"Files: {len(file_responses)}",
                 max_length=1000,
             )
             self._logger.debug(f"Diff content preview:\n{safe_diff_preview}")
 
-        return PRDiff(diff_content=diff_content)
+        return PRDiff(files=file_responses)
 
     def _get_merge_base_commits(self) -> tuple[str, str]:
         """Get base and head commit SHAs, using merge base for accurate comparison.

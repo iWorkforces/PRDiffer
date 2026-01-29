@@ -70,18 +70,25 @@ class PROperationHandler(PROperationHandlerProtocol):
     async def get_pr_diff(self, pr_url: str) -> Dict[str, Any]:
         """Get PR diff information.
 
+        Automatic commit-based caching ensures fresh data is returned when PR changes.
+        Returns structured files array response for file-level diff analysis.
+
         Args:
             pr_url: GitHub PR URL (e.g., https://github.com/owner/repo/pull/123)
+            api_key: Optional API key for authentication (required if auth enabled)
 
         Returns:
-            Dictionary containing PR diff data
+            Dictionary containing structured files array with per-file metadata
+            Each file includes: path, status, stats (additions/deletions), diff
 
         Raises:
             ValueError: If URL format is invalid
             RuntimeError: If PR diff fetch fails
 
         Note:
-            Caching is automatic and always enabled based on commit SHA invalidation.
+            Breaking Change: Response now uses files array instead of concatenated diff_content string.
+            File metadata: path, status (added/modified/deleted/renamed/unknown),
+                           stats (additions, deletions), diff (full patch content)
         """
         try:
             # Validate input

@@ -1,7 +1,7 @@
 import time
 import hashlib
 import hmac
-from typing import Optional, Callable, Literal, cast, TypeAlias, NoReturn
+from typing import Optional, Callable, Literal, TypeAlias, NoReturn, cast
 from fastmcp import FastMCP
 from starlette.responses import JSONResponse
 from prdiffer.version import __version__
@@ -380,16 +380,17 @@ class FastMCPServer:
         execution_time = time.time() - start_time
         self._metrics_tracker.track_request("get_pr_diff", True, execution_time)
 
-        diff_size = len(pr_diff.diff_content)
-        diff_hash = hashlib.md5(pr_diff.diff_content.encode()).hexdigest()[:8]
+        diff_size = len(pr_diff.files)
+        diff_hash = hashlib.md5(str(pr_diff.files).encode()).hexdigest()[:8]
 
         self._logger.info(
-            f"Successfully fetched PR diff - size: {diff_size} bytes, hash: {diff_hash}..."
+            f"Successfully fetched PR diff - files: {diff_size}, hash: {diff_hash}..."
         )
 
         if self._logger.should_log(LogLevel.DEBUG):
             sanitized_preview = self._input_validator.sanitize_for_logging(
-                pr_diff.diff_content[:200], max_length=200
+                f"Files: {len(pr_diff.files)}, preview: {pr_diff.files[:2] if pr_diff.files else []}",
+                max_length=500,
             )
             self._logger.debug(
                 f"PR diff content preview (sanitized): {sanitized_preview}"
@@ -579,18 +580,27 @@ class FastMCPServer:
 
         @self.mcp.tool()
         async def get_pr_diff(pr_url: str, api_key: Optional[str] = None) -> PRDiff:
-            """Get the diff content for a specific GitHub pull request.
+            """Get the structured file-level diff content for a specific GitHub pull request.
 
-            Automatic commit-based caching ensures fresh data is returned when the PR changes.
+            Returns per-file diff information including:
+            - File paths
+            - Edit status (added, modified, deleted, renamed, unknown)
+            - Line statistics (additions, deletions)
+            - Full patch content for each file
 
             Args:
                 pr_url: The full GitHub PR URL (e.g., https://github.com/owner/repo/pull/123)
-                api_key: Optional API key for authentication (required if authentication is enabled)
+                api_key: Optional API key for authentication (required if auth enabled)
 
             Raises:
                 ValueError: If authentication fails or URL is invalid
                 RuntimeError: If rate limit is exceeded or API request fails
+
+            Note:
+                Breaking Change: Response now returns structured files array instead of concatenated diff_content string.
+                Automatic commit-based caching ensures fresh data is returned when PR changes.
             """
+
             request_id = self._generate_request_id()
             start_time = time.time()
 

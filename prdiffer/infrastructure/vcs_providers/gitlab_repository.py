@@ -103,23 +103,11 @@ class GitLabVCSRepository(VCSDiffRepositoryInterface):
                         )
 
                     mr_data = response.json()
-                    diff_content = '{{"Mock GitLab MR diff for MR #{}"}}\n'.format(pr)
-                    diff_content += "This is a demonstration provider.\n"
-                    diff_content += "In production, this would contain the actual diff from GitLab API.\n"
-                    base_sha = mr_data.get("diff_refs", {}).get("base_sha", "unknown")
-                    diff_content += "Base SHA: {}\n".format(base_sha)
-                    head_sha = mr_data.get("diff_refs", {}).get("head_sha", "unknown")
-                    diff_content += "Head SHA: {}\n".format(head_sha)
-
-                    return PRDiff(diff_content=diff_content)
+                    return PRDiff(files=[])
             except Exception:
                 raise RuntimeError("GitLab API error")
         else:
-            return PRDiff(
-                diff_content='{{"Mock GitLab diff (httpx not available)\\n\\nMR: {}\\nBase: unknown\\nHead: unknown\\n'.format(
-                    pr
-                )
-            )
+            return PRDiff(files=[])
 
     async def get_latest_commit_sha(self, owner: str, repo: str, pr: int) -> str:
         """Get latest head commit SHA for merge request.
