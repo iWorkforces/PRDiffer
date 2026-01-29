@@ -23,7 +23,6 @@ from prdiffer.infrastructure.async_parallel_executor import (
     ErrorStrategy,
 )
 from .etag_adapter import ETagRequestAdapter
-from .etag_http_adapter import get_etag_http_adapter
 
 
 # Exceptions to catch in GitHub API operations
@@ -76,6 +75,7 @@ class GitHubAPIClient(GitHubAPIServiceInterface):
         api_health_tracking: bool = True,
         context_aware_retry: bool = True,
         use_advanced_retry: bool = True,
+        max_concurrent: int = 4,
         logger=None,
         file_content_cache_max_size: int = DEFAULT_FILE_CONTENT_CACHE_MAX_SIZE,
         file_content_cache_ttl: int = DEFAULT_FILE_CONTENT_CACHE_TTL,
@@ -97,11 +97,12 @@ class GitHubAPIClient(GitHubAPIServiceInterface):
             adaptive_retry_enabled: Enable adaptive retry delays
             max_adaptive_delay: Maximum adaptive delay in seconds
             rate_limit_remaining_threshold: Remaining requests threshold for rate-limit handling
-            rate_limit_reset_buffer: Seconds to add to reset-based delay
+            rate_limit_reset_buffer: Seconds to add to reset-based delays
             secondary_rate_limit_backoff: Base delay in seconds for secondary rate limits
             api_health_tracking: Enable API health tracking
             context_aware_retry: Enable context-aware retry strategies
             use_advanced_retry: Use advanced retry handler (Phase 3)
+            max_concurrent: Maximum concurrent API operations
             logger: Logger instance for logging operations
             file_content_cache_max_size: Maximum number of entries in file content cache
             file_content_cache_ttl: TTL for file content cache entries in seconds
@@ -159,19 +160,14 @@ class GitHubAPIClient(GitHubAPIServiceInterface):
 
         # Async parallel executor for concurrent operations
         self._async_executor = AsyncParallelExecutor(
-            max_concurrent=4,  # Default max concurrent operations
+            max_concurrent=max_concurrent,
             error_strategy=ErrorStrategy.IGNORE,
             logger=self._logger,
         )
 
+        # ETag request adapter for conditional requests
         self._etag_request_adapter = ETagRequestAdapter(
-            enabled=True,
-            etag_ttl=self._cache_ttl,
-            etag_cache_size=self._cache_max_size,
-            logger=self._logger,
-        )
-
-        self._etag_http_adapter = get_etag_http_adapter(
+            cache_service=None,
             enabled=True,
             etag_ttl=self._cache_ttl,
             etag_cache_size=self._cache_max_size,
@@ -187,28 +183,11 @@ class GitHubAPIClient(GitHubAPIServiceInterface):
             github_token: GitHub personal access token for authentication
             timeout: API timeout in seconds
         """
-        try:
-            import requests
-        except ImportError:
-            self._logger.warning(
-                "requests library not available, ETag adapter will not be used"
-            )
-            if github_token:
-                auth = Token(github_token)
-                self._github_client = Github(auth=auth, timeout=timeout)
-            else:
-                self._github_client = Github(timeout=timeout)
-            return
-
-        session = requests.Session()
-        session.mount("https://", self._etag_http_adapter)
-        session.mount("http://", self._etag_http_adapter)
-
         if github_token:
             auth = Token(github_token)
-            self._github_client = Github(auth=auth, timeout=timeout, session=session)
+            self._github_client = Github(auth=auth, timeout=timeout)
         else:
-            self._github_client = Github(timeout=timeout, session=session)
+            self._github_client = Github(timeout=timeout)
 
     def get_repository(self, repo_full_name: str) -> Optional[Repository]:
         """Get a GitHub repository instance with retry logic.
@@ -569,10 +548,19 @@ class GitHubAPIClient(GitHubAPIServiceInterface):
         return ""
 
     def get_etag_stats(self) -> Dict[str, Any]:
-        return self._etag_http_adapter.get_stats()
+        """Get ETag adapter statistics.
+
+        Returns:
+            Dict[str, Any]: Statistics including cache size, hits, misses
+        """
+        return self._etag_request_adapter.get_stats()
 
     def clear_etag_cache(self) -> None:
-        self._etag_http_adapter.clear_cache()
+        """Clear the ETag cache.
+
+        This clears all cached ETags and resets statistics.
+        """
+        self._etag_request_adapter.clear_cache()
 
 
 def get_github_api_client(

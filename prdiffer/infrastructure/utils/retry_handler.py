@@ -41,7 +41,7 @@ SECONDARY_RATE_LIMIT_PATTERNS = {
 try:  # pragma: no cover - optional dependency for type narrowing
     from github import GithubException as PyGithubException
 except Exception:  # pragma: no cover - fallback when PyGithub isn't available
-    PyGithubException = None
+    PyGithubException: Optional[Type[BaseException]] = None
 
 # Exceptions to catch in retry operations
 # Note: We deliberately exclude KeyboardInterrupt, SystemExit, and GeneratorExit

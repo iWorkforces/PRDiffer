@@ -133,16 +133,24 @@ The server is configured via `settings.toml`. Key configuration options:
 [mcp]
 transport = "http"        # stdio, http, sse, streamable-http
 port = 9102
-host = "0.0.0.0"
+host = "127.0.0.1"
+path = "/mcp"
 
-[github]
+[default.github]
+github_token = ""
 rate_limit = 5000
 timeout = 30
-max_retries = 3
+ignore_patterns = ["*.lock", "node_modules/"]
+valid_extensions = [".py", ".js", ".ts", ".md"]
 
-[auth]
-enabled = true            # Enable authentication
-api_keys = []             # Configure via environment
+# Metrics and monitoring
+[metrics]
+enabled = true  # Enable metrics tracking
+prometheus_enabled = false  # Use Prometheus format
+include_stages = false  # Include stage-level timing
+
+# Webhook configuration
+github.webhook_secret = ""  # GitHub webhook secret for HMAC verification
 ```
 
 ### Architecture
@@ -214,6 +222,39 @@ See [SecurityUsageGuide.md](SecurityUsageGuide.md) for detailed security informa
 - **http**: HTTP server mode
 - **sse**: Server-sent events
 - **streamable-http**: FastMCP streamable HTTP
+
+### HTTP Endpoints
+
+The server exposes HTTP endpoints for monitoring and integration:
+
+- **GET /metrics**: Prometheus-formatted metrics including request counts, execution times, success rates, and system health. Requires `metrics.enabled=true` in settings.toml.
+- **POST /webhook**: GitHub webhook endpoint for cache invalidation. Requires HMAC signature verification with `GITHUB_WEBHOOK_SECRET` environment variable. Supported events: `push`, `pull_request` (opened, synchronize, reopened).
+
+### Streamable-HTTP Deployment
+
+For production deployments using streamable-http mode, configure a reverse proxy (nginx, Apache, Caddy) to add security headers:
+
+```nginx
+location /mcp {
+    proxy_pass http://localhost:9102;
+    
+    # Security headers
+    add_header X-Content-Type-Options nosniff;
+    add_header X-Frame-Options DENY;
+    add_header X-XSS-Protection "1; mode=block";
+    add_header Content-Security-Policy "default-src 'self'";
+    
+    # HSTS
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains";
+    
+    # Content-Security-Policy and HSTS
+    add_header Content-Security-Policy "default-src 'self'; frame-ancestors 'self'";
+    add_header Content-Security-Policy "upgrade-insecure-requests";
+    
+    # Referrer
+    add_header Referrer-Policy: strict-origin-when-cross-origin;
+}
+```
 
 ## License
 

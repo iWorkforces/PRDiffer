@@ -10,15 +10,19 @@ from typing import Optional, Any, Dict
 class PRDifferException(Exception):
     """Base exception for all PRDiffer errors.
 
-    All custom exceptions should inherit from this base class.
+    All custom exceptions in the PRDiffer application should inherit from this
+    base class to ensure consistent error handling and logging across the system.
+    This exception provides a structured way to pass error context through the
+    optional details dictionary.
     """
 
     def __init__(self, message: str, details: Optional[Dict[str, Any]] = None):
-        """Initialize exception with message and optional details.
+        """Initialize PRDifferException with message and optional details.
 
         Args:
-            message: Human-readable error message
-            details: Optional dictionary with additional error context
+            message (str): Human-readable error message describing what went wrong.
+            details (Optional[Dict[str, Any]]): Optional dictionary with additional
+                error context for debugging and logging purposes. Defaults to None.
         """
         super().__init__(message)
         self.message = message
@@ -31,13 +35,23 @@ class PRDifferException(Exception):
 
 
 class AuthenticationError(PRDifferException):
-    """Raised when authentication fails."""
+    """Raised when authentication fails.
+
+    This exception is raised when the system cannot authenticate a user or
+    service, typically due to invalid credentials, missing authentication
+    tokens, or authentication service failures.
+    """
 
     pass
 
 
 class InvalidTokenError(AuthenticationError):
-    """Raised when provided token is invalid or malformed."""
+    """Raised when provided token is invalid or malformed.
+
+    This exception occurs when an authentication token fails validation,
+    typically due to incorrect format, invalid characters, or structure
+    that doesn't meet token specifications.
+    """
 
     pass
 

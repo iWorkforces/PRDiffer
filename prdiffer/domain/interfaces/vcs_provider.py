@@ -1,7 +1,16 @@
 """VCS provider interface for multi-provider support.
 
-This interface abstracts the differences between various VCS providers
-(GitHub, GitLab, Bitbucket, etc.) to enable pluggable support.
+This module defines the abstraction layer for Version Control System (VCS)
+providers, enabling pluggable support for different hosting platforms like
+GitHub, GitLab, Bitbucket, and others. The interface allows the application
+to interact with various VCS providers through a unified API without modifying
+core application code.
+
+The interface abstracts provider-specific differences in:
+- API authentication and connection handling
+- PR/MR (Pull Request/Merge Request) retrieval
+- Diff extraction and formatting
+- Repository URL parsing and validation
 """
 
 from abc import ABC, abstractmethod

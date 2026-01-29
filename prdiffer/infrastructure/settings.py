@@ -181,8 +181,6 @@ class SettingsService(SettingsServiceInterface):
             ),
             # File processing limits
             max_files_allowed=get_with_fallback("app.max_files_allowed", 50),
-            # Async parallel executor settings
-            max_concurrent=get_with_fallback("github.max_concurrent", 4),
             # Diff processing thresholds
             large_file_threshold=get_with_fallback("diff.large_file_threshold", 5000),
             chunk_size=get_with_fallback("diff.chunk_size", 1000),

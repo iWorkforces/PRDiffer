@@ -26,8 +26,8 @@ def parse_github_pr_url(pr_url: str) -> Tuple[str, str, int]:
         InvalidURLError: If URL format is invalid or components are malformed
         InvalidPRNumberError: If PR number is not a valid integer
     """
-    if not isinstance(pr_url, str):
-        raise InvalidURLError(f"PR URL must be a string, got {type(pr_url).__name__}")
+    if pr_url is None or not pr_url:
+        raise InvalidURLError("PR URL cannot be None or empty")
 
     pr_url = pr_url.strip()
 

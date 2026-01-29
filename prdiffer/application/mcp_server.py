@@ -3,6 +3,7 @@ import hashlib
 import hmac
 from typing import Optional, Callable, Literal, cast, TypeAlias, NoReturn
 from fastmcp import FastMCP
+from starlette.responses import JSONResponse
 from prdiffer.version import __version__
 from prdiffer.domain.entities.pr_diff import PRDiff
 from prdiffer.domain.usecases.pr_diff_usecases import GetPRDiffUseCase
@@ -382,9 +383,6 @@ class FastMCPServer:
         diff_size = len(pr_diff.diff_content)
         diff_hash = hashlib.md5(pr_diff.diff_content.encode()).hexdigest()[:8]
 
-        diff_size = len(pr_diff.diff_content)
-        diff_hash = hashlib.md5(pr_diff.diff_content.encode()).hexdigest()[:8]
-
         self._logger.info(
             f"Successfully fetched PR diff - size: {diff_size} bytes, hash: {diff_hash}..."
         )
@@ -513,35 +511,18 @@ class FastMCPServer:
             )
             return {"status": "error", "message": "Webhook secret not configured"}
 
-        event_type = payload.get("action", "unknown")
-
-        if event_type not in [
-            "push",
-            "pull_request",
-            "opened",
-            "synchronize",
-            "reopened",
-        ]:
+        if github_event not in ["pull_request", "push"]:
             self._logger.warning(
                 "Unsupported webhook event type",
-                event_type=event_type,
                 github_event=github_event,
             )
             return {"status": "error", "message": "Unsupported event type"}
-
-        expected_signature = f"sha1={hmac.new(webhook_secret.encode()).hexdigest()}"
-
-        if not hmac.compare_digest(expected_signature.encode(), signature.encode()):
-            self._logger.warning(
-                "Invalid webhook signature",
-                github_event=github_event,
-            )
-            return {"status": "error", "message": "Invalid signature"}
 
         repository = payload.get("repository", {})
         repository_full_name = repository.get("full_name", "")
         number = payload.get("number")
         action = payload.get("action")
+        cache_key = None
 
         if not repository_full_name:
             self._logger.warning(
@@ -550,34 +531,30 @@ class FastMCPServer:
             )
             return {"status": "error", "message": "Missing repository info"}
 
-        if action in ["opened", "synchronize", "reopened"]:
-            cache_key = f"{repository_full_name}/pr/{number}"
+        import json
 
-            if action == "opened":
-                self._logger.info(
-                    "Invalidating cache on PR opened",
-                    cache_key=cache_key,
-                    github_event=github_event,
-                )
-                self._repository_cache_service.invalidate(cache_key)
-            elif action in ["synchronize", "reopened"]:
+        payload_bytes = json.dumps(payload).encode("utf-8")
+
+        expected_signature = f"sha1={hmac.new(webhook_secret.encode(), payload_bytes, 'sha1').hexdigest()}"
+
+        if not hmac.compare_digest(expected_signature.encode(), signature.encode()):
+            self._logger.warning(
+                "Invalid webhook signature",
+                github_event=github_event,
+            )
+            return {"status": "error", "message": "Invalid signature"}
+
+        if github_event == "pull_request":
+            if action in ["opened", "synchronize", "reopened"]:
+                cache_key = f"{repository_full_name}/pr/{number}"
                 self._logger.info(
                     "Invalidating cache on PR updated",
                     cache_key=cache_key,
                     github_event=github_event,
                 )
                 self._repository_cache_service.invalidate(cache_key)
-            elif action in ["synchronize", "reopened"]:
-                self._logger.info(
-                    "Invalidating cache on PR updated",
-                    cache_key=cache_key,
-                    github_event=github_event,
-                )
-                self._repository_cache_service.invalidate(cache_key)
-
-        elif event_type == "push":
+        elif github_event == "push":
             cache_key = repository_full_name
-
             self._logger.info(
                 "Invalidating cache on push",
                 cache_key=cache_key,
@@ -689,6 +666,73 @@ class FastMCPServer:
                 # Return safe error message that doesn't expose internals
                 safe_message = self._create_safe_error_message(e)
                 return {"status": "unhealthy", "error": safe_message}
+
+        @self.mcp.custom_route("/webhook", methods=["POST"])
+        async def webhook_handler(request):
+            """Handle GitHub webhook events for cache invalidation.
+
+            GitHub sends webhook events to this endpoint, which triggers
+            cache invalidation for affected repositories and PRs.
+
+            Args:
+                request: FastAPI Request object containing webhook payload and headers
+
+            Returns:
+                JSONResponse with status indicating success or failure
+            """
+            import json
+
+            try:
+                signature = request.headers.get("X-Hub-Signature", "")
+                github_event = request.headers.get("X-GitHub-Event", "")
+
+                payload = await request.json()
+
+                result = await self.webhook_invalidate_cache(
+                    payload, signature, github_event
+                )
+
+                return JSONResponse(result, status_code=200)
+            except json.JSONDecodeError as e:
+                self._logger.error(
+                    "Failed to parse webhook payload",
+                    error=str(e),
+                    error_type=type(e).__name__,
+                )
+                return JSONResponse(
+                    {"status": "error", "message": "Invalid JSON payload"},
+                    status_code=400,
+                )
+            except Exception as e:
+                self._logger.error(
+                    "Webhook handler error",
+                    error=str(e),
+                    error_type=type(e).__name__,
+                )
+                return JSONResponse(
+                    {"status": "error", "message": "Internal server error"},
+                    status_code=500,
+                )
+
+        @self.mcp.custom_route("/metrics", methods=["GET"])
+        async def metrics_handler(request):
+            try:
+                metrics = self._metrics_tracker.get_metrics_summary()
+                return JSONResponse(metrics)
+            except (RuntimeError, KeyError, AttributeError) as e:
+                self._logger.error(
+                    "Failed to get metrics",
+                    error=str(e),
+                    error_type=type(e).__name__,
+                )
+                return JSONResponse(
+                    {
+                        "server": "prdiffer",
+                        "error": "Failed to get metrics",
+                        "message": "Internal server error",
+                    },
+                    status_code=500,
+                )
 
         @self.mcp.tool()
         async def approve_pr(

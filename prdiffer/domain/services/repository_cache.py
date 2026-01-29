@@ -95,3 +95,15 @@ class RepositoryCacheServiceInterface(ABC):
             Dict containing cache statistics
         """
         pass
+
+    @abstractmethod
+    def invalidate(self, cache_key: str) -> bool:
+        """Invalidate a cache entry by key.
+
+        Args:
+            cache_key: Cache key to invalidate (format: "owner/repo" or "owner/repo/pr/number")
+
+        Returns:
+            bool: True if invalidated successfully, False if not found
+        """
+        pass

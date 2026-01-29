@@ -1,6 +1,6 @@
 """PR operation handler component for GitHub PR-related operations."""
 
-from typing import Dict, Any, Optional, Tuple
+from typing import Dict, Any, Optional, Tuple, Callable
 
 from prdiffer.domain.interfaces.protocols import PROperationHandlerProtocol
 from prdiffer.domain.entities.pr_diff import PRDiff
@@ -22,7 +22,7 @@ class PROperationHandler(PROperationHandlerProtocol):
 
     def __init__(
         self,
-        github_repository_class,
+        github_repository_class: Callable[[str, str, int], PRDiffRepositoryInterface],
         cache_service: CacheServiceInterface,
         repository_cache_service: RepositoryCacheServiceInterface,
         logger: LoggerServiceInterface,
@@ -31,7 +31,7 @@ class PROperationHandler(PROperationHandlerProtocol):
         """Initialize PR operation handler.
 
         Args:
-            github_repository_class: Class for creating GitHub repository instances
+            github_repository_class: Callable that creates GitHub repository instances
             cache_service: Cache service for storing PR data
             repository_cache_service: Repository cache service
             logger: Logger service instance (injected via dependency inversion)
@@ -98,6 +98,7 @@ class PROperationHandler(PROperationHandlerProtocol):
                 )
             )
 
+            repository: PRDiffRepositoryInterface
             if cached_repository is None:
                 # Create new repository instance
                 repository = self._github_repository_class(
@@ -118,12 +119,7 @@ class PROperationHandler(PROperationHandlerProtocol):
                 )
                 repository = cached_repository
 
-            # Execute use case with automatic caching
-            # repository is guaranteed to be set at this point
-
-            # Initialize the repository with settings
-            if hasattr(repository, "initialize") and callable(repository.initialize):
-                await repository.initialize()
+            await repository.initialize()
 
             # Execute the repository directly (since we don't have a PRDiffService)
             pr_diff: Optional[PRDiff] = await repository.get_pr_diff()

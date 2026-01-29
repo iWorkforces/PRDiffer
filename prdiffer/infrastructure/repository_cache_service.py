@@ -338,6 +338,38 @@ class RepositoryCacheService(RepositoryCacheServiceInterface):
             "ttl_seconds": self._ttl_seconds,
         }
 
+    @with_lock()
+    def invalidate(self, cache_key: str) -> bool:
+        """Invalidate a cache entry by key.
+
+        Args:
+            cache_key: Cache key to invalidate (format: "owner/repo" or "owner/repo/pr/number")
+
+        Returns:
+            bool: True if invalidated successfully, False if not found
+        """
+        parts = cache_key.split("/")
+        if len(parts) == 2:
+            repo_owner, repo_name = parts
+            return self.remove(repo_owner, repo_name, 0)
+        elif len(parts) == 4 and parts[2] == "pr":
+            repo_owner, repo_name, _, pr_number_str = parts
+            try:
+                pr_number = int(pr_number_str)
+                return self.remove(repo_owner, repo_name, pr_number)
+            except ValueError:
+                self._logger.warning(
+                    "Invalid PR number in cache key",
+                    cache_key=cache_key,
+                )
+                return False
+        else:
+            self._logger.warning(
+                "Invalid cache key format",
+                cache_key=cache_key,
+            )
+            return False
+
 
 # Singleton instance for global access
 _repository_cache_service = None

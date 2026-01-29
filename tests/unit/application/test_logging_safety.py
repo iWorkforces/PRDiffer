@@ -4,7 +4,6 @@ This test ensures that sensitive information like full diff content
 is not logged at INFO level, only at DEBUG level with redaction.
 """
 
-import hashlib
 from unittest.mock import Mock
 
 import pytest
@@ -96,7 +95,7 @@ index 1234567..abcdefg 100644
         sample_diff_content = "sample diff content for testing"
         pr_diff = PRDiff(diff_content=sample_diff_content)
 
-        result = server_with_mock_logger._log_metrics_and_return_success(
+        server_with_mock_logger._log_metrics_and_return_success(
             start_time=0.0, pr_diff=pr_diff
         )
 
@@ -144,7 +143,7 @@ index 1234567..abcdefg 100644
         sample_diff_content = "diff content for debug testing"
         pr_diff = PRDiff(diff_content=sample_diff_content)
 
-        result = server_with_mock_logger._log_metrics_and_return_success(
+        server_with_mock_logger._log_metrics_and_return_success(
             start_time=0.0, pr_diff=pr_diff
         )
 

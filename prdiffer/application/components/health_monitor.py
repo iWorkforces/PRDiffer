@@ -2,7 +2,11 @@
 
 import logging
 from typing import Dict, Any, Optional
-from prdiffer.domain.interfaces.protocols import HealthMonitorProtocol
+from prdiffer.domain.interfaces.protocols import (
+    HealthMonitorProtocol,
+    MetricsTrackerProtocol,
+    RateLimiterProtocol,
+)
 
 
 class HealthMonitor(HealthMonitorProtocol):
@@ -10,8 +14,8 @@ class HealthMonitor(HealthMonitorProtocol):
 
     def __init__(
         self,
-        metrics_tracker,  # MetricsTrackerProtocol
-        rate_limiter,  # RateLimiterProtocol
+        metrics_tracker: MetricsTrackerProtocol,
+        rate_limiter: RateLimiterProtocol,
         logger: Optional[Any] = None,
     ):
         """Initialize health monitor.

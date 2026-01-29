@@ -89,7 +89,8 @@ class TestGitLabVCSRepository:
         provider = GitLabVCSRepository()
         assert not provider.supports_repository("not-a-valid-url")
 
-    def test_get_latest_commit_sha_returns_unknown_without_httpx(self):
+    @pytest.mark.asyncio
+    async def test_get_latest_commit_sha_returns_unknown_without_httpx(self):
         """Provider should return 'unknown' when httpx not available."""
         provider = GitLabVCSRepository()
         sha = await provider.get_latest_commit_sha("owner", "repo", 123)
