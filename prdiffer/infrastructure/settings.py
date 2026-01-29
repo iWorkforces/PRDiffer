@@ -113,6 +113,7 @@ class SettingsService(SettingsServiceInterface):
             "diff_worker_timeout": get_with_fallback(
                 "github.diff_worker_timeout", 30.0
             ),
+            "max_concurrent": get_with_fallback("github.max_concurrent", 4),
         }
 
     @lru_cache(maxsize=1)
@@ -180,6 +181,8 @@ class SettingsService(SettingsServiceInterface):
             ),
             # File processing limits
             max_files_allowed=get_with_fallback("app.max_files_allowed", 50),
+            # Async parallel executor settings
+            max_concurrent=get_with_fallback("github.max_concurrent", 4),
             # Diff processing thresholds
             large_file_threshold=get_with_fallback("diff.large_file_threshold", 5000),
             chunk_size=get_with_fallback("diff.chunk_size", 1000),

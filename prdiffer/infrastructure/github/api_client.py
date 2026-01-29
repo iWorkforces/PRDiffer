@@ -22,6 +22,7 @@ from prdiffer.infrastructure.async_parallel_executor import (
     AsyncParallelExecutor,
     ErrorStrategy,
 )
+from .etag_adapter import ETagRequestAdapter
 
 
 # Exceptions to catch in GitHub API operations
@@ -159,6 +160,13 @@ class GitHubAPIClient(GitHubAPIServiceInterface):
         self._async_executor = AsyncParallelExecutor(
             max_concurrent=4,  # Default max concurrent operations
             error_strategy=ErrorStrategy.IGNORE,
+            logger=self._logger,
+        )
+
+        self._etag_adapter = ETagRequestAdapter(
+            enabled=True,
+            etag_ttl=self._cache_ttl,
+            etag_cache_size=self._cache_max_size,
             logger=self._logger,
         )
 
@@ -534,6 +542,12 @@ class GitHubAPIClient(GitHubAPIServiceInterface):
         if content and hasattr(content, "decoded_content") and content.decoded_content:
             return str(content.decoded_content.decode())
         return ""
+
+    def get_etag_stats(self) -> Dict[str, Any]:
+        return self._etag_adapter.get_stats()
+
+    def clear_etag_cache(self) -> None:
+        self._etag_adapter.clear_cache()
 
 
 def get_github_api_client(

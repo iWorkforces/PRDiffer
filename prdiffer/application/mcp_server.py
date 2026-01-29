@@ -1,4 +1,6 @@
 import time
+import hashlib
+import hmac
 from typing import Optional, Callable, Literal, cast, TypeAlias, NoReturn
 from fastmcp import FastMCP
 from prdiffer.version import __version__
@@ -8,7 +10,7 @@ from prdiffer.domain.services.pr_diff_service import PRDiffServiceInterface
 from prdiffer.domain.services.settings import SettingsServiceInterface
 from prdiffer.domain.services.cache import CacheServiceInterface
 from prdiffer.domain.services.repository_cache import RepositoryCacheServiceInterface
-from prdiffer.domain.services.logger import LoggerServiceInterface
+from prdiffer.domain.services.logger import LoggerServiceInterface, LogLevel
 from prdiffer.domain.repositories.pr_diff_repository import PRDiffRepositoryInterface
 from prdiffer.infrastructure.security.input_validator import InputValidator
 from prdiffer.infrastructure.request_coalescing import RequestCoalescingService
@@ -365,7 +367,7 @@ class FastMCPServer:
     def _log_metrics_and_return_success(
         self, start_time: float, pr_diff: PRDiff
     ) -> PRDiff:
-        """Log successful request metrics and return the PR diff result.
+        """Log successful request metrics and return PR diff result.
 
         Args:
             start_time: Request start time
@@ -377,7 +379,24 @@ class FastMCPServer:
         execution_time = time.time() - start_time
         self._metrics_tracker.track_request("get_pr_diff", True, execution_time)
 
-        self._logger.info(f"Successfully fetched PR diff\n {pr_diff.diff_content}")
+        diff_size = len(pr_diff.diff_content)
+        diff_hash = hashlib.md5(pr_diff.diff_content.encode()).hexdigest()[:8]
+
+        diff_size = len(pr_diff.diff_content)
+        diff_hash = hashlib.md5(pr_diff.diff_content.encode()).hexdigest()[:8]
+
+        self._logger.info(
+            f"Successfully fetched PR diff - size: {diff_size} bytes, hash: {diff_hash}..."
+        )
+
+        if self._logger.should_log(LogLevel.DEBUG):
+            sanitized_preview = self._input_validator.sanitize_for_logging(
+                pr_diff.diff_content[:200], max_length=200
+            )
+            self._logger.debug(
+                f"PR diff content preview (sanitized): {sanitized_preview}"
+            )
+
         return pr_diff
 
     def _handle_security_exception(
@@ -468,6 +487,112 @@ class FastMCPServer:
 
         safe_message = self._create_safe_error_message(exception)
         raise RuntimeError(f"Failed to fetch PR diff: {safe_message}")
+
+    async def webhook_invalidate_cache(
+        self, payload: dict, signature: str, github_event: str
+    ) -> dict:
+        """Handle webhook events for cache invalidation with HMAC verification.
+
+        Args:
+            payload: Webhook payload from GitHub
+            signature: HMAC signature header value
+            github_event: GitHub event type (push, pull_request, etc.)
+
+        Returns:
+            dict: Response indicating success or failure
+
+        Raises:
+            ValueError: If signature verification fails or payload is invalid
+        """
+        webhook_secret = self._settings_service.get("github.webhook.secret", default="")
+
+        if not webhook_secret:
+            self._logger.warning(
+                "Webhook received but no secret configured",
+                github_event=github_event,
+            )
+            return {"status": "error", "message": "Webhook secret not configured"}
+
+        event_type = payload.get("action", "unknown")
+
+        if event_type not in [
+            "push",
+            "pull_request",
+            "opened",
+            "synchronize",
+            "reopened",
+        ]:
+            self._logger.warning(
+                "Unsupported webhook event type",
+                event_type=event_type,
+                github_event=github_event,
+            )
+            return {"status": "error", "message": "Unsupported event type"}
+
+        expected_signature = f"sha1={hmac.new(webhook_secret.encode()).hexdigest()}"
+
+        if not hmac.compare_digest(expected_signature.encode(), signature.encode()):
+            self._logger.warning(
+                "Invalid webhook signature",
+                github_event=github_event,
+            )
+            return {"status": "error", "message": "Invalid signature"}
+
+        repository = payload.get("repository", {})
+        repository_full_name = repository.get("full_name", "")
+        number = payload.get("number")
+        action = payload.get("action")
+
+        if not repository_full_name:
+            self._logger.warning(
+                "Webhook payload missing repository information",
+                github_event=github_event,
+            )
+            return {"status": "error", "message": "Missing repository info"}
+
+        if action in ["opened", "synchronize", "reopened"]:
+            cache_key = f"{repository_full_name}/pr/{number}"
+
+            if action == "opened":
+                self._logger.info(
+                    "Invalidating cache on PR opened",
+                    cache_key=cache_key,
+                    github_event=github_event,
+                )
+                self._repository_cache_service.invalidate(cache_key)
+            elif action in ["synchronize", "reopened"]:
+                self._logger.info(
+                    "Invalidating cache on PR updated",
+                    cache_key=cache_key,
+                    github_event=github_event,
+                )
+                self._repository_cache_service.invalidate(cache_key)
+            elif action in ["synchronize", "reopened"]:
+                self._logger.info(
+                    "Invalidating cache on PR updated",
+                    cache_key=cache_key,
+                    github_event=github_event,
+                )
+                self._repository_cache_service.invalidate(cache_key)
+
+        elif event_type == "push":
+            cache_key = repository_full_name
+
+            self._logger.info(
+                "Invalidating cache on push",
+                cache_key=cache_key,
+                github_event=github_event,
+            )
+            self._repository_cache_service.invalidate(cache_key)
+            self._cache_service.invalidate(repository_full_name)
+
+        self._logger.info(
+            "Webhook processed successfully",
+            github_event=github_event,
+            cache_key=cache_key if cache_key else "N/A",
+        )
+
+        return {"status": "success", "message": "Cache invalidated"}
 
     def _register_tools(self):
         """Register FastMCP tools with the server instance.
