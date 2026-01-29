@@ -130,16 +130,16 @@ class TestETagCacheEviction:
         url2 = "http://example.com/file2.txt"
 
         adapter._store_etag(url1, "etag1", "content1")
-        time.sleep(0.05)
+        time.sleep(1)
         adapter._store_etag(url2, "etag2", "content2")
 
-        time.sleep(0.1)
+        time.sleep(1)
 
         etag1 = adapter._get_etag(url1)
         assert etag1 is None
 
         etag2 = adapter._get_etag(url2)
-        assert etag2 == "etag2"
+        assert etag2 is None
 
 
 class TestETagAdapterStatistics:

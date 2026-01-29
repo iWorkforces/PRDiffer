@@ -108,13 +108,7 @@ class ETagRequestAdapter:
         age = time.time() - entry["timestamp"]
 
         if age > self._etag_ttl:
-            del self._etag_cache[cache_key]
             self._etag_misses += 1
-            self._logger.debug(
-                f"ETag cache entry expired for {url[:60]}...",
-                cache_key=cache_key[:40],
-                age_seconds=int(age),
-            )
             return None
 
         self._etag_cache.move_to_end(cache_key)
@@ -151,12 +145,16 @@ class ETagRequestAdapter:
             etag: The ETag from the response
             content: The response content (optional, for 304 handling)
         """
+        if not self._enabled:
+            return
+
         cache_key = self._get_cache_key(url)
 
         if cache_key in self._etag_cache:
             del self._etag_cache[cache_key]
         else:
-            self._evict_oldest_entries()
+            if len(self._etag_cache) >= self._etag_cache_size:
+                self._evict_oldest_entries()
 
         self._etag_cache[cache_key] = {
             "etag": etag,
