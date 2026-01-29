@@ -1,11 +1,14 @@
 """Unit tests for GitHub PR URL parser.
 
-Tests for parse_github_pr_url function that extracts owner, repository,
-and PR number from GitHub PR URLs.
+Tests for parse_github_pr_url and validate_github_pr_url functions
+that extract and validate owner, repository, and PR number from GitHub PR URLs.
 """
 
 import pytest
-from prdiffer.infrastructure.utils.url_parser import parse_github_pr_url
+from prdiffer.infrastructure.utils.url_parser import (
+    parse_github_pr_url,
+    validate_github_pr_url,
+)
 from prdiffer.domain.exceptions import InvalidURLError, InvalidPRNumberError
 
 
@@ -112,7 +115,7 @@ class TestUrlParser:
         """Test parsing URL with non-numeric PR number."""
         url = "https://github.com/owner/repo/pull/abc"
 
-        with pytest.raises(InvalidPRNumberError, match="Invalid PR number"):
+        with pytest.raises(InvalidURLError, match="Invalid GitHub PR URL format"):
             parse_github_pr_url(url)
 
     def test_parse_url_with_zero_pr_number(self):
@@ -126,7 +129,7 @@ class TestUrlParser:
         """Test parsing URL with negative PR number."""
         url = "https://github.com/owner/repo/pull/-1"
 
-        with pytest.raises(InvalidPRNumberError, match="Invalid PR number"):
+        with pytest.raises(InvalidURLError, match="Invalid GitHub PR URL format"):
             parse_github_pr_url(url)
 
     def test_parse_url_with_too_large_pr_number(self):
@@ -162,7 +165,7 @@ class TestUrlParser:
         """Test parsing URL with invalid characters in owner."""
         url = "https://github.com/owner@bad/repo/pull/123"
 
-        with pytest.raises(InvalidURLError, match="contains invalid characters"):
+        with pytest.raises(InvalidURLError, match="Invalid GitHub PR URL format"):
             parse_github_pr_url(url)
 
     def test_parse_url_too_long(self):
@@ -178,3 +181,46 @@ class TestUrlParser:
 
         with pytest.raises(InvalidURLError, match="must be a string"):
             parse_github_pr_url(url)
+
+    # Validation function tests
+    def test_validate_valid_url(self):
+        """Test validation returns True for valid URL."""
+        url = "https://github.com/owner/repo/pull/123"
+
+        assert validate_github_pr_url(url) is True
+
+    def test_validate_url_with_pulls_path(self):
+        """Test validation returns True for URL with 'pulls/' path."""
+        url = "https://github.com/owner/repo/pulls/456"
+
+        assert validate_github_pr_url(url) is True
+
+    def test_validate_invalid_url_format(self):
+        """Test validation returns False for invalid URL format."""
+        url = "https://gitlab.com/owner/repo/pull/123"
+
+        assert validate_github_pr_url(url) is False
+
+    def test_validate_url_with_non_numeric_pr(self):
+        """Test validation returns False for non-numeric PR number."""
+        url = "https://github.com/owner/repo/pull/abc"
+
+        assert validate_github_pr_url(url) is False
+
+    def test_validate_url_with_negative_pr(self):
+        """Test validation returns False for negative PR number."""
+        url = "https://github.com/owner/repo/pull/-1"
+
+        assert validate_github_pr_url(url) is False
+
+    def test_validate_empty_url(self):
+        """Test validation returns False for empty URL."""
+        url = ""
+
+        assert validate_github_pr_url(url) is False
+
+    def test_validate_url_with_invalid_characters(self):
+        """Test validation returns False for URL with invalid characters."""
+        url = "https://github.com/owner@bad/repo/pull/123"
+
+        assert validate_github_pr_url(url) is False

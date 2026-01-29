@@ -1,6 +1,5 @@
 """PR operation handler component for GitHub PR-related operations."""
 
-import re
 from typing import Dict, Any, Optional, Tuple
 
 from prdiffer.domain.interfaces.protocols import PROperationHandlerProtocol
@@ -9,6 +8,13 @@ from prdiffer.domain.services.cache import CacheServiceInterface
 from prdiffer.domain.services.logger import LoggerServiceInterface
 from prdiffer.domain.services.repository_cache import RepositoryCacheServiceInterface
 from prdiffer.domain.repositories.pr_diff_repository import PRDiffRepositoryInterface
+from prdiffer.domain.exceptions import (
+    InvalidPRNumberError,
+    InvalidRepositoryError,
+    InvalidURLError,
+    SuspiciousOperationError,
+)
+from prdiffer.infrastructure.security.input_validator import InputValidator
 
 
 class PROperationHandler(PROperationHandlerProtocol):
@@ -20,6 +26,7 @@ class PROperationHandler(PROperationHandlerProtocol):
         cache_service: CacheServiceInterface,
         repository_cache_service: RepositoryCacheServiceInterface,
         logger: LoggerServiceInterface,
+        input_validator: Optional[InputValidator] = None,
     ):
         """Initialize PR operation handler.
 
@@ -33,6 +40,7 @@ class PROperationHandler(PROperationHandlerProtocol):
         self._cache_service = cache_service
         self._repository_cache_service = repository_cache_service
         self._logger = logger
+        self._input_validator = input_validator or InputValidator()
 
     def _parse_pr_url(self, pr_url: str) -> Tuple[str, str, int]:
         """Parse GitHub PR URL to extract repository and PR information.
@@ -46,20 +54,18 @@ class PROperationHandler(PROperationHandlerProtocol):
         Raises:
             ValueError: If URL format is invalid
         """
-        pattern = r"https://github\.com/([^/]+)/([^/]+)/pull/(\d+)"
-        match = re.match(pattern, pr_url)
-
-        if not match:
+        try:
+            return self._input_validator.validate_github_url(pr_url)
+        except (
+            InvalidURLError,
+            InvalidRepositoryError,
+            InvalidPRNumberError,
+            SuspiciousOperationError,
+        ) as exc:
             raise ValueError(
                 f"Invalid GitHub PR URL format. Expected format: "
                 f"https://github.com/owner/repo/pull/123, got: {pr_url}"
-            )
-
-        repo_owner = match.group(1)
-        repo_name = match.group(2)
-        pr_number = int(match.group(3))
-
-        return repo_owner, repo_name, pr_number
+            ) from exc
 
     async def get_pr_diff(self, pr_url: str) -> Dict[str, Any]:
         """Get PR diff information.

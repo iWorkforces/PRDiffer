@@ -23,22 +23,27 @@ from prdiffer.domain.exceptions import (
 )
 
 
+@pytest.fixture()
+def validator() -> InputValidator:
+    return InputValidator()
+
+
 @pytest.mark.unit
 class TestGitHubURLValidation:
     """Test GitHub URL validation functionality."""
 
-    def test_validate_valid_github_url(self):
+    def test_validate_valid_github_url(self, validator: InputValidator):
         """Test validation of a properly formatted GitHub PR URL."""
-        owner, repo, pr_number = InputValidator.validate_github_url(
+        owner, repo, pr_number = validator.validate_github_url(
             "https://github.com/anthropics/claude-code/pull/123"
         )
         assert owner == "anthropics"
         assert repo == "claude-code"
         assert pr_number == 123
 
-    def test_validate_github_url_with_trailing_slash(self):
+    def test_validate_github_url_with_trailing_slash(self, validator: InputValidator):
         """Test URL validation handles trailing slash."""
-        owner, repo, pr_number = InputValidator.validate_github_url(
+        owner, repo, pr_number = validator.validate_github_url(
             "https://github.com/owner/repo/pull/456/"
         )
         assert owner == "owner"
@@ -56,29 +61,34 @@ class TestGitHubURLValidation:
             ("https://github.com/owner/pull/123", InvalidURLError),  # Missing repo
             ("https://github.com/owner/repo/123", InvalidURLError),  # Missing 'pull'
             (
-                "https://github.com/owner/repo/pull/abc",
-                InvalidURLError,
+                "https://github.com/owner/repo/pull/0",
+                InvalidPRNumberError,
             ),  # Invalid PR number
-            ("https://github.com/owner/repo/pull/-1", InvalidURLError),  # Negative PR
+            (
+                "https://github.com/owner/repo/pull/1000001",
+                InvalidPRNumberError,
+            ),  # PR number too large
         ],
     )
-    def test_validate_invalid_github_urls(self, invalid_url, expected_exception):
+    def test_validate_invalid_github_urls(
+        self, validator: InputValidator, invalid_url, expected_exception
+    ):
         """Test that invalid URL formats raise appropriate exceptions."""
         with pytest.raises(expected_exception):
-            InputValidator.validate_github_url(invalid_url)
+            validator.validate_github_url(invalid_url)
 
-    def test_validate_github_url_empty(self):
+    def test_validate_github_url_empty(self, validator: InputValidator):
         """Test that empty URL raises InvalidURLError."""
         with pytest.raises(InvalidURLError, match="URL cannot be empty"):
-            InputValidator.validate_github_url("")
+            validator.validate_github_url("")
 
-    def test_validate_github_url_too_long(self):
+    def test_validate_github_url_too_long(self, validator: InputValidator):
         """Test that excessively long URLs are rejected."""
         long_url = "https://github.com/" + "a" * 3000 + "/repo/pull/123"
         with pytest.raises(InvalidURLError, match="URL too long"):
-            InputValidator.validate_github_url(long_url)
+            validator.validate_github_url(long_url)
 
-    def test_validate_github_url_command_injection(self):
+    def test_validate_github_url_command_injection(self, validator: InputValidator):
         """Test detection of command injection attempts in URLs."""
         malicious_urls = [
             "https://github.com/owner/repo/pull/123; rm -rf /",
@@ -88,20 +98,20 @@ class TestGitHubURLValidation:
         ]
         for url in malicious_urls:
             with pytest.raises(SuspiciousOperationError):
-                InputValidator.validate_github_url(url)
+                validator.validate_github_url(url)
 
-    def test_validate_github_url_path_traversal(self):
+    def test_validate_github_url_path_traversal(self, validator: InputValidator):
         """Test detection of path traversal attempts in URLs."""
         with pytest.raises(SuspiciousOperationError):
-            InputValidator.validate_github_url(
+            validator.validate_github_url(
                 "https://github.com/../../etc/passwd/pull/123"
             )
 
-    def test_validate_github_url_sql_injection(self):
+    def test_validate_github_url_sql_injection(self, validator: InputValidator):
         """Test detection of SQL injection attempts in URLs."""
         # Note: This URL fails pattern matching before SQL injection detection
         with pytest.raises(InvalidURLError):
-            InputValidator.validate_github_url(
+            validator.validate_github_url(
                 "https://github.com/owner/repo' OR '1'='1/pull/123"
             )
 

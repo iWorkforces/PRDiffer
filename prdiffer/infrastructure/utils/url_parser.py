@@ -26,9 +26,6 @@ def parse_github_pr_url(pr_url: str) -> Tuple[str, str, int]:
         InvalidURLError: If URL format is invalid or components are malformed
         InvalidPRNumberError: If PR number is not a valid integer
     """
-    if not pr_url:
-        raise InvalidURLError("PR URL cannot be empty")
-
     if not isinstance(pr_url, str):
         raise InvalidURLError(f"PR URL must be a string, got {type(pr_url).__name__}")
 
@@ -126,3 +123,23 @@ def _validate_repo_name(repo: str) -> None:
             "Repository name contains invalid characters",
             details={"repo": repo},
         )
+
+
+def validate_github_pr_url(pr_url: str) -> bool:
+    """Validate if a URL is a valid GitHub PR URL.
+
+    Supports both path formats:
+    - https://github.com/owner/repo/pull/123
+    - https://github.com/owner/repo/pulls/123
+
+    Args:
+        pr_url: The URL to validate
+
+    Returns:
+        bool: True if URL is valid, False otherwise
+    """
+    try:
+        parse_github_pr_url(pr_url)
+        return True
+    except (InvalidURLError, InvalidPRNumberError):
+        return False

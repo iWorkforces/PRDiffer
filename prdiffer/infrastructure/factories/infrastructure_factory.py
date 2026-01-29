@@ -38,6 +38,7 @@ from prdiffer.infrastructure.github.diff_generator import (
     get_diff_generator,
 )
 from prdiffer.infrastructure.github.file_processor import FileProcessor
+from prdiffer.infrastructure.security.input_validator import InputValidator
 
 # Infrastructure service implementations
 from prdiffer.infrastructure.services.pr_diff_service import GitHubPRDiffService
@@ -198,6 +199,7 @@ class InfrastructureFactory(InfrastructureFactoryInterface):
             cache_service=cache_service,
             repository_cache_service=repository_cache_service,
             logger=logger,
+            input_validator=InputValidator(),
         )
 
     def create_health_monitor(

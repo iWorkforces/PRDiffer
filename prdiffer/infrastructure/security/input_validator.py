@@ -129,10 +129,9 @@ class SecurityPatterns:
 class InputValidator:
     """Validates and sanitizes user inputs for security.
 
-    This validator can be used in three ways:
-    1. Class methods: InputValidator.validate_github_url(url) - uses default patterns
-    2. Instance with defaults: validator = InputValidator() - uses default patterns
-    3. Instance with custom patterns: validator = InputValidator(security_patterns) - uses custom patterns
+    This validator can be used in two ways:
+    1. Instance with defaults: validator = InputValidator() - uses default patterns
+    2. Instance with custom patterns: validator = InputValidator(security_patterns) - uses custom patterns
 
     Example with custom patterns from settings:
         from prdiffer.infrastructure.settings import get_settings_service
@@ -227,8 +226,7 @@ class InputValidator:
             self._path_traversal_compiled = None
             self._sql_injection_compiled = None
 
-    @classmethod
-    def validate_github_url(cls, url: str) -> tuple[str, str, int]:
+    def validate_github_url(self, url: str) -> tuple[str, str, int]:
         """Validate and parse a GitHub PR URL.
 
         Args:
@@ -240,50 +238,23 @@ class InputValidator:
         Raises:
             InvalidURLError: If URL is invalid or malicious
         """
+        from prdiffer.infrastructure.utils.url_parser import parse_github_pr_url
+
+        if not isinstance(url, str):
+            raise InvalidURLError(f"URL must be a string, got {type(url).__name__}")
+
+        url = url.strip()
         if not url:
             raise InvalidURLError("URL cannot be empty")
 
-        # Check URL length (prevent DoS)
-        if len(url) > 2000:
-            raise InvalidURLError("URL too long (max 2000 characters)")
-
-        # Ensure HTTPS
-        if not url.startswith("https://github.com/"):
-            raise InvalidURLError(
-                "URL must start with https://github.com/",
-                details={"url": url[:100]},  # Only include first 100 chars
-            )
-
-        # Check for suspicious patterns
-        # Use global validator for backward compatibility with classmethod
-        if _validator._check_suspicious_patterns_instance(url):
+        # Check for suspicious patterns before parsing
+        if self._check_suspicious_patterns_instance(url):
             raise SuspiciousOperationError(
                 "URL contains suspicious patterns", details={"url": url[:100]}
             )
 
-        # Parse URL
-        match = cls.GITHUB_URL_PATTERN.match(url)
-        if not match:
-            raise InvalidURLError(
-                "Invalid GitHub PR URL format. Expected: https://github.com/owner/repo/pull/123",
-                details={"url": url[:100]},
-            )
-
-        owner, repo, pr_number_str = match.groups()
-
-        # Validate components
-        cls._validate_github_owner(owner)
-        cls._validate_repo_name(repo)
-
-        # Validate PR number using the dedicated validation method
-        try:
-            pr_number = int(pr_number_str)
-        except ValueError:
-            raise InvalidPRNumberError(f"Invalid PR number: {pr_number_str}")
-
-        pr_number = cls.validate_pr_number(pr_number)
-
-        return owner, repo, pr_number
+        # Delegate parsing and structural validation to URL parser
+        return parse_github_pr_url(url)
 
     @classmethod
     def validate_repository_identifier(cls, identifier: str) -> tuple[str, str]:

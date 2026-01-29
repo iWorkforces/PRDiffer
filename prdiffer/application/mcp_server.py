@@ -607,16 +607,8 @@ class FastMCPServer:
                 self._check_rate_limit(rate_limit_client_id)
 
                 # Validate PR URL
-                from prdiffer.infrastructure.security.input_validator import (
-                    InputValidator,
-                )
-
-                if not InputValidator.validate_github_url(pr_url):
-                    raise ValueError("Invalid GitHub PR URL format")
-
-                # Create repository instance for this PR
-                repo_owner, repo_name, pr_number = InputValidator.validate_github_url(
-                    pr_url
+                repo_owner, repo_name, pr_number = (
+                    self._input_validator.validate_github_url(pr_url)
                 )
 
                 # Get repository instance
@@ -639,6 +631,15 @@ class FastMCPServer:
 
                 self._logger.info(f"Successfully approved PR\n{result}")
                 return result
+
+            except (
+                InvalidURLError,
+                InvalidRepositoryError,
+                InvalidPRNumberError,
+                InputSanitizationError,
+                SuspiciousOperationError,
+            ) as e:
+                self._handle_security_exception(e, start_time, request_id, pr_url)
 
             except ValueError as e:
                 self._handle_validation_exception(e, start_time, request_id, pr_url)
