@@ -1,52 +1,67 @@
-# AGENTS.md - Infrastructure Layer
-
-External integrations: GitHub API, caching, logging, utilities, VCS providers, DI container.
+# INFRASTRUCTURE KNOWLEDGE BASE
 
 ## OVERVIEW
-Implements domain interfaces, handles I/O/network, provides VCS providers, manages dependencies.
+External integrations layer: GitHub API, VCS providers, caching, security, async execution, fault tolerance.
 
 ## STRUCTURE
 ```
 prdiffer/infrastructure/
-├── github/              # GitHub API client
-├── vcs_providers/       # Multi-provider VCS abstraction
-├── utils/               # Utilities (retry, circuit breaker, diff)
-├── logging/             # Logging infrastructure
-├── security/            # Input validation
-├── factories/           # Infrastructure factories
-├── services/            # Infrastructure services
-├── di_container.py      # ServiceContainer DI
-├── service_factory.py   # ServiceFactory
-└── *Repository.py       # Repository implementations
+├── utils/           # Resilience patterns, diff utilities, URL parsing
+├── github/          # GitHub API client, ETag adapter, diff generator
+├── vcs_providers/   # GitHub/GitLab repository implementations
+├── security/        # Input validation, injection detection
+├── logging/         # Exception handling, console logging
+├── factories/       # Infrastructure factory, dependency wiring
+├── services/        # PR diff service orchestration
+└── *.py             # DI container, cache service, async executor, request coalescing
 ```
 
 ## WHERE TO LOOK
 | Task | Location | Notes |
 |------|----------|-------|
-| **Add GitHub integration** | `github/`, `*_repository.py` | Use PyGithub |
-| **Add VCS provider** | `vcs_providers/` | Implement VCSDiffRepositoryInterface |
-| **Add DI service** | `di_container.py`, `service_factory.py` | Register singleton/transient |
-| **Add utility** | `utils/` | Pure functions preferred |
+| **Retry logic** | `utils/retry_handler.py` | 971-line unified handler with exponential backoff, context-aware configs |
+| **Circuit breaker** | `utils/circuit_breaker.py` | State machine: CLOSED → OPEN → HALF_OPEN, failure threshold, timeout |
+| **Caching** | `cache_service.py`, `repository_cache_service.py` | Commit-based MD5 invalidation, LRU eviction, TTL support |
+| **ETag handling** | `github/etag_adapter.py` | HTTP 304 conditional requests to reduce bandwidth |
+| **Async execution** | `async_parallel_executor.py` | 509-line anyio task groups, Semaphore/Lock/Event primitives |
+| **Request coalescing** | `request_coalescing.py` | Deduplicate concurrent requests for same resource |
+| **Security** | `security/input_validator.py` | 765-line injection detection: command, path traversal, SQL |
+| **GitHub API** | `github/api_client.py` | PyGithub wrapper with retry/circuit breaker integration |
+| **VCS providers** | `vcs_providers/{github,gitlab}_repository.py` | VCSDiffRepositoryInterface implementations |
 
 ## CONVENTIONS
 
-### Dependency Injection
-- Constructor injection with `container=None` fallback
-- ServiceContainer for singletons, ServiceFactory for creation
-- Backward compatible with singletons
+### Fault Tolerance
+- **Three-tier resilience**: Retry → Circuit Breaker → API Health Tracker (optional)
+- **Never retry 404s for file content** → Added/removed files, not transient errors
+- **Retryable status codes**: 403, 429, 500+ (configurable via settings)
+- **Exponential backoff**: Base delay + jitter, max cap, attempt limit
+- **Circuit breaker**: Opens on N failures, half-open after timeout, close on success
 
-### Error Handling
-- RetryHandler with exponential backoff
-- CircuitBreaker for failure thresholds
-- APIHealthTracker for monitoring
+### Async Patterns
+- **anyio primitives** > threading for async ops (Semaphore, Lock, Event, create_task_group())
+- **AsyncParallelExecutor** > ParallelExecutor for non-blocking calls
+- **Dual APIs**: Sync/async versions for critical utilities (retry_handler, circuit_breaker)
+- **Request coalescing**: Deduplicate in-flight requests using anyio.Lock + dict
 
 ### Caching
-- MD5 hash keys
-- Commit-based invalidation
-- TTL support
+- **Commit-based keys**: MD5 hash of {commit_sha + file_path} for precise invalidation
+- **Manual caching** for settings (no @lru_cache due to Dynaconf unhashability)
+- **LRU eviction**: Configurable max_entries, TTL per cache entry
+- **Cache decorators**: `@cache_result()` for function-level caching with invalidation
+
+### GitHub Integration
+- **ETag support**: Store/compare ETags, return cached data on 304, reduce API calls
+- **Rate limiting**: Detect 403/429, apply smart retry with backoff
+- **API client**: Thin PyGithub wrapper, integrates retry/circuit breaker
 
 ## ANTI-PATTERNS
 
-- **NO direct PyGithub in application** → Use infrastructure services
-- **NO blocking I/O mixed with async** → Use AsyncParallelExecutor
-- **NO empty catch blocks** → Always log
+- **NO async/await mixed with blocking I/O** → Use AsyncParallelExecutor for network calls
+- **NO direct PyGithub in application** → Wrap in infrastructure services with retry logic
+- **NO retry 404s for file content** → Not transient, indicates added/removed files
+- **NO @lru_cache on settings** → Use manual caching (Dynaconf objects unhashable)
+- **NO empty catch blocks in retry/circuit breaker** → Always log failures, track state
+- **NO thread-based async** → Use anyio primitives for backend-agnostic async
+- **NO bypassing circuit breaker** → Always go through CircuitBreaker for external APIs
+- **NO cache without invalidation** → Commit-based keys prevent stale data

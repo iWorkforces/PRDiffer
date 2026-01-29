@@ -1,6 +1,9 @@
 import time
+import hashlib
+import hmac
 from typing import Optional, Callable, Literal, cast, TypeAlias, NoReturn
 from fastmcp import FastMCP
+from starlette.responses import JSONResponse
 from prdiffer.version import __version__
 from prdiffer.domain.entities.pr_diff import PRDiff
 from prdiffer.domain.usecases.pr_diff_usecases import GetPRDiffUseCase
@@ -8,7 +11,7 @@ from prdiffer.domain.services.pr_diff_service import PRDiffServiceInterface
 from prdiffer.domain.services.settings import SettingsServiceInterface
 from prdiffer.domain.services.cache import CacheServiceInterface
 from prdiffer.domain.services.repository_cache import RepositoryCacheServiceInterface
-from prdiffer.domain.services.logger import LoggerServiceInterface
+from prdiffer.domain.services.logger import LoggerServiceInterface, LogLevel
 from prdiffer.domain.repositories.pr_diff_repository import PRDiffRepositoryInterface
 from prdiffer.infrastructure.security.input_validator import InputValidator
 from prdiffer.infrastructure.request_coalescing import RequestCoalescingService
@@ -365,7 +368,7 @@ class FastMCPServer:
     def _log_metrics_and_return_success(
         self, start_time: float, pr_diff: PRDiff
     ) -> PRDiff:
-        """Log successful request metrics and return the PR diff result.
+        """Log successful request metrics and return PR diff result.
 
         Args:
             start_time: Request start time
@@ -377,7 +380,21 @@ class FastMCPServer:
         execution_time = time.time() - start_time
         self._metrics_tracker.track_request("get_pr_diff", True, execution_time)
 
-        self._logger.info(f"Successfully fetched PR diff\n {pr_diff.diff_content}")
+        diff_size = len(pr_diff.diff_content)
+        diff_hash = hashlib.md5(pr_diff.diff_content.encode()).hexdigest()[:8]
+
+        self._logger.info(
+            f"Successfully fetched PR diff - size: {diff_size} bytes, hash: {diff_hash}..."
+        )
+
+        if self._logger.should_log(LogLevel.DEBUG):
+            sanitized_preview = self._input_validator.sanitize_for_logging(
+                pr_diff.diff_content[:200], max_length=200
+            )
+            self._logger.debug(
+                f"PR diff content preview (sanitized): {sanitized_preview}"
+            )
+
         return pr_diff
 
     def _handle_security_exception(
@@ -468,6 +485,91 @@ class FastMCPServer:
 
         safe_message = self._create_safe_error_message(exception)
         raise RuntimeError(f"Failed to fetch PR diff: {safe_message}")
+
+    async def webhook_invalidate_cache(
+        self, payload: dict, signature: str, github_event: str
+    ) -> dict:
+        """Handle webhook events for cache invalidation with HMAC verification.
+
+        Args:
+            payload: Webhook payload from GitHub
+            signature: HMAC signature header value
+            github_event: GitHub event type (push, pull_request, etc.)
+
+        Returns:
+            dict: Response indicating success or failure
+
+        Raises:
+            ValueError: If signature verification fails or payload is invalid
+        """
+        webhook_secret = self._settings_service.get("github.webhook.secret", default="")
+
+        if not webhook_secret:
+            self._logger.warning(
+                "Webhook received but no secret configured",
+                github_event=github_event,
+            )
+            return {"status": "error", "message": "Webhook secret not configured"}
+
+        if github_event not in ["pull_request", "push"]:
+            self._logger.warning(
+                "Unsupported webhook event type",
+                github_event=github_event,
+            )
+            return {"status": "error", "message": "Unsupported event type"}
+
+        repository = payload.get("repository", {})
+        repository_full_name = repository.get("full_name", "")
+        number = payload.get("number")
+        action = payload.get("action")
+        cache_key = None
+
+        if not repository_full_name:
+            self._logger.warning(
+                "Webhook payload missing repository information",
+                github_event=github_event,
+            )
+            return {"status": "error", "message": "Missing repository info"}
+
+        import json
+
+        payload_bytes = json.dumps(payload).encode("utf-8")
+
+        expected_signature = f"sha1={hmac.new(webhook_secret.encode(), payload_bytes, 'sha1').hexdigest()}"
+
+        if not hmac.compare_digest(expected_signature.encode(), signature.encode()):
+            self._logger.warning(
+                "Invalid webhook signature",
+                github_event=github_event,
+            )
+            return {"status": "error", "message": "Invalid signature"}
+
+        if github_event == "pull_request":
+            if action in ["opened", "synchronize", "reopened"]:
+                cache_key = f"{repository_full_name}/pr/{number}"
+                self._logger.info(
+                    "Invalidating cache on PR updated",
+                    cache_key=cache_key,
+                    github_event=github_event,
+                )
+                self._repository_cache_service.invalidate(cache_key)
+        elif github_event == "push":
+            cache_key = repository_full_name
+            self._logger.info(
+                "Invalidating cache on push",
+                cache_key=cache_key,
+                github_event=github_event,
+            )
+            self._repository_cache_service.invalidate(cache_key)
+            self._cache_service.invalidate(repository_full_name)
+
+        self._logger.info(
+            "Webhook processed successfully",
+            github_event=github_event,
+            cache_key=cache_key if cache_key else "N/A",
+        )
+
+        return {"status": "success", "message": "Cache invalidated"}
 
     def _register_tools(self):
         """Register FastMCP tools with the server instance.
@@ -565,6 +667,73 @@ class FastMCPServer:
                 safe_message = self._create_safe_error_message(e)
                 return {"status": "unhealthy", "error": safe_message}
 
+        @self.mcp.custom_route("/webhook", methods=["POST"])
+        async def webhook_handler(request):
+            """Handle GitHub webhook events for cache invalidation.
+
+            GitHub sends webhook events to this endpoint, which triggers
+            cache invalidation for affected repositories and PRs.
+
+            Args:
+                request: FastAPI Request object containing webhook payload and headers
+
+            Returns:
+                JSONResponse with status indicating success or failure
+            """
+            import json
+
+            try:
+                signature = request.headers.get("X-Hub-Signature", "")
+                github_event = request.headers.get("X-GitHub-Event", "")
+
+                payload = await request.json()
+
+                result = await self.webhook_invalidate_cache(
+                    payload, signature, github_event
+                )
+
+                return JSONResponse(result, status_code=200)
+            except json.JSONDecodeError as e:
+                self._logger.error(
+                    "Failed to parse webhook payload",
+                    error=str(e),
+                    error_type=type(e).__name__,
+                )
+                return JSONResponse(
+                    {"status": "error", "message": "Invalid JSON payload"},
+                    status_code=400,
+                )
+            except Exception as e:
+                self._logger.error(
+                    "Webhook handler error",
+                    error=str(e),
+                    error_type=type(e).__name__,
+                )
+                return JSONResponse(
+                    {"status": "error", "message": "Internal server error"},
+                    status_code=500,
+                )
+
+        @self.mcp.custom_route("/metrics", methods=["GET"])
+        async def metrics_handler(request):
+            try:
+                metrics = self._metrics_tracker.get_metrics_summary()
+                return JSONResponse(metrics)
+            except (RuntimeError, KeyError, AttributeError) as e:
+                self._logger.error(
+                    "Failed to get metrics",
+                    error=str(e),
+                    error_type=type(e).__name__,
+                )
+                return JSONResponse(
+                    {
+                        "server": "prdiffer",
+                        "error": "Failed to get metrics",
+                        "message": "Internal server error",
+                    },
+                    status_code=500,
+                )
+
         @self.mcp.tool()
         async def approve_pr(
             pr_url: str, compliment: str, api_key: Optional[str] = None
@@ -607,16 +776,8 @@ class FastMCPServer:
                 self._check_rate_limit(rate_limit_client_id)
 
                 # Validate PR URL
-                from prdiffer.infrastructure.security.input_validator import (
-                    InputValidator,
-                )
-
-                if not InputValidator.validate_github_url(pr_url):
-                    raise ValueError("Invalid GitHub PR URL format")
-
-                # Create repository instance for this PR
-                repo_owner, repo_name, pr_number = InputValidator.validate_github_url(
-                    pr_url
+                repo_owner, repo_name, pr_number = (
+                    self._input_validator.validate_github_url(pr_url)
                 )
 
                 # Get repository instance
@@ -639,6 +800,15 @@ class FastMCPServer:
 
                 self._logger.info(f"Successfully approved PR\n{result}")
                 return result
+
+            except (
+                InvalidURLError,
+                InvalidRepositoryError,
+                InvalidPRNumberError,
+                InputSanitizationError,
+                SuspiciousOperationError,
+            ) as e:
+                self._handle_security_exception(e, start_time, request_id, pr_url)
 
             except ValueError as e:
                 self._handle_validation_exception(e, start_time, request_id, pr_url)

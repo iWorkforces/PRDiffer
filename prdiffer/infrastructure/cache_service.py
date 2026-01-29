@@ -345,59 +345,46 @@ class CacheService(CacheServiceInterface):
             self._key_mapping.clear()
         self.logger.info("Cache cleared")
 
-    def get_stats(self) -> Dict[str, Any]:
-        """Get cache statistics.
+    def set_etag(self, cache_key: str, etag: str) -> None:
+        """Cache ETag for a specific PR key.
 
-        When key hashing is enabled with mapping, returns original (human-readable) keys
-        for better debuggability. Otherwise returns internal keys.
+        Args:
+            cache_key: The cache key to store ETag under
+            etag: The ETag value from HTTP response
 
-        Thread-safe: All cache operations protected by lock.
-
-        Returns:
-            Dict[str, Any]: Cache statistics including:
-                - size: Number of cached entries
-                - max_size: Maximum cache size before LRU eviction
-                - keys: List of cache keys (original format if mapping enabled)
-                - total_entries: Total number of entries
-                - hashing_enabled: Whether key hashing is active
-                - mapping_size: Size of reverse mapping (if enabled)
-                - ttl_seconds: TTL setting for cache entries
-                - cache_hits: Number of cache hits
-                - cache_misses: Number of cache misses
-                - cache_expirations: Number of expired entries removed
-                - cache_evictions_ttl: Number of entries evicted due to TTL
-                - cache_evictions_size: Number of entries evicted due to size limit
-                - hit_rate_percent: Cache hit rate percentage
+        Store ETag for conditional requests.
         """
-        with self._lock:
-            total_requests = self._cache_hits + self._cache_misses
-            hit_rate = (
-                (self._cache_hits / total_requests * 100) if total_requests > 0 else 0
-            )
-
-            base_stats = {
-                "size": len(self.cache),
-                "max_size": self._cache_max_size,
-                "total_entries": len(self.cache),
-                "ttl_seconds": self._ttl,
-                "cache_hits": self._cache_hits,
-                "cache_misses": self._cache_misses,
-                "cache_expirations": self._cache_expirations,
-                "cache_evictions_ttl": self._cache_evictions_ttl,
-                "cache_evictions_size": self._cache_evictions_size,
-                "cache_evictions": self._cache_evictions_ttl
-                + self._cache_evictions_size,
-                "hit_rate_percent": round(hit_rate, 2),
-                "hashing_enabled": self._use_hashed_keys,
+        cache_entry = self.cache.get(cache_key)
+        if cache_entry is None:
+            cache_entry = {
+                "etag": etag,
+                "timestamp": time.time(),
             }
+            self.cache[cache_key] = cache_entry
+        else:
+            cache_entry["etag"] = etag
+            cache_entry["timestamp"] = time.time()
 
-            if self._use_hashed_keys and self._store_key_mapping:
-                # Return original keys for better readability
-                original_keys = [self._key_mapping.get(k, k) for k in self.cache.keys()]
-                base_stats["keys"] = original_keys
-                base_stats["mapping_size"] = len(self._key_mapping)
-            else:
-                base_stats["keys"] = list(self.cache.keys())
+    def get_etag(self, cache_key: str) -> Optional[str]:
+        """Get stored ETag for a cache key."""
+        cache_entry = self.cache.get(cache_key)
+        if cache_entry is None:
+            return None
+        return cache_entry.get("etag")
+
+    def get_stats(self) -> Dict[str, Any]:
+        """Get cache statistics."""
+        base_stats = {
+            "cache_size": len(self.cache),
+            "cache_hits": self._cache_hits,
+            "cache_misses": self._cache_misses,
+            "cache_expirations": self._cache_expirations,
+            "cache_evictions_ttl": self._cache_evictions_ttl,
+            "cache_evictions_size": self._cache_evictions_size,
+        }
+
+        if self._use_hashed_keys and self._store_key_mapping:
+            base_stats["keys"] = list(self.cache.keys())
 
         return base_stats
 

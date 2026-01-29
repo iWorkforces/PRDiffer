@@ -143,12 +143,6 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
             "diff.truncation_notice", "[DIFF TRUNCATED]"
         )
 
-        # Initialize logger
-        self._logger = get_logger()
-
-        # Initialize security validator for safe logging
-        self._input_validator = InputValidator()
-
         # Initialize composed components
         self._github_api_client = get_github_api_client(
             max_retries=self.max_retries,
@@ -345,9 +339,6 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
             RuntimeError: If GitHub objects failed to initialize
             GithubException: If PR approval fails (404, 403, rate limit, etc.)
         """
-        # Import URL parser
-        from prdiffer.infrastructure.utils.url_parser import parse_github_pr_url
-
         # Validate inputs
         if not compliment:
             raise ValueError("Compliment cannot be empty")
@@ -363,7 +354,9 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
         )
 
         # Parse PR URL to get components
-        repo_owner, repo_name, pr_number = parse_github_pr_url(pr_url)
+        repo_owner, repo_name, pr_number = self._input_validator.validate_github_url(
+            pr_url
+        )
 
         # Check if parsed components match current instance
         if repo_owner != self._repo_owner or repo_name != self._repo_name:

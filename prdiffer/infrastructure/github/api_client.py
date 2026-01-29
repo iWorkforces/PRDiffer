@@ -22,6 +22,7 @@ from prdiffer.infrastructure.async_parallel_executor import (
     AsyncParallelExecutor,
     ErrorStrategy,
 )
+from .etag_adapter import ETagRequestAdapter
 
 
 # Exceptions to catch in GitHub API operations
@@ -68,9 +69,13 @@ class GitHubAPIClient(GitHubAPIServiceInterface):
         circuit_breaker_timeout: float = 60.0,
         adaptive_retry_enabled: bool = True,
         max_adaptive_delay: float = 30.0,
+        rate_limit_remaining_threshold: int = 1,
+        rate_limit_reset_buffer: float = 1.0,
+        secondary_rate_limit_backoff: float = 60.0,
         api_health_tracking: bool = True,
         context_aware_retry: bool = True,
         use_advanced_retry: bool = True,
+        max_concurrent: int = 4,
         logger=None,
         file_content_cache_max_size: int = DEFAULT_FILE_CONTENT_CACHE_MAX_SIZE,
         file_content_cache_ttl: int = DEFAULT_FILE_CONTENT_CACHE_TTL,
@@ -91,9 +96,13 @@ class GitHubAPIClient(GitHubAPIServiceInterface):
             circuit_breaker_timeout: Seconds to keep circuit open
             adaptive_retry_enabled: Enable adaptive retry delays
             max_adaptive_delay: Maximum adaptive delay in seconds
+            rate_limit_remaining_threshold: Remaining requests threshold for rate-limit handling
+            rate_limit_reset_buffer: Seconds to add to reset-based delays
+            secondary_rate_limit_backoff: Base delay in seconds for secondary rate limits
             api_health_tracking: Enable API health tracking
             context_aware_retry: Enable context-aware retry strategies
             use_advanced_retry: Use advanced retry handler (Phase 3)
+            max_concurrent: Maximum concurrent API operations
             logger: Logger instance for logging operations
             file_content_cache_max_size: Maximum number of entries in file content cache
             file_content_cache_ttl: TTL for file content cache entries in seconds
@@ -120,6 +129,9 @@ class GitHubAPIClient(GitHubAPIServiceInterface):
                 circuit_breaker_timeout=circuit_breaker_timeout,
                 adaptive_retry_enabled=adaptive_retry_enabled,
                 max_adaptive_delay=max_adaptive_delay,
+                rate_limit_remaining_threshold=rate_limit_remaining_threshold,
+                rate_limit_reset_buffer=rate_limit_reset_buffer,
+                secondary_rate_limit_backoff=secondary_rate_limit_backoff,
                 api_health_tracking=api_health_tracking,
                 context_aware_retry=context_aware_retry,
                 logger=self._logger,
@@ -133,6 +145,9 @@ class GitHubAPIClient(GitHubAPIServiceInterface):
                 retry_on_500=retry_on_500,
                 retry_log_level=retry_log_level,
                 permanent_failure_log_level=permanent_failure_log_level,
+                rate_limit_remaining_threshold=rate_limit_remaining_threshold,
+                rate_limit_reset_buffer=rate_limit_reset_buffer,
+                secondary_rate_limit_backoff=secondary_rate_limit_backoff,
             )
 
         # LRU cache using OrderedDict: stores (content, timestamp) tuples
@@ -145,8 +160,17 @@ class GitHubAPIClient(GitHubAPIServiceInterface):
 
         # Async parallel executor for concurrent operations
         self._async_executor = AsyncParallelExecutor(
-            max_concurrent=4,  # Default max concurrent operations
+            max_concurrent=max_concurrent,
             error_strategy=ErrorStrategy.IGNORE,
+            logger=self._logger,
+        )
+
+        # ETag request adapter for conditional requests
+        self._etag_request_adapter = ETagRequestAdapter(
+            cache_service=None,
+            enabled=True,
+            etag_ttl=self._cache_ttl,
+            etag_cache_size=self._cache_max_size,
             logger=self._logger,
         )
 
@@ -523,6 +547,21 @@ class GitHubAPIClient(GitHubAPIServiceInterface):
             return str(content.decoded_content.decode())
         return ""
 
+    def get_etag_stats(self) -> Dict[str, Any]:
+        """Get ETag adapter statistics.
+
+        Returns:
+            Dict[str, Any]: Statistics including cache size, hits, misses
+        """
+        return self._etag_request_adapter.get_stats()
+
+    def clear_etag_cache(self) -> None:
+        """Clear the ETag cache.
+
+        This clears all cached ETags and resets statistics.
+        """
+        self._etag_request_adapter.clear_cache()
+
 
 def get_github_api_client(
     max_retries: int = 3,
@@ -539,6 +578,9 @@ def get_github_api_client(
     circuit_breaker_timeout: float = 60.0,
     adaptive_retry_enabled: bool = True,
     max_adaptive_delay: float = 30.0,
+    rate_limit_remaining_threshold: Optional[int] = None,
+    rate_limit_reset_buffer: Optional[float] = None,
+    secondary_rate_limit_backoff: Optional[float] = None,
     api_health_tracking: bool = True,
     context_aware_retry: bool = True,
     use_advanced_retry: bool = True,
@@ -559,6 +601,9 @@ def get_github_api_client(
         circuit_breaker_timeout: Seconds to keep circuit open
         adaptive_retry_enabled: Enable adaptive retry delays
         max_adaptive_delay: Maximum adaptive delay in seconds
+        rate_limit_remaining_threshold: Remaining requests threshold for rate-limit handling
+        rate_limit_reset_buffer: Seconds to add to reset-based delay
+        secondary_rate_limit_backoff: Base delay in seconds for secondary rate limits
         api_health_tracking: Enable API health tracking
         context_aware_retry: Enable context-aware retry strategies
         use_advanced_retry: Use advanced retry handler (Phase 3)
@@ -566,6 +611,27 @@ def get_github_api_client(
         Returns:
             GitHubAPIClient: Configured GitHub API client instance
     """
+    if (
+        rate_limit_remaining_threshold is None
+        or rate_limit_reset_buffer is None
+        or secondary_rate_limit_backoff is None
+    ):
+        from prdiffer.infrastructure.settings import get_settings_service
+
+        settings_service = get_settings_service()
+        if rate_limit_remaining_threshold is None:
+            rate_limit_remaining_threshold = int(
+                settings_service.get("github.retry.rate_limit_remaining_threshold", 1)
+            )
+        if rate_limit_reset_buffer is None:
+            rate_limit_reset_buffer = float(
+                settings_service.get("github.retry.rate_limit_reset_buffer", 1.0)
+            )
+        if secondary_rate_limit_backoff is None:
+            secondary_rate_limit_backoff = float(
+                settings_service.get("github.retry.secondary_rate_limit_backoff", 60.0)
+            )
+
     return GitHubAPIClient(
         max_retries=max_retries,
         retry_delay=retry_delay,
@@ -580,6 +646,9 @@ def get_github_api_client(
         circuit_breaker_timeout=circuit_breaker_timeout,
         adaptive_retry_enabled=adaptive_retry_enabled,
         max_adaptive_delay=max_adaptive_delay,
+        rate_limit_remaining_threshold=cast(int, rate_limit_remaining_threshold),
+        rate_limit_reset_buffer=cast(float, rate_limit_reset_buffer),
+        secondary_rate_limit_backoff=cast(float, secondary_rate_limit_backoff),
         api_health_tracking=api_health_tracking,
         context_aware_retry=context_aware_retry,
         use_advanced_retry=use_advanced_retry,

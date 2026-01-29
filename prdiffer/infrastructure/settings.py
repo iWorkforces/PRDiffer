@@ -113,6 +113,7 @@ class SettingsService(SettingsServiceInterface):
             "diff_worker_timeout": get_with_fallback(
                 "github.diff_worker_timeout", 30.0
             ),
+            "max_concurrent": get_with_fallback("github.max_concurrent", 4),
         }
 
     @lru_cache(maxsize=1)

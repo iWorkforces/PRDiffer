@@ -1,49 +1,56 @@
 # AGENTS.md - Domain Layer
 
-Pure business logic layer. No external dependencies, frameworks, or I/O operations.
-
-## OVERVIEW
-Core business models, service interfaces, data contracts, and VCS provider registry.
+Pure business logic. No external deps, no I/O, defines interfaces only.
 
 ## STRUCTURE
 ```
 prdiffer/domain/
-├── entities/           # Core business objects (PRDiff, FilePatchInfo)
-├── services/          # Business logic interfaces
-├── repositories/       # Data access contracts
-├── interfaces/         # Protocol definitions
-├── exceptions.py       # Custom exception hierarchy
-├── errors.py          # Structured error codes
-└── vcs_provider_registry.py  # VCS provider auto-detection
+├── entities/       # Core business objects (FilePatchInfo, PRDiff)
+├── services/       # Service interfaces (abstract only)
+├── usecases/       # Business logic orchestration
+├── repositories/    # Data access contracts
+├── interfaces/     # Protocol definitions (VCSDiffRepositoryInterface)
+├── config/         # Configuration interfaces
+├── factories/      # Factory patterns for dependency inversion
+└── vcs_provider_registry.py  # Multi-provider registry
 ```
 
 ## WHERE TO LOOK
 | Task | Location | Notes |
 |------|----------|-------|
-| **Add business model** | `entities/` | Use Pydantic BaseModel |
-| **Add service interface** | `services/` | Abstract methods only |
-| **Add VCS provider** | `vcs_provider_registry.py`, `infrastructure/vcs_providers/` | Register provider |
+| **Rich domain model** | `entities/file_patch.py` | 414 lines, business methods |
+| **Service interfaces** | `services/*.py` | ABC with @abstractmethod |
+| **VCS provider contract** | `interfaces/vcs_provider.py` | VCSDiffRepositoryInterface |
+| **Provider registry** | `vcs_provider_registry.py` | Auto-detect from URL |
+| **Exception hierarchy** | `exceptions.py`, `errors.py` | PRDifferException base |
+| **Factory contracts** | `factories/infrastructure_factory.py` | Dependency inversion |
 
 ## CONVENTIONS
 
-### Entities
-- Use Pydantic BaseModel for validation
-- Immutable data models with Field descriptions
-- Property methods for derived state
+### Interface-Implementation Separation
+- Domain defines interfaces only (ABC/Protocol)
+- Infrastructure implements in outer layer
+- No imports from infrastructure in domain
 
-### Service Interfaces
-- ABC with @abstractmethod
-- No implementation in domain
-- Type hints required
+### Rich Entities
+- FilePatchInfo: business methods (`validate()`, `detect_code_smells()`, `calculate_review_priority()`)
+- PRDiff: simple data holder (anemic) vs FilePatchInfo (rich)
+- Encapsulate domain rules within entities
+
+### Factory Pattern
+- InfrastructureFactoryInterface for dependency inversion
+- Abstract factory methods for service creation
+- Return interfaces, not concrete types
 
 ### VCS Provider Registry
-- Auto-detect from URL patterns
-- Register providers with url_pattern
-- VCSDiffRepositoryInterface contract
+- Register providers implementing VCSDiffRepositoryInterface
+- Auto-select from URL via `supports_repository()`
+- Multi-provider: GitHub, GitLab, Bitbucket (extensible)
 
 ## ANTI-PATTERNS
 
-- **NO external imports** → Keep domain pure
-- **NO I/O operations** → Infrastructure only
-- **NO framework deps** → Pydantic only
-- **NO implementation** → Interfaces/contracts only
+- **NO external imports** → Domain must remain pure
+- **NO I/O operations** → File/network calls in infrastructure
+- **NO concrete implementations** → Only ABC/Protocol in domain
+- **NO PyGithub/requests** → Use interfaces, import in infrastructure
+- **NO anemic entities everywhere** → Rich models preferred for business logic

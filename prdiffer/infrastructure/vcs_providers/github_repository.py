@@ -74,6 +74,25 @@ class GitHubVCSRepository(PRDiffRepositoryInterface):
         """Get latest head commit SHA for PR."""
         return await self._inner_repo.get_latest_commit_sha()
 
+    async def approve_pr_with_comment(self, pr_url: str, compliment: str) -> str:
+        """Approve a GitHub PR with a compliment comment.
+
+        This method delegates to the inner repository to approve the PR.
+
+        Args:
+            pr_url: The full GitHub PR URL
+            compliment: The compliment text to include in the approval review
+
+        Returns:
+            str: Success message indicating PR was approved
+
+        Raises:
+            InvalidURLError: If PR URL format is invalid
+            RuntimeError: If GitHub objects failed to initialize
+            GithubException: If PR approval fails
+        """
+        return await self._inner_repo.approve_pr_with_comment(pr_url, compliment)
+
     def supports_repository(self, url: str) -> bool:
         """Check if URL belongs to GitHub.
 

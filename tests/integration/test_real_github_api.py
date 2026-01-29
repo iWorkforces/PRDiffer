@@ -178,7 +178,7 @@ class TestRealInputValidation:
         from prdiffer.infrastructure.security.input_validator import InputValidator
 
         url = f"https://github.com/{test_repo_owner}/{test_repo_name}/pull/{test_pr_number}"
-        owner, repo, pr_number = InputValidator.validate_github_url(url)
+        owner, repo, pr_number = InputValidator().validate_github_url(url)
 
         assert owner == test_repo_owner
         assert repo == test_repo_name
@@ -193,7 +193,7 @@ class TestRealInputValidation:
         suspicious_url = "https://github.com/owner/repo/pull/123; rm -rf /"
 
         with pytest.raises(SuspiciousOperationError):
-            InputValidator.validate_github_url(suspicious_url)
+            InputValidator().validate_github_url(suspicious_url)
 
 
 @pytest.mark.integration

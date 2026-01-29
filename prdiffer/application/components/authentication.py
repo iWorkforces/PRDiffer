@@ -27,6 +27,7 @@ import jwt
 from jwt.exceptions import InvalidTokenError, ExpiredSignatureError
 
 from prdiffer.domain.interfaces.protocols import AuthenticationProtocol
+from prdiffer.infrastructure.security.input_validator import InputValidator
 
 
 @dataclass
@@ -62,6 +63,7 @@ class AuthenticationMiddleware(AuthenticationProtocol):
         lockout_duration: int = DEFAULT_LOCKOUT_DURATION,
         failure_window: int = DEFAULT_FAILURE_WINDOW,
         check_token_expiration: bool = True,
+        input_validator: Optional[InputValidator] = None,
     ):
         """Initialize authentication middleware.
 
@@ -73,6 +75,7 @@ class AuthenticationMiddleware(AuthenticationProtocol):
             check_token_expiration: Whether to check JWT token expiration (default: True)
         """
         self._logger = logger or logging.getLogger(__name__)
+        self._input_validator = input_validator or InputValidator()
 
         # Load configuration from environment
         self._auth_enabled = os.getenv("MCP_AUTH_ENABLED", "false").lower() in (
@@ -393,6 +396,20 @@ class AuthenticationMiddleware(AuthenticationProtocol):
             return False
 
         return True
+
+    def validate_token(self, token: str) -> str:
+        """Validate a token format via the centralized input validator.
+
+        Args:
+            token: Token to validate
+
+        Returns:
+            str: Validated token
+
+        Raises:
+            InputSanitizationError: If token format is invalid
+        """
+        return self._input_validator.validate_token(token)
 
     def add_api_key(self, api_key: str) -> bool:
         """Add a new API key to the valid keys set.

@@ -21,16 +21,17 @@ class TestInputValidatorPerformance:
     def test_url_validation_performance(self):
         """Test that URL validation is fast enough for high throughput."""
         url = "https://github.com/owner/repo/pull/123"
+        validator = InputValidator()
 
         # Warm up
         for _ in range(10):
-            InputValidator.validate_github_url(url)
+            validator.validate_github_url(url)
 
         # Measure performance
         start = time.perf_counter()
         iterations = 10000
         for _ in range(iterations):
-            InputValidator.validate_github_url(url)
+            validator.validate_github_url(url)
         elapsed = time.perf_counter() - start
 
         # Should be able to validate 10k URLs in under 1 second
@@ -349,6 +350,7 @@ class TestBenchmark:
             ("owner/repo", True),
             ("SELECT * FROM users", False),  # Should be flagged
         ]
+        validator = InputValidator()
 
         start = time.perf_counter()
         iterations = 5000
@@ -356,7 +358,7 @@ class TestBenchmark:
             for url, _ in test_cases:
                 # Full pipeline: validate + sanitize + check patterns
                 try:
-                    InputValidator.validate_github_url(url)
+                    validator.validate_github_url(url)
                 except Exception:
                     pass
                 InputValidator._contains_suspicious_patterns(url)

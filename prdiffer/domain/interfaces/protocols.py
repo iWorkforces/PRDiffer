@@ -187,16 +187,19 @@ class ServerConfigurationProtocol(Protocol):
         """Set up logging configuration."""
         ...
 
-    # TODO: Future feature - not yet implemented
-    # This method will return server information including version, transport mode,
-    # configuration summary, and feature flags.
     def get_server_info(self) -> Dict[str, Any]:
         """Get server information and configuration.
 
-        TODO: Future feature - not yet implemented
-
         Returns:
-            Dictionary containing server information
+            Dictionary containing server information including:
+            - name: Server name
+            - version: Server version
+            - description: Server description
+            - transport: Transport mode (stdio, http, sse)
+            - port: Server port
+            - host: Server host
+            - environment: Environment (development, production)
+            - features: Enabled features dictionary
         """
         ...
 
@@ -225,15 +228,13 @@ class AuthenticationProtocol(Protocol):
         """
         ...
 
-    # TODO: Future feature - not yet implemented
-    # This method will extract client identifier from requests using API key based
-    # identification, IP address fallback, and request metadata.
     def extract_client_identifier(
         self, headers: Dict[str, str]
     ) -> Tuple[Optional[str], Optional[str]]:
         """Extract client identifier from request headers.
 
-        TODO: Future feature - not yet implemented
+        Extracts API keys from X-API-Key or Authorization (Bearer) headers.
+        Falls back to X-Forwarded-For or X-Real-IP for IP-based identification.
 
         Args:
             headers: Request headers dictionary
@@ -241,20 +242,16 @@ class AuthenticationProtocol(Protocol):
         Returns:
             Tuple of (api_key, client_id) where:
             - api_key: The extracted API key (or None if not present)
-            - client_id: The client identifier for rate limiting (IP or API key)
+            - client_id: The client identifier for rate limiting (IP or API key hash)
         """
         ...
 
-    # TODO: Future feature - not yet implemented
-    # This method will query authentication status including current authentication state,
-    # enabled/disabled status, and configuration source.
     def is_authentication_enabled(self) -> bool:
         """Check if authentication is enabled.
 
-        TODO: Future feature - not yet implemented
-
         Returns:
-            True if authentication is required
+            True if authentication is required, False otherwise.
+            Status is determined by MCP_AUTH_ENABLED environment variable.
         """
         ...
 
