@@ -102,7 +102,6 @@ class GitLabVCSRepository(VCSDiffRepositoryInterface):
                             f"Merge request not found: {response.status_code}"
                         )
 
-                    mr_data = response.json()
                     return PRDiff(files=[])
             except Exception:
                 raise RuntimeError("GitLab API error")

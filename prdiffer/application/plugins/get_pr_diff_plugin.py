@@ -78,4 +78,10 @@ class GetPRDiffPlugin(MCPToolPlugin):
         if result is None:
             return ""
 
-        return result.diff_content
+        diff_parts = []
+        for file_resp in result.files:
+            file_header = f"## File: {file_resp.path} ({file_resp.status})"
+            stats = f"+{file_resp.stats.additions} -{file_resp.stats.deletions}"
+            diff_parts.append(f"{file_header} [{stats}]\n{file_resp.diff}")
+
+        return "\n\n".join(diff_parts) if diff_parts else ""

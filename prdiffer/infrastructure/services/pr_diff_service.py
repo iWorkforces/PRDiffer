@@ -168,7 +168,7 @@ class GitHubPRDiffService(CachingMixin, PRDiffServiceInterface):
                 return None
 
             # Generate diff content using async parallel processing
-            diff_files = await self._generate_diff_content_async(
+            _, diff_files = await self._generate_diff_content_async(
                 repository, pull_request
             )
 
@@ -534,46 +534,6 @@ class GitHubPRDiffService(CachingMixin, PRDiffServiceInterface):
             sanitized = sanitize_exception_for_logging(exc)
             self._logger.error("Failed to generate diff content", extra=sanitized)
             return []
-
-            # Get the base commit SHA (merge base)
-            base_commit_sha = self._get_base_commit_sha(repository, pull_request)
-            if not base_commit_sha:
-                return "", []
-
-            # Get and process files
-            github_files = pull_request.get_files()
-            if not github_files:
-                return "", []
-
-            # Process files to create FilePatchInfo objects with content
-            if self._file_processor:
-                # Use the proper file processor if available
-                diff_files = self._file_processor.process_files_to_patches(
-                    list(github_files), repository, latest_commit_sha, base_commit_sha
-                )
-            else:
-                # Fallback to simple conversion
-                diff_files = self._convert_github_files_to_file_patch_info(github_files)
-
-            # Generate extended diff content
-            if self._diff_generator and diff_files:
-                extended_diffs = self._diff_generator.generate_extended_diff(diff_files)
-                return "\n".join(extended_diffs), diff_files
-            else:
-                # Fallback: create simple diff from patches
-                diff_content_parts = []
-                for file_patch in diff_files:
-                    if file_patch.patch:
-                        diff_content_parts.append(
-                            f"## File: {file_patch.filename}\n{file_patch.patch}"
-                        )
-                return "\n\n".join(diff_content_parts), diff_files
-
-        except PR_SERVICE_EXCEPTIONS as e:
-            exc = cast(Exception, e)
-            sanitized = sanitize_exception_for_logging(exc)
-            self._logger.error("Failed to generate diff content", extra=sanitized)
-            return "", []
 
     def _get_base_commit_sha(self, repository, pull_request) -> Optional[str]:
         """Get the base commit SHA for the pull request.
