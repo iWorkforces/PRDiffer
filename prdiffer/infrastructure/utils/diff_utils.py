@@ -6,6 +6,7 @@ import threading
 from dataclasses import dataclass
 from typing import Union, Optional, List
 from prdiffer.domain.services import DiffServiceInterface
+from prdiffer.infrastructure.utils.logger_factory import get_logger
 
 
 # Default configuration for large file processing
@@ -71,11 +72,7 @@ class DiffUtils(DiffServiceInterface):
             with self._logger_lock:
                 # Double-check pattern to avoid race conditions
                 if not self._logger_fetched:
-                    from prdiffer.infrastructure.logging.console_logger import (
-                        get_logger,
-                    )
-
-                    self._logger = get_logger()
+                    self._logger = get_logger(__name__)
                     self._logger_fetched = True
         return self._logger
 
