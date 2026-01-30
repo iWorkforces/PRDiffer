@@ -32,7 +32,7 @@ from prdiffer.infrastructure.utils.cache_decorator import (
 # Exceptions to catch in PR diff service operations
 # Note: We deliberately exclude KeyboardInterrupt, SystemExit, and GeneratorExit
 # to allow system-level exceptions to propagate for proper shutdown/cleanup.
-PR_SERVICE_EXCEPTIONS: Tuple[Type[BaseException], ...] = (
+PR_SERVICE_EXCEPTIONS: tuple[Type[BaseException], ...] = (
     # GitHub-specific exceptions
     GithubException,
     # Network and timeout exceptions

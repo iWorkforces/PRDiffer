@@ -76,10 +76,10 @@ class CacheServiceInterface(ABC):
         pass
 
     @abstractmethod
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """Get cache statistics.
 
         Returns:
-            Dict[str, Any]: Cache statistics including size and keys
+            dict[str, Any]: Cache statistics including size and keys
         """
         pass

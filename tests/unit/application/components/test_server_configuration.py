@@ -94,7 +94,7 @@ class TestValidationResult:
 class MockSettingsService(SettingsServiceInterface):
     """Mock settings service for testing."""
 
-    def __init__(self, settings: Optional[Dict[str, Any]] = None) -> None:
+    def __init__(self, settings: Optional[dict[str, Any]] = None) -> None:
         """Initialize mock settings with default values."""
         self._settings = settings or {}
 
@@ -109,15 +109,15 @@ class MockSettingsService(SettingsServiceInterface):
                 return default
         return value
 
-    def get_github_settings(self) -> Dict[str, Any]:
+    def get_github_settings(self) -> dict[str, Any]:
         """Get GitHub-related settings."""
         return {}
 
-    def get_cache_settings(self) -> Dict[str, Any]:
+    def get_cache_settings(self) -> dict[str, Any]:
         """Get cache-related settings."""
         return {}
 
-    def get_app_settings(self) -> Dict[str, Any]:
+    def get_app_settings(self) -> dict[str, Any]:
         """Get application-specific settings."""
         return {}
 

@@ -33,7 +33,7 @@ from .etag_adapter import ETagRequestAdapter
 # Exceptions to catch in GitHub API operations
 # Note: We deliberately exclude KeyboardInterrupt, SystemExit, and GeneratorExit
 # to allow system-level exceptions to propagate for proper shutdown/cleanup.
-GITHUB_API_EXCEPTIONS: Tuple[Type[BaseException], ...] = (
+GITHUB_API_EXCEPTIONS: tuple[Type[BaseException], ...] = (
     # GitHub-specific exceptions
     GithubException,
     # Network and timeout exceptions
@@ -156,7 +156,7 @@ class GitHubAPIClient(GitHubAPIServiceInterface):
             )
 
         # LRU cache using OrderedDict: stores (content, timestamp) tuples
-        self._file_content_cache: OrderedDict[tuple, Dict[str, Any]] = OrderedDict()
+        self._file_content_cache: OrderedDict[tuple, dict[str, Any]] = OrderedDict()
         self._cache_hits = 0
         self._cache_misses = 0
         self._cache_evictions = 0
@@ -485,8 +485,8 @@ class GitHubAPIClient(GitHubAPIServiceInterface):
             return file_content
 
     def get_files_content_batch(
-        self, repo_full_name: str, file_paths: List[str], branch: str
-    ) -> Dict[str, str]:
+        self, repo_full_name: str, file_paths: list[str], branch: str
+    ) -> dict[str, str]:
         """Batch retrieve file contents from a specific branch.
 
         Args:
@@ -497,7 +497,7 @@ class GitHubAPIClient(GitHubAPIServiceInterface):
         Returns:
             Dict mapping file paths to their content (empty string on error)
         """
-        results: Dict[str, str] = {}
+        results: dict[str, str] = {}
         files_to_fetch = []
 
         for file_path in file_paths:
@@ -601,10 +601,10 @@ class GitHubAPIClient(GitHubAPIServiceInterface):
     async def _get_files_content_batch_parallel_async(
         self,
         repo_full_name: str,
-        file_paths: List[str],
+        file_paths: list[str],
         branch: str,
         max_workers: int = 4,
-    ) -> Dict[str, str]:
+    ) -> dict[str, str]:
         """Async version of parallel batch file content retrieval.
 
         Uses AsyncParallelExecutor for concurrent file fetching.
@@ -618,7 +618,7 @@ class GitHubAPIClient(GitHubAPIServiceInterface):
         Returns:
             Dict mapping file paths to their content (empty string on error)
         """
-        results: Dict[str, str] = {}
+        results: dict[str, str] = {}
         files_to_fetch = []
 
         for file_path in file_paths:
@@ -663,11 +663,11 @@ class GitHubAPIClient(GitHubAPIServiceInterface):
             return str(content.decoded_content.decode())
         return ""
 
-    def get_etag_stats(self) -> Dict[str, Any]:
+    def get_etag_stats(self) -> dict[str, Any]:
         """Get ETag adapter statistics.
 
         Returns:
-            Dict[str, Any]: Statistics including cache size, hits, misses
+            dict[str, Any]: Statistics including cache size, hits, misses
         """
         return self._etag_request_adapter.get_stats()
 

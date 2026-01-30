@@ -125,7 +125,7 @@ class ExceptionSanitizer:
         exception: Exception,
         include_traceback: bool = False,
         max_length: int = 1000,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Create a safe logging representation of an exception.
 
         Args:
@@ -302,7 +302,7 @@ def sanitize_exception_for_logging(
     exception: Exception,
     include_traceback: bool = False,
     max_length: int = 1000,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Convenience function for creating safe exception logging representations.
 
     Args:

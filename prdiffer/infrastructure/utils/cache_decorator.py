@@ -35,7 +35,7 @@ class CachingMixin:
         """
         # Thread safety lock for cache operations
         self._cache_lock = threading.RLock()
-        self._method_cache: OrderedDict[str, Dict[str, Any]] = OrderedDict()
+        self._method_cache: OrderedDict[str, dict[str, Any]] = OrderedDict()
         self._cache_hits = 0
         self._cache_misses = 0
         self._max_cache_size = max_cache_size
@@ -75,7 +75,7 @@ class CachingMixin:
             self._cache_hits = 0
             self._cache_misses = 0
 
-    def get_cache_stats(self) -> Dict[str, Any]:
+    def get_cache_stats(self) -> dict[str, Any]:
         """Get cache statistics.
 
         Thread-safe: Uses lock for all cache operations.
@@ -98,7 +98,7 @@ class CachingMixin:
             }
 
 
-def _make_hashable(obj: Any, _seen: Optional[Set[int]] = None, _depth: int = 0) -> Any:
+def _make_hashable(obj: Any, _seen: Optional[set[int]] = None, _depth: int = 0) -> Any:
     """Convert an object to a hashable form recursively with circular reference protection.
 
     Args:
@@ -218,7 +218,7 @@ def cached_method(ttl: Optional[int] = None, key_prefix: Optional[str] = None):
     Example:
         class MyService(CachingMixin):
             @cached_method(ttl=60)
-            def expensive_operation(self, param: List[str]) -> str:
+            def expensive_operation(self, param: list[str]) -> str:
                 # Lists are automatically converted to tuples for caching
                 return do_expensive_work(param)
     """

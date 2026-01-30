@@ -118,7 +118,7 @@ class FileProcessor:
 
         return self._pr_files_cache
 
-    def filter_files(self, files: PaginatedList[File]) -> List[File]:
+    def filter_files(self, files: PaginatedList[File]) -> list[File]:
         """Filter files based on pattern matching configuration.
 
         Args:
@@ -132,8 +132,8 @@ class FileProcessor:
         ]
 
     def process_files_to_patches(
-        self, files: List[File], repository: Repository, head_sha: str, base_sha: str
-    ) -> List[FilePatchInfo]:
+        self, files: list[File], repository: Repository, head_sha: str, base_sha: str
+    ) -> list[FilePatchInfo]:
         """Process files into FilePatchInfo objects with content loading.
 
         Args:
@@ -145,8 +145,8 @@ class FileProcessor:
         Returns:
             List of FilePatchInfo objects with loaded content
         """
-        diff_files: List[FilePatchInfo] = []
-        invalid_files_names: List[str] = []
+        diff_files: list[FilePatchInfo] = []
+        invalid_files_names: list[str] = []
 
         counter_valid = 0
         files_to_load = []
@@ -193,8 +193,8 @@ class FileProcessor:
         return diff_files
 
     async def process_files_to_patches_async(
-        self, files: List[File], repository: Repository, head_sha: str, base_sha: str
-    ) -> List[FilePatchInfo]:
+        self, files: list[File], repository: Repository, head_sha: str, base_sha: str
+    ) -> list[FilePatchInfo]:
         """Async version of process_files_to_patches.
 
         Args:
@@ -206,8 +206,8 @@ class FileProcessor:
         Returns:
             List of FilePatchInfo objects with loaded content
         """
-        diff_files: List[FilePatchInfo] = []
-        invalid_files_names: List[str] = []
+        diff_files: list[FilePatchInfo] = []
+        invalid_files_names: list[str] = []
 
         counter_valid = 0
         files_to_load = []
@@ -257,11 +257,11 @@ class FileProcessor:
 
     async def _process_files_with_content_parallel_async(
         self,
-        files: List[File],
+        files: list[File],
         repository: Repository,
         head_sha: str,
         base_sha: str,
-    ) -> List[FilePatchInfo]:
+    ) -> list[FilePatchInfo]:
         """Process files with parallel content loading for better performance (async version).
 
         Fetches head and base content concurrently using AsyncParallelExecutor,
@@ -282,7 +282,7 @@ class FileProcessor:
         # Separate files by status to optimize API calls
         head_files = []  # Files to fetch from head commit
         base_files = []  # Files to fetch from base commit
-        renamed_file_mapping: Dict[str, str] = {}
+        renamed_file_mapping: dict[str, str] = {}
 
         for file in files:
             if file.status in ["added", "modified", "renamed"]:
@@ -319,20 +319,20 @@ class FileProcessor:
 
         # Execute fetches in parallel (if GitHubAPIClient had async methods)
         # For now, run sequentially since GitHubAPIClient is synchronous
-        head_contents: Dict[str, str] = {}
-        base_contents: Dict[str, str] = {}
+        head_contents: dict[str, str] = {}
+        base_contents: dict[str, str] = {}
         try:
             head_result = fetch_tasks[0] if head_files else {}
             if inspect.iscoroutine(head_result):
                 head_result = await head_result
             if isinstance(head_result, dict):
-                head_contents = cast(Dict[str, str], head_result)
+                head_contents = cast(dict[str, str], head_result)
 
             base_result = fetch_tasks[1] if base_files else {}
             if inspect.iscoroutine(base_result):
                 base_result = await base_result
             if isinstance(base_result, dict):
-                base_contents = cast(Dict[str, str], base_result)
+                base_contents = cast(dict[str, str], base_result)
         except (AttributeError, TypeError) as e:
             # Handle the case where tasks are not awaitable
             self._logger.warning(
@@ -393,8 +393,8 @@ class FileProcessor:
         return diff_files
 
     def _process_files_with_content(
-        self, files: List[File], repository: Repository, head_sha: str, base_sha: str
-    ) -> List[FilePatchInfo]:
+        self, files: list[File], repository: Repository, head_sha: str, base_sha: str
+    ) -> list[FilePatchInfo]:
         """Process files with content loading (batch mode).
 
         Args:
@@ -411,7 +411,7 @@ class FileProcessor:
         # Separate files by status to optimize API calls
         head_files = []  # Files to fetch from head commit
         base_files = []  # Files to fetch from base commit
-        renamed_file_mapping: Dict[str, str] = {}
+        renamed_file_mapping: dict[str, str] = {}
 
         for file in files:
             if file.status in ["added", "modified", "renamed"]:

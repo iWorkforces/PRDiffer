@@ -34,7 +34,7 @@ class GetPRDiffPlugin(MCPToolPlugin):
         return "Get full diff of a GitHub PR with file context"
 
     @property
-    def parameters(self) -> Dict[str, Any]:
+    def parameters(self) -> dict[str, Any]:
         """Get tool parameter schema."""
         return {
             "type": "object",

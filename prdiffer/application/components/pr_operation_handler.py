@@ -49,7 +49,7 @@ class PROperationHandler(PROperationHandlerProtocol):
         self._logger = logger
         self._input_validator = input_validator or InputValidator()
 
-    async def get_pr_diff(self, pr_url: str) -> Dict[str, Any]:
+    async def get_pr_diff(self, pr_url: str) -> dict[str, Any]:
         """Get PR diff information.
 
         Automatic commit-based caching ensures fresh data is returned when PR changes.

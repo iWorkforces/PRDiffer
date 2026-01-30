@@ -7,7 +7,7 @@ def apply_diff_limits(
     diff_content: str,
     max_chars: int,
     truncation_notice: str,
-) -> Tuple[str, Dict[str, int | bool]]:
+) -> tuple[str, dict[str, int | bool]]:
     """Apply size limits to diff content.
 
     Args:
@@ -18,7 +18,7 @@ def apply_diff_limits(
     Returns:
         Tuple of (diff_content, metadata) where metadata includes truncation info.
     """
-    metadata: Dict[str, int | bool] = {}
+    metadata: dict[str, int | bool] = {}
 
     if max_chars <= 0 or len(diff_content) <= max_chars:
         return diff_content, metadata

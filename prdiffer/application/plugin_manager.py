@@ -27,7 +27,7 @@ class PluginManager:
         Args:
             logger: Logger service instance
         """
-        self._plugins: Dict[str, MCPToolPlugin] = {}
+        self._plugins: dict[str, MCPToolPlugin] = {}
         self._logger = logger
 
     def register_plugin(self, plugin: MCPToolPlugin) -> None:
@@ -86,14 +86,14 @@ class PluginManager:
         """
         return self.get_plugin(tool_name)
 
-    def list_plugins(self, enabled_only: bool = True) -> List[str]:
+    def list_plugins(self, enabled_only: bool = True) -> list[str]:
         """List all registered plugins.
 
         Args:
             enabled_only: If True, only return enabled plugins
 
         Returns:
-            List[str]: List of plugin names
+            list[str]: List of plugin names
         """
         plugins = self._plugins
 
@@ -130,11 +130,11 @@ class PluginManager:
 
         return await plugin.execute(**kwargs)
 
-    def list_plugin_names(self) -> List[str]:
+    def list_plugin_names(self) -> list[str]:
         """List all plugin names.
 
         Returns:
-            List[str]: List of plugin names
+            list[str]: List of plugin names
         """
         return self.list_plugins(enabled_only=False)
 

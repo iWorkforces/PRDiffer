@@ -34,7 +34,7 @@ class CacheService(CacheServiceInterface):
         self._lock = anyio.Lock()
 
         # LRU cache using OrderedDict for memory-efficient storage with eviction
-        self.cache: OrderedDict[str, Dict[str, Any]] = OrderedDict()
+        self.cache: OrderedDict[str, dict[str, Any]] = OrderedDict()
         self.logger = get_logger()
 
         # Load cache hashing configuration
@@ -51,7 +51,7 @@ class CacheService(CacheServiceInterface):
         )  # Default 1000 entries
 
         # Reverse mapping: hashed_key -> original_key (for debugging and stats)
-        self._key_mapping: Dict[str, str] = {}
+        self._key_mapping: dict[str, str] = {}
 
         # Cache statistics
         self._cache_hits = 0
@@ -152,7 +152,7 @@ class CacheService(CacheServiceInterface):
                 return self._key_mapping.get(internal_key, internal_key)
         return internal_key
 
-    def _is_entry_expired(self, cached_data: Dict[str, Any]) -> bool:
+    def _is_entry_expired(self, cached_data: dict[str, Any]) -> bool:
         """Check if a cache entry has expired based on TTL.
 
         Args:
@@ -377,7 +377,7 @@ class CacheService(CacheServiceInterface):
             return None
         return cache_entry.get("etag")
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """Get cache statistics."""
         base_stats = {
             "cache_size": len(self.cache),

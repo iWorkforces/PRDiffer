@@ -28,14 +28,14 @@ class RateLimitInfo:
     retry_after: Optional[float]
 
 
-def get_error_headers(error: Exception) -> Optional[Dict[str, str]]:
+def get_error_headers(error: Exception) -> Optional[dict[str, str]]:
     """Extract headers from a GitHub exception if available.
 
     Args:
         error: Exception to extract headers from
 
     Returns:
-        Optional[Dict[str, str]]: Headers dictionary or None if not available
+        Optional[dict[str, str]]: Headers dictionary or None if not available
     """
     headers = getattr(error, "headers", None)
     if headers is None:
@@ -51,7 +51,7 @@ def get_error_headers(error: Exception) -> Optional[Dict[str, str]]:
         return None
 
 
-def parse_int_header(headers: Dict[str, str], name: str) -> Optional[int]:
+def parse_int_header(headers: dict[str, str], name: str) -> Optional[int]:
     """Parse an integer header value from headers dictionary.
 
     Args:
@@ -70,7 +70,7 @@ def parse_int_header(headers: Dict[str, str], name: str) -> Optional[int]:
     return None
 
 
-def parse_retry_after(headers: Dict[str, str]) -> Optional[float]:
+def parse_retry_after(headers: dict[str, str]) -> Optional[float]:
     """Parse Retry-After header value from headers dictionary.
 
     The Retry-After header can be specified as:

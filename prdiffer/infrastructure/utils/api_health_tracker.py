@@ -135,14 +135,14 @@ class APIHealthTracker:
         recommended_delay = base_delay * delay_multiplier
         return min(recommended_delay, max_delay)
 
-    def get_error_pattern(self) -> Dict[str, int]:
+    def get_error_pattern(self) -> dict[str, int]:
         """Get recent error patterns.
 
         Returns:
             dict: Error types and their counts
         """
         recent_calls = self._get_recent_calls(time.time())
-        error_counts: Dict[str, int] = {}
+        error_counts: dict[str, int] = {}
 
         for call in recent_calls:
             if not call.success and call.error_type:
@@ -150,7 +150,7 @@ class APIHealthTracker:
 
         return error_counts
 
-    def _get_recent_calls(self, current_time: float) -> List[APICall]:
+    def _get_recent_calls(self, current_time: float) -> list[APICall]:
         """Get calls within the time window.
 
         Args:

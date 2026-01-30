@@ -21,7 +21,7 @@ class PRDifferException(Exception):
         self,
         message: str,
         error_code: Optional[ErrorCode] = None,
-        details: Optional[Dict[str, Any]] = None,
+        details: Optional[dict[str, Any]] = None,
     ):
         """Initialize PRDifferException with message, error code, and optional details.
 
@@ -29,13 +29,13 @@ class PRDifferException(Exception):
             message (str): Human-readable error message describing what went wrong.
             error_code (Optional[ErrorCode]): Structured error code for programmatic handling.
                 Defaults to E5001_INTERNAL_ERROR if not provided.
-            details (Optional[Dict[str, Any]]): Optional dictionary with additional
+            details (Optional[dict[str, Any]]): Optional dictionary with additional
                 error context for debugging and logging purposes. Defaults to None.
         """
         super().__init__(message)
         self.message = message
         self.error_code = error_code or E5001_INTERNAL_ERROR
-        self.details: Dict[str, Any] = details or {}
+        self.details: dict[str, Any] = details or {}
 
     def __str__(self) -> str:
         """Return formatted string with error code."""
@@ -108,7 +108,7 @@ class RateLimitError(PRDifferException):
         message: str,
         retry_after: Optional[int] = None,
         error_code: Optional[ErrorCode] = None,
-        details: Optional[Dict[str, Any]] = None,
+        details: Optional[dict[str, Any]] = None,
     ):
         """Initialize with retry information.
 
@@ -182,7 +182,7 @@ class GitHubAPIError(PRDifferException):
         message: str,
         status_code: Optional[int] = None,
         error_code: Optional[ErrorCode] = None,
-        details: Optional[Dict[str, Any]] = None,
+        details: Optional[dict[str, Any]] = None,
     ):
         """Initialize with HTTP status code.
 
@@ -235,7 +235,7 @@ class GitHubRateLimitError(GitHubAPIError):
         retry_after: Optional[int] = None,
         status_code: Optional[int] = None,
         error_code: Optional[ErrorCode] = None,
-        details: Optional[Dict[str, Any]] = None,
+        details: Optional[dict[str, Any]] = None,
     ):
         """Initialize with retry information.
 
@@ -394,7 +394,7 @@ class SignatureVerificationError(SecurityError):
 # ============================================================================
 
 
-def get_exception_details(exception: Exception) -> Dict[str, Any]:
+def get_exception_details(exception: Exception) -> dict[str, Any]:
     """Extract details from an exception for logging.
 
     Args:
@@ -403,7 +403,7 @@ def get_exception_details(exception: Exception) -> Dict[str, Any]:
     Returns:
         Dictionary with exception details
     """
-    details: Dict[str, Any] = {
+    details: dict[str, Any] = {
         "type": type(exception).__name__,
         "message": str(exception),
     }

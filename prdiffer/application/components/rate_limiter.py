@@ -27,9 +27,9 @@ class RateLimiter(RateLimiterProtocol):
         self._rate_limit_requests = 100  # Max requests per minute per client
         self._rate_limit_window = 60  # 60 second window
         # Track request timestamps per client identifier
-        self._client_timestamps: Dict[str, List[float]] = defaultdict(list)
+        self._client_timestamps: dict[str, list[float]] = defaultdict(list)
         # Track last access time for cleanup
-        self._last_access: Dict[str, float] = {}
+        self._last_access: dict[str, float] = {}
 
         # Cleanup configuration
         self._cleanup_interval = 300  # Cleanup every 5 minutes
@@ -187,7 +187,7 @@ class RateLimiter(RateLimiterProtocol):
             return True
         return False
 
-    def get_all_client_info(self) -> Dict[str, Dict[str, Any]]:
+    def get_all_client_info(self) -> dict[str, dict[str, Any]]:
         """Get rate limit information for all active clients.
 
         Returns:

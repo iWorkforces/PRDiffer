@@ -31,7 +31,7 @@ class MetricsTracker(MetricsTrackerProtocol):
         self._start_time = time.time()
 
         # Operation-specific metrics
-        self._operation_metrics: Dict[str, Dict[str, Any]] = {}
+        self._operation_metrics: dict[str, dict[str, Any]] = {}
 
     def track_request(
         self, operation: str, success: bool, execution_time: float
@@ -95,7 +95,7 @@ class MetricsTracker(MetricsTrackerProtocol):
             counter = self._request_counter
         return f"REQ-{int(time.time() * 1000)}-{counter}"
 
-    def get_metrics_summary(self) -> Dict[str, Any]:
+    def get_metrics_summary(self) -> dict[str, Any]:
         """Get a summary of collected metrics.
 
         Returns:
@@ -115,7 +115,7 @@ class MetricsTracker(MetricsTrackerProtocol):
                 operation_metrics_copy[op] = metrics.copy()
 
         # Build operations metrics separately with proper typing
-        operations_data: Dict[str, Dict[str, Any]] = {}
+        operations_data: dict[str, dict[str, Any]] = {}
 
         # Process operation-specific metrics (now safe to iterate outside the lock)
         for operation, op_metrics in operation_metrics_copy.items():
@@ -143,7 +143,7 @@ class MetricsTracker(MetricsTrackerProtocol):
                 "max_execution_time": round(op_metrics["max_execution_time"], 3),
             }
 
-        metrics: Dict[str, Any] = {
+        metrics: dict[str, Any] = {
             "uptime_seconds": uptime_seconds,
             "uptime_human": self._format_uptime(uptime_seconds),
             "total_requests": total_requests,

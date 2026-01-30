@@ -29,7 +29,7 @@ class HealthMonitor(HealthMonitorProtocol):
         self._rate_limiter = rate_limiter
         self._logger = logger or logging.getLogger(__name__)
 
-    def check_health(self) -> Dict[str, Any]:
+    def check_health(self) -> dict[str, Any]:
         """Perform health check and return status.
 
         Returns:
@@ -94,7 +94,7 @@ class HealthMonitor(HealthMonitorProtocol):
                 "operations": {},
             }
 
-    def get_detailed_status(self) -> Dict[str, Any]:
+    def get_detailed_status(self) -> dict[str, Any]:
         """Get detailed health status including component-specific information.
 
         Returns:

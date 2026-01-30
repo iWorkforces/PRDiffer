@@ -68,8 +68,8 @@ class GitHubAPIServiceInterface(ABC):
 
     @abstractmethod
     def get_files_content_batch(
-        self, repo_full_name: str, file_paths: List[str], branch: str
-    ) -> Dict[str, str]:
+        self, repo_full_name: str, file_paths: list[str], branch: str
+    ) -> dict[str, str]:
         """Batch retrieve file contents from a specific branch.
 
         Args:

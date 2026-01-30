@@ -10,8 +10,8 @@ class ValidationResult(TypedDict):
     """Type definition for configuration validation results."""
 
     valid: bool
-    warnings: List[str]
-    errors: List[str]
+    warnings: list[str]
+    errors: list[str]
 
 
 class ServerConfiguration(ServerConfigurationProtocol):
@@ -54,7 +54,7 @@ class ServerConfiguration(ServerConfigurationProtocol):
             self._logger.error(f"Failed to setup logging: {str(e)}")
             # Don't raise exception as logging issues shouldn't prevent server startup
 
-    def get_server_info(self) -> Dict[str, Any]:
+    def get_server_info(self) -> dict[str, Any]:
         """Get server information and configuration.
 
         Returns:

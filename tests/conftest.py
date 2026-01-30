@@ -88,7 +88,7 @@ def mock_settings():
         },
     }.get(key, default)
 
-    def get_github_settings(self) -> Dict[str, Any]:
+    def get_github_settings(self) -> dict[str, Any]:
         return {
             "rate_limit": 5000,
             "timeout": 30,
@@ -115,7 +115,7 @@ def mock_settings():
             "diff_worker_timeout": 30.0,
         }
 
-    def get_app_settings(self) -> Dict[str, Any]:
+    def get_app_settings(self) -> dict[str, Any]:
         return {
             "debug": False,
             "log_level": "INFO",

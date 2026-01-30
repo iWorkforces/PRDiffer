@@ -42,8 +42,8 @@ class FilePatchInfo:
     tokens: int = -1
 
     # Phase 3: Extended metadata for API enhancement
-    diff_metadata: Optional[Dict[str, Any]] = None
-    code_smell_indicators: Optional[List[str]] = None
+    diff_metadata: Optional[dict[str, Any]] = None
+    code_smell_indicators: Optional[list[str]] = None
     suggested_review_priority: str = "normal"  # "high", "normal", "low"
 
     # Computed properties (not stored, computed from other fields)
@@ -262,13 +262,13 @@ class FilePatchInfo:
 
         return "normal"
 
-    def detect_code_smells(self) -> List[str]:
+    def detect_code_smells(self) -> list[str]:
         """Detect potential code smell indicators in the diff.
 
         Returns:
-            List[str]: List of detected code smell indicators
+            list[str]: List of detected code smell indicators
         """
-        indicators: List[str] = []
+        indicators: list[str] = []
 
         if not self.patch:
             return indicators
@@ -303,11 +303,11 @@ class FilePatchInfo:
 
         return indicators
 
-    def validate(self) -> List[str]:
+    def validate(self) -> list[str]:
         """Validate the file patch information.
 
         Returns:
-            List[str]: List of validation errors (empty if valid)
+            list[str]: List of validation errors (empty if valid)
         """
         errors = []
 
@@ -328,7 +328,7 @@ class FilePatchInfo:
 
         return errors
 
-    def is_ignored_file(self, ignore_patterns: Optional[List[str]] = None) -> bool:
+    def is_ignored_file(self, ignore_patterns: Optional[list[str]] = None) -> bool:
         """Check if file should be ignored based on patterns.
 
         Args:

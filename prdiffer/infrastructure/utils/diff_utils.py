@@ -171,8 +171,8 @@ class DiffUtils(LazyLoggerMixin, DiffServiceInterface):
 
     def _build_chunk_hunk(
         self,
-        orig_lines: List[str],
-        new_lines: List[str],
+        orig_lines: list[str],
+        new_lines: list[str],
         orig_start: int,
         new_start: int,
     ) -> str:

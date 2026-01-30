@@ -38,8 +38,8 @@ class ServiceContainer:
         - Fast: minimal overhead
     """
 
-    _singleton_instances: Dict[str, Any] = {}
-    _transient_factories: Dict[str, Callable] = {}
+    _singleton_instances: dict[str, Any] = {}
+    _transient_factories: dict[str, Callable] = {}
     _lock: Lock
     _logger: LoggerServiceInterface
 
@@ -51,8 +51,8 @@ class ServiceContainer:
         """
         self._lock = Lock()
         self._logger = logger
-        self._singleton_instances: Dict[str, Any] = {}
-        self._transient_factories: Dict[str, Callable] = {}
+        self._singleton_instances: dict[str, Any] = {}
+        self._transient_factories: dict[str, Callable] = {}
 
     def register_singleton(
         self,

@@ -37,7 +37,7 @@ class ApprovePRPlugin(MCPToolPlugin):
         return "Approve a GitHub PR with a compliment comment"
 
     @property
-    def parameters(self) -> Dict[str, Any]:
+    def parameters(self) -> dict[str, Any]:
         """Get tool parameter schema."""
         return {
             "type": "object",

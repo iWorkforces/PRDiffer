@@ -76,8 +76,8 @@ class GitHubConfig(GitHubConfigInterface):
     context_aware_retry: bool = True
 
     # File filtering patterns (tuples for hashability)
-    ignore_patterns: Tuple[str, ...] = field(default_factory=tuple)
-    valid_extensions: Tuple[str, ...] = field(default_factory=tuple)
+    ignore_patterns: tuple[str, ...] = field(default_factory=tuple)
+    valid_extensions: tuple[str, ...] = field(default_factory=tuple)
 
     # Parallel diff processing
     diff_parallel_enabled: bool = True

@@ -23,29 +23,29 @@ class SettingsServiceInterface(ABC):
         pass
 
     @abstractmethod
-    def get_github_settings(self) -> Dict[str, Any]:
+    def get_github_settings(self) -> dict[str, Any]:
         """Get GitHub-related settings with proper type conversion.
 
         Returns:
-            Dict[str, Any]: GitHub settings including token, ignore_patterns, valid_extensions
+            dict[str, Any]: GitHub settings including token, ignore_patterns, valid_extensions
         """
         pass
 
     @abstractmethod
-    def get_cache_settings(self) -> Dict[str, Any]:
+    def get_cache_settings(self) -> dict[str, Any]:
         """Get cache-related settings.
 
         Returns:
-            Dict[str, Any]: Cache settings including TTL and size limits
+            dict[str, Any]: Cache settings including TTL and size limits
         """
         pass
 
     @abstractmethod
-    def get_app_settings(self) -> Dict[str, Any]:
+    def get_app_settings(self) -> dict[str, Any]:
         """Get application-specific settings.
 
         Returns:
-            Dict[str, Any]: Application settings including max_files_allowed
+            dict[str, Any]: Application settings including max_files_allowed
         """
         pass
 

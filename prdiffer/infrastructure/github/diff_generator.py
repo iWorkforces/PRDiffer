@@ -44,8 +44,8 @@ class DiffGenerator:
         self._logger = logger or get_logger()
 
     def generate_extended_diff(
-        self, diff_files: List[FilePatchInfo], add_line_numbers_to_hunks: bool = False
-    ) -> List[str]:
+        self, diff_files: list[FilePatchInfo], add_line_numbers_to_hunks: bool = False
+    ) -> list[str]:
         """Generate an extended diff for a pull request.
 
         Uses adaptive strategy: parallel processing for multiple files (>= threshold),
@@ -139,7 +139,7 @@ class DiffGenerator:
 
         return f"{separator}\n## Full file path: `{file.filename.strip()}`\n"
 
-    def _parse_hunks_from_patch(self, patch_lines: List[str]) -> List[Dict]:
+    def _parse_hunks_from_patch(self, patch_lines: list[str]) -> list[Dict]:
         """Parse hunks from patch lines.
 
         Args:
@@ -189,7 +189,7 @@ class DiffGenerator:
         hunk: Dict,
         line: str,
         line_i: int,
-        patch_lines: List[str],
+        patch_lines: list[str],
     ) -> None:
         """Add a line to the current hunk.
 
@@ -393,8 +393,8 @@ class DiffGenerator:
             return None
 
     def _generate_extended_diff_sequential(
-        self, diff_files: List[FilePatchInfo], add_line_numbers_to_hunks: bool = False
-    ) -> List[str]:
+        self, diff_files: list[FilePatchInfo], add_line_numbers_to_hunks: bool = False
+    ) -> list[str]:
         """Generate extended diff using sequential processing.
 
         This is the original implementation that processes files one by one.
@@ -440,8 +440,8 @@ class DiffGenerator:
         return extended_diffs
 
     def _generate_extended_diff_parallel(
-        self, diff_files: List[FilePatchInfo], add_line_numbers_to_hunks: bool = False
-    ) -> List[str]:
+        self, diff_files: list[FilePatchInfo], add_line_numbers_to_hunks: bool = False
+    ) -> list[str]:
         """Generate extended diff using parallel processing.
 
         This implementation uses ParallelExecutor to process files concurrently,

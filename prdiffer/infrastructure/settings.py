@@ -45,10 +45,10 @@ class SettingsService(SettingsServiceInterface):
 
         # Manual caching with thread-safe access
         self._cache_lock = RLock()
-        self._github_settings_cache: Optional[Dict[str, Any]] = None
+        self._github_settings_cache: Optional[dict[str, Any]] = None
         self._github_config_cache: Optional[GitHubConfig] = None
-        self._cache_settings_cache: Optional[Dict[str, Any]] = None
-        self._app_settings_cache: Optional[Dict[str, Any]] = None
+        self._cache_settings_cache: Optional[dict[str, Any]] = None
+        self._app_settings_cache: Optional[dict[str, Any]] = None
 
     def get(self, key: str, default: Any = None) -> Any:
         """Get a configuration value.
@@ -62,14 +62,14 @@ class SettingsService(SettingsServiceInterface):
         """
         return self.settings.get(key, default)
 
-    def get_github_settings(self) -> Dict[str, Any]:
+    def get_github_settings(self) -> dict[str, Any]:
         """Get GitHub-related settings with caching.
 
         Note: GitHub token authentication is now exclusively managed via the
         GITHUB_TOKEN environment variable. It is no longer read from settings files.
 
         Returns:
-            Dict[str, Any]: GitHub configuration including rate limits, timeouts, etc.
+            dict[str, Any]: GitHub configuration including rate limits, timeouts, etc.
         """
         with self._cache_lock:
             if self._github_settings_cache is not None:
@@ -216,11 +216,11 @@ class SettingsService(SettingsServiceInterface):
             )
             return self._github_config_cache
 
-    def get_cache_settings(self) -> Dict[str, Any]:
+    def get_cache_settings(self) -> dict[str, Any]:
         """Get cache-related settings with caching.
 
         Returns:
-            Dict[str, Any]: Cache configuration including TTL and size limits
+            dict[str, Any]: Cache configuration including TTL and size limits
         """
         with self._cache_lock:
             if self._cache_settings_cache is not None:
@@ -233,11 +233,11 @@ class SettingsService(SettingsServiceInterface):
             }
             return self._cache_settings_cache
 
-    def get_app_settings(self) -> Dict[str, Any]:
+    def get_app_settings(self) -> dict[str, Any]:
         """Get general application settings with caching.
 
         Returns:
-            Dict[str, Any]: Application configuration
+            dict[str, Any]: Application configuration
         """
         with self._cache_lock:
             if self._app_settings_cache is not None:
@@ -253,11 +253,11 @@ class SettingsService(SettingsServiceInterface):
             }
             return self._app_settings_cache
 
-    def get_configuration_warnings(self) -> List[str]:
+    def get_configuration_warnings(self) -> list[str]:
         """Get configuration warnings for potential issues.
 
         Returns:
-            List[str]: List of configuration warnings
+            list[str]: List of configuration warnings
         """
         warnings = []
 
@@ -316,11 +316,11 @@ class SettingsService(SettingsServiceInterface):
             or os.getenv("ENV_FOR_DYNACONF") == "development"
         )
 
-    def _get_loaded_config_files(self) -> List[str]:
+    def _get_loaded_config_files(self) -> list[str]:
         """Get list of loaded configuration files.
 
         Returns:
-            List[str]: List of configuration file paths
+            list[str]: List of configuration file paths
         """
         try:
             # Try to get loaded files from Dynaconf

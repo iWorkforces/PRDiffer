@@ -659,7 +659,7 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
 
 
 # Global instance cache for singleton pattern
-_repository_cache: Dict[str, "GitHubPRDiffRepository"] = {}
+_repository_cache: dict[str, "GitHubPRDiffRepository"] = {}
 
 
 def get_github_repository(

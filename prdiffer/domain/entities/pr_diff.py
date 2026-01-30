@@ -12,9 +12,9 @@ class PRDiff(BaseModel):
     Breaking change: files array replaces diff_content field.
 
     Field mapping from FilePatchInfo:
-    - List[FilePatchInfo] → List[FileDiffResponse] (with mapping)
+    - list[FilePatchInfo] → list[FileDiffResponse] (with mapping)
     """
 
-    files: List[FileDiffResponse] = Field(
+    files: list[FileDiffResponse] = Field(
         default_factory=list, description="Array of file-level diff responses"
     )

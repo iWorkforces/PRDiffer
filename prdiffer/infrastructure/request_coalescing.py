@@ -48,7 +48,7 @@ class RequestCoalescingService:
             logger: Logger instance for logging operations
             max_waiters: Maximum number of waiters per request (default: from settings or 100)
         """
-        self._pending_requests: Dict[str, CoalescedRequest] = {}
+        self._pending_requests: dict[str, CoalescedRequest] = {}
         self._lock = anyio.Lock()
         self._logger = logger or get_logger()
 
@@ -285,7 +285,7 @@ class RequestCoalescingService:
             self._pending_requests.clear()
             self._logger.info("Cleared all pending requests")
 
-    async def get_stats(self) -> Dict[str, Any]:
+    async def get_stats(self) -> dict[str, Any]:
         """Get statistics about pending requests.
 
         Returns:
