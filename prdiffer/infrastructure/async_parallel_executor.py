@@ -7,14 +7,11 @@ ThreadPoolExecutor with anyio's structured concurrency primitives.
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import (
-    List,
     Callable,
     Any,
     Optional,
-    Dict,
     TypeVar,
     Awaitable,
-    Tuple,
     Generic,
     Type,
     cast,
@@ -25,7 +22,7 @@ from prdiffer.infrastructure.logging.console_logger import get_logger
 # Exceptions to catch in parallel execution
 # Note: We deliberately exclude KeyboardInterrupt, SystemExit, and GeneratorExit
 # to allow system-level exceptions to propagate for proper shutdown/cleanup.
-OPERATIONAL_EXCEPTIONS: Tuple[Type[BaseException], ...] = (
+OPERATIONAL_EXCEPTIONS: tuple[type[BaseException], ...] = (
     TimeoutError,  # Timeout scenarios
     ConnectionError,  # Network issues
     OSError,  # File I/O errors
@@ -69,8 +66,8 @@ class ErrorStrategy(str, Enum):
 class BatchResult(Generic[T]):
     """Result of a batch execution with success/failure tracking."""
 
-    successful: List[T] = field(default_factory=list)
-    failed: List[Tuple[Any, Exception]] = field(default_factory=list)
+    successful: list[T] = field(default_factory=list)
+    failed: list[tuple[Any, Exception]] = field(default_factory=list)
 
     @property
     def total(self) -> int:
@@ -99,7 +96,7 @@ class BatchResult(Generic[T]):
         """Check if all items succeeded."""
         return len(self.failed) == 0
 
-    def get_errors(self) -> List[Exception]:
+    def get_errors(self) -> list[Exception]:
         """Get list of all exceptions."""
         return [error for _, error in self.failed]
 
@@ -149,8 +146,8 @@ class AsyncParallelExecutor:
     async def execute_batch(
         self,
         func: Callable[[T], Awaitable[R]],
-        items: List[T],
-    ) -> List[R]:
+        items: list[T],
+    ) -> list[R]:
         """Execute an async function on a list of items in parallel.
 
         Args:
