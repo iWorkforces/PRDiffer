@@ -1,24 +1,24 @@
 # PROJECT KNOWLEDGE BASE
 
-**Generated:** 2026-01-30T17:37:31Z
-**Commit:** f8607ba
+**Generated:** 2026-01-30T14:05:00Z
+**Commit:** 8fcfc9b
 **Branch:** upstream
 **Version:** 0.5.0
 
 ## OVERVIEW
-Python 3.14+ MCP server for GitHub PR diff analysis with Clean Architecture (Domain → Application → Infrastructure). FastMCP framework, Pydantic v2, anyio async.
+Python 3.14+ MCP server for GitHub PR diff analysis with Clean Architecture (Domain → Application → Infrastructure). FastMCP framework, Pydantic v2, anyio async. 177 Python files, 42K lines, 26 AGENTS.md files.
 
 ## STRUCTURE
 ```
 PRDifferMCP/
 ├── prdiffer/
-│   ├── domain/           # Pure business logic (30 files, 6 subdirs)
-│   ├── infrastructure/   # External integrations (33 files, 6 subdirs)
-│   └── application/     # MCP server, components, plugin system (15 files, 5 subdirs)
-├── tests/               # Unit/integration (pytest, 863+ tests, ~70% coverage)
-├── docs/                # Documentation (19 files)
-├── scripts/              # Helper scripts and git hooks
-└── settings.toml        # Dynaconf configuration
+│   ├── domain/           # Pure business logic (34 files, 7 subdirs, 7 __init__.py)
+│   ├── infrastructure/   # External integrations (41 files, 6 subdirs, 6 __init__.py)
+│   └── application/     # MCP server, components, plugin system (22 files, 5 subdirs, 5 __init__.py)
+├── tests/               # Unit/integration (74 files: 55 unit + 8 integration + 8 perf + 3 phase)
+├── docs/                # Documentation (error-codes.md only, gitignored)
+├── scripts/              # Helper scripts, git-hooks, analysis tools
+└── settings.toml        # Dynaconf configuration (212 lines, 14 groups)
 ```
 
 ## WHERE TO LOOK
@@ -28,8 +28,8 @@ PRDifferMCP/
 | **Add MCP tool** | `prdiffer/application/plugins/` | Extend MCPToolPlugin interface, register in PluginManager |
 | **Modify DI** | `prdiffer/infrastructure/di_container.py`, `prdiffer/infrastructure/factories/infrastructure_factory.py` | Use ServiceContainer for singletons, ServiceFactory for creation |
 | **Add exception** | `prdiffer/domain/exceptions.py`, `prdiffer/domain/errors.py` | Follow E{category}{number}_{NAME} format |
-| **Config changes** | `settings.toml` | Dynaconf groups: mcp, github, smart_retry, circuit_breaker |
-| **Retry logic** | `prdiffer/infrastructure/utils/retry_handler.py` | Unified retry with exponential backoff, circuit breaker, context-aware configs |
+| **Config changes** | `settings.toml` | Dynaconf groups: mcp, auth, github, cache, diff, security |
+| **Retry logic** | `prdiffer/infrastructure/utils/retry_handler.py` | 971-line unified handler with exponential backoff, circuit breaker, context-aware configs |
 | **Caching** | `prdiffer/infrastructure/cache_service.py`, `prdiffer/infrastructure/utils/cache_decorator.py` | Commit-based invalidation, LRU eviction, TTL support |
 | **Security** | `prdiffer/infrastructure/security/input_validator.py` | Pattern-based injection detection (command, path traversal, SQL) |
 | **Async patterns** | `prdiffer/infrastructure/async_parallel_executor.py` | anyio primitives: Semaphore, Lock, Event, task groups |
@@ -63,22 +63,27 @@ PRDifferMCP/
 - **Application**: Orchestrates. Imports from both layers.
 - **Layer direction**: Only outer layers import inner layers (Application → Infrastructure → Domain).
 - **Max depth**: 3 levels (intentionally shallow for discoverability).
+- **No outer layer imports in domain** → Domain must stay pure.
 
 ### Dependency Injection
 - Constructor injection preferred. Optional DI params with singleton fallbacks.
 - `container=None` pattern for testability.
 - ServiceContainer for singletons, ServiceFactory for creation.
 - 15+ `get_*()` factory functions for lazy initialization.
+- No global state → Use ServiceContainer for singletons.
 
 ### Async
 - **anyio** for backend-agnostic async. Native async preferred over threading.
 - AsyncParallelExecutor (anyio task groups) > ParallelExecutor (threads).
 - Primitives: Semaphore (concurrency), Lock (exclusion), Event (signaling), create_task_group().
 - **Dual APIs**: Sync/async versions for critical utilities.
+- **NO asyncio in tests** → Use anyio primitives (project is anyio-first).
 
 ### Configuration
 - **Dynaconf** via settings.toml. Manual caching (no @lru_cache) due to hashability.
 - Environment vars: GITHUB_TOKEN, MCP_AUTH_ENABLED, MCP_API_KEYS.
+- SettingsService with RLock for thread-safe manual caching.
+- GitHubConfig frozen dataclass with tuple-based fields (hashable).
 
 ### Error Codes
 - Format: `E{category}{number}_{NAME}` (e.g., E1001_VALIDATION_ERROR)
@@ -88,32 +93,76 @@ PRDifferMCP/
 - **pytest** with markers: `@pytest.mark.unit`, `@pytest.mark.integration`, `@pytest.mark.slow`, `@pytest.mark.security`, `@pytest.mark.thread_safety`.
 - Coverage: Overall >80%, Domain >90%, Infrastructure >75%, Application >85%.
 - Test structure: tests/unit/domain, tests/unit/infrastructure, tests/unit/application, tests/integration.
+- anyio-first async testing (not asyncio).
+- Custom auto-use fixtures for environment setup and singleton reset.
 
 ## ANTI-PATTERNS (THIS PROJECT)
 
+### Critical Anti-Patterns
 - **NO imports from outer layers in domain** → Domain must stay pure.
 - **NO direct PyGithub in application** → Use infrastructure services.
 - **NO @lru_cache on settings** → Use manual caching (Dynaconf unhashable).
 - **NO async/await mixed with blocking I/O** → Use AsyncParallelExecutor for non-blocking calls.
 - **NO type error suppression** → Never use `as any`, `@ts-ignore`, `@type: ignore`.
 - **NO empty catch blocks** → Always log or handle exceptions.
-- **NO old-style typing imports** → Use built-in types (`list[str]`) instead of `from typing import List`.
+- **NO old-style typing imports** → Use built-in types (`list[str]`) instead of `from typing import List`. (Documented but 48 violations exist)
 - **NO asyncio in tests** → Use anyio primitives instead (project is anyio-first).
 - **NEVER use unverified JWT parsing** → Only for metadata extraction, not auth decisions.
 - **Never retry 404s for file content** → Likely added/removed files.
 
+### Architecture Enforcement
+- **NO business logic in application** → Domain layer only (components are orchestration).
+- **NO PyGithub in plugins** → Use PRDiffService/PROperationHandler.
+- **NO static plugin registration** → Use PluginManager or factory.
+- **NO plugin state mutation** → Plugins should be stateless or manage state internally.
+- **NO synchronous blocking** → All tool execution must be async.
+- **NO direct infrastructure calls in components** → Inject via DI.
+- **NO bypassing circuit breaker** → Always go through CircuitBreaker for external APIs.
+
+### Security Enforcement
+- **NO command injection** → Shell metacharacters, command substitution.
+- **NO path traversal** → `..`, `~/`, `/etc/`, `/var/`, `/usr/`, Windows paths.
+- **NO SQL injection** → `--`, `/*`, SQL keywords.
+- **NO hardcoded secrets** → Use environment variables.
+
+### Build/Testing Anti-Patterns
+- **NO production logic in tests** → Tests only.
+- **NO test dependencies** → Use fixtures.
+- **NO integration tests in unit/ → Use mocks, separate integration/.
+- **NO real API calls** → Mock all external dependencies.
+- **NO blocking I/O tests** → Use AsyncParallelExecutor patterns.
+
 ## UNIQUE STYLES
 
-- **VCS Provider Registry**: Auto-detection from URL patterns. Extensible for GitHub/GitLab.
-- **Plugin System**: MCPToolPlugin interface for modular tools. PluginManager discovers and executes.
-- **Commit-Based Caching**: MD5 hash keys, auto-invalidate on commit changes.
-- **Full-File Diff**: Uses difflib.SequenceMatcher, not just hunks.
-- **Security**: InputValidator detects injection patterns (command, path traversal, SQL), sanitizes logs.
-- **Three-Tier Resilience**: Retry → Circuit Breaker → API Health Tracker (optional advanced features).
-- **Dual Async/Sync APIs**: UnifiedRetryHandler, CircuitBreaker provide both versions.
-- **Request Coalescing**: Deduplicates concurrent requests for same resource with anyio primitives.
-- **ETag Conditional Requests**: HTTP 304 handling to reduce bandwidth.
-- **Layer-Specific Factories**: InfrastructureFactory for external services, get_*() functions for internal services.
+### Entry Point Patterns
+- **Transport-aware output stream redirection**: Send diagnostics to stderr for stdio mode, stdout for other transports (prevents JSON-RPC corruption).
+- **Environment variable priority system**: CLI args > existing env vars > defaults (modifies os.environ in-place).
+- **Manual sys.path injection**: Allows direct execution without installation (anti-pattern for production, convenient for dev).
+
+### Build/CI Patterns
+- **Manual git hook distribution**: Custom `setup-git-hooks.sh` copies hooks from `scripts/git-hooks/` to `.git/hooks/` (version-controlled, team synchronization).
+- **Pre-push enforcement**: Type checking + linting before every push (blocks push on failure).
+- **Developer tool wrappers**: `start-cc-mmax.sh`, `start-cc-zai.sh`, `start-oc-zai.sh` for Claude Code with environment management.
+- **Comprehensive server startup script**: `start-prdiffer-mcp-server.sh` (388 lines) with auto uv installation, PID management, health checks, graceful shutdown.
+- **Architecture violation detection**: `scripts/analyze_dependencies.py` uses AST to detect Clean Architecture violations (exits with error code 1).
+- **No CI/CD infrastructure**: Manual quality gates only (no GitHub Actions, Makefile, pre-commit).
+
+### Testing Patterns
+- **anyio-first async**: Uses `anyio.run()`, `anyio.Lock`, `anyio.Semaphore`, `anyio.create_task_group()` (not asyncio).
+- **Generator fixtures**: `mock_github_file()`, `generate_pr_url()`, `generate_diff_content()`, `run_concurrently()` for test data.
+- **Thread safety testing**: `run_concurrently` fixture with anyio.Semaphore for concurrency limits.
+- **Performance testing**: `tests/performance/test_performance.py` with `time.perf_counter()` for benchmarking.
+
+### Configuration Patterns
+- **Manual caching with RLock**: SettingsService uses module-level `_settings_service = None` with RLock for thread-safe caching (no @lru_cache).
+- **GitHubConfig frozen dataclass**: Immutable with tuple fields (not lists) for hashability.
+- **Security pattern configuration**: Configurable regex patterns in `settings.toml` for injection detection (command, path traversal, SQL).
+
+### Organization Patterns
+- **Dual factory pattern**: Domain-level factories (`domain/factories/`) define interfaces, infrastructure implements them.
+- **VCS provider registry**: Auto-detection from URL patterns via `supports_repository()` method.
+- **Plugin system**: MCPToolPlugin interface with PluginManager discovery and execution.
+- **Layer-specific AGENTS.md**: Each layer has own AGENTS.md documenting conventions (26 files total).
 
 ## COMMANDS
 ```bash
@@ -121,11 +170,11 @@ PRDifferMCP/
 uv install              # Install dependencies
 uv install --dev        # Install dev deps
 
-# Linting
+# Linting (custom scripts, no pyproject.toml ruff config)
 ./start-lint.sh --check      # Check only
 ./start-lint.sh --fix        # Auto-fix
 ./start-lint.sh --format     # Format code
-./start-lint.sh --all        # Complete workflow
+./start-lint.sh --all        # Complete workflow (triple-quote replacement, check→fix→format)
 
 # Type checking
 ./start-type-check.sh --check
@@ -133,12 +182,26 @@ uv install --dev        # Install dev deps
 
 # Unit testing
 ./start-unittest.sh --run         # All tests
-./start-unittest.sh --coverage    # With coverage
-./start-unittest.sh --parallel    # Parallel execution
+./start-unittest.sh --coverage    # With coverage (HTML+term)
+./start-unittest.sh --parallel     # Parallel execution (CPU count workers)
+./start-unittest.sh --watch        # Watch mode (pytest-watch)
+./start-unittest.sh --file <path>  # Specific file
+./start-unittest.sh --pattern <pat> # Match pattern (-k equivalent)
 
 # Server
 uv run python prdiffer/server.py
-TRANSPORT=sse PORT=9102 uv run python prdiffer/server.py
+./start-prdiffer-mcp-server.sh  # Comprehensive startup with auto uv, PID mgmt
+
+# Architecture validation
+python scripts/analyze_dependencies.py --path prdiffer
+
+# Git hooks
+./scripts/setup-git-hooks.sh  # Install version-controlled hooks
+
+# Developer tools
+./start-cc-mmax.sh -- <args>  # Claude Code with .env.cc.mmax
+./start-cc-zai.sh -- <args>   # Claude Code with .env.cc.zai
+./start-oc-zai.sh -- <args>   # OpenCode with .env.oc.zai
 ```
 
 ## NOTES
@@ -154,3 +217,5 @@ TRANSPORT=sse PORT=9102 uv run python prdiffer/server.py
 - **Maximum directory depth**: 3 levels (prdiffer/{layer}/{package}/{module}.py).
 - **No CI/CD infrastructure**: Manual quality gates only; no GitHub Actions workflows exist.
 - **Type hint deviation**: Project uses old-style typing imports (`from typing import List`) instead of Python 3.14+ built-ins.
+- **Custom git hooks**: Pre-push hook enforces type checking + linting (bypass with `--no-verify`).
+- **Manual caching pattern**: SettingsService with RLock due to Dynaconf unhashability (no @lru_cache).
