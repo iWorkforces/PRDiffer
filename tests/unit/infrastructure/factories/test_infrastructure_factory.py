@@ -6,7 +6,6 @@ Tests verify:
 """
 
 import ast
-from unittest.mock import Mock
 
 from prdiffer.infrastructure.factories.infrastructure_factory import (
     InfrastructureFactory,

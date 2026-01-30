@@ -45,3 +45,4 @@ tests/
 
 - **NO production logic in tests** → Tests only
 - **NO test dependencies** → Use fixtures
+- **NO asyncio in tests** → Use anyio primitives (project is anyio-first)
