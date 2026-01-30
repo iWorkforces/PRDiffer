@@ -211,3 +211,18 @@ __marimo__/
 
 *.DS_Store
 
+# Development and temporary files
+*.pid
+.prdiffer-server.pid
+txt.txt
+txt2.txt
+start-oc-zai.sh
+.reports/
+
+# OpenCode/Claude development files
+.claude/agents/
+.claude/commands/openspec/
+
+# Documentation drafts (committed docs/ are tracked)
+docs/
+
