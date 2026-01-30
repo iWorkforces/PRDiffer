@@ -1,9 +1,9 @@
 # PROJECT KNOWLEDGE BASE
 
-**Generated:** 2026-01-29T16:01:46Z
-**Commit:** 1ac0876
+**Generated:** 2026-01-30T17:40:00Z
+**Commit:** c3a8a87
 **Branch:** upstream
-**Version:** 0.4.9
+**Version:** 0.5.0
 
 ## OVERVIEW
 Python 3.14+ MCP server for GitHub PR diff analysis with Clean Architecture (Domain → Application → Infrastructure). FastMCP framework, Pydantic v2, anyio async.
@@ -46,8 +46,14 @@ PRDifferMCP/
 | CircuitBreaker | Service | `prdiffer/infrastructure/utils/circuit_breaker.py` | Fault tolerance with state machine |
 | AsyncParallelExecutor | Service | `prdiffer/infrastructure/async_parallel_executor.py` | anyio-based parallel execution |
 | PluginManager | Plugin | `prdiffer/application/plugin_manager.py` | MCP tool plugin discovery |
-| FastMCPServer | Application | `prdiffer/application/mcp_server.py` | 870-line MCP server orchestrator |
-| InputValidator | Security | `prdiffer/infrastructure/security/input_validator.py` | Comprehensive validation with 765 lines |
+| FastMCPServer | Application | `prdiffer/application/mcp_server.py` | 239-line MCP server orchestrator (refactored) |
+| ToolRegistry | Application | `prdiffer/application/tool_registry.py` | 581-line MCP tool registration |
+| WebhookHandler | Application | `prdiffer/application/webhook_handler.py` | 214-line GitHub webhook processing |
+| HealthEndpoints | Application | `prdiffer/application/health_endpoints.py` | 180-line health checks and metrics |
+| InputValidator | Security | `prdiffer/infrastructure/security/input_validator.py` | Input validation orchestrator (571 lines, refactored) |
+| InjectionDetector | Security | `prdiffer/infrastructure/security/injection_detector.py` | 267-line pattern-based threat detection |
+| Sanitizer | Security | `prdiffer/infrastructure/security/sanitizer.py` | 156-line input sanitization |
+| LazyLoggerMixin | Utility | `prdiffer/infrastructure/utils/logger_factory.py` | 66-line shared logger initialization pattern |
 
 ## CONVENTIONS
 
