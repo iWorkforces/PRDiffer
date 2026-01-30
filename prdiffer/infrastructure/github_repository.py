@@ -17,6 +17,8 @@ from prdiffer.domain.entities.pr_diff import PRDiff
 from prdiffer.domain.entities.file_diff_response import FileDiffResponse
 from prdiffer.domain.repositories import PRDiffRepositoryInterface
 from prdiffer.domain.services.logger import LoggerServiceInterface, LogLevel
+from prdiffer.domain.exceptions import PRDifferException
+from prdiffer.domain.errors import E5009_CONFIGURATION_ERROR
 from prdiffer.infrastructure.settings import SettingsService, get_settings_service
 from prdiffer.infrastructure.logging.console_logger import get_logger
 from prdiffer.infrastructure.logging.exception_utils import (
@@ -208,8 +210,9 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
         """
         self._initialize_github_objects()
         if not self._initialized:
-            raise RuntimeError(
-                f"Failed to initialize repository {self._repo_owner}/{self._repo_name}"
+            raise PRDifferException(
+                f"Failed to initialize repository {self._repo_owner}/{self._repo_name}",
+                error_code=E5009_CONFIGURATION_ERROR,
             )
 
     @property
@@ -250,8 +253,9 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
                 f"Repository not accessible: {repo_full_name}", extra=sanitized
             )
             # Re-raise immediately to preserve exception context
-            raise RuntimeError(
-                f"Failed to initialize repository {repo_full_name} - repository may not exist or access may be denied"
+            raise PRDifferException(
+                f"Failed to initialize repository {repo_full_name} - repository may not exist or access may be denied",
+                error_code=E5009_CONFIGURATION_ERROR,
             ) from e
         except GithubException as e:
             sanitized = sanitize_exception_for_logging(e)
@@ -260,13 +264,17 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
                 extra=sanitized,
             )
             # Re-raise immediately to preserve exception context
-            raise RuntimeError(
-                f"GitHub API error accessing repository {repo_full_name}"
+            raise PRDifferException(
+                f"GitHub API error accessing repository {repo_full_name}",
+                error_code=E5009_CONFIGURATION_ERROR,
             ) from e
 
         try:
             if self._repository is None:
-                raise RuntimeError(f"Repository {repo_full_name} is not initialized")
+                raise PRDifferException(
+                    f"Repository {repo_full_name} is not initialized",
+                    error_code=E5009_CONFIGURATION_ERROR,
+                )
             self._pull_request = self._github_api_client._get_pygithub_pull_request(
                 self._repository, self._pr_number
             )
@@ -277,8 +285,9 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
                 extra=sanitized,
             )
             # Re-raise immediately to preserve exception context
-            raise RuntimeError(
-                f"Failed to initialize pull request #{self._pr_number} for repository {repo_full_name} - pull request may not exist or be inaccessible"
+            raise PRDifferException(
+                f"Failed to initialize pull request #{self._pr_number} for repository {repo_full_name} - pull request may not exist or be inaccessible",
+                error_code=E5009_CONFIGURATION_ERROR,
             ) from e
         except GithubException as e:
             sanitized = sanitize_exception_for_logging(e)

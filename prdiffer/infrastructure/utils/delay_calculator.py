@@ -6,10 +6,13 @@ and rate limit awareness.
 """
 
 import random
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 
 from prdiffer.infrastructure.utils.rate_limit_parser import RateLimitInfo
 from prdiffer.infrastructure.utils.error_classifier import is_rate_limit_error
+
+if TYPE_CHECKING:
+    from prdiffer.infrastructure.utils.api_health_tracker import APIHealthTracker
 
 
 def calculate_basic_backoff(
@@ -41,7 +44,7 @@ def calculate_adaptive_delay(
     base_delay: float,
     backoff_multiplier: float,
     error: Optional[Exception] = None,
-    health_tracker: Optional[object] = None,
+    health_tracker: Optional["APIHealthTracker"] = None,
     max_delay: float = 30.0,
 ) -> float:
     """Calculate adaptive retry delay based on API health and error type.
@@ -105,7 +108,7 @@ def calculate_retry_delay(
     use_adaptive: bool = False,
     secondary_backoff: float = 60.0,
     reset_buffer: float = 1.0,
-    health_tracker: Optional[object] = None,
+    health_tracker: Optional["APIHealthTracker"] = None,
     max_adaptive_delay: float = 30.0,
 ) -> float:
     """Calculate retry delay based on error type and configuration.

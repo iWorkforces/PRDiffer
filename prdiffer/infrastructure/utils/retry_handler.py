@@ -10,9 +10,7 @@ The handler supports both synchronous and asynchronous operations:
 Common logic is extracted to BaseUnifiedRetryHandler to avoid code duplication.
 """
 
-import random
 import time
-import threading
 from abc import abstractmethod
 from typing import Any, Callable, Optional, Dict, Coroutine, TypeVar, Tuple
 
@@ -22,7 +20,9 @@ from enum import StrEnum
 from typing import Type, cast
 
 from prdiffer.domain.services import RetryServiceInterface
-from prdiffer.infrastructure.utils.logger_factory import get_logger
+from prdiffer.infrastructure.utils.logger_factory import LazyLoggerMixin
+from prdiffer.domain.exceptions import PRDifferException
+from prdiffer.domain.errors import E5001_INTERNAL_ERROR
 from prdiffer.infrastructure.utils.retry_logger import (
     log_retry_attempt,
     log_permanent_failure,
@@ -97,7 +97,7 @@ class OperationContext(StrEnum):
     BATCH_OPERATION = "batch_operation"
 
 
-class BaseUnifiedRetryHandler(RetryServiceInterface):
+class BaseUnifiedRetryHandler(LazyLoggerMixin, RetryServiceInterface):
     """Base class for unified retry handlers with common logic.
 
     This base class contains all shared retry logic, configuration,
@@ -168,9 +168,7 @@ class BaseUnifiedRetryHandler(RetryServiceInterface):
         self.permanent_failure_log_level = permanent_failure_log_level.upper()
 
         # Logger is optional - if not provided, we'll get it lazily to avoid circular imports
-        self._logger = logger
-        self._logger_fetched = logger is not None
-        self._logger_lock = threading.Lock()
+        self._init_lazy_logger(logger, __name__)
 
         # Advanced features configuration
         self.use_advanced_features = use_advanced_features
@@ -507,19 +505,6 @@ class BaseUnifiedRetryHandler(RetryServiceInterface):
             error_type = categorize_error(error)
             self._health_tracker.record_call(0.0, success=False, error_type=error_type)
 
-    def _get_logger(self):
-        """Get logger instance, lazily loading if needed to avoid circular imports.
-
-        Uses double-checked locking pattern for thread safety.
-        """
-        if not self._logger_fetched:
-            with self._logger_lock:
-                # Double-check pattern to avoid race conditions
-                if not self._logger_fetched:
-                    self._logger = get_logger(__name__)
-                    self._logger_fetched = True
-        return self._logger
-
     def _log_retry_attempt(
         self,
         attempt: int,
@@ -820,7 +805,10 @@ class UnifiedRetryHandler(BaseUnifiedRetryHandler):
         if last_exception:
             raise last_exception
 
-        raise RuntimeError("Unexpected state: no result and no exception")
+        raise PRDifferException(
+            "Unexpected state: no result and no exception",
+            error_code=E5001_INTERNAL_ERROR,
+        )
 
 
 # Backward compatibility aliases

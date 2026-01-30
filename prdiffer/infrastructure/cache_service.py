@@ -5,6 +5,8 @@ from collections import OrderedDict
 from typing import Optional, Dict, Any, cast
 from prdiffer.domain.entities.pr_diff import PRDiff
 from prdiffer.domain.services import CacheServiceInterface
+from prdiffer.domain.exceptions import ValidationError
+from prdiffer.domain.errors import E1010_INVALID_CONFIGURATION
 from .logging.console_logger import get_logger
 
 
@@ -100,7 +102,10 @@ class CacheService(CacheServiceInterface):
         elif self._hash_algorithm == "sha256_short":
             return hashlib.sha256(key.encode("utf-8")).hexdigest()[:16]
         else:
-            raise ValueError(f"Unsupported hash algorithm: {self._hash_algorithm}")
+            raise ValidationError(
+                f"Unsupported hash algorithm: {self._hash_algorithm}",
+                error_code=E1010_INVALID_CONFIGURATION,
+            )
 
     async def _get_internal_key(
         self, original_key: str, store_mapping: bool = False

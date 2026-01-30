@@ -5,8 +5,8 @@ rate limit information, and failures.
 """
 
 from typing import Optional
-from prdiffer.infrastructure.utils.rate_limit_parser import RateLimitInfo
-from prdiffer.infrastructure.utils.error_classifier import (
+from prdiffer.infrastructure.utils.rate_limit_parser import (
+    RateLimitInfo,
     is_rate_limit_remaining_below_threshold,
 )
 

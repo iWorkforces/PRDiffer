@@ -18,6 +18,7 @@ Thread Safety:
 """
 
 import logging
+import threading
 from typing import Optional
 
 
@@ -38,6 +39,65 @@ def get_logger(name: str) -> logging.Logger:
         >>> logger.info("Application started")
     """
     return logging.getLogger(name)
+
+
+class LazyLoggerMixin:
+    """Mixin class providing lazy logger initialization with thread safety.
+
+    This mixin implements the double-checked locking pattern for lazy logger
+    initialization. It's used to avoid circular import issues when creating
+    loggers in module initialization.
+
+    The pattern used is:
+    1. Logger can be None initially (passed to __init__)
+    2. On first access via _get_logger(), create logger using get_logger()
+    3. Use double-checked locking to ensure thread safety
+
+    Classes using this mixin should:
+    - Call self._init_lazy_logger(logger, logger_name) in __init__()
+    - Use self._get_logger() instead of self._logger directly
+
+    Example:
+        class MyClass(LazyLoggerMixin):
+            def __init__(self, logger=None):
+                self._init_lazy_logger(logger, __name__)
+
+            def do_work(self):
+                logger = self._get_logger()
+                logger.info("Doing work")
+    """
+
+    def _init_lazy_logger(
+        self, logger: Optional[logging.Logger], logger_name: str
+    ) -> None:
+        """Initialize lazy logger state.
+
+        This should be called in __init__() of classes using this mixin.
+
+        Args:
+            logger: Optional logger instance. If None, will be lazily created.
+            logger_name: Name for the logger (typically __name__)
+        """
+        self._logger: Optional[logging.Logger] = logger
+        self._logger_name = logger_name
+        self._logger_fetched = logger is not None
+        self._logger_lock = threading.Lock()
+
+    def _get_logger(self) -> logging.Logger:
+        """Get logger instance, lazily loading if needed to avoid circular imports.
+
+        Uses double-checked locking pattern for thread safety.
+
+        Returns:
+            logging.Logger: Logger instance
+        """
+        if not self._logger_fetched:
+            with self._logger_lock:
+                # Double-check pattern to avoid race conditions
+                if not self._logger_fetched:
+                    self._logger = get_logger(self._logger_name)
+                    self._logger_fetched = True
+        return self._logger  # type: ignore[return-value]
 
 
 def get_null_logger(name: Optional[str] = None) -> logging.Logger:

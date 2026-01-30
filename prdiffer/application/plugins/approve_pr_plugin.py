@@ -7,6 +7,8 @@ allowing PR approval with compliment comments.
 from typing import Dict, Any
 from prdiffer.application.interfaces.tool_plugin import MCPToolPlugin
 from prdiffer.domain.usecases.pr_approval_usecases import ApprovePRUseCase
+from prdiffer.domain.exceptions import ValidationError
+from prdiffer.domain.errors import E1001_INVALID_URL
 
 
 class ApprovePRPlugin(MCPToolPlugin):
@@ -82,18 +84,24 @@ class ApprovePRPlugin(MCPToolPlugin):
 
         # Validate required parameters
         if not compliment:
-            raise ValueError("compliment is required")
+            raise ValidationError(
+                "compliment is required", error_code=E1001_INVALID_URL
+            )
 
         if not pr_url:
-            raise ValueError("pr_url is required")
+            raise ValidationError("pr_url is required", error_code=E1001_INVALID_URL)
 
         if not isinstance(compliment, str):
-            raise ValueError(
-                f"compliment must be a string, got {type(compliment).__name__}"
+            raise ValidationError(
+                f"compliment must be a string, got {type(compliment).__name__}",
+                error_code=E1001_INVALID_URL,
             )
 
         if not isinstance(pr_url, str):
-            raise ValueError(f"pr_url must be a string, got {type(pr_url).__name__}")
+            raise ValidationError(
+                f"pr_url must be a string, got {type(pr_url).__name__}",
+                error_code=E1001_INVALID_URL,
+            )
 
         # Execute use case
         result = await self._use_case.execute(

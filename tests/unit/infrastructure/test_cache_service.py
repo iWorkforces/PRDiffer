@@ -1,10 +1,11 @@
 """Unit tests for CacheService infrastructure component.
 
-Tests the CacheService component which provides in-memory caching
+Tests for CacheService component which provides in-memory caching
 with commit-based invalidation, key hashing, and TTL support.
 """
 
 import time
+import anyio
 import threading
 from unittest.mock import patch
 import pytest
@@ -52,10 +53,10 @@ class TestCacheServiceInitialization:
         assert isinstance(service._use_hashed_keys, bool)
 
     def test_cache_service_has_lock(self, reset_cache_service):
-        """Test CacheService has thread safety lock."""
+        """Test CacheService has async lock."""
         service = CacheService()
 
-        assert isinstance(service._lock, type(threading.RLock()))
+        assert isinstance(service._lock, anyio.Lock)
 
     def test_cache_service_initial_stats(self, reset_cache_service):
         """Test initial statistics are zero."""

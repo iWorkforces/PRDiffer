@@ -8,6 +8,12 @@ import logging
 from typing import Optional
 from prdiffer.domain.interfaces.vcs_provider import VCSDiffRepositoryInterface
 from prdiffer.domain.entities.pr_diff import PRDiff
+from prdiffer.domain.exceptions import PRDifferException
+from prdiffer.domain.errors import (
+    E5019_CONNECTION_ERROR,
+    E5002_GITHUB_API_ERROR,
+    E4002_PR_NOT_FOUND,
+)
 
 httpx = None
 
@@ -69,11 +75,14 @@ class GitLabVCSRepository(VCSDiffRepositoryInterface):
                 ) as client:
                     response = await client.get("/user")
                     if response.status_code != 200:
-                        raise RuntimeError(
-                            f"Failed to initialize GitLab connection: {response.status_code}"
+                        raise PRDifferException(
+                            f"Failed to initialize GitLab connection: {response.status_code}",
+                            error_code=E5019_CONNECTION_ERROR,
                         )
             except Exception as e:
-                raise RuntimeError(f"GitLab connection error: {e}")
+                raise PRDifferException(
+                    f"GitLab connection error: {e}", error_code=E5019_CONNECTION_ERROR
+                )
 
     async def get_pr_diff(self, owner: str, repo: str, pr: int) -> PRDiff:
         """Get merge request diff from GitLab.
@@ -101,8 +110,9 @@ class GitLabVCSRepository(VCSDiffRepositoryInterface):
                     response = await client.get(url)
 
                     if response.status_code != 200:
-                        raise RuntimeError(
-                            f"Merge request not found: {response.status_code}"
+                        raise PRDifferException(
+                            f"Merge request not found: {response.status_code}",
+                            error_code=E4002_PR_NOT_FOUND,
                         )
 
                     return PRDiff(files=[])
@@ -117,7 +127,9 @@ class GitLabVCSRepository(VCSDiffRepositoryInterface):
                         "error_type": type(e).__name__,
                     },
                 )
-                raise RuntimeError(f"GitLab API error: {e}") from e
+                raise PRDifferException(
+                    f"GitLab API error: {e}", error_code=E5002_GITHUB_API_ERROR
+                ) from e
             except Exception as e:
                 logger.error(
                     "Unexpected error when fetching GitLab MR diff",
@@ -129,7 +141,9 @@ class GitLabVCSRepository(VCSDiffRepositoryInterface):
                         "error_type": type(e).__name__,
                     },
                 )
-                raise RuntimeError(f"GitLab API error: {e}") from e
+                raise PRDifferException(
+                    f"GitLab API error: {e}", error_code=E5002_GITHUB_API_ERROR
+                ) from e
         else:
             return PRDiff(files=[])
 

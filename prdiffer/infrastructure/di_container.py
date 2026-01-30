@@ -7,7 +7,8 @@ enabling testability and proper dependency injection throughout the codebase.
 from typing import Dict, Type, Callable, Any, Optional
 from threading import Lock
 from prdiffer.domain.services.logger import LoggerServiceInterface
-from prdiffer.domain.exceptions import PRDifferException
+from prdiffer.domain.exceptions import PRDifferException, ConfigurationError
+from prdiffer.domain.errors import E5009_CONFIGURATION_ERROR
 
 
 class DependencyAlreadyRegisteredError(PRDifferException):
@@ -147,7 +148,9 @@ class ServiceContainer:
             self._logger.debug(f"Created transient instance of {type_name}")
             return instance
 
-        raise ValueError(f"Service {type_name} not registered")
+        raise ConfigurationError(
+            f"Service {type_name} not registered", error_code=E5009_CONFIGURATION_ERROR
+        )
 
     def has(self, interface_type: Type) -> bool:
         """Check if interface type is registered.
@@ -287,8 +290,9 @@ def get_container(logger: Optional[LoggerServiceInterface] = None) -> ServiceCon
 
     if _container is None:
         if logger is None:
-            raise ValueError(
-                "ServiceContainer not initialized. Provide logger on first call."
+            raise ConfigurationError(
+                "ServiceContainer not initialized. Provide logger on first call.",
+                error_code=E5009_CONFIGURATION_ERROR,
             )
         _container = ServiceContainer(logger=logger)
 

@@ -21,6 +21,8 @@ from prdiffer.infrastructure.logging.console_logger import get_logger
 from prdiffer.infrastructure.logging.exception_utils import (
     sanitize_exception_for_logging,
 )
+from prdiffer.domain.exceptions import PRDifferException
+from prdiffer.domain.errors import E5009_CONFIGURATION_ERROR
 from prdiffer.infrastructure.async_parallel_executor import (
     AsyncParallelExecutor,
     ErrorStrategy,
@@ -205,8 +207,9 @@ class GitHubAPIClient(GitHubAPIServiceInterface):
             RuntimeError: If GitHub client is not initialized
         """
         if not self._github_client:
-            raise RuntimeError(
-                "GitHub client not initialized. Call initialize_client() before using get_repository()."
+            raise PRDifferException(
+                "GitHub client not initialized. Call initialize_client() before using get_repository().",
+                error_code=E5009_CONFIGURATION_ERROR,
             )
 
         try:
@@ -238,7 +241,9 @@ class GitHubAPIClient(GitHubAPIServiceInterface):
             PyGithub Repository instance if found, None otherwise
         """
         if not self._github_client:
-            raise RuntimeError("GitHub client not initialized.")
+            raise PRDifferException(
+                "GitHub client not initialized.", error_code=E5009_CONFIGURATION_ERROR
+            )
 
         try:
             result = self._retry_handler.execute_with_retry(
@@ -268,8 +273,9 @@ class GitHubAPIClient(GitHubAPIServiceInterface):
             PullRequest instance if found, None otherwise
         """
         if not self._github_client:
-            raise RuntimeError(
-                "GitHub client not initialized. Call initialize_client() before using get_pull_request()."
+            raise PRDifferException(
+                "GitHub client not initialized. Call initialize_client() before using get_pull_request().",
+                error_code=E5009_CONFIGURATION_ERROR,
             )
 
         try:
@@ -424,8 +430,9 @@ class GitHubAPIClient(GitHubAPIServiceInterface):
             str: File content as string, empty string on error
         """
         if not self._github_client:
-            raise RuntimeError(
-                "GitHub client not initialized. Call initialize_client() before using get_file_content()."
+            raise PRDifferException(
+                "GitHub client not initialized. Call initialize_client() before using get_file_content().",
+                error_code=E5009_CONFIGURATION_ERROR,
             )
 
         cache_key = (file_path, branch)
@@ -521,9 +528,15 @@ class GitHubAPIClient(GitHubAPIServiceInterface):
             str: File content as string, empty string on error
         """
         if not self._github_client:
-            raise RuntimeError(
-                "GitHub client not initialized. Call initialize_client() before using _get_file_content_async()."
+            raise PRDifferException(
+                "GitHub client not initialized. Call initialize_client() before using _get_file_content_async().",
+                error_code=E5009_CONFIGURATION_ERROR,
             )
+
+        assert self._github_client is not None
+
+        # Capture github_client to ensure type narrowing in nested functions
+        github_client = self._github_client
 
         cache_key = (file_path, branch)
         cached_content = self._cache_get(cache_key)
@@ -535,7 +548,7 @@ class GitHubAPIClient(GitHubAPIServiceInterface):
             async def get_repo_async():
                 return await to_thread.run_sync(
                     lambda: self._retry_handler.execute_with_retry(
-                        self._github_client.get_repo,
+                        github_client.get_repo,
                         repo_full_name,
                         context=OperationContext.REPOSITORY_ACCESS,
                     )

@@ -28,6 +28,8 @@ from jwt.exceptions import InvalidTokenError, ExpiredSignatureError
 
 from prdiffer.domain.interfaces.protocols import AuthenticationProtocol
 from prdiffer.infrastructure.security.input_validator import InputValidator
+from prdiffer.domain.exceptions import AuthenticationError
+from prdiffer.domain.errors import E2002_AUTH_FAILED
 
 
 @dataclass
@@ -261,8 +263,9 @@ class AuthenticationMiddleware(AuthenticationProtocol):
             self._logger.warning(
                 f"Authentication blocked: Client locked out: {client_identifier[:20]}..."
             )
-            raise RuntimeError(
-                "Too many authentication failures. Please try again later."
+            raise AuthenticationError(
+                "Too many authentication failures. Please try again later.",
+                error_code=E2002_AUTH_FAILED,
             )
 
         # No API key provided
@@ -277,8 +280,8 @@ class AuthenticationMiddleware(AuthenticationProtocol):
         if self._check_token_expiration and api_key:
             # Check if api_key looks like a JWT token (dots, length, Bearer format)
             if self._looks_like_jwt_token(api_key):
-                # JWT token: verify with signature and expiration
-                is_expired, error_message = self.verify_jwt_token(api_key)
+                # JWT token: check expiration without signature verification
+                is_expired, error_message = self.is_token_expired(api_key)
             else:
                 # API key: validate format and check against configured keys
                 if not self.validate_api_key_format(api_key):

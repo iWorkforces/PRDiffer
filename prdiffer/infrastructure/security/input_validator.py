@@ -9,10 +9,8 @@ This module provides comprehensive input validation to prevent:
 - Invalid data formats
 """
 
-import logging
 import re
-from dataclasses import dataclass
-from typing import Pattern, TYPE_CHECKING
+from typing import Pattern
 
 from prdiffer.domain.exceptions import (
     InvalidURLError,
@@ -21,117 +19,15 @@ from prdiffer.domain.exceptions import (
     InputSanitizationError,
     SuspiciousOperationError,
 )
-
-if TYPE_CHECKING:
-    from prdiffer.infrastructure.settings import SettingsService
-
-logger = logging.getLogger(__name__)
-
-
-@dataclass
-class SecurityPatterns:
-    """Configurable security patterns loaded from settings.
-
-    This dataclass provides configurable security patterns for detecting
-    malicious input patterns. Patterns can be loaded from settings or
-    use default values.
-
-    Attributes:
-        command_injection: List of regex patterns for command injection detection
-        path_traversal: List of regex patterns for path traversal detection
-        sql_injection: List of regex patterns for SQL injection detection
-    """
-
-    command_injection: list[str]
-    path_traversal: list[str]
-    sql_injection: list[str]
-
-    @classmethod
-    def from_settings(
-        cls, settings_service: "SettingsService | None"
-    ) -> "SecurityPatterns":
-        """Load patterns from settings service.
-
-        Args:
-            settings_service: Settings service instance (optional)
-
-        Returns:
-            SecurityPatterns instance with configured patterns
-        """
-        # Default patterns
-        defaults = cls(
-            command_injection=[
-                r"[;&|`$]",  # Shell metacharacters
-                r"\$\(",  # Command substitution
-                r"`",  # Backticks
-            ],
-            path_traversal=[
-                r"\.\.",  # Parent directory (Unix)
-                r"~/",  # Home directory (Unix)
-                r"/etc/",  # System directories (Unix)
-                r"/var/",
-                r"/usr/",
-                r"[a-zA-Z]:\\",  # Windows absolute paths
-                r"\.\.\\",  # Windows parent directory
-                r"\\\\",  # UNC paths
-            ],
-            sql_injection=[
-                r"(?:--|#|/\*|\*/)",  # SQL comments
-                r"\b(?:union|select|insert|update|delete|drop|create|alter)\b",
-                r"(?:exec|execute|xp_)",
-            ],
-        )
-
-        if settings_service is None:
-            return defaults
-
-        try:
-            command = settings_service.get("security.command_injection_patterns", [])
-            path = settings_service.get("security.path_traversal_patterns", [])
-            sql = settings_service.get("security.sql_injection_patterns", [])
-
-            if command or path or sql:
-                return cls(
-                    command_injection=command
-                    if command
-                    else defaults.command_injection,
-                    path_traversal=path if path else defaults.path_traversal,
-                    sql_injection=sql if sql else defaults.sql_injection,
-                )
-        except (KeyError, ValueError, TypeError) as e:
-            logger.warning(
-                "Failed to load security patterns from settings, using defaults",
-                extra={
-                    "error": str(e),
-                    "error_type": type(e).__name__,
-                },
-            )
-
-        return defaults
-
-    def compile_command_injection(self) -> Pattern:
-        """Compile command injection patterns into a single regex.
-
-        Returns:
-            Compiled regex pattern
-        """
-        return re.compile("|".join(self.command_injection), re.IGNORECASE)
-
-    def compile_path_traversal(self) -> Pattern:
-        """Compile path traversal patterns into a single regex.
-
-        Returns:
-            Compiled regex pattern
-        """
-        return re.compile("|".join(self.path_traversal), re.IGNORECASE)
-
-    def compile_sql_injection(self) -> Pattern:
-        """Compile SQL injection patterns into a single regex.
-
-        Returns:
-            Compiled regex pattern
-        """
-        return re.compile("|".join(self.sql_injection), re.IGNORECASE)
+from prdiffer.infrastructure.security.injection_detector import (
+    InjectionDetector,
+    SecurityPatterns,
+    _detector,
+)
+from prdiffer.infrastructure.security.sanitizer import (
+    InputSanitizer,
+    sanitize_for_logging,
+)
 
 
 class InputValidator:
@@ -150,40 +46,6 @@ class InputValidator:
         validator = InputValidator(security_patterns=patterns)
         owner, repo, pr = validator.validate_github_url(url)
     """
-
-    # Class-level patterns (fallback when settings not available)
-    _COMMAND_INJECTION_PATTERNS = [
-        r"[;&|`$]",  # Shell metacharacters
-        r"\$\(",  # Command substitution
-        r"`",  # Backticks
-    ]
-
-    _PATH_TRAVERSAL_PATTERNS = [
-        r"\.\.",  # Parent directory (Unix)
-        r"~/",  # Home directory (Unix)
-        r"/etc/",  # System directories (Unix)
-        r"/var/",
-        r"/usr/",
-        r"[a-zA-Z]:\\",  # Windows absolute paths
-        r"\.\.\\",  # Windows parent directory
-        r"\\\\",  # UNC paths
-    ]
-
-    _SQL_INJECTION_PATTERNS = [
-        r"(?:--|#|/\*|\*/)",  # SQL comments
-        r"\b(?:union|select|insert|update|delete|drop|create|alter)\b",  # SQL keywords
-        r"(?:exec|execute|xp_)",  # Stored procedures
-    ]
-
-    # Pre-compiled combined patterns for performance (Task 3.4)
-    _COMMAND_INJECTION_COMPILED = re.compile(r"[;&|`$]|\$\(|`", re.IGNORECASE)
-    _PATH_TRAVERSAL_COMPILED = re.compile(
-        r"\.\.|~/|/etc/|/var/|/usr/|[a-zA-Z]:\\|\.\\|\\\\", re.IGNORECASE
-    )
-    _SQL_INJECTION_COMPILED = re.compile(
-        r"(?:--|#|/\*|\*/)|\b(?:union|select|insert|update|delete|drop|create|alter)\b|(?:exec|execute|xp_)",
-        re.IGNORECASE,
-    )
 
     # Regex patterns for validation
     GITHUB_URL_PATTERN: Pattern = re.compile(
@@ -220,19 +82,8 @@ class InputValidator:
             >>> patterns = SecurityPatterns.from_settings(settings)
             >>> validator = InputValidator(security_patterns=patterns)
         """
-        self._security_patterns = security_patterns
-        if security_patterns is not None:
-            # Compile custom patterns for instance use
-            self._command_injection_compiled = (
-                security_patterns.compile_command_injection()
-            )
-            self._path_traversal_compiled = security_patterns.compile_path_traversal()
-            self._sql_injection_compiled = security_patterns.compile_sql_injection()
-        else:
-            # Use class-level compiled patterns (will be accessed via class in methods)
-            self._command_injection_compiled = None
-            self._path_traversal_compiled = None
-            self._sql_injection_compiled = None
+        self._detector = InjectionDetector(security_patterns=security_patterns)
+        self._sanitizer = InputSanitizer(detector=self._detector)
 
     def validate_github_url(self, url: str) -> tuple[str, str, int]:
         """Validate and parse a GitHub PR URL.
@@ -256,7 +107,7 @@ class InputValidator:
             raise InvalidURLError("URL cannot be empty")
 
         # Check for suspicious patterns before parsing
-        if self._check_suspicious_patterns_instance(url):
+        if self._detector.check_suspicious_patterns(url):
             raise SuspiciousOperationError(
                 "URL contains suspicious patterns", details={"url": url[:100]}
             )
@@ -358,31 +209,9 @@ class InputValidator:
 
         Raises:
             InputSanitizationError: If input is suspicious
+            SuspiciousOperationError: If suspicious patterns detected
         """
-        if not isinstance(value, str):
-            raise InputSanitizationError(f"Expected string, got {type(value)}")
-
-        # Check length
-        if len(value) > max_length:
-            raise InputSanitizationError(
-                f"String too long (max {max_length} characters)"
-            )
-
-        # Check for null bytes
-        if "\x00" in value:
-            raise InputSanitizationError("String contains null bytes")
-
-        # Check for suspicious patterns
-        # Use global validator for backward compatibility with classmethod
-        if _validator._check_suspicious_patterns_instance(value):
-            raise SuspiciousOperationError("String contains suspicious patterns")
-
-        # Remove control characters except common whitespace
-        sanitized = "".join(
-            char for char in value if char in "\t\n\r" or not (0 <= ord(char) < 32)
-        )
-
-        return sanitized
+        return InputSanitizer.sanitize_string(value, max_length)
 
     @classmethod
     def validate_pr_number(cls, pr_number: int) -> int:
@@ -451,8 +280,12 @@ class InputValidator:
         if len(file_path) > 500:
             raise InputSanitizationError("File path too long (max 500 characters)")
 
-        # Check for path traversal using pre-compiled pattern
-        if cls._PATH_TRAVERSAL_COMPILED.search(file_path):
+        # Check for path traversal using pre-compiled pattern from detector
+        from prdiffer.infrastructure.security.injection_detector import (
+            InjectionDetector,
+        )
+
+        if InjectionDetector._PATH_TRAVERSAL_COMPILED.search(file_path):
             raise SuspiciousOperationError(
                 "File path contains path traversal patterns",
                 details={"path": file_path[:100]},
@@ -566,6 +399,7 @@ class InputValidator:
 
         Raises:
             InputSanitizationError: If branch name is invalid
+            SuspiciousOperationError: If branch contains suspicious patterns
         """
         if not isinstance(branch, str):
             raise InputSanitizationError("Branch name must be a string")
@@ -577,8 +411,7 @@ class InputValidator:
             raise InputSanitizationError("Branch name too long (max 255 characters)")
 
         # Check for suspicious patterns
-        # Use global validator for backward compatibility with classmethod
-        if _validator._check_suspicious_patterns_instance(branch):
+        if _detector.check_suspicious_patterns(branch):
             raise SuspiciousOperationError(
                 "Branch name contains suspicious patterns",
                 details={"branch": branch[:100]},
@@ -619,7 +452,7 @@ class InputValidator:
         """Instance method for checking suspicious patterns.
 
         Uses instance-level custom patterns if available, otherwise falls back
-        to class-level default patterns for performance (Task 3.4).
+        to class-level default patterns for performance.
 
         Args:
             value: Value to check
@@ -627,29 +460,7 @@ class InputValidator:
         Returns:
             True if suspicious patterns found
         """
-        # Use instance patterns if available (custom SecurityPatterns)
-        if self._security_patterns is not None:
-            # When security_patterns is not None, compiled patterns are guaranteed to be set
-            assert self._command_injection_compiled is not None
-            assert self._path_traversal_compiled is not None
-            assert self._sql_injection_compiled is not None
-
-            if self._command_injection_compiled.search(value):
-                return True
-            if self._path_traversal_compiled.search(value):
-                return True
-            if self._sql_injection_compiled.search(value):
-                return True
-            return False
-
-        # Fall back to class-level default patterns
-        if self._COMMAND_INJECTION_COMPILED.search(value):
-            return True
-        if self._PATH_TRAVERSAL_COMPILED.search(value):
-            return True
-        if self._SQL_INJECTION_COMPILED.search(value):
-            return True
-        return False
+        return self._detector.check_suspicious_patterns(value)
 
     @classmethod
     def _contains_suspicious_patterns(cls, value: str) -> bool:
@@ -665,8 +476,8 @@ class InputValidator:
         Returns:
             True if suspicious patterns found
         """
-        # Use the global validator instance for classmethod calls
-        return _validator._check_suspicious_patterns_instance(value)
+        # Use the global detector instance for classmethod calls
+        return _detector.check_suspicious_patterns(value)
 
     @classmethod
     def sanitize_for_logging(cls, value: str, max_length: int = 200) -> str:
@@ -679,19 +490,7 @@ class InputValidator:
         Returns:
             Sanitized value safe for logging
         """
-        if not isinstance(value, str):
-            value = str(value)
-
-        # Truncate long values
-        if len(value) > max_length:
-            value = value[:max_length] + "..."
-
-        # Remove control characters
-        sanitized = "".join(
-            char if char.isprintable() or char in "\t\n\r" else "?" for char in value
-        )
-
-        return sanitized
+        return sanitize_for_logging(value, max_length)
 
 
 # Global instance for convenience

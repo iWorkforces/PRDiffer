@@ -7,6 +7,8 @@ enabling dynamic tool registration, discovery, and execution.
 from typing import Dict, Optional, List
 from prdiffer.application.interfaces.tool_plugin import MCPToolPlugin
 from prdiffer.domain.services.logger import LoggerServiceInterface
+from prdiffer.domain.exceptions import ValidationError, PRDifferException
+from prdiffer.domain.errors import E1001_INVALID_URL, E5001_INTERNAL_ERROR
 
 
 class PluginManager:
@@ -42,7 +44,9 @@ class PluginManager:
             raise TypeError(f"Plugin {plugin.name} must implement MCPToolPlugin")
 
         if plugin.name in self._plugins:
-            raise ValueError(f"Plugin {plugin.name} already registered")
+            raise ValidationError(
+                f"Plugin {plugin.name} already registered", error_code=E1001_INVALID_URL
+            )
 
         self._plugins[plugin.name] = plugin
         self._logger.info(f"Registered plugin: {plugin.name}")
@@ -115,10 +119,14 @@ class PluginManager:
         plugin = self.get_plugin(tool_name)
 
         if not plugin:
-            raise ValueError(f"Plugin {tool_name} not found")
+            raise ValidationError(
+                f"Plugin {tool_name} not found", error_code=E1001_INVALID_URL
+            )
 
         if not plugin.enabled:
-            raise RuntimeError(f"Plugin {tool_name} is disabled")
+            raise PRDifferException(
+                f"Plugin {tool_name} is disabled", error_code=E5001_INTERNAL_ERROR
+            )
 
         return await plugin.execute(**kwargs)
 

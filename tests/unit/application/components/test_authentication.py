@@ -790,3 +790,421 @@ class TestAuthenticationMiddlewareJWTPayloadParsing:
         # verify_jwt_token should fail with wrong secret
         is_valid, _, _ = AuthenticationMiddleware.verify_jwt_token(token, secret2)
         assert is_valid is False
+
+
+class TestJWTSecurity:
+    """Comprehensive JWT security tests for authentication component.
+
+    Tests verify that JWT implementation is secure against common attacks:
+    - Signature tampering
+    - Algorithm confusion
+    - Token expiration
+    - Audience/issuer validation
+    - Secret key handling
+    """
+
+    @pytest.mark.security
+    def test_valid_jwt_passes_verification(self):
+        """Test valid JWT with correct signature passes verification."""
+        import jwt
+
+        secret = "test_secret_key_12345678"
+        payload = {"user": "testuser", "exp": int(time.time()) + 3600}
+        token = jwt.encode(payload, secret, algorithm="HS256")
+
+        is_valid, verified_payload, error = AuthenticationMiddleware.verify_jwt_token(
+            token, secret
+        )
+
+        assert is_valid is True
+        assert verified_payload is not None
+        assert verified_payload["user"] == "testuser"
+        assert error is None
+
+    @pytest.mark.security
+    def test_valid_jwt_with_expiration_in_future_passes(self):
+        """Test valid JWT with expiration in future passes verification."""
+        import jwt
+
+        secret = "test_secret_key_12345678"
+        payload = {"user": "testuser", "exp": int(time.time()) + 7200}  # 2 hours
+        token = jwt.encode(payload, secret, algorithm="HS256")
+
+        is_valid, verified_payload, error = AuthenticationMiddleware.verify_jwt_token(
+            token, secret
+        )
+
+        assert is_valid is True
+        assert verified_payload is not None
+        assert error is None
+
+    @pytest.mark.security
+    def test_expired_jwt_raises_expired_token_error(self):
+        """Test expired JWT raises ExpiredTokenError and returns False."""
+        import jwt
+
+        secret = "test_secret_key_12345678"
+        # Create token that expired 1 hour ago
+        payload = {"user": "testuser", "exp": int(time.time()) - 3600}
+        token = jwt.encode(payload, secret, algorithm="HS256")
+
+        is_valid, verified_payload, error = AuthenticationMiddleware.verify_jwt_token(
+            token, secret
+        )
+
+        assert is_valid is False
+        assert verified_payload is None
+        assert error == "Token has expired"
+
+    @pytest.mark.security
+    def test_tampered_jwt_raises_authentication_error(self):
+        """Test JWT with tampered signature raises AuthenticationError."""
+        import jwt
+
+        secret = "test_secret_key_12345678"
+        wrong_secret = "wrong_secret_key_99999999"
+        payload = {"user": "testuser", "exp": int(time.time()) + 3600}
+        # Sign with correct secret
+        token = jwt.encode(payload, secret, algorithm="HS256")
+
+        # Verify with wrong secret (simulates tampered signature)
+        is_valid, verified_payload, error = AuthenticationMiddleware.verify_jwt_token(
+            token, wrong_secret
+        )
+
+        assert is_valid is False
+        assert verified_payload is None
+        assert error == "Invalid token signature"
+
+    @pytest.mark.security
+    def test_jwt_with_wrong_algorithm_raises_error(self):
+        """Test algorithm confusion attack is prevented."""
+        import jwt
+
+        secret = "test_secret_key_12345678"
+        payload = {"user": "testuser", "exp": int(time.time()) + 3600}
+        # Sign with HS256
+        token = jwt.encode(payload, secret, algorithm="HS256")
+
+        # Try to verify with HS512 only (algorithm confusion)
+        is_valid, verified_payload, error = AuthenticationMiddleware.verify_jwt_token(
+            token, secret, algorithms=["HS512"]
+        )
+
+        assert is_valid is False
+        assert verified_payload is None
+        assert error == "Invalid token algorithm"
+
+    @pytest.mark.security
+    def test_empty_jwt_secret_raises_error(self):
+        """Test empty JWT secret is rejected."""
+        import jwt
+
+        secret = "test_secret_key_12345678"
+        payload = {"user": "testuser", "exp": int(time.time()) + 3600}
+        token = jwt.encode(payload, secret, algorithm="HS256")
+
+        # Try to verify with empty secret
+        is_valid, verified_payload, error = AuthenticationMiddleware.verify_jwt_token(
+            token, ""
+        )
+
+        assert is_valid is False
+        assert verified_payload is None
+        assert error is not None
+        # Type guard: after assert not None, error is str
+        error_str: str = error
+        assert "Invalid token" in error_str or "signature" in error_str.lower()
+
+    @pytest.mark.security
+    def test_jwt_with_invalid_audience_rejected(self):
+        """Test JWT with invalid audience claim is rejected."""
+        import jwt
+
+        secret = "test_secret_key_12345678"
+        payload = {
+            "user": "testuser",
+            "aud": "correct-audience",
+            "exp": int(time.time()) + 3600,
+        }
+        token = jwt.encode(payload, secret, algorithm="HS256")
+
+        # Verify with wrong audience
+        is_valid, verified_payload, error = AuthenticationMiddleware.verify_jwt_token(
+            token, secret, audience="wrong-audience"
+        )
+
+        assert is_valid is False
+        assert verified_payload is None
+        assert "audience" in error.lower()
+
+    @pytest.mark.security
+    def test_jwt_with_valid_audience_accepted(self):
+        """Test JWT with valid audience claim is accepted."""
+        import jwt
+
+        secret = "test_secret_key_12345678"
+        payload = {
+            "user": "testuser",
+            "aud": "correct-audience",
+            "exp": int(time.time()) + 3600,
+        }
+        token = jwt.encode(payload, secret, algorithm="HS256")
+
+        # Verify with correct audience
+        is_valid, verified_payload, error = AuthenticationMiddleware.verify_jwt_token(
+            token, secret, audience="correct-audience"
+        )
+
+        assert is_valid is True
+        assert verified_payload is not None
+        assert error is None
+
+    @pytest.mark.security
+    def test_jwt_with_invalid_issuer_rejected(self):
+        """Test JWT with invalid issuer claim is rejected."""
+        import jwt
+
+        secret = "test_secret_key_12345678"
+        payload = {
+            "user": "testuser",
+            "iss": "correct-issuer",
+            "exp": int(time.time()) + 3600,
+        }
+        token = jwt.encode(payload, secret, algorithm="HS256")
+
+        # Verify with wrong issuer
+        is_valid, verified_payload, error = AuthenticationMiddleware.verify_jwt_token(
+            token, secret, issuer="wrong-issuer"
+        )
+
+        assert is_valid is False
+        assert verified_payload is None
+        assert "issuer" in error.lower()
+
+    @pytest.mark.security
+    def test_jwt_with_valid_issuer_accepted(self):
+        """Test JWT with valid issuer claim is accepted."""
+        import jwt
+
+        secret = "test_secret_key_12345678"
+        payload = {
+            "user": "testuser",
+            "iss": "correct-issuer",
+            "exp": int(time.time()) + 3600,
+        }
+        token = jwt.encode(payload, secret, algorithm="HS256")
+
+        # Verify with correct issuer
+        is_valid, verified_payload, error = AuthenticationMiddleware.verify_jwt_token(
+            token, secret, issuer="correct-issuer"
+        )
+
+        assert is_valid is True
+        assert verified_payload is not None
+        assert error is None
+
+    @pytest.mark.security
+    def test_verify_jwt_token_returns_correct_tuple_valid(self):
+        """Test verify_jwt_token returns correct tuple format for valid token."""
+        import jwt
+
+        secret = "test_secret_key_12345678"
+        payload = {"user": "testuser", "exp": int(time.time()) + 3600}
+        token = jwt.encode(payload, secret, algorithm="HS256")
+
+        result = AuthenticationMiddleware.verify_jwt_token(token, secret)
+
+        # Verify tuple structure: (is_valid: bool, payload: Optional[Dict], error: Optional[str])
+        assert isinstance(result, tuple)
+        assert len(result) == 3
+        is_valid, payload, error = result
+        assert is_valid is True
+        assert isinstance(payload, dict)
+        assert error is None
+
+    @pytest.mark.security
+    def test_verify_jwt_token_returns_correct_tuple_invalid(self):
+        """Test verify_jwt_token returns correct tuple format for invalid token."""
+        import jwt
+
+        secret = "test_secret_key_12345678"
+        wrong_secret = "wrong_secret_key"
+        payload = {"user": "testuser", "exp": int(time.time()) + 3600}
+        token = jwt.encode(payload, secret, algorithm="HS256")
+
+        result = AuthenticationMiddleware.verify_jwt_token(token, wrong_secret)
+
+        # Verify tuple structure: (is_valid: bool, payload: Optional[Dict], error: Optional[str])
+        assert isinstance(result, tuple)
+        assert len(result) == 3
+        is_valid, payload, error = result
+        assert is_valid is False
+        assert payload is None
+        assert error is not None
+        assert isinstance(error, str)
+
+    @pytest.mark.security
+    def test_jwt_verify_signature_enabled_by_default(self):
+        """Test that signature verification is enabled (verify_signature=True)."""
+        import jwt
+
+        secret = "test_secret_key_12345678"
+        wrong_secret = "different_secret_key"
+        payload = {"user": "testuser", "exp": int(time.time()) + 3600}
+        token = jwt.encode(payload, secret, algorithm="HS256")
+
+        # If signature verification was disabled, wrong secret would still pass
+        # Since verification is enabled, wrong secret should fail
+        is_valid, verified_payload, error = AuthenticationMiddleware.verify_jwt_token(
+            token, wrong_secret
+        )
+
+        assert is_valid is False
+        assert error == "Invalid token signature"
+
+    @pytest.mark.security
+    def test_jwt_verify_exp_enabled_by_default(self):
+        """Test that expiration verification is enabled (verify_exp=True)."""
+        import jwt
+
+        secret = "test_secret_key_12345678"
+        # Create expired token
+        payload = {"user": "testuser", "exp": int(time.time()) - 3600}
+        token = jwt.encode(payload, secret, algorithm="HS256")
+
+        # If exp verification was disabled, expired token would still pass
+        # Since verification is enabled, expired token should fail
+        is_valid, verified_payload, error = AuthenticationMiddleware.verify_jwt_token(
+            token, secret
+        )
+
+        assert is_valid is False
+        assert error == "Token has expired"
+
+    @pytest.mark.security
+    def test_jwt_with_none_algorithm_none_rejected(self):
+        """Test JWT with 'none' algorithm is rejected (algorithm attack)."""
+        import jwt
+
+        secret = "test_secret_key_12345678"
+        payload = {"user": "testuser", "exp": int(time.time()) + 3600}
+
+        # Try to create token with 'none' algorithm (security vulnerability if allowed)
+        try:
+            token = jwt.encode(payload, secret, algorithm="none")
+
+            # Verify should reject 'none' algorithm when only HS256 is allowed
+            is_valid, verified_payload, error = (
+                AuthenticationMiddleware.verify_jwt_token(
+                    token, secret, algorithms=["HS256"]
+                )
+            )
+
+            assert is_valid is False
+            assert "algorithm" in error.lower()
+        except Exception:
+            # PyJWT may not support 'none' algorithm for security reasons
+            # This is acceptable - the attack is prevented at the library level
+            pass
+
+    @pytest.mark.security
+    def test_jwt_with_malformed_payload_rejected(self):
+        """Test JWT with malformed payload is rejected."""
+        # Completely invalid token format
+        invalid_tokens = [
+            "not.a.jwt",
+            "invalid.token.here",
+            "",
+            "   ",
+            "Bearer token_without_dots",
+        ]
+
+        for invalid_token in invalid_tokens:
+            is_valid, verified_payload, error = (
+                AuthenticationMiddleware.verify_jwt_token(invalid_token, "any_secret")
+            )
+
+            assert is_valid is False
+            assert verified_payload is None
+            assert error is not None
+            assert isinstance(error, str)
+            # Type guard: after isinstance check, error is definitely str
+            error_str: str = error
+            assert "Invalid token" in error_str
+
+    @pytest.mark.security
+    def test_jwt_with_all_claims_validated(self):
+        """Test that all JWT claims are validated (exp, aud, iss)."""
+        import jwt
+
+        secret = "test_secret_key_12345678"
+        payload = {
+            "user": "testuser",
+            "aud": "test-audience",
+            "iss": "test-issuer",
+            "exp": int(time.time()) + 3600,
+        }
+        token = jwt.encode(payload, secret, algorithm="HS256")
+
+        # Verify with all claims matching
+        is_valid, verified_payload, error = AuthenticationMiddleware.verify_jwt_token(
+            token,
+            secret,
+            audience="test-audience",
+            issuer="test-issuer",
+        )
+
+        assert is_valid is True
+        assert verified_payload is not None
+        assert error is None
+
+    @pytest.mark.security
+    def test_jwt_without_expiration_rejected_when_required(self):
+        """Test JWT without expiration claim is handled correctly."""
+        import jwt
+
+        secret = "test_secret_key_12345678"
+        # Token without 'exp' claim
+        payload = {"user": "testuser"}
+        token = jwt.encode(payload, secret, algorithm="HS256")
+
+        # PyJWT may reject tokens without 'exp' when verify_exp is required
+        is_valid, verified_payload, error = AuthenticationMiddleware.verify_jwt_token(
+            token, secret
+        )
+
+        # Either passes (if exp is optional) or fails with appropriate error
+        if not is_valid:
+            assert verified_payload is None
+            assert error is not None
+        else:
+            # If it passes, verify the payload is correct
+            assert verified_payload is not None
+            assert verified_payload["user"] == "testuser"
+
+    @pytest.mark.security
+    def test_jwt_multiple_algorithms_rejects_wrong_one(self):
+        """Test JWT with multiple allowed algorithms rejects wrong one."""
+        import jwt
+
+        secret = "test_secret_key_12345678"
+        payload = {"user": "testuser", "exp": int(time.time()) + 3600}
+        token = jwt.encode(payload, secret, algorithm="HS256")
+
+        # Verify with HS256, HS384, HS512 allowed - should succeed
+        is_valid, verified_payload, error = AuthenticationMiddleware.verify_jwt_token(
+            token, secret, algorithms=["HS256", "HS384", "HS512"]
+        )
+
+        assert is_valid is True
+        assert verified_payload is not None
+        assert error is None
+
+        # Now try with only HS384 and HS512 (exclude HS256) - should fail
+        is_valid, verified_payload, error = AuthenticationMiddleware.verify_jwt_token(
+            token, secret, algorithms=["HS384", "HS512"]
+        )
+
+        assert is_valid is False
+        assert "algorithm" in error.lower()

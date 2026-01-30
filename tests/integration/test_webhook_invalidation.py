@@ -6,6 +6,64 @@ import hmac
 import pytest
 from unittest.mock import Mock, patch, AsyncMock
 
+from prdiffer.application.mcp_server import FastMCPServer
+
+
+@pytest.fixture
+def mock_cache_service():
+    """Create a mock cache service."""
+    mock = Mock()
+    mock.invalidate = Mock()
+    return mock
+
+
+@pytest.fixture
+def mock_repository_cache_service():
+    """Create a mock repository cache service."""
+    mock = Mock()
+    mock.invalidate = Mock()
+    return mock
+
+
+@pytest.fixture
+def mock_settings():
+    """Create a mock settings service."""
+    mock = Mock()
+    mock.get = Mock(return_value="test_webhook_secret")
+    return mock
+
+
+@pytest.fixture
+def mcp_server(mock_cache_service, mock_repository_cache_service, mock_settings):
+    """Create an MCP server instance with mocked dependencies."""
+    mock_pr_diff_service = Mock()
+    mock_logger = Mock()
+    mock_github_repo_class = Mock()
+    mock_rate_limiter = Mock()
+    mock_metrics_tracker = Mock()
+    mock_pr_operation_handler = Mock()
+    mock_health_monitor = Mock()
+    mock_server_configuration = Mock()
+    mock_server_configuration.setup_logging = Mock()
+    mock_server_configuration.get_mcp_instructions = Mock(
+        return_value="Test instructions"
+    )
+
+    server = FastMCPServer(
+        settings_service=mock_settings,
+        cache_service=mock_cache_service,
+        repository_cache_service=mock_repository_cache_service,
+        pr_diff_service=mock_pr_diff_service,
+        logger=mock_logger,
+        github_repository_class=mock_github_repo_class,
+        rate_limiter=mock_rate_limiter,
+        metrics_tracker=mock_metrics_tracker,
+        pr_operation_handler=mock_pr_operation_handler,
+        health_monitor=mock_health_monitor,
+        server_configuration=mock_server_configuration,
+    )
+    return server
+
 
 @pytest.mark.unit
 class TestWebhookCacheInvalidation:
@@ -24,10 +82,10 @@ class TestWebhookCacheInvalidation:
             "number": 123,
         }
         payload_bytes = json.dumps(payload).encode("utf-8")
-        signature = f"sha1={hmac.new(webhook_secret.encode(), payload_bytes, 'sha1').hexdigest()}"
+        signature = f"sha256={hmac.new(webhook_secret.encode(), payload_bytes, 'sha256').hexdigest()}"
 
         result = await mcp_server.webhook_invalidate_cache(
-            payload, signature, "pull_request"
+            payload_bytes, signature, "pull_request"
         )
 
         assert result["status"] == "success"
@@ -48,10 +106,10 @@ class TestWebhookCacheInvalidation:
             "number": 456,
         }
         payload_bytes = json.dumps(payload).encode("utf-8")
-        signature = f"sha1={hmac.new(webhook_secret.encode(), payload_bytes, 'sha1').hexdigest()}"
+        signature = f"sha256={hmac.new(webhook_secret.encode(), payload_bytes, 'sha256').hexdigest()}"
 
         result = await mcp_server.webhook_invalidate_cache(
-            payload, signature, "pull_request"
+            payload_bytes, signature, "pull_request"
         )
 
         assert result["status"] == "success"
@@ -71,9 +129,11 @@ class TestWebhookCacheInvalidation:
             "repository": {"full_name": "owner/repo"},
         }
         payload_bytes = json.dumps(payload).encode("utf-8")
-        signature = f"sha1={hmac.new(webhook_secret.encode(), payload_bytes, 'sha1').hexdigest()}"
+        signature = f"sha256={hmac.new(webhook_secret.encode(), payload_bytes, 'sha256').hexdigest()}"
 
-        result = await mcp_server.webhook_invalidate_cache(payload, signature, "push")
+        result = await mcp_server.webhook_invalidate_cache(
+            payload_bytes, signature, "push"
+        )
 
         assert result["status"] == "success"
         mock_repository_cache_service.invalidate.assert_called_once_with("owner/repo")
@@ -86,9 +146,10 @@ class TestWebhookCacheInvalidation:
         """Test that webhook returns error when secret not configured."""
         mock_settings.get = Mock(return_value="")
         payload = {"action": "opened", "repository": {"full_name": "owner/repo"}}
+        payload_bytes = json.dumps(payload).encode("utf-8")
 
         result = await mcp_server.webhook_invalidate_cache(
-            payload, "sha1=valid", "pull_request"
+            payload_bytes, "sha256=valid", "pull_request"
         )
 
         assert result["status"] == "error"
@@ -104,10 +165,10 @@ class TestWebhookCacheInvalidation:
         webhook_secret = "test_webhook_secret"
         payload = {"action": "opened", "repository": {}}
         payload_bytes = json.dumps(payload).encode("utf-8")
-        signature = f"sha1={hmac.new(webhook_secret.encode(), payload_bytes, 'sha1').hexdigest()}"
+        signature = f"sha256={hmac.new(webhook_secret.encode(), payload_bytes, 'sha256').hexdigest()}"
 
         result = await mcp_server.webhook_invalidate_cache(
-            payload, signature, "pull_request"
+            payload_bytes, signature, "pull_request"
         )
 
         assert result["status"] == "error"
@@ -120,10 +181,11 @@ class TestWebhookCacheInvalidation:
     ):
         """Test that webhook returns error for unsupported event types."""
         payload = {"action": "unknown_event", "repository": {"full_name": "owner/repo"}}
-        signature = "sha1=valid_signature"
+        payload_bytes = json.dumps(payload).encode("utf-8")
+        signature = "sha256=valid_signature"
 
         result = await mcp_server.webhook_invalidate_cache(
-            payload, signature, "pull_request"
+            payload_bytes, signature, "pull_request"
         )
 
         assert result["status"] == "error"
@@ -140,13 +202,13 @@ class TestWebhookCacheInvalidation:
         payload_data = {"action": "opened", "repository": {"full_name": "owner/repo"}}
         payload_bytes = json.dumps(payload_data).encode("utf-8")
 
-        expected_signature = f"sha1={hmac.new(webhook_secret.encode(), payload_bytes, 'sha1').hexdigest()}"
+        expected_signature = f"sha256={hmac.new(webhook_secret.encode(), payload_bytes, 'sha256').hexdigest()}"
 
         with patch.object(mcp_server, "_settings_service") as mock_settings:
             mock_settings.get = Mock(return_value=webhook_secret)
 
             result = await mcp_server.webhook_invalidate_cache(
-                payload_data, expected_signature, "pull_request"
+                payload_bytes, expected_signature, "pull_request"
             )
 
             assert result["status"] == "success"
@@ -157,17 +219,16 @@ class TestWebhookCacheInvalidation:
     ):
         """Test that webhook rejects invalid HMAC signature."""
 
-        webhook_secret = "test_webhook_secret"
         payload = {
             "action": "opened",
             "repository": {"full_name": "owner/repo"},
             "number": 123,
         }
         payload_bytes = json.dumps(payload).encode("utf-8")
-        invalid_signature = f"sha1={hmac.new(webhook_secret.encode(), payload_bytes, 'sha1').hexdigest()}"
+        invalid_signature = "sha256=invalid_signature_here"
 
         result = await mcp_server.webhook_invalidate_cache(
-            payload, invalid_signature, "pull_request"
+            payload_bytes, invalid_signature, "pull_request"
         )
 
         assert result["status"] == "error"
@@ -192,14 +253,14 @@ class TestWebhookHTTPHandler:
             "number": 123,
         }
         payload_bytes = json.dumps(payload).encode("utf-8")
-        signature = f"sha1={hmac.new(webhook_secret.encode(), payload_bytes, 'sha1').hexdigest()}"
+        signature = f"sha256={hmac.new(webhook_secret.encode(), payload_bytes, 'sha256').hexdigest()}"
 
         mock_request = Mock()
         mock_request.headers = {
-            "X-Hub-Signature": signature,
+            "X-Hub-Signature-256": signature,
             "X-GitHub-Event": "pull_request",
         }
-        mock_request.json = AsyncMock(return_value=payload)
+        mock_request.body = AsyncMock(return_value=payload_bytes)
 
         handler = mcp_server.webhook_handler
         response = await handler(mock_request)
@@ -212,20 +273,22 @@ class TestWebhookHTTPHandler:
     @pytest.mark.asyncio
     async def test_webhook_http_endpoint_handles_invalid_json(self, mcp_server):
         """Test that HTTP endpoint handles invalid JSON payload."""
+        webhook_secret = "test_webhook_secret"
+        invalid_payload_bytes = b"invalid json"
+        signature = f"sha256={hmac.new(webhook_secret.encode(), invalid_payload_bytes, 'sha256').hexdigest()}"
+
         mock_request = Mock()
         mock_request.headers = {
-            "X-Hub-Signature": "sha1=valid",
+            "X-Hub-Signature-256": signature,
             "X-GitHub-Event": "pull_request",
         }
-        mock_request.json = AsyncMock(
-            side_effect=json.JSONDecodeError("Invalid JSON", "", 0)
-        )
+        mock_request.body = AsyncMock(return_value=invalid_payload_bytes)
 
         handler = mcp_server.webhook_handler
         response = await handler(mock_request)
 
         assert response.status_code == 400
-        assert "Invalid JSON payload" in response.body.decode()
+        assert "Invalid" in response.body.decode()
 
     @pytest.mark.asyncio
     async def test_webhook_http_endpoint_handles_exceptions(
@@ -234,10 +297,10 @@ class TestWebhookHTTPHandler:
         """Test that HTTP endpoint handles general exceptions gracefully."""
         mock_request = Mock()
         mock_request.headers = {
-            "X-Hub-Signature": "sha1=valid",
+            "X-Hub-Signature-256": "sha256=valid",
             "X-GitHub-Event": "pull_request",
         }
-        mock_request.json = AsyncMock(side_effect=Exception("Unexpected error"))
+        mock_request.body = AsyncMock(side_effect=Exception("Unexpected error"))
 
         handler = mcp_server.webhook_handler
         response = await handler(mock_request)

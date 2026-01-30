@@ -382,7 +382,7 @@ class TestWorkflowWithRealServices:
         assert server._cache_service == real_cache
         assert server._logger == real_logger
 
-    def test_cache_operations(self, real_cache):
+    async def test_cache_operations(self, real_cache):
         """Test real cache service operations."""
         # Create sample PR diff
         pr_diff = PRDiff(
@@ -391,19 +391,19 @@ class TestWorkflowWithRealServices:
         )
 
         # Test cache set and get
-        real_cache.set("owner/repo/pr/123", "abc123", pr_diff)
+        await real_cache.set("owner/repo/pr/123", "abc123", pr_diff)
 
         # Verify cache contains data
         stats = real_cache.get_stats()
         assert stats["size"] == 1
 
         # Test cache retrieval
-        result = real_cache.get("owner/repo/pr/123", "abc123")
+        result = await real_cache.get("owner/repo/pr/123", "abc123")
         assert result is not None
         assert result.diff_content == "test diff content"
 
         # Clean up
-        real_cache.clear()
+        await real_cache.clear()
 
 
 @pytest.mark.integration
