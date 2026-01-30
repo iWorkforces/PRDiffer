@@ -2,8 +2,8 @@
 
 from abc import ABC, abstractmethod
 from typing import Optional, Dict, List
-from github.Repository import Repository
-from github.PullRequest import PullRequest
+
+from prdiffer.domain.entities import Repository, PullRequest
 
 
 class GitHubAPIServiceInterface(ABC):
@@ -39,12 +39,12 @@ class GitHubAPIServiceInterface(ABC):
 
     @abstractmethod
     def get_pull_request(
-        self, repository: Repository, pr_number: int
+        self, repo_full_name: str, pr_number: int
     ) -> Optional[PullRequest]:
         """Get a pull request instance.
 
         Args:
-            repository: GitHub repository instance
+            repo_full_name: Repository full name in format "owner/repo"
             pr_number: Pull request number
 
         Returns:
@@ -53,13 +53,11 @@ class GitHubAPIServiceInterface(ABC):
         pass
 
     @abstractmethod
-    def get_file_content(
-        self, repository: Repository, file_path: str, branch: str
-    ) -> str:
+    def get_file_content(self, repo_full_name: str, file_path: str, branch: str) -> str:
         """Get file content from a specific branch.
 
         Args:
-            repository: GitHub repository instance
+            repo_full_name: Repository full name in format "owner/repo"
             file_path: Path to the file in the repository
             branch: Branch or commit SHA
 
@@ -70,12 +68,12 @@ class GitHubAPIServiceInterface(ABC):
 
     @abstractmethod
     def get_files_content_batch(
-        self, repository: Repository, file_paths: List[str], branch: str
+        self, repo_full_name: str, file_paths: List[str], branch: str
     ) -> Dict[str, str]:
         """Batch retrieve file contents from a specific branch.
 
         Args:
-            repository: GitHub repository instance
+            repo_full_name: Repository full name in format "owner/repo"
             file_paths: List of file paths to retrieve
             branch: Branch or commit SHA
 

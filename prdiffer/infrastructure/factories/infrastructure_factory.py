@@ -1,5 +1,7 @@
 """Concrete infrastructure factory implementation."""
 
+import warnings
+
 from prdiffer.domain.factories.infrastructure_factory import (
     InfrastructureFactoryInterface,
 )
@@ -22,7 +24,6 @@ from prdiffer.domain.interfaces.protocols import (
     AuthenticationProtocol,
 )
 
-# Infrastructure implementations
 from prdiffer.infrastructure.settings import get_settings_service
 from prdiffer.infrastructure.logging.console_logger import get_logger
 from prdiffer.infrastructure.cache_service import get_cache_service
@@ -38,18 +39,8 @@ from prdiffer.infrastructure.github.diff_generator import (
     get_diff_generator,
 )
 from prdiffer.infrastructure.github.file_processor import FileProcessor
-from prdiffer.infrastructure.security.input_validator import InputValidator
 
-# Infrastructure service implementations
 from prdiffer.infrastructure.services.pr_diff_service import GitHubPRDiffService
-
-# Application components
-from prdiffer.application.components.rate_limiter import RateLimiter
-from prdiffer.application.components.metrics_tracker import MetricsTracker
-from prdiffer.application.components.pr_operation_handler import PROperationHandler
-from prdiffer.application.components.health_monitor import HealthMonitor
-from prdiffer.application.components.server_configuration import ServerConfiguration
-from prdiffer.application.components.authentication import AuthenticationMiddleware
 
 
 class InfrastructureFactory(InfrastructureFactoryInterface):
@@ -146,7 +137,8 @@ class InfrastructureFactory(InfrastructureFactoryInterface):
 
     def create_pr_diff_service(self) -> PRDiffServiceInterface:
         """Create PR diff service instance."""
-        # Create dependencies
+        from prdiffer.infrastructure.github.api_client import GitHubAPIClient
+
         settings_service = get_settings_service()
         github_api_service = self.create_github_api_service()
         diff_service = self.create_diff_service()
@@ -173,9 +165,10 @@ class InfrastructureFactory(InfrastructureFactoryInterface):
             parallel_enabled=False,
         )
 
-        # Create PR diff service with dependencies
         return GitHubPRDiffService(
-            github_api_client=github_api_service,
+            github_api_client=github_api_service
+            if isinstance(github_api_service, GitHubAPIClient)
+            else None,
             diff_generator=diff_generator,
             file_processor=file_processor,
             logger=logger_service,
@@ -213,14 +206,32 @@ class InfrastructureFactory(InfrastructureFactoryInterface):
     def create_rate_limiter(
         self, logger: LoggerServiceInterface
     ) -> RateLimiterProtocol:
-        """Create rate limiter component."""
-        return RateLimiter(logger=logger)
+        warnings.warn(
+            "InfrastructureFactory.create_rate_limiter() is deprecated. "
+            "Use ApplicationFactory.create_rate_limiter() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        from prdiffer.application.factories.application_factory import (
+            get_application_factory,
+        )
+
+        return get_application_factory().create_rate_limiter(logger)
 
     def create_metrics_tracker(
         self, logger: LoggerServiceInterface
     ) -> MetricsTrackerProtocol:
-        """Create metrics tracker component."""
-        return MetricsTracker(logger=logger)
+        warnings.warn(
+            "InfrastructureFactory.create_metrics_tracker() is deprecated. "
+            "Use ApplicationFactory.create_metrics_tracker() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        from prdiffer.application.factories.application_factory import (
+            get_application_factory,
+        )
+
+        return get_application_factory().create_metrics_tracker(logger)
 
     def create_pr_operation_handler(
         self,
@@ -232,13 +243,24 @@ class InfrastructureFactory(InfrastructureFactoryInterface):
         retry_service: RetryServiceInterface,
         logger: LoggerServiceInterface,
     ) -> PROperationHandlerProtocol:
-        """Create PR operation handler component."""
-        return PROperationHandler(
+        warnings.warn(
+            "InfrastructureFactory.create_pr_operation_handler() is deprecated. "
+            "Use ApplicationFactory.create_pr_operation_handler() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        from prdiffer.application.factories.application_factory import (
+            get_application_factory,
+        )
+
+        return get_application_factory().create_pr_operation_handler(
             github_repository_class=github_repository_class,
             cache_service=cache_service,
             repository_cache_service=repository_cache_service,
+            diff_service=diff_service,
+            pattern_matching_service=pattern_matching_service,
+            retry_service=retry_service,
             logger=logger,
-            input_validator=InputValidator(),
         )
 
     def create_health_monitor(
@@ -247,8 +269,17 @@ class InfrastructureFactory(InfrastructureFactoryInterface):
         rate_limiter: RateLimiterProtocol,
         logger: LoggerServiceInterface,
     ) -> HealthMonitorProtocol:
-        """Create health monitor component."""
-        return HealthMonitor(
+        warnings.warn(
+            "InfrastructureFactory.create_health_monitor() is deprecated. "
+            "Use ApplicationFactory.create_health_monitor() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        from prdiffer.application.factories.application_factory import (
+            get_application_factory,
+        )
+
+        return get_application_factory().create_health_monitor(
             metrics_tracker=metrics_tracker,
             rate_limiter=rate_limiter,
             logger=logger,
@@ -259,8 +290,17 @@ class InfrastructureFactory(InfrastructureFactoryInterface):
         settings_service: SettingsServiceInterface,
         logger: LoggerServiceInterface,
     ) -> ServerConfigurationProtocol:
-        """Create server configuration component."""
-        return ServerConfiguration(
+        warnings.warn(
+            "InfrastructureFactory.create_server_configuration() is deprecated. "
+            "Use ApplicationFactory.create_server_configuration() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        from prdiffer.application.factories.application_factory import (
+            get_application_factory,
+        )
+
+        return get_application_factory().create_server_configuration(
             settings_service=settings_service,
             logger=logger,
         )
@@ -268,8 +308,17 @@ class InfrastructureFactory(InfrastructureFactoryInterface):
     def create_authentication(
         self, logger: LoggerServiceInterface
     ) -> AuthenticationProtocol:
-        """Create authentication middleware component."""
-        return AuthenticationMiddleware(logger=logger)
+        warnings.warn(
+            "InfrastructureFactory.create_authentication() is deprecated. "
+            "Use ApplicationFactory.create_authentication() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        from prdiffer.application.factories.application_factory import (
+            get_application_factory,
+        )
+
+        return get_application_factory().create_authentication(logger)
 
 
 def get_infrastructure_factory() -> InfrastructureFactoryInterface:

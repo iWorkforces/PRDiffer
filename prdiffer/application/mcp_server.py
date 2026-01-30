@@ -493,13 +493,13 @@ class FastMCPServer:
         raise RuntimeError(f"Failed to fetch PR diff: {safe_message}")
 
     async def webhook_invalidate_cache(
-        self, payload: dict, signature: str, github_event: str
+        self, payload_bytes: bytes, signature: str, github_event: str
     ) -> dict:
         """Handle webhook events for cache invalidation with HMAC verification.
 
         Args:
-            payload: Webhook payload from GitHub
-            signature: HMAC signature header value
+            payload_bytes: Raw webhook payload bytes from GitHub
+            signature: HMAC signature header value (X-Hub-Signature-256)
             github_event: GitHub event type (push, pull_request, etc.)
 
         Returns:
@@ -524,6 +524,27 @@ class FastMCPServer:
             )
             return {"status": "error", "message": "Unsupported event type"}
 
+        expected_signature = f"sha256={hmac.new(webhook_secret.encode(), payload_bytes, 'sha256').hexdigest()}"
+
+        if not hmac.compare_digest(expected_signature.encode(), signature.encode()):
+            self._logger.warning(
+                "Invalid webhook signature",
+                github_event=github_event,
+            )
+            return {"status": "error", "message": "Invalid signature"}
+
+        import json
+
+        try:
+            payload = json.loads(payload_bytes.decode("utf-8"))
+        except (json.JSONDecodeError, UnicodeDecodeError) as e:
+            self._logger.error(
+                "Failed to parse webhook payload after HMAC verification",
+                github_event=github_event,
+                error=str(e),
+            )
+            return {"status": "error", "message": "Invalid payload format"}
+
         repository = payload.get("repository", {})
         repository_full_name = repository.get("full_name", "")
         number = payload.get("number")
@@ -536,19 +557,6 @@ class FastMCPServer:
                 github_event=github_event,
             )
             return {"status": "error", "message": "Missing repository info"}
-
-        import json
-
-        payload_bytes = json.dumps(payload).encode("utf-8")
-
-        expected_signature = f"sha1={hmac.new(webhook_secret.encode(), payload_bytes, 'sha1').hexdigest()}"
-
-        if not hmac.compare_digest(expected_signature.encode(), signature.encode()):
-            self._logger.warning(
-                "Invalid webhook signature",
-                github_event=github_event,
-            )
-            return {"status": "error", "message": "Invalid signature"}
 
         if github_event == "pull_request":
             if action in ["opened", "synchronize", "reopened"]:
@@ -682,7 +690,6 @@ class FastMCPServer:
                 safe_message = self._create_safe_error_message(e)
                 return {"status": "unhealthy", "error": safe_message}
 
-        @self.mcp.custom_route("/webhook", methods=["POST"])
         async def webhook_handler(request):
             """Handle GitHub webhook events for cache invalidation.
 
@@ -695,17 +702,30 @@ class FastMCPServer:
             Returns:
                 JSONResponse with status indicating success or failure
             """
-            import json
-
             try:
-                signature = request.headers.get("X-Hub-Signature", "")
+                signature = request.headers.get("X-Hub-Signature-256", "")
+                if not signature:
+                    signature = request.headers.get("X-Hub-Signature", "")
+
                 github_event = request.headers.get("X-GitHub-Event", "")
 
-                payload = await request.json()
+                payload_bytes = await request.body()
 
                 result = await self.webhook_invalidate_cache(
-                    payload, signature, github_event
+                    payload_bytes, signature, github_event
                 )
+
+                if result["status"] == "error":
+                    error_message = result.get("message", "")
+                    if error_message in [
+                        "Invalid payload format",
+                        "Invalid JSON payload",
+                    ]:
+                        return JSONResponse(result, status_code=400)
+                    elif error_message == "Invalid signature":
+                        return JSONResponse(result, status_code=401)
+                    else:
+                        return JSONResponse(result, status_code=400)
 
                 return JSONResponse(result, status_code=200)
             except json.JSONDecodeError as e:
@@ -728,6 +748,9 @@ class FastMCPServer:
                     {"status": "error", "message": "Internal server error"},
                     status_code=500,
                 )
+
+        self.webhook_handler = webhook_handler
+        self.mcp.custom_route("/webhook", methods=["POST"])(webhook_handler)
 
         @self.mcp.custom_route("/metrics", methods=["GET"])
         async def metrics_handler(request):

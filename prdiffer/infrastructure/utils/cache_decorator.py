@@ -3,10 +3,13 @@
 import functools
 import hashlib
 import json
+import logging
 import threading
 import time
 from collections import OrderedDict
 from typing import Any, Callable, Dict, Optional, Tuple, Set, TypeVar, cast
+
+logger = logging.getLogger(__name__)
 
 # Type variable for generic function signatures
 F = TypeVar("F", bound=Callable[..., Any])
@@ -153,8 +156,16 @@ def _make_hashable(obj: Any, _seen: Optional[Set[int]] = None, _depth: int = 0) 
             # Sort with a fallback for unhashable types
             try:
                 result = tuple(sorted(hashable_items))
-            except TypeError:
+            except TypeError as e:
                 # If items can't be sorted, use string representation
+                logger.debug(
+                    "Cannot sort hashable items, using string representation",
+                    extra={
+                        "error": str(e),
+                        "error_type": type(e).__name__,
+                        "item_count": len(hashable_items),
+                    },
+                )
                 result = tuple(sorted(str(item) for item in hashable_items))
         finally:
             _seen.discard(obj_id)

@@ -4,6 +4,7 @@ This module implements VCSDiffRepositoryInterface for GitLab,
 demonstrating multi-provider support capability.
 """
 
+import logging
 from typing import Optional
 from prdiffer.domain.interfaces.vcs_provider import VCSDiffRepositoryInterface
 from prdiffer.domain.entities.pr_diff import PRDiff
@@ -14,6 +15,8 @@ try:
     import httpx
 except ImportError:
     pass
+
+logger = logging.getLogger(__name__)
 
 
 class GitLabVCSRepository(VCSDiffRepositoryInterface):
@@ -103,8 +106,30 @@ class GitLabVCSRepository(VCSDiffRepositoryInterface):
                         )
 
                     return PRDiff(files=[])
-            except Exception:
-                raise RuntimeError("GitLab API error")
+            except httpx.HTTPError as e:
+                logger.error(
+                    "GitLab API HTTP error when fetching MR diff",
+                    extra={
+                        "owner": owner,
+                        "repo": repo,
+                        "pr": pr,
+                        "error": str(e),
+                        "error_type": type(e).__name__,
+                    },
+                )
+                raise RuntimeError(f"GitLab API error: {e}") from e
+            except Exception as e:
+                logger.error(
+                    "Unexpected error when fetching GitLab MR diff",
+                    extra={
+                        "owner": owner,
+                        "repo": repo,
+                        "pr": pr,
+                        "error": str(e),
+                        "error_type": type(e).__name__,
+                    },
+                )
+                raise RuntimeError(f"GitLab API error: {e}") from e
         else:
             return PRDiff(files=[])
 
@@ -133,11 +158,42 @@ class GitLabVCSRepository(VCSDiffRepositoryInterface):
                     response = await client.get(url)
 
                     if response.status_code != 200:
+                        logger.warning(
+                            "GitLab API returned non-200 status for commit SHA",
+                            extra={
+                                "owner": owner,
+                                "repo": repo,
+                                "pr": pr,
+                                "status_code": response.status_code,
+                            },
+                        )
                         return "unknown"
 
                     mr_data = response.json()
                     return mr_data.get("sha", "unknown")
-            except Exception:
+            except httpx.HTTPError as e:
+                logger.error(
+                    "GitLab API HTTP error when fetching commit SHA",
+                    extra={
+                        "owner": owner,
+                        "repo": repo,
+                        "pr": pr,
+                        "error": str(e),
+                        "error_type": type(e).__name__,
+                    },
+                )
+                return "unknown"
+            except Exception as e:
+                logger.error(
+                    "Unexpected error when fetching GitLab commit SHA",
+                    extra={
+                        "owner": owner,
+                        "repo": repo,
+                        "pr": pr,
+                        "error": str(e),
+                        "error_type": type(e).__name__,
+                    },
+                )
                 return "unknown"
         else:
             return "mock-sha-1234567890"

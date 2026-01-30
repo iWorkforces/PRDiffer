@@ -9,6 +9,7 @@ This module provides comprehensive input validation to prevent:
 - Invalid data formats
 """
 
+import logging
 import re
 from dataclasses import dataclass
 from typing import Pattern, TYPE_CHECKING
@@ -23,6 +24,8 @@ from prdiffer.domain.exceptions import (
 
 if TYPE_CHECKING:
     from prdiffer.infrastructure.settings import SettingsService
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -95,9 +98,14 @@ class SecurityPatterns:
                     path_traversal=path if path else defaults.path_traversal,
                     sql_injection=sql if sql else defaults.sql_injection,
                 )
-        except (KeyError, ValueError, TypeError):
-            # If settings loading fails, use defaults
-            pass
+        except (KeyError, ValueError, TypeError) as e:
+            logger.warning(
+                "Failed to load security patterns from settings, using defaults",
+                extra={
+                    "error": str(e),
+                    "error_type": type(e).__name__,
+                },
+            )
 
         return defaults
 

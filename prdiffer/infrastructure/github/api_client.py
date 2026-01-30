@@ -1,14 +1,17 @@
 """GitHub API client for repository and pull request operations."""
 
 import time
+from anyio import to_thread
 from collections import OrderedDict
 from typing import Optional, Dict, List, Any, cast, Tuple, Type
 from github import Github, GithubException
 from github.Auth import Token
-from github.Repository import Repository
-from github.PullRequest import PullRequest
+from github.Repository import Repository as PyGithubRepository
+from github.PullRequest import PullRequest as PyGithubPullRequest
 from github.ContentFile import ContentFile
 from prdiffer.domain.services import GitHubAPIServiceInterface
+from prdiffer.domain.entities import Repository, PullRequest
+from .mappers import map_pygithub_repository_to_domain, map_pygithub_pr_to_domain
 from prdiffer.infrastructure.utils.retry_handler import (
     get_retry_handler,
     get_advanced_retry_handler,
@@ -207,12 +210,43 @@ class GitHubAPIClient(GitHubAPIServiceInterface):
             )
 
         try:
+            pygithub_repo = self._retry_handler.execute_with_retry(
+                self._github_client.get_repo,
+                repo_full_name,
+                context=OperationContext.REPOSITORY_ACCESS,
+            )
+            if pygithub_repo:
+                return map_pygithub_repository_to_domain(pygithub_repo)
+            return None
+        except GITHUB_API_EXCEPTIONS as e:
+            exc = cast(Exception, e)
+            sanitized = sanitize_exception_for_logging(exc)
+            self._logger.error(
+                f"Failed to get repository {repo_full_name}", extra=sanitized
+            )
+            return None
+
+    def _get_pygithub_repository(
+        self, repo_full_name: str
+    ) -> Optional[PyGithubRepository]:
+        """Internal method to get PyGithub Repository object.
+
+        Args:
+            repo_full_name: Repository full name in format "owner/repo"
+
+        Returns:
+            PyGithub Repository instance if found, None otherwise
+        """
+        if not self._github_client:
+            raise RuntimeError("GitHub client not initialized.")
+
+        try:
             result = self._retry_handler.execute_with_retry(
                 self._github_client.get_repo,
                 repo_full_name,
                 context=OperationContext.REPOSITORY_ACCESS,
             )
-            return cast(Optional[Repository], result)
+            return cast(Optional[PyGithubRepository], result)
         except GITHUB_API_EXCEPTIONS as e:
             exc = cast(Exception, e)
             sanitized = sanitize_exception_for_logging(exc)
@@ -222,22 +256,62 @@ class GitHubAPIClient(GitHubAPIServiceInterface):
             return None
 
     def get_pull_request(
-        self, repository: Repository, pr_number: int
+        self, repo_full_name: str, pr_number: int
     ) -> Optional[PullRequest]:
         """Get a pull request instance with retry logic.
 
         Args:
-            repository: GitHub repository instance
+            repo_full_name: Repository full name in format "owner/repo"
             pr_number: Pull request number
 
         Returns:
             PullRequest instance if found, None otherwise
         """
+        if not self._github_client:
+            raise RuntimeError(
+                "GitHub client not initialized. Call initialize_client() before using get_pull_request()."
+            )
+
+        try:
+            pygithub_repo = self._retry_handler.execute_with_retry(
+                self._github_client.get_repo,
+                repo_full_name,
+                context=OperationContext.REPOSITORY_ACCESS,
+            )
+            if not pygithub_repo:
+                return None
+
+            pygithub_pr = self._retry_handler.execute_with_retry(
+                pygithub_repo.get_pull, pr_number, context=OperationContext.PULL_REQUEST
+            )
+            if pygithub_pr:
+                return map_pygithub_pr_to_domain(pygithub_pr)
+            return None
+        except GITHUB_API_EXCEPTIONS as e:
+            exc = cast(Exception, e)
+            sanitized = sanitize_exception_for_logging(exc)
+            self._logger.error(
+                f"Failed to get pull request #{pr_number}", extra=sanitized
+            )
+            return None
+
+    def _get_pygithub_pull_request(
+        self, pygithub_repo: PyGithubRepository, pr_number: int
+    ) -> Optional[PyGithubPullRequest]:
+        """Internal method to get PyGithub PullRequest object.
+
+        Args:
+            pygithub_repo: PyGithub Repository instance
+            pr_number: Pull request number
+
+        Returns:
+            PyGithub PullRequest instance if found, None otherwise
+        """
         try:
             result = self._retry_handler.execute_with_retry(
-                repository.get_pull, pr_number, context=OperationContext.PULL_REQUEST
+                pygithub_repo.get_pull, pr_number, context=OperationContext.PULL_REQUEST
             )
-            return cast(Optional[PullRequest], result)
+            return cast(Optional[PyGithubPullRequest], result)
         except GITHUB_API_EXCEPTIONS as e:
             exc = cast(Exception, e)
             sanitized = sanitize_exception_for_logging(exc)
@@ -338,28 +412,38 @@ class GitHubAPIClient(GitHubAPIServiceInterface):
         self._cache_hits += 1
         return str(self._file_content_cache[cache_key]["content"])
 
-    def get_file_content(
-        self, repository: Repository, file_path: str, branch: str
-    ) -> str:
+    def get_file_content(self, repo_full_name: str, file_path: str, branch: str) -> str:
         """Get file content from a specific branch with LRU caching and TTL.
 
         Args:
-            repository: GitHub repository instance
+            repo_full_name: Repository full name in format "owner/repo"
             file_path: Path to the file in the repository
             branch: Branch or commit SHA
 
         Returns:
             str: File content as string, empty string on error
         """
-        # Check cache first (with TTL validation)
+        if not self._github_client:
+            raise RuntimeError(
+                "GitHub client not initialized. Call initialize_client() before using get_file_content()."
+            )
+
         cache_key = (file_path, branch)
         cached_content = self._cache_get(cache_key)
         if cached_content is not None:
             return cached_content
 
         try:
+            pygithub_repo = self._retry_handler.execute_with_retry(
+                self._github_client.get_repo,
+                repo_full_name,
+                context=OperationContext.REPOSITORY_ACCESS,
+            )
+            if not pygithub_repo:
+                return ""
+
             content = self._retry_handler.execute_with_retry(
-                repository.get_contents,
+                pygithub_repo.get_contents,
                 file_path,
                 ref=branch,
                 context=OperationContext.FILE_CONTENT,
@@ -394,12 +478,12 @@ class GitHubAPIClient(GitHubAPIServiceInterface):
             return file_content
 
     def get_files_content_batch(
-        self, repository: Repository, file_paths: List[str], branch: str
+        self, repo_full_name: str, file_paths: List[str], branch: str
     ) -> Dict[str, str]:
         """Batch retrieve file contents from a specific branch.
 
         Args:
-            repository: GitHub repository instance
+            repo_full_name: Repository full name in format "owner/repo"
             file_paths: List of file paths to retrieve
             branch: Branch or commit SHA
 
@@ -409,7 +493,6 @@ class GitHubAPIClient(GitHubAPIServiceInterface):
         results: Dict[str, str] = {}
         files_to_fetch = []
 
-        # Check cache first for each file (with TTL validation)
         for file_path in file_paths:
             cache_key = (file_path, branch)
             cached_content = self._cache_get(cache_key)
@@ -418,39 +501,61 @@ class GitHubAPIClient(GitHubAPIServiceInterface):
             else:
                 files_to_fetch.append(file_path)
 
-        # Process remaining files
         for file_path in files_to_fetch:
-            content = self.get_file_content(repository, file_path, branch)
+            content = self.get_file_content(repo_full_name, file_path, branch)
             results[file_path] = content
 
         return results
 
     async def _get_file_content_async(
-        self, repository: Repository, file_path: str, branch: str
+        self, repo_full_name: str, file_path: str, branch: str
     ) -> str:
         """Async version of get_file_content for parallel processing.
 
         Args:
-            repository: GitHub repository instance
+            repo_full_name: Repository full name in format "owner/repo"
             file_path: Path to the file in the repository
             branch: Branch or commit SHA
 
         Returns:
             str: File content as string, empty string on error
         """
-        # Check cache first (with TTL validation)
+        if not self._github_client:
+            raise RuntimeError(
+                "GitHub client not initialized. Call initialize_client() before using _get_file_content_async()."
+            )
+
         cache_key = (file_path, branch)
         cached_content = self._cache_get(cache_key)
         if cached_content is not None:
             return cached_content
 
         try:
-            content = self._retry_handler.execute_with_retry(
-                repository.get_contents,
-                file_path,
-                ref=branch,
-                context=OperationContext.FILE_CONTENT,
-            )
+            # Wrap blocking PyGithub calls in to_thread.run_sync for non-blocking execution
+            async def get_repo_async():
+                return await to_thread.run_sync(
+                    lambda: self._retry_handler.execute_with_retry(
+                        self._github_client.get_repo,
+                        repo_full_name,
+                        context=OperationContext.REPOSITORY_ACCESS,
+                    )
+                )
+
+            pygithub_repo = await get_repo_async()
+            if not pygithub_repo:
+                return ""
+
+            async def get_contents_async():
+                return await to_thread.run_sync(
+                    lambda: self._retry_handler.execute_with_retry(
+                        pygithub_repo.get_contents,
+                        file_path,
+                        ref=branch,
+                        context=OperationContext.FILE_CONTENT,
+                    )
+                )
+
+            content = await get_contents_async()
 
             # get_contents can return either ContentFile or list[ContentFile]
             if isinstance(content, list):
@@ -482,7 +587,7 @@ class GitHubAPIClient(GitHubAPIServiceInterface):
 
     async def _get_files_content_batch_parallel_async(
         self,
-        repository: Repository,
+        repo_full_name: str,
         file_paths: List[str],
         branch: str,
         max_workers: int = 4,
@@ -492,7 +597,7 @@ class GitHubAPIClient(GitHubAPIServiceInterface):
         Uses AsyncParallelExecutor for concurrent file fetching.
 
         Args:
-            repository: GitHub repository instance
+            repo_full_name: Repository full name in format "owner/repo"
             file_paths: List of file paths to retrieve
             branch: Branch or commit SHA
             max_workers: Maximum number of concurrent workers (default: 4)
@@ -503,7 +608,6 @@ class GitHubAPIClient(GitHubAPIServiceInterface):
         results: Dict[str, str] = {}
         files_to_fetch = []
 
-        # Check cache first for each file (with TTL validation)
         for file_path in file_paths:
             cache_key = (file_path, branch)
             cached_content = self._cache_get(cache_key)
@@ -515,10 +619,9 @@ class GitHubAPIClient(GitHubAPIServiceInterface):
         if not files_to_fetch:
             return results
 
-        # Fetch remaining files in parallel using async executor
         start_time = time.time()
         fetched_contents = await self._async_executor.execute_batch(
-            lambda fp: self._get_file_content_async(repository, fp, branch),
+            lambda fp: self._get_file_content_async(repo_full_name, fp, branch),
             files_to_fetch,
         )
 

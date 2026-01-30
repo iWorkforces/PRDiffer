@@ -10,7 +10,6 @@ from typing import Optional, Tuple, Type, cast
 import asyncer
 from github import GithubException
 from prdiffer.domain.services.pr_diff_service import PRDiffServiceInterface
-from prdiffer.domain.services.github_api import GitHubAPIServiceInterface
 from prdiffer.domain.services.logger import LoggerServiceInterface
 from prdiffer.domain.entities.pr_diff import PRDiff
 from prdiffer.domain.entities.file_patch import FilePatchInfo, EDIT_TYPE
@@ -58,7 +57,7 @@ class GitHubPRDiffService(CachingMixin, PRDiffServiceInterface):
 
     def __init__(
         self,
-        github_api_client: Optional[GitHubAPIServiceInterface] = None,
+        github_api_client: Optional[GitHubAPIClient] = None,
         diff_generator: Optional[DiffGenerator] = None,
         file_processor: Optional[FileProcessor] = None,
         logger: Optional[LoggerServiceInterface] = None,
@@ -74,7 +73,7 @@ class GitHubPRDiffService(CachingMixin, PRDiffServiceInterface):
         # Initialize caching mixin with 5-minute TTL and 1000 entry cache
         super().__init__(max_cache_size=1000, default_ttl=300)
 
-        self._github_api = github_api_client or GitHubAPIClient()
+        self._github_api: GitHubAPIClient = github_api_client or GitHubAPIClient()
         self._logger = logger or get_logger()
 
         # Initialize the GitHub client with environment variables and settings
@@ -159,11 +158,15 @@ class GitHubPRDiffService(CachingMixin, PRDiffServiceInterface):
         """
         try:
             # Use the GitHub API client to get repository and PR
-            repository = self._github_api.get_repository(f"{repo_owner}/{repo_name}")
+            repository = self._github_api._get_pygithub_repository(
+                f"{repo_owner}/{repo_name}"
+            )
             if not repository:
                 return None
 
-            pull_request = self._github_api.get_pull_request(repository, pr_number)
+            pull_request = self._github_api._get_pygithub_pull_request(
+                repository, pr_number
+            )
             if not pull_request:
                 return None
 
@@ -331,11 +334,15 @@ class GitHubPRDiffService(CachingMixin, PRDiffServiceInterface):
         """
         try:
             # Use the GitHub API client to get repository and PR
-            repository = self._github_api.get_repository(f"{repo_owner}/{repo_name}")
+            repository = self._github_api._get_pygithub_repository(
+                f"{repo_owner}/{repo_name}"
+            )
             if not repository:
                 return None
 
-            pull_request = self._github_api.get_pull_request(repository, pr_number)
+            pull_request = self._github_api._get_pygithub_pull_request(
+                repository, pr_number
+            )
             if not pull_request:
                 return None
 
@@ -384,11 +391,15 @@ class GitHubPRDiffService(CachingMixin, PRDiffServiceInterface):
         pr_number: int,
     ) -> Optional[str]:
         try:
-            repository = self._github_api.get_repository(f"{repo_owner}/{repo_name}")
+            repository = self._github_api._get_pygithub_repository(
+                f"{repo_owner}/{repo_name}"
+            )
             if not repository:
                 return None
 
-            pull_request = self._github_api.get_pull_request(repository, pr_number)
+            pull_request = self._github_api._get_pygithub_pull_request(
+                repository, pr_number
+            )
             if not pull_request:
                 return None
 

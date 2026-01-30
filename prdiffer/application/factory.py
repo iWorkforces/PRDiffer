@@ -10,10 +10,9 @@ from prdiffer.domain.services.cache import CacheServiceInterface
 from prdiffer.domain.services.repository_cache import RepositoryCacheServiceInterface
 from prdiffer.domain.services.logger import LoggerServiceInterface
 
-# Infrastructure factory
 from prdiffer.infrastructure.factories import get_infrastructure_factory
+from prdiffer.application.factories import get_application_factory
 
-# Legacy support
 import logging
 
 
@@ -41,8 +40,8 @@ def create_mcp_server(
     Returns:
         Fully configured FastMCPServer instance
     """
-    # Use infrastructure factory to create services if not provided
     infrastructure_factory = get_infrastructure_factory()
+    application_factory = get_application_factory()
 
     if settings_service is None:
         settings_service = infrastructure_factory.create_settings_service()
@@ -58,16 +57,14 @@ def create_mcp_server(
             infrastructure_factory.create_repository_cache_service()
         )
 
-    # Create application layer components via infrastructure factory
-    rate_limiter = infrastructure_factory.create_rate_limiter(logger)
-    metrics_tracker = infrastructure_factory.create_metrics_tracker(logger)
-    server_configuration = infrastructure_factory.create_server_configuration(
+    rate_limiter = application_factory.create_rate_limiter(logger)
+    metrics_tracker = application_factory.create_metrics_tracker(logger)
+    server_configuration = application_factory.create_server_configuration(
         settings_service, logger
     )
-    authentication = infrastructure_factory.create_authentication(logger)
+    authentication = application_factory.create_authentication(logger)
 
-    # Create PR operation handler with all its dependencies
-    pr_operation_handler = infrastructure_factory.create_pr_operation_handler(
+    pr_operation_handler = application_factory.create_pr_operation_handler(
         github_repository_class=github_repository_class,
         cache_service=cache_service,
         repository_cache_service=repository_cache_service,
@@ -77,28 +74,23 @@ def create_mcp_server(
         logger=logger,
     )
 
-    # Create health monitor with dependencies
-    health_monitor = infrastructure_factory.create_health_monitor(
+    health_monitor = application_factory.create_health_monitor(
         metrics_tracker=metrics_tracker,
         rate_limiter=rate_limiter,
         logger=logger,
     )
 
-    # Create infrastructure services that need to be injected
-    # Import infrastructure services for injection
     from prdiffer.infrastructure.security.input_validator import InputValidator
     from prdiffer.infrastructure.request_coalescing import (
         get_request_coalescing_service,
     )
 
-    # Create PR diff service if not provided
     if pr_diff_service is None:
         pr_diff_service = infrastructure_factory.create_pr_diff_service()
 
     input_validator_instance = InputValidator()
     request_coalescing_instance = get_request_coalescing_service()
 
-    # Create and return the main server with all components injected
     return FastMCPServer(
         settings_service=settings_service,
         cache_service=cache_service,
@@ -106,14 +98,12 @@ def create_mcp_server(
         pr_diff_service=pr_diff_service,
         github_repository_class=github_repository_class,
         logger=logger,
-        # Injected components from infrastructure factory
         rate_limiter=rate_limiter,
         metrics_tracker=metrics_tracker,
         pr_operation_handler=pr_operation_handler,
         health_monitor=health_monitor,
         server_configuration=server_configuration,
         authentication=authentication,
-        # Security and request coalescing services - injected instances
         input_validator=input_validator_instance,
         request_coalescing_service=request_coalescing_instance,
     )
@@ -138,26 +128,23 @@ def create_mcp_server_legacy(
     Returns:
         FastMCPServer instance created with legacy constructor
     """
-    # Convert logging.Logger to LoggerServiceInterface for backward compatibility
     if logger is None:
         from prdiffer.infrastructure.logging.console_logger import get_logger
 
         logger_service = get_logger()
     else:
-        # For legacy compatibility, if a logging.Logger is passed, use get_logger instead
         from prdiffer.infrastructure.logging.console_logger import get_logger
 
         logger_service = get_logger()
 
-    # Create infrastructure factory to get PR diff service
     infrastructure_factory = get_infrastructure_factory()
+    application_factory = get_application_factory()
 
-    # Create all required infrastructure components
     pr_diff_service = infrastructure_factory.create_pr_diff_service()
-    rate_limiter = infrastructure_factory.create_rate_limiter(logger_service)
-    metrics_tracker = infrastructure_factory.create_metrics_tracker(logger_service)
-    authentication = infrastructure_factory.create_authentication(logger_service)
-    pr_operation_handler = infrastructure_factory.create_pr_operation_handler(
+    rate_limiter = application_factory.create_rate_limiter(logger_service)
+    metrics_tracker = application_factory.create_metrics_tracker(logger_service)
+    authentication = application_factory.create_authentication(logger_service)
+    pr_operation_handler = application_factory.create_pr_operation_handler(
         github_repository_class=github_repository_class,
         cache_service=cache_service,
         repository_cache_service=repository_cache_service,
@@ -166,12 +153,12 @@ def create_mcp_server_legacy(
         retry_service=infrastructure_factory.create_retry_service(),
         logger=logger_service,
     )
-    health_monitor = infrastructure_factory.create_health_monitor(
+    health_monitor = application_factory.create_health_monitor(
         metrics_tracker=metrics_tracker,
         rate_limiter=rate_limiter,
         logger=logger_service,
     )
-    server_configuration = infrastructure_factory.create_server_configuration(
+    server_configuration = application_factory.create_server_configuration(
         settings_service, logger_service
     )
 

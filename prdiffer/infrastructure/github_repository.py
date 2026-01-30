@@ -241,7 +241,9 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
         repo_full_name = f"{self._repo_owner}/{self._repo_name}"
 
         try:
-            self._repository = self._github_api_client.get_repository(repo_full_name)
+            self._repository = self._github_api_client._get_pygithub_repository(
+                repo_full_name
+            )
         except (UnknownObjectException, RateLimitExceededException) as e:
             sanitized = sanitize_exception_for_logging(e)
             self._logger.warning(
@@ -265,7 +267,7 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
         try:
             if self._repository is None:
                 raise RuntimeError(f"Repository {repo_full_name} is not initialized")
-            self._pull_request = self._github_api_client.get_pull_request(
+            self._pull_request = self._github_api_client._get_pygithub_pull_request(
                 self._repository, self._pr_number
             )
         except (UnknownObjectException, RateLimitExceededException) as e:
@@ -317,7 +319,7 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
         Raises:
             RuntimeError: If GitHub objects failed to initialize
         """
-        return await asyncer.asyncify(self._get_pr_diff_sync)()
+        return await self._get_pr_diff_sync()
 
     async def approve_pr_with_comment(self, pr_url: str, compliment: str) -> str:
         """Approve a GitHub PR with a compliment comment.
@@ -497,7 +499,7 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
                 "- GitHub objects may not have been properly initialized"
             )
 
-        self._pull_request = self._github_api_client.get_pull_request(
+        self._pull_request = self._github_api_client._get_pygithub_pull_request(
             self._repository, self._pr_number
         )
 
@@ -508,7 +510,7 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
 
         return self._pull_request.head.sha
 
-    def _get_pr_diff_sync(self) -> PRDiff:
+    async def _get_pr_diff_sync(self) -> PRDiff:
         self._initialize_github_objects()
 
         if self._repository is None:
@@ -524,7 +526,7 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
 
         base_sha, head_sha = self._get_merge_base_commits()
 
-        pr_files = self._file_processor.get_pr_files(self._pull_request)
+        pr_files = await self._file_processor.get_pr_files(self._pull_request)
         filtered_files = self._file_processor.filter_files(pr_files)
 
         if pr_files != filtered_files:

@@ -1,7 +1,6 @@
 """File processing service for GitHub repositories."""
 
 import inspect
-import threading
 import time
 import anyio
 from typing import List, Optional, Dict, cast
@@ -71,8 +70,8 @@ class FileProcessor:
         self._max_parallel_workers = max_parallel_workers
         self._logger = logger or get_logger()
 
-        # Thread safety lock for cache operations
-        self._cache_lock = threading.RLock()
+        # Async lock for cache operations
+        self._cache_lock = anyio.Lock()
 
         # Cache for PR files to avoid repeated API calls
         self._pr_files_cache: Optional[PaginatedList[File]] = None
@@ -85,7 +84,7 @@ class FileProcessor:
             logger=logger,
         )
 
-    def get_pr_files(self, pull_request) -> PaginatedList[File]:
+    async def get_pr_files(self, pull_request) -> PaginatedList[File]:
         """Get all files from the pull request with caching.
 
         Thread-safe: Uses double-check locking pattern for cache initialization.
@@ -104,7 +103,7 @@ class FileProcessor:
                 return self._pr_files_cache
 
         # Slow path: acquire lock and double-check
-        with self._cache_lock:
+        async with self._cache_lock:
             # Double-check cache validity after acquiring lock
             current_time = time.time()
             if (
@@ -303,16 +302,16 @@ class FileProcessor:
         if head_files:
             fetch_tasks.append(
                 self._github_api_service.get_files_content_batch(
-                    repository, head_files, head_sha
+                    repository.full_name, head_files, head_sha
                 )
             )
         else:
-            fetch_tasks.append(anyio.sleep(0))  # Placeholder
+            fetch_tasks.append(anyio.sleep(0))
 
         if base_files:
             fetch_tasks.append(
                 self._github_api_service.get_files_content_batch(
-                    repository, base_files, base_sha
+                    repository.full_name, base_files, base_sha
                 )
             )
         else:
@@ -334,8 +333,17 @@ class FileProcessor:
                 base_result = await base_result
             if isinstance(base_result, dict):
                 base_contents = cast(Dict[str, str], base_result)
-        except (AttributeError, TypeError):
+        except (AttributeError, TypeError) as e:
             # Handle the case where tasks are not awaitable
+            self._logger.warning(
+                "Tasks not awaitable, using empty contents",
+                extra={
+                    "error": str(e),
+                    "error_type": type(e).__name__,
+                    "has_head_files": bool(head_files),
+                    "has_base_files": bool(base_files),
+                },
+            )
             head_contents = {}
             base_contents = {}
 
@@ -423,7 +431,7 @@ class FileProcessor:
         # Batch load content - sequential processing to avoid blocking
         head_contents = (
             self._github_api_service.get_files_content_batch(
-                repository, head_files, head_sha
+                repository.full_name, head_files, head_sha
             )
             if head_files
             else {}
@@ -431,7 +439,7 @@ class FileProcessor:
 
         base_contents = (
             self._github_api_service.get_files_content_batch(
-                repository, base_files, base_sha
+                repository.full_name, base_files, base_sha
             )
             if base_files
             else {}
