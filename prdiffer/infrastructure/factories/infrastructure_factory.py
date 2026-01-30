@@ -1,7 +1,5 @@
 """Concrete infrastructure factory implementation."""
 
-import warnings
-
 from prdiffer.domain.factories.infrastructure_factory import (
     InfrastructureFactoryInterface,
 )
@@ -14,15 +12,6 @@ from prdiffer.domain.services.github_api import GitHubAPIServiceInterface
 from prdiffer.domain.services.diff import DiffServiceInterface
 from prdiffer.domain.services.pattern_matching import PatternMatchingServiceInterface
 from prdiffer.domain.services.retry import RetryServiceInterface
-
-from prdiffer.domain.interfaces.protocols import (
-    RateLimiterProtocol,
-    MetricsTrackerProtocol,
-    PROperationHandlerProtocol,
-    HealthMonitorProtocol,
-    ServerConfigurationProtocol,
-    AuthenticationProtocol,
-)
 
 from prdiffer.infrastructure.settings import get_settings_service
 from prdiffer.infrastructure.logging.console_logger import get_logger
@@ -202,123 +191,6 @@ class InfrastructureFactory(InfrastructureFactoryInterface):
             parallel_executor=None,
             parallel_enabled=False,
         )
-
-    def create_rate_limiter(
-        self, logger: LoggerServiceInterface
-    ) -> RateLimiterProtocol:
-        warnings.warn(
-            "InfrastructureFactory.create_rate_limiter() is deprecated. "
-            "Use ApplicationFactory.create_rate_limiter() instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        from prdiffer.application.factories.application_factory import (
-            get_application_factory,
-        )
-
-        return get_application_factory().create_rate_limiter(logger)
-
-    def create_metrics_tracker(
-        self, logger: LoggerServiceInterface
-    ) -> MetricsTrackerProtocol:
-        warnings.warn(
-            "InfrastructureFactory.create_metrics_tracker() is deprecated. "
-            "Use ApplicationFactory.create_metrics_tracker() instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        from prdiffer.application.factories.application_factory import (
-            get_application_factory,
-        )
-
-        return get_application_factory().create_metrics_tracker(logger)
-
-    def create_pr_operation_handler(
-        self,
-        github_repository_class,
-        cache_service: CacheServiceInterface,
-        repository_cache_service: RepositoryCacheServiceInterface,
-        diff_service: DiffServiceInterface,
-        pattern_matching_service: PatternMatchingServiceInterface,
-        retry_service: RetryServiceInterface,
-        logger: LoggerServiceInterface,
-    ) -> PROperationHandlerProtocol:
-        warnings.warn(
-            "InfrastructureFactory.create_pr_operation_handler() is deprecated. "
-            "Use ApplicationFactory.create_pr_operation_handler() instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        from prdiffer.application.factories.application_factory import (
-            get_application_factory,
-        )
-
-        return get_application_factory().create_pr_operation_handler(
-            github_repository_class=github_repository_class,
-            cache_service=cache_service,
-            repository_cache_service=repository_cache_service,
-            diff_service=diff_service,
-            pattern_matching_service=pattern_matching_service,
-            retry_service=retry_service,
-            logger=logger,
-        )
-
-    def create_health_monitor(
-        self,
-        metrics_tracker: MetricsTrackerProtocol,
-        rate_limiter: RateLimiterProtocol,
-        logger: LoggerServiceInterface,
-    ) -> HealthMonitorProtocol:
-        warnings.warn(
-            "InfrastructureFactory.create_health_monitor() is deprecated. "
-            "Use ApplicationFactory.create_health_monitor() instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        from prdiffer.application.factories.application_factory import (
-            get_application_factory,
-        )
-
-        return get_application_factory().create_health_monitor(
-            metrics_tracker=metrics_tracker,
-            rate_limiter=rate_limiter,
-            logger=logger,
-        )
-
-    def create_server_configuration(
-        self,
-        settings_service: SettingsServiceInterface,
-        logger: LoggerServiceInterface,
-    ) -> ServerConfigurationProtocol:
-        warnings.warn(
-            "InfrastructureFactory.create_server_configuration() is deprecated. "
-            "Use ApplicationFactory.create_server_configuration() instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        from prdiffer.application.factories.application_factory import (
-            get_application_factory,
-        )
-
-        return get_application_factory().create_server_configuration(
-            settings_service=settings_service,
-            logger=logger,
-        )
-
-    def create_authentication(
-        self, logger: LoggerServiceInterface
-    ) -> AuthenticationProtocol:
-        warnings.warn(
-            "InfrastructureFactory.create_authentication() is deprecated. "
-            "Use ApplicationFactory.create_authentication() instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        from prdiffer.application.factories.application_factory import (
-            get_application_factory,
-        )
-
-        return get_application_factory().create_authentication(logger)
 
 
 def get_infrastructure_factory() -> InfrastructureFactoryInterface:
