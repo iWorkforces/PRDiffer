@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Simple test script to verify GitHub client initialization and functionality."""
 
-import asyncio
+import anyio
+import anyio
 from typing import Optional
 from prdiffer.infrastructure.services.pr_diff_service import GitHubPRDiffService
 from prdiffer.domain.entities.pr_diff import PRDiff
