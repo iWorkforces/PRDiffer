@@ -16,6 +16,7 @@ from prdiffer.domain.services.logger import LoggerServiceInterface, LogLevel
 from prdiffer.domain.repositories.pr_diff_repository import PRDiffRepositoryInterface
 from prdiffer.infrastructure.security.input_validator import InputValidator
 from prdiffer.infrastructure.request_coalescing import RequestCoalescingService
+from prdiffer.application.utils.pr_url_parser import parse_pr_url
 
 from prdiffer.domain.exceptions import (
     InvalidURLError,
@@ -190,35 +191,6 @@ class FastMCPServer:
         # Never expose the actual exception message which might contain sensitive info
         return "Request processing failed"
 
-    def _parse_pr_url(self, pr_url: str) -> tuple[str, str, int]:
-        """Parse GitHub PR URL to extract repository owner, name, and PR number.
-
-        Args:
-            pr_url: The GitHub pull request URL to parse
-
-        Returns:
-            tuple[str, str, int]: A tuple containing (repo_owner, repo_name, pr_number)
-
-        Raises:
-            InvalidURLError: If the URL format is invalid, contains invalid characters, or is empty/whitespace-only
-            SuspiciousOperationError: If the URL contains suspicious patterns
-        """
-        # Validate input is not None or empty before processing
-        if pr_url is None:
-            raise InvalidURLError("PR URL cannot be None")
-
-        if not isinstance(pr_url, str):
-            raise InvalidURLError(
-                f"PR URL must be a string, got {type(pr_url).__name__}"
-            )
-
-        pr_url_stripped = pr_url.strip()
-        if not pr_url_stripped:
-            raise InvalidURLError("PR URL cannot be empty or whitespace-only")
-
-        # Delegate to input validator for full validation
-        return self._input_validator.validate_github_url(pr_url_stripped)
-
     def _check_rate_limit(self, client_id: str = "global"):
         """Check if the current request exceeds rate limits.
 
@@ -316,7 +288,7 @@ class FastMCPServer:
         pr_url = self._input_validator.sanitize_string(pr_url, max_length=2000)
 
         # Parse and validate GitHub URL with security checks
-        return self._parse_pr_url(pr_url)
+        return parse_pr_url(pr_url, self._input_validator)
 
     async def _execute_use_case_with_coalescing(
         self, request_id: str, repo_owner: str, repo_name: str, pr_number: int

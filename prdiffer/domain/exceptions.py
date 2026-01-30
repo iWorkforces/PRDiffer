@@ -5,6 +5,7 @@ providing better error handling and more informative error messages.
 """
 
 from typing import Optional, Any, Dict
+from .errors import ErrorCode, E5001_INTERNAL_ERROR
 
 
 class PRDifferException(Exception):
@@ -13,20 +14,34 @@ class PRDifferException(Exception):
     All custom exceptions in the PRDiffer application should inherit from this
     base class to ensure consistent error handling and logging across the system.
     This exception provides a structured way to pass error context through the
-    optional details dictionary.
+    optional details dictionary and error code for programmatic handling.
     """
 
-    def __init__(self, message: str, details: Optional[Dict[str, Any]] = None):
-        """Initialize PRDifferException with message and optional details.
+    def __init__(
+        self,
+        message: str,
+        error_code: Optional[ErrorCode] = None,
+        details: Optional[Dict[str, Any]] = None,
+    ):
+        """Initialize PRDifferException with message, error code, and optional details.
 
         Args:
             message (str): Human-readable error message describing what went wrong.
+            error_code (Optional[ErrorCode]): Structured error code for programmatic handling.
+                Defaults to E5001_INTERNAL_ERROR if not provided.
             details (Optional[Dict[str, Any]]): Optional dictionary with additional
                 error context for debugging and logging purposes. Defaults to None.
         """
         super().__init__(message)
         self.message = message
+        self.error_code = error_code or E5001_INTERNAL_ERROR
         self.details: Dict[str, Any] = details or {}
+
+    def __str__(self) -> str:
+        """Return formatted string with error code."""
+        if self.error_code:
+            return f"[{self.error_code.code}] {self.message}"
+        return self.message
 
 
 # ============================================================================
@@ -92,6 +107,7 @@ class RateLimitError(PRDifferException):
         self,
         message: str,
         retry_after: Optional[int] = None,
+        error_code: Optional[ErrorCode] = None,
         details: Optional[Dict[str, Any]] = None,
     ):
         """Initialize with retry information.
@@ -99,9 +115,10 @@ class RateLimitError(PRDifferException):
         Args:
             message: Error message
             retry_after: Seconds until rate limit resets
+            error_code: Structured error code
             details: Additional context
         """
-        super().__init__(message, details)
+        super().__init__(message, error_code, details)
         self.retry_after = retry_after
 
 
@@ -164,6 +181,7 @@ class GitHubAPIError(PRDifferException):
         self,
         message: str,
         status_code: Optional[int] = None,
+        error_code: Optional[ErrorCode] = None,
         details: Optional[Dict[str, Any]] = None,
     ):
         """Initialize with HTTP status code.
@@ -171,9 +189,10 @@ class GitHubAPIError(PRDifferException):
         Args:
             message: Error message
             status_code: HTTP status code from GitHub API
+            error_code: Structured error code
             details: Additional context
         """
-        super().__init__(message, details)
+        super().__init__(message, error_code, details)
         self.status_code = status_code
 
 
@@ -215,6 +234,7 @@ class GitHubRateLimitError(GitHubAPIError):
         message: str,
         retry_after: Optional[int] = None,
         status_code: Optional[int] = None,
+        error_code: Optional[ErrorCode] = None,
         details: Optional[Dict[str, Any]] = None,
     ):
         """Initialize with retry information.
@@ -223,9 +243,10 @@ class GitHubRateLimitError(GitHubAPIError):
             message: Error message
             retry_after: Seconds until rate limit resets
             status_code: HTTP status code from GitHub API
+            error_code: Structured error code
             details: Additional context
         """
-        super().__init__(message, status_code, details)
+        super().__init__(message, status_code, error_code, details)
         self.retry_after = retry_after
 
 

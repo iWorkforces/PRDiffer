@@ -1,6 +1,6 @@
 """PR operation handler component for GitHub PR-related operations."""
 
-from typing import Dict, Any, Optional, Tuple, Callable
+from typing import Dict, Any, Optional, Callable
 
 from prdiffer.domain.interfaces.protocols import PROperationHandlerProtocol
 from prdiffer.domain.entities.pr_diff import PRDiff
@@ -15,6 +15,7 @@ from prdiffer.domain.exceptions import (
     SuspiciousOperationError,
 )
 from prdiffer.infrastructure.security.input_validator import InputValidator
+from prdiffer.application.utils.pr_url_parser import parse_pr_url
 
 
 class PROperationHandler(PROperationHandlerProtocol):
@@ -41,31 +42,6 @@ class PROperationHandler(PROperationHandlerProtocol):
         self._repository_cache_service = repository_cache_service
         self._logger = logger
         self._input_validator = input_validator or InputValidator()
-
-    def _parse_pr_url(self, pr_url: str) -> Tuple[str, str, int]:
-        """Parse GitHub PR URL to extract repository and PR information.
-
-        Args:
-            pr_url: GitHub PR URL (e.g., https://github.com/owner/repo/pull/123)
-
-        Returns:
-            Tuple of (repo_owner, repo_name, pr_number)
-
-        Raises:
-            ValueError: If URL format is invalid
-        """
-        try:
-            return self._input_validator.validate_github_url(pr_url)
-        except (
-            InvalidURLError,
-            InvalidRepositoryError,
-            InvalidPRNumberError,
-            SuspiciousOperationError,
-        ) as exc:
-            raise ValueError(
-                f"Invalid GitHub PR URL format. Expected format: "
-                f"https://github.com/owner/repo/pull/123, got: {pr_url}"
-            ) from exc
 
     async def get_pr_diff(self, pr_url: str) -> Dict[str, Any]:
         """Get PR diff information.
@@ -96,7 +72,20 @@ class PROperationHandler(PROperationHandlerProtocol):
                 raise ValueError("PR URL parameter is required")
 
             # Parse URL to extract repository details
-            repo_owner, repo_name, pr_number = self._parse_pr_url(pr_url)
+            try:
+                repo_owner, repo_name, pr_number = parse_pr_url(
+                    pr_url, self._input_validator
+                )
+            except (
+                InvalidURLError,
+                InvalidRepositoryError,
+                InvalidPRNumberError,
+                SuspiciousOperationError,
+            ) as exc:
+                raise ValueError(
+                    f"Invalid GitHub PR URL format. Expected format: "
+                    f"https://github.com/owner/repo/pull/123, got: {pr_url}"
+                ) from exc
 
             # Try to get repository from cache first
             cached_repository: Optional[PRDiffRepositoryInterface] = (

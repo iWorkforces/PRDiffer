@@ -7,6 +7,11 @@ with compliments, following Clean Architecture principles.
 from typing import Optional
 from prdiffer.domain.repositories.pr_diff_repository import PRDiffRepositoryInterface
 from prdiffer.domain.services.logger import LoggerServiceInterface
+from prdiffer.domain.exceptions import ValidationError, InvalidURLError
+from prdiffer.domain.errors import (
+    E1001_INVALID_URL,
+    E1009_INVALID_FORMAT,
+)
 
 
 class ApprovePRUseCase:
@@ -54,17 +59,25 @@ class ApprovePRUseCase:
 
         # Validate inputs
         if not pr_url:
-            raise ValueError("PR URL cannot be empty")
+            raise InvalidURLError(
+                "PR URL cannot be empty", error_code=E1001_INVALID_URL
+            )
 
         if not isinstance(pr_url, str):
-            raise ValueError(f"PR URL must be a string, got {type(pr_url).__name__}")
+            raise ValidationError(
+                f"PR URL must be a string, got {type(pr_url).__name__}",
+                error_code=E1009_INVALID_FORMAT,
+            )
 
         if not compliment:
-            raise ValueError("Compliment cannot be empty")
+            raise ValidationError(
+                "Compliment cannot be empty", error_code=E1001_INVALID_URL
+            )
 
         if not isinstance(compliment, str):
-            raise ValueError(
-                f"Compliment must be a string, got {type(compliment).__name__}"
+            raise ValidationError(
+                f"Compliment must be a string, got {type(compliment).__name__}",
+                error_code=E1009_INVALID_FORMAT,
             )
 
         # Delegate to repository service for approval

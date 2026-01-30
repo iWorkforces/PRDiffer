@@ -106,6 +106,38 @@ E1006_INVALID_PATTERN = ErrorCode(
     category=ErrorCategory.INPUT_VALIDATION,
 )
 
+E1007_INVALID_TOKEN = ErrorCode(
+    code="E1007",
+    name="INVALID_TOKEN",
+    message="Invalid or malformed authentication token",
+    remediation="Provide a valid token with proper format and permissions",
+    category=ErrorCategory.INPUT_VALIDATION,
+)
+
+E1008_MISSING_TOKEN = ErrorCode(
+    code="E1008",
+    name="MISSING_TOKEN",
+    message="Authentication token not provided",
+    remediation="Provide authentication token via GITHUB_TOKEN environment variable",
+    category=ErrorCategory.INPUT_VALIDATION,
+)
+
+E1009_INVALID_FORMAT = ErrorCode(
+    code="E1009",
+    name="INVALID_FORMAT",
+    message="Data format not supported",
+    remediation="Ensure data is in supported format (e.g., valid JSON, text)",
+    category=ErrorCategory.INPUT_VALIDATION,
+)
+
+E1010_INVALID_CONFIGURATION = ErrorCode(
+    code="E1010",
+    name="INVALID_CONFIGURATION",
+    message="Configuration value is invalid",
+    remediation="Check configuration values in settings.toml or environment variables",
+    category=ErrorCategory.INPUT_VALIDATION,
+)
+
 # =============================================================================
 # Authentication/Authorization Errors (E2xxx)
 # =============================================================================
@@ -134,6 +166,22 @@ E2003_INSUFFICIENT_PERMISSIONS = ErrorCode(
     category=ErrorCategory.AUTHENTICATION,
 )
 
+E2004_EXPIRED_TOKEN = ErrorCode(
+    code="E2004",
+    name="EXPIRED_TOKEN",
+    message="Authentication token has expired",
+    remediation="Generate a new token from your GitHub settings",
+    category=ErrorCategory.AUTHENTICATION,
+)
+
+E2005_GITHUB_AUTH_FAILED = ErrorCode(
+    code="E2005",
+    name="GITHUB_AUTH_FAILED",
+    message="GitHub authentication failed",
+    remediation="Verify token is valid and has required permissions",
+    category=ErrorCategory.AUTHENTICATION,
+)
+
 # =============================================================================
 # Rate Limiting Errors (E3xxx)
 # =============================================================================
@@ -159,6 +207,22 @@ E3003_ABUSE_DETECTION = ErrorCode(
     name="ABUSE_DETECTION",
     message="GitHub abuse detection triggered",
     remediation="Reduce request frequency significantly and contact GitHub if persistent",
+    category=ErrorCategory.RATE_LIMITING,
+)
+
+E3004_GLOBAL_RATE_LIMIT = ErrorCode(
+    code="E3004",
+    name="GLOBAL_RATE_LIMIT",
+    message="Global server rate limit exceeded",
+    remediation="Reduce request frequency across all operations",
+    category=ErrorCategory.RATE_LIMITING,
+)
+
+E3005_USER_RATE_LIMIT = ErrorCode(
+    code="E3005",
+    name="USER_RATE_LIMIT",
+    message="Per-user rate limit exceeded",
+    remediation="Wait for rate limit reset or use authenticated requests",
     category=ErrorCategory.RATE_LIMITING,
 )
 
@@ -239,6 +303,118 @@ E5005_CIRCUIT_OPEN = ErrorCode(
     name="CIRCUIT_OPEN",
     message="Service temporarily unavailable",
     remediation="Wait a moment and retry; circuit breaker is active",
+    category=ErrorCategory.INTERNAL,
+)
+
+E5006_CACHE_ERROR = ErrorCode(
+    code="E5006",
+    name="CACHE_ERROR",
+    message="Cache operation failed",
+    remediation="Cache error occurred; operation will be retried without cache",
+    category=ErrorCategory.INTERNAL,
+)
+
+E5007_CACHE_INVALIDATION_ERROR = ErrorCode(
+    code="E5007",
+    name="CACHE_INVALIDATION_ERROR",
+    message="Cache invalidation failed",
+    remediation="Manual cache clear may be required",
+    category=ErrorCategory.INTERNAL,
+)
+
+E5008_CACHE_CORRUPTION_ERROR = ErrorCode(
+    code="E5008",
+    name="CACHE_CORRUPTION_ERROR",
+    message="Cached data is corrupted",
+    remediation="Clear cache and retry operation",
+    category=ErrorCategory.INTERNAL,
+)
+
+E5009_CONFIGURATION_ERROR = ErrorCode(
+    code="E5009",
+    name="CONFIGURATION_ERROR",
+    message="Configuration is invalid or missing",
+    remediation="Check configuration in settings.toml or environment variables",
+    category=ErrorCategory.INTERNAL,
+)
+
+E5010_MISSING_CONFIGURATION = ErrorCode(
+    code="E5010",
+    name="MISSING_CONFIGURATION",
+    message="Required configuration is missing",
+    remediation="Provide required configuration values",
+    category=ErrorCategory.INTERNAL,
+)
+
+E5011_SECRETS_ERROR = ErrorCode(
+    code="E5011",
+    name="SECRETS_ERROR",
+    message="Secrets management failed",
+    remediation="Check secret storage and access permissions",
+    category=ErrorCategory.INTERNAL,
+)
+
+E5012_FILE_PROCESSING_ERROR = ErrorCode(
+    code="E5012",
+    name="FILE_PROCESSING_ERROR",
+    message="File processing failed",
+    remediation="Verify file exists and is readable",
+    category=ErrorCategory.INTERNAL,
+)
+
+E5013_PATTERN_MATCHING_ERROR = ErrorCode(
+    code="E5013",
+    name="PATTERN_MATCHING_ERROR",
+    message="Pattern matching failed",
+    remediation="Verify pattern syntax and data format",
+    category=ErrorCategory.INTERNAL,
+)
+
+E5014_RESOURCE_EXHAUSTED = ErrorCode(
+    code="E5014",
+    name="RESOURCE_EXHAUSTED",
+    message="System resources are exhausted",
+    remediation="Reduce concurrent operations or increase system resources",
+    category=ErrorCategory.INTERNAL,
+)
+
+E5015_MEMORY_LIMIT = ErrorCode(
+    code="E5015",
+    name="MEMORY_LIMIT",
+    message="Memory limit exceeded",
+    remediation="Reduce file selection or increase available memory",
+    category=ErrorCategory.INTERNAL,
+)
+
+E5016_SUSPICIOUS_OPERATION = ErrorCode(
+    code="E5016",
+    name="SUSPICIOUS_OPERATION",
+    message="Suspicious activity detected",
+    remediation="Request has been blocked for security reasons",
+    category=ErrorCategory.INTERNAL,
+)
+
+E5017_INPUT_SANITIZATION_ERROR = ErrorCode(
+    code="E5017",
+    name="INPUT_SANITIZATION_ERROR",
+    message="Input contains potentially malicious content",
+    remediation="Remove any injection patterns from input",
+    category=ErrorCategory.INTERNAL,
+)
+
+E5018_SIGNATURE_VERIFICATION_ERROR = ErrorCode(
+    code="E5018",
+    name="SIGNATURE_VERIFICATION_ERROR",
+    message="Request signature verification failed",
+    remediation="Verify request signature and webhook secret",
+    category=ErrorCategory.INTERNAL,
+)
+
+E5019_CONNECTION_ERROR = ErrorCode(
+    code="E5019",
+    name="CONNECTION_ERROR",
+    message="Connection to service failed",
+    remediation="Check network connectivity and service availability",
     category=ErrorCategory.INTERNAL,
 )
 
