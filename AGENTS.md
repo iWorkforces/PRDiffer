@@ -1,7 +1,7 @@
 # PROJECT KNOWLEDGE BASE
 
-**Generated:** 2026-01-30T17:40:00Z
-**Commit:** c3a8a87
+**Generated:** 2026-01-30T17:37:31Z
+**Commit:** f8607ba
 **Branch:** upstream
 **Version:** 0.5.0
 
@@ -97,6 +97,8 @@ PRDifferMCP/
 - **NO async/await mixed with blocking I/O** → Use AsyncParallelExecutor for non-blocking calls.
 - **NO type error suppression** → Never use `as any`, `@ts-ignore`, `@type: ignore`.
 - **NO empty catch blocks** → Always log or handle exceptions.
+- **NO old-style typing imports** → Use built-in types (`list[str]`) instead of `from typing import List`.
+- **NO asyncio in tests** → Use anyio primitives instead (project is anyio-first).
 - **NEVER use unverified JWT parsing** → Only for metadata extraction, not auth decisions.
 - **Never retry 404s for file content** → Likely added/removed files.
 
@@ -147,6 +149,8 @@ TRANSPORT=sse PORT=9102 uv run python prdiffer/server.py
 - **Retry logic**: 404/403/500 with smart retry, circuit breaker, exponential backoff.
 - **File filtering**: Pattern-based ignores, extension allowlist, max_files_allowed limit.
 - **Test markers for filtering**: `-m unit`, `-m integration`, `-m slow`, `-m security`.
-- **Complex files**: 25 files >500 lines, most in infrastructure (retry_handler.py: 971 lines).
+- **Complex files**: 32 files >500 lines, most in infrastructure (retry_handler.py: 971 lines).
 - **Thread safety**: RLock for sync, anyio.Lock for async, double-check locking patterns.
 - **Maximum directory depth**: 3 levels (prdiffer/{layer}/{package}/{module}.py).
+- **No CI/CD infrastructure**: Manual quality gates only; no GitHub Actions workflows exist.
+- **Type hint deviation**: Project uses old-style typing imports (`from typing import List`) instead of Python 3.14+ built-ins.
