@@ -1,7 +1,7 @@
 """Server configuration component for setup and configuration management."""
 
 import logging
-from typing import Dict, Any, Optional, List, TypedDict
+from typing import Any, Optional, TypedDict
 from prdiffer.domain.interfaces.protocols import ServerConfigurationProtocol
 from prdiffer.version import __version__
 

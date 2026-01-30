@@ -4,7 +4,7 @@ This plugin provides approve_pr functionality as an MCP tool plugin,
 allowing PR approval with compliment comments.
 """
 
-from typing import Dict, Any
+from typing import Any
 from prdiffer.application.interfaces.tool_plugin import MCPToolPlugin
 from prdiffer.domain.usecases.pr_approval_usecases import ApprovePRUseCase
 from prdiffer.domain.exceptions import ValidationError

@@ -7,7 +7,7 @@ import logging
 import threading
 import time
 from collections import OrderedDict
-from typing import Any, Callable, Dict, Optional, Tuple, Set, TypeVar, cast
+from typing import Any, Callable, Dict, Optional, Tuple, TypeVar, cast
 
 logger = logging.getLogger(__name__)
 

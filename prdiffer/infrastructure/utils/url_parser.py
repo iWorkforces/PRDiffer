@@ -5,7 +5,6 @@ supporting both 'pull/' and 'pulls/' path formats.
 """
 
 import re
-from typing import Tuple
 from prdiffer.domain.exceptions import InvalidURLError, InvalidPRNumberError
 
 

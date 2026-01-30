@@ -7,7 +7,7 @@ and other credentials in log files and console output.
 
 import re
 import traceback
-from typing import Optional, Dict, Any
+from typing import Optional, Any
 from types import TracebackType
 
 

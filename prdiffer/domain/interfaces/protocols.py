@@ -7,7 +7,7 @@ These protocols are placed in the domain layer to maintain Clean Architecture
 principles - the domain layer should not depend on the application layer.
 """
 
-from typing import Dict, Any, Tuple, Protocol, Optional
+from typing import Any, Protocol, Optional
 
 
 class RateLimiterProtocol(Protocol):

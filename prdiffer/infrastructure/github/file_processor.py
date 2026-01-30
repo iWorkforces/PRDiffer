@@ -3,7 +3,7 @@
 import inspect
 import time
 import anyio
-from typing import List, Optional, Dict, cast
+from typing import Optional, cast
 from github.File import File
 from github.PaginatedList import PaginatedList
 from github.Repository import Repository

@@ -3,7 +3,7 @@
 import time
 from anyio import to_thread
 from collections import OrderedDict
-from typing import Optional, Dict, List, Any, cast, Tuple, Type
+from typing import Optional, Any, cast, Type
 from github import Github, GithubException
 from github.Auth import Token
 from github.Repository import Repository as PyGithubRepository

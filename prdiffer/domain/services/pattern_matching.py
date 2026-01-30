@@ -1,7 +1,6 @@
 """Pattern matching service interface for domain layer."""
 
 from abc import ABC, abstractmethod
-from typing import List
 
 
 class PatternMatchingServiceInterface(ABC):

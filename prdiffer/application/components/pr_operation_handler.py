@@ -1,6 +1,6 @@
 """PR operation handler component for GitHub PR-related operations."""
 
-from typing import Dict, Any, Optional, Callable
+from typing import Any, Optional, Callable
 
 from prdiffer.domain.interfaces.protocols import PROperationHandlerProtocol
 from prdiffer.domain.entities.pr_diff import PRDiff

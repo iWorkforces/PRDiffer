@@ -1,7 +1,7 @@
 """API health tracking for adaptive retry strategies."""
 
 import time
-from typing import Dict, List, Optional
+from typing import Optional
 from dataclasses import dataclass
 from collections import deque
 from prdiffer.infrastructure.logging.console_logger import get_logger

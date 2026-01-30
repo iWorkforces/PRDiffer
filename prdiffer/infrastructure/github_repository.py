@@ -4,7 +4,7 @@ This is the refactored version using composition with extracted components.
 """
 
 import os
-from typing import Optional, Dict
+from typing import Optional
 from github.Repository import Repository
 from github.PullRequest import PullRequest
 from github.GithubException import (

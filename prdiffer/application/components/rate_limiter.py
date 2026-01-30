@@ -2,7 +2,7 @@
 
 import time
 import logging
-from typing import Dict, List, Optional, Any
+from typing import Optional, Any
 from collections import defaultdict
 from prdiffer.domain.interfaces.protocols import RateLimiterProtocol
 

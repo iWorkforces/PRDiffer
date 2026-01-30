@@ -3,7 +3,7 @@ import logging
 import os
 import sys
 from datetime import datetime, timezone
-from typing import Optional, Dict, Any
+from typing import Optional, Any
 from prdiffer.infrastructure.settings import get_settings_service
 from prdiffer.domain.services import LoggerServiceInterface, LogLevel
 

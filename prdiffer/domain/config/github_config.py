@@ -6,7 +6,6 @@ of individual parameters.
 """
 
 from dataclasses import dataclass, field
-from typing import Tuple
 
 from .github_config_interface import GitHubConfigInterface
 

@@ -7,7 +7,7 @@ Note: This interface uses Protocol-like typing rather than ABC to work
 better with dataclasses. Type checkers will verify compatibility.
 """
 
-from typing import Protocol, Tuple, runtime_checkable
+from typing import Protocol, runtime_checkable
 
 
 @runtime_checkable

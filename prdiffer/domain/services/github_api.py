@@ -1,7 +1,7 @@
 """GitHub API service interface for domain layer."""
 
 from abc import ABC, abstractmethod
-from typing import Optional, Dict, List
+from typing import Optional
 
 from prdiffer.domain.entities import Repository, PullRequest
 

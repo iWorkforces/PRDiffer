@@ -4,7 +4,7 @@ This module provides centralized management for MCP tool plugins,
 enabling dynamic tool registration, discovery, and execution.
 """
 
-from typing import Dict, Optional, List
+from typing import Optional
 from prdiffer.application.interfaces.tool_plugin import MCPToolPlugin
 from prdiffer.domain.services.logger import LoggerServiceInterface
 from prdiffer.domain.exceptions import ValidationError, PRDifferException

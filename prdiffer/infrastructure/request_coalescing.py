@@ -5,7 +5,7 @@ for the same resource when multiple concurrent requests arrive.
 """
 
 import anyio
-from typing import Dict, Any, Optional, Callable, Awaitable
+from typing import Any, Optional, Callable, Awaitable
 from dataclasses import dataclass, field
 from prdiffer.infrastructure.logging.console_logger import get_logger
 from prdiffer.infrastructure.settings import get_settings_service

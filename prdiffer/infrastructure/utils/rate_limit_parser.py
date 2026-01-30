@@ -7,7 +7,7 @@ from HTTP responses and exceptions.
 import time
 from datetime import timezone
 from email.utils import parsedate_to_datetime
-from typing import Optional, Dict
+from typing import Optional
 from dataclasses import dataclass
 
 

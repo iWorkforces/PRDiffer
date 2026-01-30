@@ -1,7 +1,5 @@
 """Helpers for enforcing diff size limits."""
 
-from typing import Dict, Tuple
-
 
 def apply_diff_limits(
     diff_content: str,

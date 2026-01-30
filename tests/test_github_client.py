@@ -2,7 +2,6 @@
 """Simple test script to verify GitHub client initialization and functionality."""
 
 import anyio
-import anyio
 from typing import Optional
 from prdiffer.infrastructure.services.pr_diff_service import GitHubPRDiffService
 from prdiffer.domain.entities.pr_diff import PRDiff
@@ -55,4 +54,4 @@ async def test_github_client():
 
 
 if __name__ == "__main__":
-    asyncio.run(test_github_client())
+    anyio.run(test_github_client)

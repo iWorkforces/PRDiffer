@@ -5,7 +5,7 @@ allowing modular tool development without modifying core server code.
 """
 
 from abc import ABC, abstractmethod
-from typing import Dict, Any
+from typing import Any
 
 
 class MCPToolPlugin(ABC):

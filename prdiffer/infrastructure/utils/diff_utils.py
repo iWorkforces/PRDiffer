@@ -3,7 +3,7 @@
 import difflib
 import re
 from dataclasses import dataclass
-from typing import Union, Optional, List
+from typing import Union, Optional
 from prdiffer.domain.services import DiffServiceInterface
 from prdiffer.infrastructure.utils.logger_factory import LazyLoggerMixin
 

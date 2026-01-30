@@ -1,7 +1,7 @@
 """Health monitoring component for server status and metrics."""
 
 import logging
-from typing import Dict, Any, Optional
+from typing import Any, Optional
 from prdiffer.domain.interfaces.protocols import (
     HealthMonitorProtocol,
     MetricsTrackerProtocol,

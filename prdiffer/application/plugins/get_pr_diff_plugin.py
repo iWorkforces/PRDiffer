@@ -4,7 +4,7 @@ This plugin provides the core get_pr_diff functionality
 as an MCP tool plugin, demonstrating the plugin architecture.
 """
 
-from typing import Dict, Any
+from typing import Any
 from prdiffer.application.interfaces.tool_plugin import MCPToolPlugin
 from prdiffer.domain.usecases.pr_diff_usecases import GetPRDiffUseCase
 

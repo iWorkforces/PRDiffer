@@ -7,7 +7,7 @@ setup logging, provides server information, and validates configuration.
 import pytest
 import logging
 from unittest.mock import Mock
-from typing import Dict, Any, Optional
+from typing import Any, Optional
 
 from prdiffer.application.components.server_configuration import (
     ServerConfiguration,

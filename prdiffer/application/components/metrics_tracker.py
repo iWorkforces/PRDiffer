@@ -3,7 +3,7 @@
 import time
 import logging
 import threading
-from typing import Dict, Any, Optional
+from typing import Any, Optional
 from prdiffer.domain.interfaces.protocols import MetricsTrackerProtocol
 
 

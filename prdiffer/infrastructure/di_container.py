@@ -4,7 +4,7 @@ This module provides a lightweight DI container for managing service lifecycles,
 enabling testability and proper dependency injection throughout the codebase.
 """
 
-from typing import Dict, Type, Callable, Any, Optional
+from typing import Type, Callable, Any, Optional
 from threading import Lock
 from prdiffer.domain.services.logger import LoggerServiceInterface
 from prdiffer.domain.exceptions import PRDifferException, ConfigurationError

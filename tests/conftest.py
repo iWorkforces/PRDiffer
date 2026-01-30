@@ -5,7 +5,7 @@ including mocks for external dependencies (GitHub API, cache, settings, etc.).
 """
 
 import os
-from typing import Dict, Any, Optional
+from typing import Any, Optional
 from unittest.mock import Mock, AsyncMock
 from unittest.mock import patch
 import pytest

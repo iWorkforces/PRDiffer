@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 from enum import StrEnum
-from typing import Optional, List, Dict, Any
+from typing import Optional, Any
 
 
 class EDIT_TYPE(StrEnum):

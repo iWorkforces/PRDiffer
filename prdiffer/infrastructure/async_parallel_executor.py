@@ -13,7 +13,6 @@ from typing import (
     TypeVar,
     Awaitable,
     Generic,
-    Type,
     cast,
 )
 import anyio

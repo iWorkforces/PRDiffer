@@ -2,7 +2,7 @@
 
 import re
 import time
-from typing import List, Dict, Optional
+from typing import Dict, Optional
 from prdiffer.domain.entities.file_patch import FilePatchInfo
 from prdiffer.domain.services import DiffServiceInterface
 from prdiffer.infrastructure.logging.console_logger import get_logger

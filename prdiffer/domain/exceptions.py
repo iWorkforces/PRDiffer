@@ -4,7 +4,7 @@ This module defines custom exceptions for different error scenarios,
 providing better error handling and more informative error messages.
 """
 
-from typing import Optional, Any, Dict
+from typing import Optional, Any
 from .errors import ErrorCode, E5001_INTERNAL_ERROR
 
 

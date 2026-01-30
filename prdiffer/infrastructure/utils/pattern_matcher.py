@@ -1,7 +1,7 @@
 """Pattern matching utility for file filtering and validation."""
 
 import re
-from typing import List, Optional, Tuple, Union
+from typing import Optional, Union
 from prdiffer.domain.services import PatternMatchingServiceInterface
 
 

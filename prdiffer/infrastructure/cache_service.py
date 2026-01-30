@@ -2,7 +2,7 @@ import hashlib
 import time
 import anyio
 from collections import OrderedDict
-from typing import Optional, Dict, Any, cast
+from typing import Optional, Any, cast
 from prdiffer.domain.entities.pr_diff import PRDiff
 from prdiffer.domain.services import CacheServiceInterface
 from prdiffer.domain.exceptions import ValidationError

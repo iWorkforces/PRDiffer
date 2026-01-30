@@ -7,7 +7,7 @@ repeated initialization of GitHub API objects for the same repositories.
 import time
 from dataclasses import dataclass
 from functools import wraps
-from typing import Optional, Dict, Tuple, Callable
+from typing import Optional, Dict, Callable
 from threading import RLock
 from prdiffer.domain.services import RepositoryCacheServiceInterface
 

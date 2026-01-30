@@ -5,7 +5,7 @@ using GitHub API operations.
 """
 
 import os
-from typing import Optional, Tuple, Type, cast
+from typing import Optional, Type, cast
 
 import asyncer
 from github import GithubException

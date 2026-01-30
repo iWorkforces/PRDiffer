@@ -10,7 +10,7 @@ when content hasn't changed, which saves on data transfer for large responses.
 
 import time
 from collections import OrderedDict
-from typing import Optional, Dict, Any
+from typing import Optional, Any
 
 from prdiffer.infrastructure.logging.console_logger import get_logger
 
