@@ -44,7 +44,7 @@ dependencies = [
     "aiodns>=4.0.0",
     "httpx-aiohttp>=0.1.12",
     "pydantic-core>=2.41.5",
-    "pyjwt>=2.10.1",
+    "pyjwt>=2.11.0",
 ]
 
 [project.urls]
