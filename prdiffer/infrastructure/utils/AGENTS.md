@@ -1,63 +1,126 @@
 # AGENTS.md - Infrastructure/Utils
 
-Utility functions and helpers.
+Utility functions and helpers: retry, circuit breaker, caching, async execution.
 
 ## Guidelines
 
-- Pure functions where possible
-- No I/O operations
+- Pure functions where possible (no side effects)
+- **Dual sync/async APIs** for critical utilities
 - Reusable across the codebase
 - Well-documented with docstrings
+- **anyio primitives** for async (not asyncio)
 
 ## Common Patterns
 
-### Utility Functions
+### UnifiedRetryHandler (Dual Sync/Async)
 ```python
-from typing import Dict, Any, Optional
-import re
-
-def parse_pr_url(url: str) -> Optional[Dict[str, str]]:
-    """Parse GitHub PR URL into components."""
-    pattern = r"github\.com/([^/]+)/([^/]+)/pull/(\d+)"
-    match = re.search(pattern, url)
-    if match:
-        return {
-            "owner": match.group(1),
-            "repo": match.group(2),
-            "pr_number": int(match.group(3)),
-        }
-    return None
-```
-
-### Retry Handler
-```python
-from typing import Callable, TypeVar, Optional
-import time
+from typing import Callable, TypeVar
+import anyio
 
 T = TypeVar('T')
 
-def retry(
-    func: Callable[[], T],
-    max_retries: int = 3,
-    delay: float = 1.0,
-) -> Optional[T]:
-    """Retry a function with exponential backoff."""
-    for attempt in range(max_retries):
-        try:
-            return func()
-        except Exception:
-            if attempt == max_retries - 1:
-                raise
-            time.sleep(delay * (2 ** attempt))
-    return None
+class UnifiedRetryHandler:
+    '''848-line handler with 12+ responsibilities (PRIORITY 1 refactoring needed)'''
+    
+    def retry_sync(
+        self,
+        func: Callable[[], T],
+        max_retries: int = 3,
+        delay: float = 1.0,
+    ) -> T:
+        '''Synchronous retry with exponential backoff'''
+        for attempt in range(max_retries):
+            try:
+                return func()
+            except Exception as e:
+                if attempt == max_retries - 1:
+                    raise
+                time.sleep(delay * (2 ** attempt))
+    
+    async def retry_async(
+        self,
+        func: Callable[[], T],
+        max_retries: int = 3,
+        delay: float = 1.0,
+    ) -> T:
+        '''Async retry with exponential backoff (anyio.sleep, not asyncio)'''
+        for attempt in range(max_retries):
+            try:
+                return await func()
+            except Exception as e:
+                if attempt == max_retries - 1:
+                    raise
+                await anyio.sleep(delay * (2 ** attempt))
 ```
+
+### CircuitBreaker (State Machine)
+```python
+from enum import Enum
+
+class CircuitBreakerState(Enum):
+    CLOSED = 'closed'      # Normal operation
+    OPEN = 'open'          # Failure threshold reached
+    HALF_OPEN = 'half_open'  # Testing recovery
+
+class CircuitBreaker:
+    '''State machine: CLOSED → OPEN → HALF_OPEN → CLOSED'''
+    
+    def __init__(self, failure_threshold: int = 5, timeout: int = 60):
+        self.state = CircuitBreakerState.CLOSED
+        self.failure_count = 0
+        self.failure_threshold = failure_threshold
+```
+
+### Manual Caching with RLock (Settings Pattern)
+```python
+import threading
+
+_settings = None
+_settings_lock = threading.RLock()
+
+def get_settings():
+    '''Manual caching with double-check locking (no @lru_cache)'''
+    global _settings
+    if _settings is None:
+        with _settings_lock:
+            if _settings is None:
+                _settings = Dynaconf(...)  # Unhashable
+    return _settings
+```
+
+### AsyncParallelExecutor (anyio Task Groups)
+```python
+import anyio
+
+class AsyncParallelExecutor:
+    '''509-line anyio-based parallel execution'''
+    
+    async def execute_parallel(self, tasks: list):
+        async with anyio.create_task_group() as tg:
+            for task in tasks:
+                tg.start_soon(task)
+```
+
+## Anti-Patterns
+
+- ❌ Using asyncio primitives (use anyio.Lock, anyio.Semaphore, anyio.Event)
+- ❌ @lru_cache on Dynaconf settings (use manual RLock pattern)
+- ❌ Thread-based async (use anyio.create_task_group())
+- ❌ Blocking I/O in async methods (use AsyncParallelExecutor)
+- ❌ Retrying 404s for file content (not transient)
+
+## Known Issues
+
+- **retry_handler.py (848 lines)** violates SRP with 12+ responsibilities
+- **PRIORITY 1 refactoring needed**: Split into focused classes
 
 ## Files
 
-- `retry_handler.py`: Retry logic with backoff
-- `circuit_breaker.py`: Circuit breaker pattern
-- `cache_decorator.py`: Caching decorators
+- `retry_handler.py`: Unified retry logic (848 lines, needs refactoring)
+- `circuit_breaker.py`: Circuit breaker state machine
+- `cache_decorator.py`: Caching decorators with commit-based invalidation
 - `diff_utils.py`: Diff processing utilities
-- `diff_limits.py`: Diff size limits
+- `diff_limits.py`: Diff size limits and validation
 - `pattern_matcher.py`: Pattern matching utilities
 - `api_health_tracker.py`: API health monitoring
+- `logger_factory.py`: LazyLoggerMixin (66-line circular import prevention)

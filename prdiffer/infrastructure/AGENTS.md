@@ -41,12 +41,13 @@ prdiffer/infrastructure/
 ### Async Patterns
 - **anyio primitives** > threading for async ops (Semaphore, Lock, Event, create_task_group())
 - **AsyncParallelExecutor** > ParallelExecutor for non-blocking calls
-- **Dual APIs**: Sync/async versions for critical utilities (retry_handler, circuit_breaker)
+- **Dual sync/async APIs**: `method()` and `method_async()` for critical utilities
 - **Request coalescing**: Deduplicate in-flight requests using anyio.Lock + dict
+- **NO asyncio** → Use anyio throughout (backend-agnostic)
 
 ### Caching
 - **Commit-based keys**: MD5 hash of {commit_sha + file_path} for precise invalidation
-- **Manual caching** for settings (no @lru_cache due to Dynaconf unhashability)
+- **Manual caching with RLock** for settings (no @lru_cache due to Dynaconf unhashability)
 - **LRU eviction**: Configurable max_entries, TTL per cache entry
 - **Cache decorators**: `@cache_result()` for function-level caching with invalidation
 
@@ -54,6 +55,16 @@ prdiffer/infrastructure/
 - **ETag support**: Store/compare ETags, return cached data on 304, reduce API calls
 - **Rate limiting**: Detect 403/429, apply smart retry with backoff
 - **API client**: Thin PyGithub wrapper, integrates retry/circuit breaker
+
+### LazyLoggerMixin Pattern
+- **66-line mixin** to prevent circular imports in infrastructure services
+- `self._logger` property with lazy initialization
+- Pattern: `if not hasattr(self, '_logger_instance'): self._logger_instance = LoggerFactory.get_logger(...)`
+
+### Thread Safety
+- **anyio.Lock** for async operations (not asyncio.Lock)
+- **threading.RLock** for sync operations (double-check locking)
+- Manual caching pattern: `_instance = None` + `_lock = threading.RLock()`
 
 ## ANTI-PATTERNS
 
@@ -65,3 +76,5 @@ prdiffer/infrastructure/
 - **NO thread-based async** → Use anyio primitives for backend-agnostic async
 - **NO bypassing circuit breaker** → Always go through CircuitBreaker for external APIs
 - **NO cache without invalidation** → Commit-based keys prevent stale data
+- **NO asyncio in infrastructure** → Use anyio.Lock, anyio.Semaphore, anyio.create_task_group()
+- **NO old-style typing** → Project uses `from typing import List` (48 violations, documented deviation)

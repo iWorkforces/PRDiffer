@@ -8,6 +8,8 @@ Business logic interfaces and service contracts.
 - Use ABC or Protocol for definitions
 - All public methods require type hints
 - Async methods named with `_async` suffix
+- **Return interfaces, not concrete types**
+- **NO infrastructure imports** → Domain remains pure
 
 ## Common Patterns
 
@@ -28,6 +30,24 @@ class GitHubAPIServiceInterface(ABC):
         pass
 ```
 
+### Dual Sync/Async Interface
+```python
+from abc import ABC, abstractmethod
+
+class RetryServiceInterface(ABC):
+    '''Interface for both sync and async retry logic'''
+    
+    @abstractmethod
+    def retry_sync(self, func, *args, **kwargs):
+        '''Synchronous retry with backoff'''
+        pass
+    
+    @abstractmethod
+    async def retry_async(self, func, *args, **kwargs):
+        '''Async retry with backoff'''
+        pass
+```
+
 ### Service with Error Handling
 ```python
 class DiffServiceInterface(ABC):
@@ -41,6 +61,13 @@ class DiffServiceInterface(ABC):
     def validate_diff(self, diff: PRDiff) -> bool:
         pass
 ```
+
+## Anti-Patterns
+
+- ❌ Implementing logic in domain services (interfaces only)
+- ❌ Missing `@abstractmethod` decorators
+- ❌ Returning concrete types (return interfaces)
+- ❌ Importing infrastructure classes
 
 ## Files
 

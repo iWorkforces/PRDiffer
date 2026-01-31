@@ -30,17 +30,28 @@ prdiffer/domain/
 ### Interface-Implementation Separation
 - Domain defines interfaces only (ABC/Protocol)
 - Infrastructure implements in outer layer
-- No imports from infrastructure in domain
+- **NO imports from infrastructure/application** → Domain must remain pure
+- Strict enforcement via `scripts/analyze_dependencies.py`
 
-### Rich Entities
-- FilePatchInfo: business methods (`validate()`, `detect_code_smells()`, `calculate_review_priority()`)
-- PRDiff: simple data holder (anemic) vs FilePatchInfo (rich)
-- Encapsulate domain rules within entities
+### Rich vs Anemic Entities
+- **Rich entity:** FilePatchInfo (350+ lines, 14 methods, 9 properties)
+  - Encapsulates business logic: `validate()`, `detect_code_smells()`, `calculate_review_priority()`
+  - Preferred for complex domain logic
+- **Anemic entity:** PRDiff (data container only)
+  - Simple data holder with no behavior
+  - Use for DTOs and simple value objects
+
+### Frozen Dataclasses
+- Always `@dataclass(frozen=True)` for immutability
+- Use `tuple[T, ...]` for sequences (hashability)
+- **Never use `list` in frozen dataclasses** → Not hashable
+- Example: `file_patches: tuple[FilePatchInfo, ...]`
 
 ### Factory Pattern
 - InfrastructureFactoryInterface for dependency inversion
 - Abstract factory methods for service creation
 - Return interfaces, not concrete types
+- Dual factory pattern: domain interfaces, infrastructure implements
 
 ### VCS Provider Registry
 - Register providers implementing VCSDiffRepositoryInterface
@@ -49,8 +60,10 @@ prdiffer/domain/
 
 ## ANTI-PATTERNS
 
-- **NO external imports** → Domain must remain pure
+- **NO external imports** → Domain must remain pure (14 violations currently exist)
 - **NO I/O operations** → File/network calls in infrastructure
 - **NO concrete implementations** → Only ABC/Protocol in domain
 - **NO PyGithub/requests** → Use interfaces, import in infrastructure
 - **NO anemic entities everywhere** → Rich models preferred for business logic
+- **NO mutable dataclasses** → Always frozen=True
+- **NO list in frozen dataclasses** → Use tuple for hashability
