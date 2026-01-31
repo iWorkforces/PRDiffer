@@ -4,7 +4,7 @@ This module provides a registry for managing VCS provider plugins,
 allowing dynamic registration and retrieval based on repository URLs.
 """
 
-from typing import Dict, List, Optional
+from typing import Optional
 from prdiffer.domain.interfaces.vcs_provider import VCSDiffRepositoryInterface
 from prdiffer.domain.exceptions import PRDifferException
 
@@ -30,7 +30,7 @@ class VCSProviderRegistry:
     """
 
     def __init__(self):
-        self._providers: Dict[str, VCSDiffRepositoryInterface] = {}
+        self._providers: dict[str, VCSDiffRepositoryInterface] = {}
 
     def register_provider(self, provider: VCSDiffRepositoryInterface) -> None:
         """Register a VCS provider.
@@ -89,11 +89,11 @@ class VCSProviderRegistry:
         """
         return self._providers.get(provider_name)
 
-    def list_providers(self) -> List[str]:
+    def list_providers(self) -> list[str]:
         """List all registered provider names.
 
         Returns:
-            List[str]: List of provider names
+            list[str]: List of provider names
         """
         return list(self._providers.keys())
 

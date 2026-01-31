@@ -4,7 +4,7 @@ This is the refactored version using composition with extracted components.
 """
 
 import os
-from typing import Optional, Dict
+from typing import Optional
 from github.Repository import Repository
 from github.PullRequest import PullRequest
 from github.GithubException import (
@@ -14,8 +14,11 @@ from github.GithubException import (
 )
 import asyncer
 from prdiffer.domain.entities.pr_diff import PRDiff
+from prdiffer.domain.entities.file_diff_response import FileDiffResponse
 from prdiffer.domain.repositories import PRDiffRepositoryInterface
 from prdiffer.domain.services.logger import LoggerServiceInterface, LogLevel
+from prdiffer.domain.exceptions import PRDifferException
+from prdiffer.domain.errors import E5009_CONFIGURATION_ERROR
 from prdiffer.infrastructure.settings import SettingsService, get_settings_service
 from prdiffer.infrastructure.logging.console_logger import get_logger
 from prdiffer.infrastructure.logging.exception_utils import (
@@ -28,7 +31,7 @@ from prdiffer.infrastructure.github.file_processor import get_file_processor
 from prdiffer.infrastructure.github.diff_generator import get_diff_generator
 from prdiffer.infrastructure.utils.pattern_matcher import get_pattern_matcher
 from prdiffer.infrastructure.utils.diff_utils import get_diff_utils
-from prdiffer.infrastructure.utils.diff_limits import apply_diff_limits
+from prdiffer.infrastructure.services.pr_diff_service import GitHubPRDiffService
 
 
 class GitHubPRDiffRepository(PRDiffRepositoryInterface):
@@ -207,8 +210,9 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
         """
         self._initialize_github_objects()
         if not self._initialized:
-            raise RuntimeError(
-                f"Failed to initialize repository {self._repo_owner}/{self._repo_name}"
+            raise PRDifferException(
+                f"Failed to initialize repository {self._repo_owner}/{self._repo_name}",
+                error_code=E5009_CONFIGURATION_ERROR,
             )
 
     @property
@@ -240,15 +244,18 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
         repo_full_name = f"{self._repo_owner}/{self._repo_name}"
 
         try:
-            self._repository = self._github_api_client.get_repository(repo_full_name)
+            self._repository = self._github_api_client._get_pygithub_repository(
+                repo_full_name
+            )
         except (UnknownObjectException, RateLimitExceededException) as e:
             sanitized = sanitize_exception_for_logging(e)
             self._logger.warning(
                 f"Repository not accessible: {repo_full_name}", extra=sanitized
             )
             # Re-raise immediately to preserve exception context
-            raise RuntimeError(
-                f"Failed to initialize repository {repo_full_name} - repository may not exist or access may be denied"
+            raise PRDifferException(
+                f"Failed to initialize repository {repo_full_name} - repository may not exist or access may be denied",
+                error_code=E5009_CONFIGURATION_ERROR,
             ) from e
         except GithubException as e:
             sanitized = sanitize_exception_for_logging(e)
@@ -257,14 +264,18 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
                 extra=sanitized,
             )
             # Re-raise immediately to preserve exception context
-            raise RuntimeError(
-                f"GitHub API error accessing repository {repo_full_name}"
+            raise PRDifferException(
+                f"GitHub API error accessing repository {repo_full_name}",
+                error_code=E5009_CONFIGURATION_ERROR,
             ) from e
 
         try:
             if self._repository is None:
-                raise RuntimeError(f"Repository {repo_full_name} is not initialized")
-            self._pull_request = self._github_api_client.get_pull_request(
+                raise PRDifferException(
+                    f"Repository {repo_full_name} is not initialized",
+                    error_code=E5009_CONFIGURATION_ERROR,
+                )
+            self._pull_request = self._github_api_client._get_pygithub_pull_request(
                 self._repository, self._pr_number
             )
         except (UnknownObjectException, RateLimitExceededException) as e:
@@ -274,8 +285,9 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
                 extra=sanitized,
             )
             # Re-raise immediately to preserve exception context
-            raise RuntimeError(
-                f"Failed to initialize pull request #{self._pr_number} for repository {repo_full_name} - pull request may not exist or be inaccessible"
+            raise PRDifferException(
+                f"Failed to initialize pull request #{self._pr_number} for repository {repo_full_name} - pull request may not exist or be inaccessible",
+                error_code=E5009_CONFIGURATION_ERROR,
             ) from e
         except GithubException as e:
             sanitized = sanitize_exception_for_logging(e)
@@ -316,7 +328,7 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
         Raises:
             RuntimeError: If GitHub objects failed to initialize
         """
-        return await asyncer.asyncify(self._get_pr_diff_sync)()
+        return await self._get_pr_diff_sync()
 
     async def approve_pr_with_comment(self, pr_url: str, compliment: str) -> str:
         """Approve a GitHub PR with a compliment comment.
@@ -496,7 +508,7 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
                 "- GitHub objects may not have been properly initialized"
             )
 
-        self._pull_request = self._github_api_client.get_pull_request(
+        self._pull_request = self._github_api_client._get_pygithub_pull_request(
             self._repository, self._pr_number
         )
 
@@ -507,7 +519,7 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
 
         return self._pull_request.head.sha
 
-    def _get_pr_diff_sync(self) -> PRDiff:
+    async def _get_pr_diff_sync(self) -> PRDiff:
         self._initialize_github_objects()
 
         if self._repository is None:
@@ -523,7 +535,7 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
 
         base_sha, head_sha = self._get_merge_base_commits()
 
-        pr_files = self._file_processor.get_pr_files(self._pull_request)
+        pr_files = await self._file_processor.get_pr_files(self._pull_request)
         filtered_files = self._file_processor.filter_files(pr_files)
 
         if pr_files != filtered_files:
@@ -537,28 +549,28 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
             filtered_files, self._repository, head_sha, base_sha
         )
 
-        extended_diffs = self._diff_generator.generate_extended_diff(
-            diff_files, add_line_numbers_to_hunks=False
+        service = GitHubPRDiffService(
+            github_api_client=self._github_api_client,
+            diff_generator=self._diff_generator,
+            file_processor=self._file_processor,
+            logger=self._logger,
         )
-        diff_content = "\n".join(extended_diffs)
+        # Convert FilePatchInfo list to FileDiffResponse list
+        file_responses: list[FileDiffResponse] = [
+            service._convert_file_patch_info_to_response(file_patch)
+            for file_patch in diff_files
+        ]
 
-        diff_content, _truncation_meta = apply_diff_limits(
-            diff_content,
-            self._diff_max_total_chars if self._diff_truncate_enabled else 0,
-            self._diff_truncation_notice,
-        )
-
-        self._logger.info(f"Generated diff content for {len(diff_files)} files")
+        self._logger.info(f"Generated diff content for {len(file_responses)} files")
 
         if self._logger.should_log(LogLevel.DEBUG):
-            preview_length = min(1000, len(diff_content))
             safe_diff_preview = self._input_validator.sanitize_for_logging(
-                diff_content[:preview_length],
+                f"Files: {len(file_responses)}",
                 max_length=1000,
             )
             self._logger.debug(f"Diff content preview:\n{safe_diff_preview}")
 
-        return PRDiff(diff_content=diff_content)
+        return PRDiff(files=file_responses)
 
     def _get_merge_base_commits(self) -> tuple[str, str]:
         """Get base and head commit SHAs, using merge base for accurate comparison.
@@ -647,7 +659,7 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
 
 
 # Global instance cache for singleton pattern
-_repository_cache: Dict[str, "GitHubPRDiffRepository"] = {}
+_repository_cache: dict[str, "GitHubPRDiffRepository"] = {}
 
 
 def get_github_repository(

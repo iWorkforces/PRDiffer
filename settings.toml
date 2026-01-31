@@ -102,14 +102,6 @@ enabled = true  # Enable/disable API key authentication (SECURITY: enabled by de
 # Or MCP_ADMIN_API_KEY for admin access
 # Example: MCP_API_KEYS="key1,key2,key3"
 
-# JWT token configuration (optional, for future JWT authentication support)
-# If you want to use JWT tokens for authentication, configure these settings:
-jwt.secret = ""  # Required for JWT signature verification (use MCP_JWT_SECRET env var)
-jwt.algorithm = "HS256"  # JWT algorithm: HS256, RS256, etc.
-jwt.audience = ""  # Optional audience claim validation
-jwt.issuer = ""  # Optional issuer claim validation
-# Environment variable: MCP_JWT_SECRET
-
 # Authentication brute-force protection settings
 max_failures_per_minute = 5
 lockout_duration = 60  # seconds
@@ -145,10 +137,8 @@ failure_window = 300  # 5 minutes
 #         proxy_set_header X-Forwarded-Proto $scheme;
 #     }
 # }
-
+ 
 # File processing settings
-file_processing.max_file_size_mb = 5
-file_processing.chunk_size_kb = 64
 file_processing.concurrent_downloads = 3
 file_processing.parallel_fetch_threshold = 10
 
@@ -215,10 +205,6 @@ security.sql_injection_patterns = [
     "\\b(?:union|select|insert|update|delete|drop|create|alter)\\b",  # SQL keywords
     "(?:exec|execute|xp_)",  # Stored procedures
 ]
-
-# API health tracker settings
-api_health.window_size = 100
-api_health.time_window = 300  # 5 minutes
 
 # Logging settings
 logging.format = "simple"  # Options: simple, json, structured

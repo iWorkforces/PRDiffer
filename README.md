@@ -2,7 +2,7 @@
 
 [![Python Version](https://img.shields.io/badge/python-3.14+-blue.svg)](https://www.python.org/downloads/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-0.4.7-orange.svg)](https://github.com/yourusername/CCPRAgentsMCP)
+[![Version](https://img.shields.io/badge/version-0.5.0-orange.svg)](https://github.com/yourusername/CCPRAgentsMCP)
 
 A Model Context Protocol (MCP) server that provides comprehensive GitHub Pull Request diff analysis with full file context for AI assistants and code review tools.
 

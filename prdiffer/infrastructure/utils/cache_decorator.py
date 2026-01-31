@@ -3,10 +3,13 @@
 import functools
 import hashlib
 import json
+import logging
 import threading
 import time
 from collections import OrderedDict
-from typing import Any, Callable, Dict, Optional, Tuple, Set, TypeVar, cast
+from typing import Any, Callable, Dict, Optional, Tuple, TypeVar, cast
+
+logger = logging.getLogger(__name__)
 
 # Type variable for generic function signatures
 F = TypeVar("F", bound=Callable[..., Any])
@@ -32,7 +35,7 @@ class CachingMixin:
         """
         # Thread safety lock for cache operations
         self._cache_lock = threading.RLock()
-        self._method_cache: OrderedDict[str, Dict[str, Any]] = OrderedDict()
+        self._method_cache: OrderedDict[str, dict[str, Any]] = OrderedDict()
         self._cache_hits = 0
         self._cache_misses = 0
         self._max_cache_size = max_cache_size
@@ -72,7 +75,7 @@ class CachingMixin:
             self._cache_hits = 0
             self._cache_misses = 0
 
-    def get_cache_stats(self) -> Dict[str, Any]:
+    def get_cache_stats(self) -> dict[str, Any]:
         """Get cache statistics.
 
         Thread-safe: Uses lock for all cache operations.
@@ -95,7 +98,7 @@ class CachingMixin:
             }
 
 
-def _make_hashable(obj: Any, _seen: Optional[Set[int]] = None, _depth: int = 0) -> Any:
+def _make_hashable(obj: Any, _seen: Optional[set[int]] = None, _depth: int = 0) -> Any:
     """Convert an object to a hashable form recursively with circular reference protection.
 
     Args:
@@ -153,8 +156,16 @@ def _make_hashable(obj: Any, _seen: Optional[Set[int]] = None, _depth: int = 0) 
             # Sort with a fallback for unhashable types
             try:
                 result = tuple(sorted(hashable_items))
-            except TypeError:
+            except TypeError as e:
                 # If items can't be sorted, use string representation
+                logger.debug(
+                    "Cannot sort hashable items, using string representation",
+                    extra={
+                        "error": str(e),
+                        "error_type": type(e).__name__,
+                        "item_count": len(hashable_items),
+                    },
+                )
                 result = tuple(sorted(str(item) for item in hashable_items))
         finally:
             _seen.discard(obj_id)
@@ -207,7 +218,7 @@ def cached_method(ttl: Optional[int] = None, key_prefix: Optional[str] = None):
     Example:
         class MyService(CachingMixin):
             @cached_method(ttl=60)
-            def expensive_operation(self, param: List[str]) -> str:
+            def expensive_operation(self, param: list[str]) -> str:
                 # Lists are automatically converted to tuples for caching
                 return do_expensive_work(param)
     """

@@ -1,10 +1,9 @@
 """File processing service for GitHub repositories."""
 
 import inspect
-import threading
 import time
 import anyio
-from typing import List, Optional, Dict, cast
+from typing import Optional, cast
 from github.File import File
 from github.PaginatedList import PaginatedList
 from github.Repository import Repository
@@ -71,8 +70,8 @@ class FileProcessor:
         self._max_parallel_workers = max_parallel_workers
         self._logger = logger or get_logger()
 
-        # Thread safety lock for cache operations
-        self._cache_lock = threading.RLock()
+        # Async lock for cache operations
+        self._cache_lock = anyio.Lock()
 
         # Cache for PR files to avoid repeated API calls
         self._pr_files_cache: Optional[PaginatedList[File]] = None
@@ -85,7 +84,7 @@ class FileProcessor:
             logger=logger,
         )
 
-    def get_pr_files(self, pull_request) -> PaginatedList[File]:
+    async def get_pr_files(self, pull_request) -> PaginatedList[File]:
         """Get all files from the pull request with caching.
 
         Thread-safe: Uses double-check locking pattern for cache initialization.
@@ -104,7 +103,7 @@ class FileProcessor:
                 return self._pr_files_cache
 
         # Slow path: acquire lock and double-check
-        with self._cache_lock:
+        async with self._cache_lock:
             # Double-check cache validity after acquiring lock
             current_time = time.time()
             if (
@@ -119,7 +118,7 @@ class FileProcessor:
 
         return self._pr_files_cache
 
-    def filter_files(self, files: PaginatedList[File]) -> List[File]:
+    def filter_files(self, files: PaginatedList[File]) -> list[File]:
         """Filter files based on pattern matching configuration.
 
         Args:
@@ -133,8 +132,8 @@ class FileProcessor:
         ]
 
     def process_files_to_patches(
-        self, files: List[File], repository: Repository, head_sha: str, base_sha: str
-    ) -> List[FilePatchInfo]:
+        self, files: list[File], repository: Repository, head_sha: str, base_sha: str
+    ) -> list[FilePatchInfo]:
         """Process files into FilePatchInfo objects with content loading.
 
         Args:
@@ -146,8 +145,8 @@ class FileProcessor:
         Returns:
             List of FilePatchInfo objects with loaded content
         """
-        diff_files: List[FilePatchInfo] = []
-        invalid_files_names: List[str] = []
+        diff_files: list[FilePatchInfo] = []
+        invalid_files_names: list[str] = []
 
         counter_valid = 0
         files_to_load = []
@@ -194,8 +193,8 @@ class FileProcessor:
         return diff_files
 
     async def process_files_to_patches_async(
-        self, files: List[File], repository: Repository, head_sha: str, base_sha: str
-    ) -> List[FilePatchInfo]:
+        self, files: list[File], repository: Repository, head_sha: str, base_sha: str
+    ) -> list[FilePatchInfo]:
         """Async version of process_files_to_patches.
 
         Args:
@@ -207,8 +206,8 @@ class FileProcessor:
         Returns:
             List of FilePatchInfo objects with loaded content
         """
-        diff_files: List[FilePatchInfo] = []
-        invalid_files_names: List[str] = []
+        diff_files: list[FilePatchInfo] = []
+        invalid_files_names: list[str] = []
 
         counter_valid = 0
         files_to_load = []
@@ -258,11 +257,11 @@ class FileProcessor:
 
     async def _process_files_with_content_parallel_async(
         self,
-        files: List[File],
+        files: list[File],
         repository: Repository,
         head_sha: str,
         base_sha: str,
-    ) -> List[FilePatchInfo]:
+    ) -> list[FilePatchInfo]:
         """Process files with parallel content loading for better performance (async version).
 
         Fetches head and base content concurrently using AsyncParallelExecutor,
@@ -283,7 +282,7 @@ class FileProcessor:
         # Separate files by status to optimize API calls
         head_files = []  # Files to fetch from head commit
         base_files = []  # Files to fetch from base commit
-        renamed_file_mapping: Dict[str, str] = {}
+        renamed_file_mapping: dict[str, str] = {}
 
         for file in files:
             if file.status in ["added", "modified", "renamed"]:
@@ -303,16 +302,16 @@ class FileProcessor:
         if head_files:
             fetch_tasks.append(
                 self._github_api_service.get_files_content_batch(
-                    repository, head_files, head_sha
+                    repository.full_name, head_files, head_sha
                 )
             )
         else:
-            fetch_tasks.append(anyio.sleep(0))  # Placeholder
+            fetch_tasks.append(anyio.sleep(0))
 
         if base_files:
             fetch_tasks.append(
                 self._github_api_service.get_files_content_batch(
-                    repository, base_files, base_sha
+                    repository.full_name, base_files, base_sha
                 )
             )
         else:
@@ -320,22 +319,31 @@ class FileProcessor:
 
         # Execute fetches in parallel (if GitHubAPIClient had async methods)
         # For now, run sequentially since GitHubAPIClient is synchronous
-        head_contents: Dict[str, str] = {}
-        base_contents: Dict[str, str] = {}
+        head_contents: dict[str, str] = {}
+        base_contents: dict[str, str] = {}
         try:
             head_result = fetch_tasks[0] if head_files else {}
             if inspect.iscoroutine(head_result):
                 head_result = await head_result
             if isinstance(head_result, dict):
-                head_contents = cast(Dict[str, str], head_result)
+                head_contents = cast(dict[str, str], head_result)
 
             base_result = fetch_tasks[1] if base_files else {}
             if inspect.iscoroutine(base_result):
                 base_result = await base_result
             if isinstance(base_result, dict):
-                base_contents = cast(Dict[str, str], base_result)
-        except (AttributeError, TypeError):
+                base_contents = cast(dict[str, str], base_result)
+        except (AttributeError, TypeError) as e:
             # Handle the case where tasks are not awaitable
+            self._logger.warning(
+                "Tasks not awaitable, using empty contents",
+                extra={
+                    "error": str(e),
+                    "error_type": type(e).__name__,
+                    "has_head_files": bool(head_files),
+                    "has_base_files": bool(base_files),
+                },
+            )
             head_contents = {}
             base_contents = {}
 
@@ -385,8 +393,8 @@ class FileProcessor:
         return diff_files
 
     def _process_files_with_content(
-        self, files: List[File], repository: Repository, head_sha: str, base_sha: str
-    ) -> List[FilePatchInfo]:
+        self, files: list[File], repository: Repository, head_sha: str, base_sha: str
+    ) -> list[FilePatchInfo]:
         """Process files with content loading (batch mode).
 
         Args:
@@ -403,7 +411,7 @@ class FileProcessor:
         # Separate files by status to optimize API calls
         head_files = []  # Files to fetch from head commit
         base_files = []  # Files to fetch from base commit
-        renamed_file_mapping: Dict[str, str] = {}
+        renamed_file_mapping: dict[str, str] = {}
 
         for file in files:
             if file.status in ["added", "modified", "renamed"]:
@@ -423,7 +431,7 @@ class FileProcessor:
         # Batch load content - sequential processing to avoid blocking
         head_contents = (
             self._github_api_service.get_files_content_batch(
-                repository, head_files, head_sha
+                repository.full_name, head_files, head_sha
             )
             if head_files
             else {}
@@ -431,7 +439,7 @@ class FileProcessor:
 
         base_contents = (
             self._github_api_service.get_files_content_batch(
-                repository, base_files, base_sha
+                repository.full_name, base_files, base_sha
             )
             if base_files
             else {}

@@ -1,6 +1,6 @@
 """PR operation handler component for GitHub PR-related operations."""
 
-from typing import Dict, Any, Optional, Tuple, Callable
+from typing import Any, Optional, Callable
 
 from prdiffer.domain.interfaces.protocols import PROperationHandlerProtocol
 from prdiffer.domain.entities.pr_diff import PRDiff
@@ -13,8 +13,15 @@ from prdiffer.domain.exceptions import (
     InvalidRepositoryError,
     InvalidURLError,
     SuspiciousOperationError,
+    ValidationError,
+    GitHubAPIError,
 )
 from prdiffer.infrastructure.security.input_validator import InputValidator
+from prdiffer.application.utils.pr_url_parser import parse_pr_url
+from prdiffer.domain.errors import (
+    E1001_INVALID_URL,
+    E5002_GITHUB_API_ERROR,
+)
 
 
 class PROperationHandler(PROperationHandlerProtocol):
@@ -42,54 +49,52 @@ class PROperationHandler(PROperationHandlerProtocol):
         self._logger = logger
         self._input_validator = input_validator or InputValidator()
 
-    def _parse_pr_url(self, pr_url: str) -> Tuple[str, str, int]:
-        """Parse GitHub PR URL to extract repository and PR information.
-
-        Args:
-            pr_url: GitHub PR URL (e.g., https://github.com/owner/repo/pull/123)
-
-        Returns:
-            Tuple of (repo_owner, repo_name, pr_number)
-
-        Raises:
-            ValueError: If URL format is invalid
-        """
-        try:
-            return self._input_validator.validate_github_url(pr_url)
-        except (
-            InvalidURLError,
-            InvalidRepositoryError,
-            InvalidPRNumberError,
-            SuspiciousOperationError,
-        ) as exc:
-            raise ValueError(
-                f"Invalid GitHub PR URL format. Expected format: "
-                f"https://github.com/owner/repo/pull/123, got: {pr_url}"
-            ) from exc
-
-    async def get_pr_diff(self, pr_url: str) -> Dict[str, Any]:
+    async def get_pr_diff(self, pr_url: str) -> dict[str, Any]:
         """Get PR diff information.
 
+        Automatic commit-based caching ensures fresh data is returned when PR changes.
+        Returns structured files array response for file-level diff analysis.
+
         Args:
             pr_url: GitHub PR URL (e.g., https://github.com/owner/repo/pull/123)
+            api_key: Optional API key for authentication (required if auth enabled)
 
         Returns:
-            Dictionary containing PR diff data
+            Dictionary containing structured files array with per-file metadata
+            Each file includes: path, status, stats (additions/deletions), diff
 
         Raises:
             ValueError: If URL format is invalid
             RuntimeError: If PR diff fetch fails
 
         Note:
-            Caching is automatic and always enabled based on commit SHA invalidation.
+            Breaking Change: Response now uses files array instead of concatenated diff_content string.
+            File metadata: path, status (added/modified/deleted/renamed/unknown),
+                           stats (additions, deletions), diff (full patch content)
         """
         try:
             # Validate input
             if not pr_url:
-                raise ValueError("PR URL parameter is required")
+                raise ValidationError(
+                    "PR URL parameter is required", error_code=E1001_INVALID_URL
+                )
 
             # Parse URL to extract repository details
-            repo_owner, repo_name, pr_number = self._parse_pr_url(pr_url)
+            try:
+                repo_owner, repo_name, pr_number = parse_pr_url(
+                    pr_url, self._input_validator
+                )
+            except (
+                InvalidURLError,
+                InvalidRepositoryError,
+                InvalidPRNumberError,
+                SuspiciousOperationError,
+            ) as exc:
+                raise ValidationError(
+                    f"Invalid GitHub PR URL format. Expected format: "
+                    f"https://github.com/owner/repo/pull/123, got: {pr_url}",
+                    error_code=E1001_INVALID_URL,
+                ) from exc
 
             # Try to get repository from cache first
             cached_repository: Optional[PRDiffRepositoryInterface] = (
@@ -132,7 +137,10 @@ class PROperationHandler(PROperationHandlerProtocol):
                     repo_name=repo_name,
                     pr_number=pr_number,
                 )
-                raise ValueError("Failed to get PR diff - repository returned None")
+                raise GitHubAPIError(
+                    "Failed to get PR diff - repository returned None",
+                    error_code=E5002_GITHUB_API_ERROR,
+                )
 
             # Cache the repository after it's been used (now it should be initialized)
             if hasattr(repository, "_initialized") and getattr(
@@ -156,14 +164,17 @@ class PROperationHandler(PROperationHandlerProtocol):
             )
             return response
 
-        except ValueError as e:
+        except (ValueError, ValidationError) as e:
             # Validation errors - provide clear error messages
             self._logger.warning(
                 "Validation error in PR diff request",
                 pr_url=pr_url,
                 error=str(e),
             )
-            raise ValueError(f"Invalid request: {e}")
+            raise ValidationError(f"Invalid request: {e}", error_code=E1001_INVALID_URL)
+
+        except (ValueError, ValidationError, GitHubAPIError):
+            raise
 
         except Exception as e:
             # GitHub API or other unexpected errors
@@ -173,7 +184,9 @@ class PROperationHandler(PROperationHandlerProtocol):
                 error=str(e),
             )
             # Re-raise with consistent error format
-            raise RuntimeError(f"Failed to fetch PR diff: {e}")
+            raise GitHubAPIError(
+                f"Failed to fetch PR diff: {e}", error_code=E5002_GITHUB_API_ERROR
+            )
 
     async def describe_pr(
         self, pr_url: str, commit_messages: str, diff_content: str

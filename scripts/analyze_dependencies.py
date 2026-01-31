@@ -8,7 +8,6 @@ showing relationships between modules and layers.
 import ast
 import sys
 from pathlib import Path
-from typing import Dict, Set, List, Tuple
 from collections import defaultdict
 
 
@@ -17,7 +16,7 @@ class DependencyAnalyzer(ast.NodeVisitor):
 
     def __init__(self, file_path: Path):
         self.file_path = file_path
-        self.imports: Set[str] = set()
+        self.imports: set[str] = set()
         self.current_module = self._get_module_name(file_path)
 
     def _get_module_name(self, path: Path) -> str:
@@ -42,7 +41,7 @@ class DependencyAnalyzer(ast.NodeVisitor):
             self.imports.add(node.module)
 
 
-def analyze_directory(root: Path) -> Dict[str, Set[str]]:
+def analyze_directory(root: Path) -> dict[str, set[str]]:
     """Analyze all Python files in directory.
 
     Args:
@@ -78,8 +77,8 @@ def analyze_directory(root: Path) -> Dict[str, Set[str]]:
 
 
 def detect_layer_violations(
-    dependencies: Dict[str, Set[str]],
-) -> List[Tuple[str, str, str]]:
+    dependencies: dict[str, set[str]],
+) -> list[tuple[str, str, str]]:
     """Detect Clean Architecture layer violations.
 
     Rules:
@@ -112,7 +111,7 @@ def detect_layer_violations(
     return violations
 
 
-def print_graph(dependencies: Dict[str, Set[str]]) -> None:
+def print_graph(dependencies: dict[str, set[str]]) -> None:
     """Print dependency graph as ASCII art.
 
     Args:
@@ -148,7 +147,7 @@ def print_graph(dependencies: Dict[str, Set[str]]) -> None:
                     print(f"  {short_name} (no internal deps)")
 
 
-def print_violations(violations: List[Tuple[str, str, str]]) -> None:
+def print_violations(violations: list[tuple[str, str, str]]) -> None:
     """Print detected violations.
 
     Args:
@@ -172,7 +171,7 @@ def print_violations(violations: List[Tuple[str, str, str]]) -> None:
 
 
 def print_statistics(
-    dependencies: Dict[str, Set[str]], violations: List[Tuple[str, str, str]]
+    dependencies: dict[str, set[str]], violations: list[tuple[str, str, str]]
 ) -> None:
     """Print architecture statistics.
 

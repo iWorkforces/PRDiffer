@@ -7,7 +7,7 @@ These protocols are placed in the domain layer to maintain Clean Architecture
 principles - the domain layer should not depend on the application layer.
 """
 
-from typing import Dict, Any, Tuple, Protocol, Optional
+from typing import Any, Protocol, Optional
 
 
 class RateLimiterProtocol(Protocol):
@@ -32,7 +32,7 @@ class RateLimiterProtocol(Protocol):
         """
         ...
 
-    def get_rate_limit_info(self) -> Dict[str, Any]:
+    def get_rate_limit_info(self) -> dict[str, Any]:
         """Get rate limit configuration and current status.
 
         Returns:
@@ -56,7 +56,7 @@ class MetricsTrackerProtocol(Protocol):
         """
         ...
 
-    def get_metrics_summary(self) -> Dict[str, Any]:
+    def get_metrics_summary(self) -> dict[str, Any]:
         """Get a summary of collected metrics.
 
         Returns:
@@ -76,7 +76,7 @@ class MetricsTrackerProtocol(Protocol):
 class PROperationHandlerProtocol(Protocol):
     """Protocol for handling PR-related operations."""
 
-    async def get_pr_diff(self, pr_url: str) -> Dict[str, Any]:
+    async def get_pr_diff(self, pr_url: str) -> dict[str, Any]:
         """Get PR diff information.
 
         Args:
@@ -171,7 +171,7 @@ class PROperationHandlerProtocol(Protocol):
 class HealthMonitorProtocol(Protocol):
     """Protocol for health monitoring and status checks."""
 
-    def check_health(self) -> Dict[str, Any]:
+    def check_health(self) -> dict[str, Any]:
         """Perform health check and return status.
 
         Returns:
@@ -187,7 +187,7 @@ class ServerConfigurationProtocol(Protocol):
         """Set up logging configuration."""
         ...
 
-    def get_server_info(self) -> Dict[str, Any]:
+    def get_server_info(self) -> dict[str, Any]:
         """Get server information and configuration.
 
         Returns:
@@ -215,7 +215,7 @@ class ServerConfigurationProtocol(Protocol):
 class AuthenticationProtocol(Protocol):
     """Protocol for authentication and authorization."""
 
-    def authenticate(self, api_key: Optional[str]) -> Tuple[bool, Optional[str]]:
+    def authenticate(self, api_key: Optional[str]) -> tuple[bool, Optional[str]]:
         """Authenticate a request using API key.
 
         Args:
@@ -229,8 +229,8 @@ class AuthenticationProtocol(Protocol):
         ...
 
     def extract_client_identifier(
-        self, headers: Dict[str, str]
-    ) -> Tuple[Optional[str], Optional[str]]:
+        self, headers: dict[str, str]
+    ) -> tuple[Optional[str], Optional[str]]:
         """Extract client identifier from request headers.
 
         Extracts API keys from X-API-Key or Authorization (Bearer) headers.
@@ -255,7 +255,7 @@ class AuthenticationProtocol(Protocol):
         """
         ...
 
-    def get_status(self) -> Dict[str, Any]:
+    def get_status(self) -> dict[str, Any]:
         """Get authentication status and configuration.
 
         Returns:

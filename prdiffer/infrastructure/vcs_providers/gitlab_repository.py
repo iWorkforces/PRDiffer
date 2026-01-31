@@ -4,9 +4,16 @@ This module implements VCSDiffRepositoryInterface for GitLab,
 demonstrating multi-provider support capability.
 """
 
+import logging
 from typing import Optional
 from prdiffer.domain.interfaces.vcs_provider import VCSDiffRepositoryInterface
 from prdiffer.domain.entities.pr_diff import PRDiff
+from prdiffer.domain.exceptions import PRDifferException
+from prdiffer.domain.errors import (
+    E5019_CONNECTION_ERROR,
+    E5002_GITHUB_API_ERROR,
+    E4002_PR_NOT_FOUND,
+)
 
 httpx = None
 
@@ -14,6 +21,8 @@ try:
     import httpx
 except ImportError:
     pass
+
+logger = logging.getLogger(__name__)
 
 
 class GitLabVCSRepository(VCSDiffRepositoryInterface):
@@ -66,11 +75,14 @@ class GitLabVCSRepository(VCSDiffRepositoryInterface):
                 ) as client:
                     response = await client.get("/user")
                     if response.status_code != 200:
-                        raise RuntimeError(
-                            f"Failed to initialize GitLab connection: {response.status_code}"
+                        raise PRDifferException(
+                            f"Failed to initialize GitLab connection: {response.status_code}",
+                            error_code=E5019_CONNECTION_ERROR,
                         )
             except Exception as e:
-                raise RuntimeError(f"GitLab connection error: {e}")
+                raise PRDifferException(
+                    f"GitLab connection error: {e}", error_code=E5019_CONNECTION_ERROR
+                )
 
     async def get_pr_diff(self, owner: str, repo: str, pr: int) -> PRDiff:
         """Get merge request diff from GitLab.
@@ -98,28 +110,42 @@ class GitLabVCSRepository(VCSDiffRepositoryInterface):
                     response = await client.get(url)
 
                     if response.status_code != 200:
-                        raise RuntimeError(
-                            f"Merge request not found: {response.status_code}"
+                        raise PRDifferException(
+                            f"Merge request not found: {response.status_code}",
+                            error_code=E4002_PR_NOT_FOUND,
                         )
 
-                    mr_data = response.json()
-                    diff_content = '{{"Mock GitLab MR diff for MR #{}"}}\n'.format(pr)
-                    diff_content += "This is a demonstration provider.\n"
-                    diff_content += "In production, this would contain the actual diff from GitLab API.\n"
-                    base_sha = mr_data.get("diff_refs", {}).get("base_sha", "unknown")
-                    diff_content += "Base SHA: {}\n".format(base_sha)
-                    head_sha = mr_data.get("diff_refs", {}).get("head_sha", "unknown")
-                    diff_content += "Head SHA: {}\n".format(head_sha)
-
-                    return PRDiff(diff_content=diff_content)
-            except Exception:
-                raise RuntimeError("GitLab API error")
-        else:
-            return PRDiff(
-                diff_content='{{"Mock GitLab diff (httpx not available)\\n\\nMR: {}\\nBase: unknown\\nHead: unknown\\n'.format(
-                    pr
+                    return PRDiff(files=[])
+            except httpx.HTTPError as e:
+                logger.error(
+                    "GitLab API HTTP error when fetching MR diff",
+                    extra={
+                        "owner": owner,
+                        "repo": repo,
+                        "pr": pr,
+                        "error": str(e),
+                        "error_type": type(e).__name__,
+                    },
                 )
-            )
+                raise PRDifferException(
+                    f"GitLab API error: {e}", error_code=E5002_GITHUB_API_ERROR
+                ) from e
+            except Exception as e:
+                logger.error(
+                    "Unexpected error when fetching GitLab MR diff",
+                    extra={
+                        "owner": owner,
+                        "repo": repo,
+                        "pr": pr,
+                        "error": str(e),
+                        "error_type": type(e).__name__,
+                    },
+                )
+                raise PRDifferException(
+                    f"GitLab API error: {e}", error_code=E5002_GITHUB_API_ERROR
+                ) from e
+        else:
+            return PRDiff(files=[])
 
     async def get_latest_commit_sha(self, owner: str, repo: str, pr: int) -> str:
         """Get latest head commit SHA for merge request.
@@ -146,11 +172,42 @@ class GitLabVCSRepository(VCSDiffRepositoryInterface):
                     response = await client.get(url)
 
                     if response.status_code != 200:
+                        logger.warning(
+                            "GitLab API returned non-200 status for commit SHA",
+                            extra={
+                                "owner": owner,
+                                "repo": repo,
+                                "pr": pr,
+                                "status_code": response.status_code,
+                            },
+                        )
                         return "unknown"
 
                     mr_data = response.json()
                     return mr_data.get("sha", "unknown")
-            except Exception:
+            except httpx.HTTPError as e:
+                logger.error(
+                    "GitLab API HTTP error when fetching commit SHA",
+                    extra={
+                        "owner": owner,
+                        "repo": repo,
+                        "pr": pr,
+                        "error": str(e),
+                        "error_type": type(e).__name__,
+                    },
+                )
+                return "unknown"
+            except Exception as e:
+                logger.error(
+                    "Unexpected error when fetching GitLab commit SHA",
+                    extra={
+                        "owner": owner,
+                        "repo": repo,
+                        "pr": pr,
+                        "error": str(e),
+                        "error_type": type(e).__name__,
+                    },
+                )
                 return "unknown"
         else:
             return "mock-sha-1234567890"

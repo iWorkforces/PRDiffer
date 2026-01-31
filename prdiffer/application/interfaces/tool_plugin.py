@@ -5,7 +5,7 @@ allowing modular tool development without modifying core server code.
 """
 
 from abc import ABC, abstractmethod
-from typing import Dict, Any
+from typing import Any
 
 
 class MCPToolPlugin(ABC):
@@ -46,11 +46,11 @@ class MCPToolPlugin(ABC):
 
     @property
     @abstractmethod
-    def parameters(self) -> Dict[str, Any]:
+    def parameters(self) -> dict[str, Any]:
         """Get tool parameter schema.
 
         Returns:
-            Dict[str, Any]: JSON Schema for parameters
+            dict[str, Any]: JSON Schema for parameters
             Format: https://json-schema.org/
         """
         pass

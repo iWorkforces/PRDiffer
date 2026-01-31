@@ -7,14 +7,17 @@ from dataclasses import dataclass
 from typing import cast
 
 from prdiffer.domain.entities.file_patch import FilePatchInfo, EDIT_TYPE
+from prdiffer.domain.entities import (
+    Repository as DomainRepository,
+    PullRequest as DomainPullRequest,
+)
 from prdiffer.domain.services.github_api import GitHubAPIServiceInterface
 from prdiffer.domain.services.pattern_matching import PatternMatchingServiceInterface
 from prdiffer.infrastructure.github.diff_generator import DiffGenerator
 from prdiffer.infrastructure.github.file_processor import FileProcessor
 from prdiffer.infrastructure.utils.diff_utils import DiffUtils
 from github.File import File
-from github.PullRequest import PullRequest
-from github.Repository import Repository
+from github.Repository import Repository as PyGithubRepository
 
 
 @dataclass
@@ -41,32 +44,33 @@ class DummyAPIService(GitHubAPIServiceInterface):
     def initialize_client(self, github_token: str | None = None, timeout: int = 30):
         return None
 
-    def get_repository(self, repo_full_name: str) -> Repository | None:
+    def get_repository(self, repo_full_name: str) -> DomainRepository | None:
         return None
 
     def get_pull_request(
-        self, repository: Repository, pr_number: int
-    ) -> PullRequest | None:
+        self, repo_full_name: str, pr_number: int
+    ) -> DomainPullRequest | None:
         return None
 
-    def get_file_content(self, repository, file_path: str, branch: str) -> str:
+    def get_file_content(self, repo_full_name: str, file_path: str, branch: str) -> str:
         return self._content_map.get((file_path, branch), "")
 
     def get_files_content_batch(
-        self, repository: Repository, file_paths: list[str], branch: str
+        self, repo_full_name: str, file_paths: list[str], branch: str
     ):
         return {
-            path: self.get_file_content(repository, path, branch) for path in file_paths
+            path: self.get_file_content(repo_full_name, path, branch)
+            for path in file_paths
         }
 
     def get_files_content_batch_parallel(
         self,
-        repository: Repository,
+        repo_full_name: str,
         file_paths: list[str],
         branch: str,
         max_workers: int = 4,
     ):
-        return self.get_files_content_batch(repository, file_paths, branch)
+        return self.get_files_content_batch(repo_full_name, file_paths, branch)
 
 
 def build_fake_files(
@@ -135,7 +139,7 @@ def benchmark_file_processing(
     start = time.perf_counter()
     processor.process_files_to_patches(
         cast(list[File], files),
-        repository=cast(Repository, object()),
+        repository=cast(PyGithubRepository, object()),
         head_sha="head",
         base_sha="base",
     )

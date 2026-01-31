@@ -7,7 +7,7 @@ Note: This interface uses Protocol-like typing rather than ABC to work
 better with dataclasses. Type checkers will verify compatibility.
 """
 
-from typing import Protocol, Tuple, runtime_checkable
+from typing import Protocol, runtime_checkable
 
 
 @runtime_checkable
@@ -35,8 +35,8 @@ class GitHubConfigInterface(Protocol):
     diff_parallel_enabled: bool
     diff_parallel_threshold: int
     diff_max_workers: int
-    ignore_patterns: Tuple[str, ...]
-    valid_extensions: Tuple[str, ...]
+    ignore_patterns: tuple[str, ...]
+    valid_extensions: tuple[str, ...]
     max_files_allowed: int
 
     # Methods for configuration operations

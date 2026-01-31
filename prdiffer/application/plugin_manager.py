@@ -4,9 +4,11 @@ This module provides centralized management for MCP tool plugins,
 enabling dynamic tool registration, discovery, and execution.
 """
 
-from typing import Dict, Optional, List
+from typing import Optional
 from prdiffer.application.interfaces.tool_plugin import MCPToolPlugin
 from prdiffer.domain.services.logger import LoggerServiceInterface
+from prdiffer.domain.exceptions import ValidationError, PRDifferException
+from prdiffer.domain.errors import E1001_INVALID_URL, E5001_INTERNAL_ERROR
 
 
 class PluginManager:
@@ -25,7 +27,7 @@ class PluginManager:
         Args:
             logger: Logger service instance
         """
-        self._plugins: Dict[str, MCPToolPlugin] = {}
+        self._plugins: dict[str, MCPToolPlugin] = {}
         self._logger = logger
 
     def register_plugin(self, plugin: MCPToolPlugin) -> None:
@@ -42,7 +44,9 @@ class PluginManager:
             raise TypeError(f"Plugin {plugin.name} must implement MCPToolPlugin")
 
         if plugin.name in self._plugins:
-            raise ValueError(f"Plugin {plugin.name} already registered")
+            raise ValidationError(
+                f"Plugin {plugin.name} already registered", error_code=E1001_INVALID_URL
+            )
 
         self._plugins[plugin.name] = plugin
         self._logger.info(f"Registered plugin: {plugin.name}")
@@ -82,14 +86,14 @@ class PluginManager:
         """
         return self.get_plugin(tool_name)
 
-    def list_plugins(self, enabled_only: bool = True) -> List[str]:
+    def list_plugins(self, enabled_only: bool = True) -> list[str]:
         """List all registered plugins.
 
         Args:
             enabled_only: If True, only return enabled plugins
 
         Returns:
-            List[str]: List of plugin names
+            list[str]: List of plugin names
         """
         plugins = self._plugins
 
@@ -115,18 +119,22 @@ class PluginManager:
         plugin = self.get_plugin(tool_name)
 
         if not plugin:
-            raise ValueError(f"Plugin {tool_name} not found")
+            raise ValidationError(
+                f"Plugin {tool_name} not found", error_code=E1001_INVALID_URL
+            )
 
         if not plugin.enabled:
-            raise RuntimeError(f"Plugin {tool_name} is disabled")
+            raise PRDifferException(
+                f"Plugin {tool_name} is disabled", error_code=E5001_INTERNAL_ERROR
+            )
 
         return await plugin.execute(**kwargs)
 
-    def list_plugin_names(self) -> List[str]:
+    def list_plugin_names(self) -> list[str]:
         """List all plugin names.
 
         Returns:
-            List[str]: List of plugin names
+            list[str]: List of plugin names
         """
         return self.list_plugins(enabled_only=False)
 

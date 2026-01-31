@@ -1,7 +1,7 @@
 """Pattern matching utility for file filtering and validation."""
 
 import re
-from typing import List, Optional, Tuple, Union
+from typing import Optional, Union
 from prdiffer.domain.services import PatternMatchingServiceInterface
 
 
@@ -14,7 +14,7 @@ class PatternMatcher(PatternMatchingServiceInterface):
     """
 
     def __init__(
-        self, ignore_patterns: List[str], valid_extensions: Optional[List[str]] = None
+        self, ignore_patterns: list[str], valid_extensions: Optional[list[str]] = None
     ):
         """Initialize the pattern matcher with configuration.
 
@@ -27,8 +27,8 @@ class PatternMatcher(PatternMatchingServiceInterface):
         self._compiled_patterns = self._compile_patterns(ignore_patterns)
 
     def _compile_patterns(
-        self, patterns: List[str]
-    ) -> List[Tuple[str, Union[str, re.Pattern]]]:
+        self, patterns: list[str]
+    ) -> list[tuple[str, Union[str, re.Pattern]]]:
         """Pre-compile regex patterns for efficient matching.
 
         Args:
@@ -39,7 +39,7 @@ class PatternMatcher(PatternMatchingServiceInterface):
             - pattern_type: 'regex' for compiled regex, 'string' for string patterns
             - pattern: The compiled regex or original string pattern
         """
-        compiled: List[Tuple[str, Union[str, re.Pattern]]] = []
+        compiled: list[tuple[str, Union[str, re.Pattern]]] = []
         for pattern in patterns:
             if "*" in pattern and not pattern.startswith("*."):
                 # Convert wildcard pattern to regex
@@ -146,7 +146,7 @@ class PatternMatcher(PatternMatchingServiceInterface):
         # Simple suffix matching (for backward compatibility)
         return filename.endswith(pattern)
 
-    def filter_files(self, filenames: List[str]) -> List[str]:
+    def filter_files(self, filenames: list[str]) -> list[str]:
         """Filter a list of filenames based on configured patterns.
 
         Args:
@@ -159,7 +159,7 @@ class PatternMatcher(PatternMatchingServiceInterface):
 
 
 def get_pattern_matcher(
-    ignore_patterns: List[str], valid_extensions: Optional[List[str]] = None
+    ignore_patterns: list[str], valid_extensions: Optional[list[str]] = None
 ) -> PatternMatcher:
     """Get a configured pattern matcher instance.
 

@@ -10,7 +10,7 @@ when content hasn't changed, which saves on data transfer for large responses.
 
 import time
 from collections import OrderedDict
-from typing import Optional, Dict, Any
+from typing import Optional, Any
 
 from prdiffer.infrastructure.logging.console_logger import get_logger
 
@@ -56,7 +56,7 @@ class ETagRequestAdapter:
         self._cache_service = cache_service
 
         # ETag cache - stored as URL -> etag mapping for fast lookup
-        self._etag_cache: Dict[str, str] = OrderedDict()
+        self._etag_cache: dict[str, str] = OrderedDict()
         self._etag_hits = 0
         self._etag_misses = 0
         self._not_modified_responses = 0
@@ -87,11 +87,11 @@ class ETagRequestAdapter:
         self._etag_cache.clear()
         self._logger.info("ETag cache cleared")
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """Get ETag adapter statistics.
 
         Returns:
-            Dict[str, Any]: Statistics including cache size, hits, misses
+            dict[str, Any]: Statistics including cache size, hits, misses
         """
         total_requests = self._etag_hits + self._etag_misses
         hit_rate = (self._etag_hits / total_requests * 100) if total_requests > 0 else 0
@@ -108,8 +108,8 @@ class ETagRequestAdapter:
         }
 
     def add_if_none_match_header(
-        self, url: str, headers: Dict[str, str]
-    ) -> Dict[str, str]:
+        self, url: str, headers: dict[str, str]
+    ) -> dict[str, str]:
         """Add If-None-Match header to request headers if ETag is cached.
 
         Args:
@@ -117,7 +117,7 @@ class ETagRequestAdapter:
             headers: The request headers dictionary
 
         Returns:
-            Dict[str, str]: Updated headers with If-None-Match if applicable
+            dict[str, str]: Updated headers with If-None-Match if applicable
         """
         if not self._enabled:
             return headers
@@ -132,7 +132,7 @@ class ETagRequestAdapter:
         return headers
 
     def handle_etag_response(
-        self, url: str, status_code: int, headers: Dict[str, str], content: str
+        self, url: str, status_code: int, headers: dict[str, str], content: str
     ) -> str:
         """Handle HTTP response, storing ETag and handling 304 responses.
 

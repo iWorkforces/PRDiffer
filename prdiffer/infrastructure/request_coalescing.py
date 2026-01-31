@@ -5,10 +5,12 @@ for the same resource when multiple concurrent requests arrive.
 """
 
 import anyio
-from typing import Dict, Any, Optional, Callable, Awaitable
+from typing import Any, Optional, Callable, Awaitable
 from dataclasses import dataclass, field
 from prdiffer.infrastructure.logging.console_logger import get_logger
 from prdiffer.infrastructure.settings import get_settings_service
+from prdiffer.domain.exceptions import PRDifferException
+from prdiffer.domain.errors import E5001_INTERNAL_ERROR
 
 
 # Default maximum number of waiters per request to prevent resource exhaustion
@@ -46,7 +48,7 @@ class RequestCoalescingService:
             logger: Logger instance for logging operations
             max_waiters: Maximum number of waiters per request (default: from settings or 100)
         """
-        self._pending_requests: Dict[str, CoalescedRequest] = {}
+        self._pending_requests: dict[str, CoalescedRequest] = {}
         self._lock = anyio.Lock()
         self._logger = logger or get_logger()
 
@@ -178,9 +180,10 @@ class RequestCoalescingService:
         # Phase 5: Execute the fetch function (we own the request)
         # Check that we own the request (replace assertion with proper exception)
         if new_request is None:
-            raise RuntimeError(
+            raise PRDifferException(
                 f"Internal error: Request for key '{key}' should be owned by this task "
-                "but new_request is None. This indicates a logic error in request coalescing."
+                "but new_request is None. This indicates a logic error in request coalescing.",
+                error_code=E5001_INTERNAL_ERROR,
             )
 
         cleanup_done = False
@@ -282,7 +285,7 @@ class RequestCoalescingService:
             self._pending_requests.clear()
             self._logger.info("Cleared all pending requests")
 
-    async def get_stats(self) -> Dict[str, Any]:
+    async def get_stats(self) -> dict[str, Any]:
         """Get statistics about pending requests.
 
         Returns:

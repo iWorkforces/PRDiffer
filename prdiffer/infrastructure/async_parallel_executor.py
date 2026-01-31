@@ -7,16 +7,12 @@ ThreadPoolExecutor with anyio's structured concurrency primitives.
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import (
-    List,
     Callable,
     Any,
     Optional,
-    Dict,
     TypeVar,
     Awaitable,
-    Tuple,
     Generic,
-    Type,
     cast,
 )
 import anyio
@@ -25,7 +21,7 @@ from prdiffer.infrastructure.logging.console_logger import get_logger
 # Exceptions to catch in parallel execution
 # Note: We deliberately exclude KeyboardInterrupt, SystemExit, and GeneratorExit
 # to allow system-level exceptions to propagate for proper shutdown/cleanup.
-OPERATIONAL_EXCEPTIONS: Tuple[Type[BaseException], ...] = (
+OPERATIONAL_EXCEPTIONS: tuple[type[BaseException], ...] = (
     TimeoutError,  # Timeout scenarios
     ConnectionError,  # Network issues
     OSError,  # File I/O errors
@@ -69,8 +65,8 @@ class ErrorStrategy(str, Enum):
 class BatchResult(Generic[T]):
     """Result of a batch execution with success/failure tracking."""
 
-    successful: List[T] = field(default_factory=list)
-    failed: List[Tuple[Any, Exception]] = field(default_factory=list)
+    successful: list[T] = field(default_factory=list)
+    failed: list[tuple[Any, Exception]] = field(default_factory=list)
 
     @property
     def total(self) -> int:
@@ -99,7 +95,7 @@ class BatchResult(Generic[T]):
         """Check if all items succeeded."""
         return len(self.failed) == 0
 
-    def get_errors(self) -> List[Exception]:
+    def get_errors(self) -> list[Exception]:
         """Get list of all exceptions."""
         return [error for _, error in self.failed]
 
@@ -149,16 +145,16 @@ class AsyncParallelExecutor:
     async def execute_batch(
         self,
         func: Callable[[T], Awaitable[R]],
-        items: List[T],
-    ) -> List[R]:
+        items: list[T],
+    ) -> list[R]:
         """Execute an async function on a list of items in parallel.
 
         Args:
             func: Async function to execute for each item
-            items: List of items to process
+            items: list of items to process
 
         Returns:
-            List of results from the function calls (errors filtered based on strategy)
+            list of results from function calls (errors filtered based on strategy)
 
         Raises:
             Exception: If error_strategy is RAISE and any operation fails
@@ -166,8 +162,8 @@ class AsyncParallelExecutor:
         if not items:
             return []
 
-        results: List[R] = []
-        errors: List[Tuple[T, Exception]] = []
+        results: list[R] = []
+        errors: list[tuple[T, Exception]] = []
         semaphore = await self._get_semaphore()
 
         async def process_item(item: T) -> None:
@@ -206,25 +202,25 @@ class AsyncParallelExecutor:
 
     async def execute_batch_with_context(
         self,
-        func: Callable[[T, Dict[str, Any]], Awaitable[R]],
-        items: List[T],
-        context: Dict[str, Any],
-    ) -> List[R]:
+        func: Callable[[T, dict[str, Any]], Awaitable[R]],
+        items: list[T],
+        context: dict[str, Any],
+    ) -> list[R]:
         """Execute an async function on items with shared context in parallel.
 
         Args:
             func: Async function to execute (accepts item and context)
-            items: List of items to process
+            items: list of items to process
             context: Shared context dictionary passed to each function call
 
         Returns:
-            List of results from the function calls
+            list of results from function calls
         """
         if not items:
             return []
 
-        results: List[R] = []
-        errors: List[Tuple[T, Exception]] = []
+        results: list[R] = []
+        errors: list[tuple[T, Exception]] = []
         semaphore = await self._get_semaphore()
 
         async def process_item(item: T) -> None:
@@ -263,10 +259,10 @@ class AsyncParallelExecutor:
 
     async def execute_mapped_batch(
         self,
-        func_map: Dict[Any, Callable[[Any], Awaitable[R]]],
-        items: List[Any],
+        func_map: dict[Any, Callable[[Any], Awaitable[R]]],
+        items: list[Any],
         default_func: Optional[Callable[[Any], Awaitable[R]]] = None,
-    ) -> List[R]:
+    ) -> list[R]:
         """Execute different async functions based on item type/key in parallel.
 
         Args:
@@ -280,8 +276,8 @@ class AsyncParallelExecutor:
         if not items:
             return []
 
-        results: List[R] = []
-        errors: List[Tuple[Any, Exception]] = []
+        results: list[R] = []
+        errors: list[tuple[Any, Exception]] = []
         semaphore = await self._get_semaphore()
 
         async def process_item(item: Any) -> None:
@@ -334,24 +330,24 @@ class AsyncParallelExecutor:
     async def execute_with_progress(
         self,
         func: Callable[[T], Awaitable[R]],
-        items: List[T],
+        items: list[T],
         progress_callback: Optional[Callable[[int, int], Any]] = None,
-    ) -> List[R]:
+    ) -> list[R]:
         """Execute an async function with progress tracking.
 
         Args:
             func: Async function to execute for each item
-            items: List of items to process
+            items: list of items to process
             progress_callback: Optional callback(completed, total) for progress updates
 
         Returns:
-            List of results from the function calls
+            list of results from function calls
         """
         if not items:
             return []
 
-        results: List[R] = []
-        errors: List[Tuple[T, Exception]] = []
+        results: list[R] = []
+        errors: list[tuple[T, Exception]] = []
         completed = 0
         total = len(items)
         semaphore = await self._get_semaphore()
@@ -400,7 +396,7 @@ class AsyncParallelExecutor:
     async def execute_batch_detailed(
         self,
         func: Callable[[T], Awaitable[R]],
-        items: List[T],
+        items: list[T],
     ) -> BatchResult[R]:
         """Execute an async function with detailed result tracking.
 
@@ -409,7 +405,7 @@ class AsyncParallelExecutor:
 
         Args:
             func: Async function to execute for each item
-            items: List of items to process
+            items: list of items to process
 
         Returns:
             BatchResult containing successful results and failed items with errors
@@ -445,7 +441,7 @@ class AsyncParallelExecutor:
 
         return result
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """Get executor statistics.
 
         Returns:

@@ -4,7 +4,7 @@ This plugin provides the core get_pr_diff functionality
 as an MCP tool plugin, demonstrating the plugin architecture.
 """
 
-from typing import Dict, Any
+from typing import Any
 from prdiffer.application.interfaces.tool_plugin import MCPToolPlugin
 from prdiffer.domain.usecases.pr_diff_usecases import GetPRDiffUseCase
 
@@ -34,7 +34,7 @@ class GetPRDiffPlugin(MCPToolPlugin):
         return "Get full diff of a GitHub PR with file context"
 
     @property
-    def parameters(self) -> Dict[str, Any]:
+    def parameters(self) -> dict[str, Any]:
         """Get tool parameter schema."""
         return {
             "type": "object",
@@ -78,4 +78,10 @@ class GetPRDiffPlugin(MCPToolPlugin):
         if result is None:
             return ""
 
-        return result.diff_content
+        diff_parts = []
+        for file_resp in result.files:
+            file_header = f"## File: {file_resp.path} ({file_resp.status})"
+            stats = f"+{file_resp.stats.additions} -{file_resp.stats.deletions}"
+            diff_parts.append(f"{file_header} [{stats}]\n{file_resp.diff}")
+
+        return "\n\n".join(diff_parts) if diff_parts else ""

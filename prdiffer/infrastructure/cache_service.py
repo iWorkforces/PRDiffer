@@ -1,10 +1,12 @@
 import hashlib
 import time
-import threading
+import anyio
 from collections import OrderedDict
-from typing import Optional, Dict, Any, cast
+from typing import Optional, Any, cast
 from prdiffer.domain.entities.pr_diff import PRDiff
 from prdiffer.domain.services import CacheServiceInterface
+from prdiffer.domain.exceptions import ValidationError
+from prdiffer.domain.errors import E1010_INVALID_CONFIGURATION
 from .logging.console_logger import get_logger
 
 
@@ -28,11 +30,11 @@ class CacheService(CacheServiceInterface):
         - All cache operations are protected by a reentrant lock
         - Statistics counters are atomic within locked sections
         """
-        # Thread safety lock for cache operations
-        self._lock = threading.RLock()
+        # Async lock for cache operations
+        self._lock = anyio.Lock()
 
         # LRU cache using OrderedDict for memory-efficient storage with eviction
-        self.cache: OrderedDict[str, Dict[str, Any]] = OrderedDict()
+        self.cache: OrderedDict[str, dict[str, Any]] = OrderedDict()
         self.logger = get_logger()
 
         # Load cache hashing configuration
@@ -49,7 +51,7 @@ class CacheService(CacheServiceInterface):
         )  # Default 1000 entries
 
         # Reverse mapping: hashed_key -> original_key (for debugging and stats)
-        self._key_mapping: Dict[str, str] = {}
+        self._key_mapping: dict[str, str] = {}
 
         # Cache statistics
         self._cache_hits = 0
@@ -100,9 +102,12 @@ class CacheService(CacheServiceInterface):
         elif self._hash_algorithm == "sha256_short":
             return hashlib.sha256(key.encode("utf-8")).hexdigest()[:16]
         else:
-            raise ValueError(f"Unsupported hash algorithm: {self._hash_algorithm}")
+            raise ValidationError(
+                f"Unsupported hash algorithm: {self._hash_algorithm}",
+                error_code=E1010_INVALID_CONFIGURATION,
+            )
 
-    def _get_internal_key(
+    async def _get_internal_key(
         self, original_key: str, store_mapping: bool = False
     ) -> tuple[str, str]:
         """Get internal key for cache operations with optional hashing.
@@ -125,13 +130,13 @@ class CacheService(CacheServiceInterface):
 
         # Store reverse mapping if configured and requested
         if store_mapping and self._store_key_mapping:
-            with self._lock:
+            async with self._lock:
                 self._key_mapping[hashed] = original_key
 
         # Return hashed key and short display version
         return hashed, f"{hashed[:8]}..."
 
-    def _get_original_key(self, internal_key: str) -> str:
+    async def _get_original_key(self, internal_key: str) -> str:
         """Get original key from internal key using reverse mapping.
 
         Thread-safe: Uses lock when reading key_mapping.
@@ -143,11 +148,11 @@ class CacheService(CacheServiceInterface):
             str: Original key if mapping exists, otherwise returns internal_key
         """
         if self._use_hashed_keys and self._store_key_mapping:
-            with self._lock:
+            async with self._lock:
                 return self._key_mapping.get(internal_key, internal_key)
         return internal_key
 
-    def _is_entry_expired(self, cached_data: Dict[str, Any]) -> bool:
+    def _is_entry_expired(self, cached_data: dict[str, Any]) -> bool:
         """Check if a cache entry has expired based on TTL.
 
         Args:
@@ -163,7 +168,7 @@ class CacheService(CacheServiceInterface):
         age = time.time() - float(timestamp)
         return bool(age > self._ttl)
 
-    def _evict_oldest_if_needed(self) -> None:
+    async def _evict_oldest_if_needed(self) -> None:
         """Evict oldest entries when cache exceeds max size (LRU eviction).
 
         This must be called while holding the lock. Also proactively removes
@@ -197,13 +202,13 @@ class CacheService(CacheServiceInterface):
             evicted_key, _ = self.cache.popitem(last=False)
             self._key_mapping.pop(evicted_key, None)
             self._cache_evictions_size += 1
-            original_key = self._get_original_key(evicted_key)
+            original_key = await self._get_original_key(evicted_key)
             self.logger.debug(
                 f"Cache eviction (LRU): {original_key[:50]}... "
                 f"[size={len(self.cache)}/{self._cache_max_size}]"
             )
 
-    def get(self, cache_key: str, current_commit_sha: str) -> Optional[PRDiff]:
+    async def get(self, cache_key: str, current_commit_sha: str) -> Optional[PRDiff]:
         """Get cached PR diff data if it exists, commit SHA matches, and not expired.
 
         Thread-safe: All cache operations protected by lock.
@@ -215,9 +220,9 @@ class CacheService(CacheServiceInterface):
         Returns:
             Optional[PRDiff]: Cached data if valid and not expired, None otherwise
         """
-        internal_key, hash_display = self._get_internal_key(cache_key)
+        internal_key, hash_display = await self._get_internal_key(cache_key)
 
-        with self._lock:
+        async with self._lock:
             if internal_key not in self.cache:
                 self._cache_misses += 1
                 self.logger.debug(
@@ -271,7 +276,7 @@ class CacheService(CacheServiceInterface):
                 )
                 return None
 
-    def set(self, cache_key: str, commit_sha: str, data: PRDiff) -> None:
+    async def set(self, cache_key: str, commit_sha: str, data: PRDiff) -> None:
         """Cache PR diff data with associated commit SHA.
 
         Thread-safe: All cache operations protected by lock.
@@ -282,17 +287,17 @@ class CacheService(CacheServiceInterface):
             data: The PRDiff data to cache
         """
         # Store mapping when setting data
-        internal_key, hash_display = self._get_internal_key(
+        internal_key, hash_display = await self._get_internal_key(
             cache_key, store_mapping=True
         )
 
-        with self._lock:
+        async with self._lock:
             # If key exists, remove it first to update its position (move to end)
             if internal_key in self.cache:
                 del self.cache[internal_key]
             else:
                 # New entry - check if we need to evict
-                self._evict_oldest_if_needed()
+                await self._evict_oldest_if_needed()
 
             # Add entry at the end (most recently used)
             self.cache[internal_key] = {
@@ -307,7 +312,7 @@ class CacheService(CacheServiceInterface):
             commit_sha=commit_sha,
         )
 
-    def invalidate(self, cache_key: str) -> None:
+    async def invalidate(self, cache_key: str) -> None:
         """Invalidate cache for a specific PR.
 
         Thread-safe: All cache operations protected by lock.
@@ -323,7 +328,7 @@ class CacheService(CacheServiceInterface):
             internal_key = cache_key
             hash_display = ""
 
-        with self._lock:
+        async with self._lock:
             if internal_key in self.cache:
                 del self.cache[internal_key]
                 # Remove from reverse mapping too
@@ -335,12 +340,12 @@ class CacheService(CacheServiceInterface):
             hash=hash_display if self._use_hashed_keys else None,
         )
 
-    def clear(self) -> None:
+    async def clear(self) -> None:
         """Clear all cached data and key mappings.
 
         Thread-safe: All cache operations protected by lock.
         """
-        with self._lock:
+        async with self._lock:
             self.cache.clear()
             self._key_mapping.clear()
         self.logger.info("Cache cleared")
@@ -372,7 +377,7 @@ class CacheService(CacheServiceInterface):
             return None
         return cache_entry.get("etag")
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """Get cache statistics."""
         base_stats = {
             "cache_size": len(self.cache),

@@ -7,7 +7,7 @@ repeated initialization of GitHub API objects for the same repositories.
 import time
 from dataclasses import dataclass
 from functools import wraps
-from typing import Optional, Dict, Tuple, Callable
+from typing import Optional, Dict, Callable
 from threading import RLock
 from prdiffer.domain.services import RepositoryCacheServiceInterface
 
@@ -67,7 +67,7 @@ class RepositoryCacheService(RepositoryCacheServiceInterface):
             max_size: Maximum number of repository instances to cache
             ttl_seconds: Time-to-live for cached instances in seconds
         """
-        self._cache: Dict[Tuple[str, str, int], CacheEntry] = {}
+        self._cache: dict[tuple[str, str, int], CacheEntry] = {}
         self._max_size = max_size
         self._ttl_seconds = ttl_seconds
         self._lock = RLock()
@@ -75,7 +75,7 @@ class RepositoryCacheService(RepositoryCacheServiceInterface):
 
     def _get_cache_key(
         self, repo_owner: str, repo_name: str, pr_number: int
-    ) -> Tuple[str, str, int]:
+    ) -> tuple[str, str, int]:
         """Generate a cache key from repository details.
 
         Args:
@@ -152,7 +152,7 @@ class RepositoryCacheService(RepositoryCacheServiceInterface):
         return True
 
     def _get_valid_entry(
-        self, cache_key: Tuple[str, str, int], extend_ttl: bool = False
+        self, cache_key: tuple[str, str, int], extend_ttl: bool = False
     ) -> Optional[CacheEntry]:
         """Retrieve and validate a cache entry, removing it if invalid.
 

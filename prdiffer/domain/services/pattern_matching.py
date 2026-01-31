@@ -1,7 +1,6 @@
 """Pattern matching service interface for domain layer."""
 
 from abc import ABC, abstractmethod
-from typing import List
 
 
 class PatternMatchingServiceInterface(ABC):
@@ -24,7 +23,7 @@ class PatternMatchingServiceInterface(ABC):
         pass
 
     @abstractmethod
-    def filter_files(self, filenames: List[str]) -> List[str]:
+    def filter_files(self, filenames: list[str]) -> list[str]:
         """Filter a list of filenames based on configured patterns.
 
         Args:

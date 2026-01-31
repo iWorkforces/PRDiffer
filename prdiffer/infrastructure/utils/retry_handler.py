@@ -2,46 +2,55 @@
 
 This module provides a unified retry handler that combines basic retry logic with
 optional advanced features like circuit breaker, health tracking, and context-aware strategies.
-It replaces both the basic RetryHandler and AdvancedRetryHandler with a single configurable class.
 
 The handler supports both synchronous and asynchronous operations:
-- execute_with_retry(): Synchronous version using time.sleep()
+- UnifiedRetryHandler: Synchronous version using time.sleep()
 - execute_with_retry_async(): Async version using anyio.sleep() (non-blocking)
+
+Common logic is extracted to BaseUnifiedRetryHandler to avoid code duplication.
 """
 
 import time
-import random
-import threading
-from dataclasses import dataclass
-from datetime import timezone
-from email.utils import parsedate_to_datetime
-from typing import Any, Callable, Optional, Dict, Coroutine, TypeVar, Tuple, Type, cast
+from abc import abstractmethod
+from typing import Any, Callable, Optional, Dict, Coroutine, TypeVar, Tuple
 
 import anyio
 
 from enum import StrEnum
+from typing import Type, cast
+
 from prdiffer.domain.services import RetryServiceInterface
+from prdiffer.infrastructure.utils.logger_factory import LazyLoggerMixin
+from prdiffer.domain.exceptions import PRDifferException
+from prdiffer.domain.errors import E5001_INTERNAL_ERROR
+from prdiffer.infrastructure.utils.retry_logger import (
+    log_retry_attempt,
+    log_permanent_failure,
+)
+from prdiffer.infrastructure.utils.error_classifier import (
+    categorize_error,
+    is_secondary_rate_limit_error,
+    is_rate_limit_error as is_rate_limit_error_classifier,
+    classify_error_for_retry,
+)
+from prdiffer.infrastructure.utils.rate_limit_parser import (
+    RateLimitInfo,
+    extract_rate_limit_info,
+    is_rate_limit_remaining_below_threshold,
+)
+from prdiffer.infrastructure.utils.delay_calculator import (
+    calculate_retry_delay as calculate_retry_delay_impl,
+)
 
 
 T = TypeVar("T")
 
 
-# Pre-defined error code sets for efficient lookups
-PERMANENT_ERROR_CODES = {"404", "401", "403"}
-SERVER_ERROR_CODES = {"500", "501", "502", "503", "504"}
-TRANSIENT_ERROR_PATTERNS = {"timeout", "connection", "network", "503", "502", "504"}
-SECONDARY_RATE_LIMIT_PATTERNS = {
-    "secondary rate limit",
-    "abuse detection",
-    "abuse detection mechanism",
-    "api abuse",
-    "temporarily blocked",
-}
-
 try:  # pragma: no cover - optional dependency for type narrowing
     from github import GithubException as PyGithubException
 except Exception:  # pragma: no cover - fallback when PyGithub isn't available
     PyGithubException: Optional[Type[BaseException]] = None
+
 
 # Exceptions to catch in retry operations
 # Note: We deliberately exclude KeyboardInterrupt, SystemExit, and GeneratorExit
@@ -73,7 +82,6 @@ RETRY_EXCEPTIONS: Tuple[Type[BaseException], ...] = (
     UnicodeDecodeError,
     UnicodeEncodeError,
     UnicodeTranslateError,
-    # GitHub exceptions are optionally added below when available
 )
 
 if PyGithubException is not None:
@@ -89,22 +97,12 @@ class OperationContext(StrEnum):
     BATCH_OPERATION = "batch_operation"
 
 
-@dataclass(frozen=True)
-class RateLimitInfo:
-    """Parsed GitHub rate limit headers."""
+class BaseUnifiedRetryHandler(LazyLoggerMixin, RetryServiceInterface):
+    """Base class for unified retry handlers with common logic.
 
-    remaining: Optional[int]
-    limit: Optional[int]
-    reset_at: Optional[int]
-    retry_after: Optional[float]
-
-
-class UnifiedRetryHandler(RetryServiceInterface):
-    """Unified handler for retrying operations with optional advanced features.
-
-    This utility provides configurable retry logic for GitHub API operations
-    with optional features like circuit breaker, health tracking, and context-aware strategies.
-    It combines the functionality of both basic and advanced retry handlers into a single class.
+    This base class contains all shared retry logic, configuration,
+    error classification, and helper methods. Subclasses implement
+    the execution and sleep methods for sync/async variations.
 
     Features:
     - Basic exponential backoff with jitter (always enabled)
@@ -170,9 +168,7 @@ class UnifiedRetryHandler(RetryServiceInterface):
         self.permanent_failure_log_level = permanent_failure_log_level.upper()
 
         # Logger is optional - if not provided, we'll get it lazily to avoid circular imports
-        self._logger = logger
-        self._logger_fetched = logger is not None
-        self._logger_lock = threading.Lock()
+        self._init_lazy_logger(logger, __name__)
 
         # Advanced features configuration
         self.use_advanced_features = use_advanced_features
@@ -240,20 +236,47 @@ class UnifiedRetryHandler(RetryServiceInterface):
                 },
             }
 
-    def execute_with_retry(
+    @abstractmethod
+    def _execute_and_sleep(
         self,
         func: Callable,
-        *args,
-        context: Optional[OperationContext] = None,
-        **kwargs,
+        args: Tuple,
+        kwargs: Dict,
+        delay: float,
     ) -> Any:
-        """Execute a function with retry logic and exponential backoff.
+        """Execute function and sleep before next retry.
+
+        Subclasses implement this to handle sync/async execution and sleep.
+
+        Args:
+            func: Function to execute
+            args: Positional arguments for the function
+            kwargs: Keyword arguments for the function
+            delay: Delay in seconds before next retry
+
+        Returns:
+            Result of the function call
+        """
+        pass
+
+    def _execute_with_retry_base(
+        self,
+        func: Callable,
+        args: Tuple,
+        kwargs: Dict,
+        context: Optional[OperationContext] = None,
+    ) -> Any:
+        """Base retry logic shared by sync and async handlers.
+
+        This method contains the common retry loop, error handling,
+        and delay calculation. Subclasses call this after implementing
+        _execute_and_sleep.
 
         Args:
             func: Function to execute with retry logic
-            *args: Positional arguments for the function
-            context: Optional operation context for context-aware retry (only used with advanced features)
-            **kwargs: Keyword arguments for the function
+            args: Positional arguments for the function
+            kwargs: Keyword arguments for the function
+            context: Optional operation context for context-aware retry
 
         Returns:
             Result of the successful function call
@@ -283,7 +306,7 @@ class UnifiedRetryHandler(RetryServiceInterface):
 
         for attempt in range(max_retries):
             try:
-                result = func(*args, **kwargs)
+                result = self._execute_and_sleep(func, args, kwargs, 0.0)
 
                 # Record success if health tracking is enabled
                 if self._health_tracker and start_time:
@@ -306,12 +329,18 @@ class UnifiedRetryHandler(RetryServiceInterface):
 
                 if not should_retry or is_last_attempt:
                     # Log permanent failure or final attempt
-                    self._log_permanent_failure(exc, should_retry, is_last_attempt)
+                    log_permanent_failure(
+                        self._get_logger(),
+                        exc,
+                        self.permanent_failure_log_level,
+                        should_retry,
+                        is_last_attempt,
+                    )
                     raise
 
                 # Calculate delay (adaptive if enabled, basic otherwise)
-                rate_limit_info = self._extract_rate_limit_info(exc)
-                is_secondary_rate_limit = self._is_secondary_rate_limit_error(exc)
+                rate_limit_info = extract_rate_limit_info(exc)
+                is_secondary_rate_limit = is_secondary_rate_limit_error(exc)
                 delay = self._calculate_retry_delay(
                     attempt,
                     exc,
@@ -323,125 +352,24 @@ class UnifiedRetryHandler(RetryServiceInterface):
                 )
 
                 # Log the retry attempt
-                self._log_retry_attempt(
+                log_retry_attempt(
+                    self._get_logger(),
                     attempt,
                     delay,
                     exc,
-                    context,
+                    self.retry_log_level,
+                    context.value if context else None,
                     rate_limit_info=rate_limit_info,
                     is_secondary_rate_limit=is_secondary_rate_limit,
+                    is_rate_limit_checker=self._is_rate_limit_error,
                 )
 
-                time.sleep(delay)
+                # Sleep before next retry (actual execution handled by _execute_and_sleep)
+                self._execute_and_sleep(lambda: None, (), {}, delay)
 
         # This should not be reached, but just in case
         if last_exception:
             raise last_exception
-
-    async def execute_with_retry_async(
-        self,
-        func: Callable[..., Coroutine[Any, Any, T]],
-        *args,
-        context: Optional[OperationContext] = None,
-        **kwargs,
-    ) -> T:
-        """Execute an async function with retry logic and exponential backoff (non-blocking).
-
-        This is the async version of execute_with_retry(). It uses anyio.sleep() instead
-        of time.sleep() to avoid blocking the event loop during retry delays.
-
-        Args:
-            func: Async function to execute with retry logic
-            *args: Positional arguments for the function
-            context: Optional operation context for context-aware retry (only used with advanced features)
-            **kwargs: Keyword arguments for the function
-
-        Returns:
-            Result of the successful function call
-
-        Raises:
-            Exception: If all retry attempts fail, error is not retryable, or circuit breaker is open
-        """
-        # Check circuit breaker if enabled
-        if self._circuit_breaker and self.circuit_breaker_enabled:
-            if not self._circuit_breaker.can_execute():
-                from prdiffer.infrastructure.utils.circuit_breaker import (
-                    CircuitBreakerOpenException,
-                )
-
-                raise CircuitBreakerOpenException(
-                    f"Circuit breaker is open. State: {self._circuit_breaker.state.value}"
-                )
-
-        # Get context-specific configuration if context-aware retry is enabled
-        config = self._get_context_config(context)
-        max_retries = config["max_retries"]
-        base_delay = config["retry_delay"]
-        backoff_multiplier = config.get("backoff_multiplier", 2.0)
-
-        last_exception: Optional[Exception] = None
-        start_time = time.time() if self._health_tracker else None
-
-        for attempt in range(max_retries):
-            try:
-                result = await func(*args, **kwargs)
-
-                # Record success if health tracking is enabled
-                if self._health_tracker and start_time:
-                    self._record_success(start_time)
-
-                return result
-
-            except RETRY_EXCEPTIONS as e:
-                # Narrow type from BaseException to Exception since we excluded
-                # KeyboardInterrupt, SystemExit, and GeneratorExit from RETRY_EXCEPTIONS
-                exc = cast(Exception, e)
-                last_exception = exc
-
-                # Record failure for circuit breaker (always) and health tracker (if enabled)
-                self._record_failure(exc)
-
-                # Check if this error should be retried
-                should_retry = self._should_retry_error(exc, context)
-                is_last_attempt = attempt == max_retries - 1
-
-                if not should_retry or is_last_attempt:
-                    # Log permanent failure or final attempt
-                    self._log_permanent_failure(exc, should_retry, is_last_attempt)
-                    raise
-
-                # Calculate delay (adaptive if enabled, basic otherwise)
-                rate_limit_info = self._extract_rate_limit_info(exc)
-                is_secondary_rate_limit = self._is_secondary_rate_limit_error(exc)
-                delay = self._calculate_retry_delay(
-                    attempt,
-                    exc,
-                    base_delay,
-                    backoff_multiplier,
-                    use_adaptive=self.adaptive_retry_enabled,
-                    rate_limit_info=rate_limit_info,
-                    is_secondary_rate_limit=is_secondary_rate_limit,
-                )
-
-                # Log the retry attempt
-                self._log_retry_attempt(
-                    attempt,
-                    delay,
-                    exc,
-                    context,
-                    rate_limit_info=rate_limit_info,
-                    is_secondary_rate_limit=is_secondary_rate_limit,
-                )
-
-                # Use anyio.sleep() for non-blocking delay (async-compatible)
-                await anyio.sleep(delay)
-
-        # This should not be reached, but just in case
-        if last_exception:
-            raise last_exception
-
-        # Type checker requires a return, though this is unreachable
-        raise RuntimeError("Unexpected state: no result and no exception")
 
     def _get_context_config(self, context: Optional[OperationContext]) -> Dict:
         """Get configuration for specific operation context.
@@ -476,15 +404,15 @@ class UnifiedRetryHandler(RetryServiceInterface):
         """
         error_str = str(error).lower()
 
-        # Basic error classification using pre-defined sets
-        if "404" in error_str and not self.retry_on_404:
-            return False
-        if "403" in error_str and not self.retry_on_403:
-            return False
-        if (
-            any(code in error_str for code in SERVER_ERROR_CODES)
-            and not self.retry_on_500
-        ):
+        # Use error classifier for basic decision
+        decision = classify_error_for_retry(
+            error,
+            retry_on_404=self.retry_on_404,
+            retry_on_403=self.retry_on_403,
+            retry_on_500=self.retry_on_500,
+        )
+
+        if not decision.should_retry:
             return False
 
         # Context-aware retry logic (only if enabled)
@@ -499,10 +427,7 @@ class UnifiedRetryHandler(RetryServiceInterface):
                 # Be more aggressive with batch operation timeouts
                 return True
 
-        # Standard transient error detection using pre-defined patterns
-        return self._is_rate_limit_error(error) or any(
-            pattern in error_str for pattern in TRANSIENT_ERROR_PATTERNS
-        )
+        return True
 
     def _is_rate_limit_error(self, error: Exception) -> bool:
         """Check if an exception indicates a rate limit error.
@@ -513,135 +438,7 @@ class UnifiedRetryHandler(RetryServiceInterface):
         Returns:
             bool: True if this is a rate limit error, False otherwise
         """
-        error_str = str(error).lower()
-        if self._is_secondary_rate_limit_error(error):
-            return True
-
-        if "rate limit" in error_str or "429" in str(error):
-            return True
-
-        rate_limit_info = self._extract_rate_limit_info(error)
-        if rate_limit_info is None:
-            return False
-
-        if rate_limit_info.retry_after is not None:
-            return True
-
-        if rate_limit_info.remaining is not None:
-            return rate_limit_info.remaining <= self.rate_limit_remaining_threshold
-
-        return False
-
-    def _get_error_message(self, error: Exception) -> str:
-        """Get combined error message for classification."""
-        base_message = str(error)
-        data_message = ""
-        data = getattr(error, "data", None)
-        if isinstance(data, dict):
-            data_message = str(data.get("message", ""))
-        elif isinstance(data, str):
-            data_message = data
-        return f"{base_message} {data_message}".strip().lower()
-
-    def _is_secondary_rate_limit_error(self, error: Exception) -> bool:
-        """Detect secondary rate limit (abuse detection) errors."""
-        message = self._get_error_message(error)
-        return any(pattern in message for pattern in SECONDARY_RATE_LIMIT_PATTERNS)
-
-    def _get_error_headers(self, error: Exception) -> Optional[Dict[str, str]]:
-        """Extract headers from a GitHub exception if available."""
-        headers = getattr(error, "headers", None)
-        if headers is None:
-            response = getattr(error, "response", None)
-            headers = (
-                getattr(response, "headers", None) if response is not None else None
-            )
-
-        if not headers:
-            return None
-
-        try:
-            return {str(key): str(value) for key, value in headers.items()}
-        except Exception:
-            return None
-
-    def _parse_int_header(self, headers: Dict[str, str], name: str) -> Optional[int]:
-        for key, value in headers.items():
-            if key.lower() == name.lower():
-                try:
-                    return int(value)
-                except (TypeError, ValueError):
-                    return None
-        return None
-
-    def _parse_retry_after(self, headers: Dict[str, str]) -> Optional[float]:
-        retry_after_value = None
-        for key, value in headers.items():
-            if key.lower() == "retry-after":
-                retry_after_value = value
-                break
-
-        if retry_after_value is None:
-            return None
-
-        try:
-            return max(0.0, float(retry_after_value))
-        except (TypeError, ValueError):
-            try:
-                parsed = parsedate_to_datetime(str(retry_after_value))
-                if parsed.tzinfo is None:
-                    parsed = parsed.replace(tzinfo=timezone.utc)
-                delay = parsed.timestamp() - time.time()
-                return max(0.0, delay)
-            except (TypeError, ValueError, OverflowError):
-                return None
-
-    def _extract_rate_limit_info(self, error: Exception) -> Optional[RateLimitInfo]:
-        headers = self._get_error_headers(error)
-        if not headers:
-            return None
-
-        remaining = self._parse_int_header(headers, "X-RateLimit-Remaining")
-        limit = self._parse_int_header(headers, "X-RateLimit-Limit")
-        reset_at = self._parse_int_header(headers, "X-RateLimit-Reset")
-        retry_after = self._parse_retry_after(headers)
-
-        if (
-            remaining is None
-            and limit is None
-            and reset_at is None
-            and retry_after is None
-        ):
-            return None
-
-        return RateLimitInfo(
-            remaining=remaining,
-            limit=limit,
-            reset_at=reset_at,
-            retry_after=retry_after,
-        )
-
-    def _calculate_rate_limit_delay(
-        self, rate_limit_info: Optional[RateLimitInfo]
-    ) -> Optional[float]:
-        if rate_limit_info is None:
-            return None
-
-        if rate_limit_info.retry_after is not None:
-            return rate_limit_info.retry_after
-
-        if rate_limit_info.reset_at is not None:
-            delay = (
-                rate_limit_info.reset_at - time.time() + self.rate_limit_reset_buffer
-            )
-            return max(0.0, delay)
-
-        return None
-
-    def _calculate_secondary_backoff(self, attempt: int) -> float:
-        base_delay = self.secondary_rate_limit_backoff * (2**attempt)
-        jitter = random.uniform(0, base_delay * 0.1)
-        return float(base_delay + jitter)
+        return is_rate_limit_error_classifier(error)
 
     def _calculate_retry_delay(
         self,
@@ -653,75 +450,33 @@ class UnifiedRetryHandler(RetryServiceInterface):
         rate_limit_info: Optional[RateLimitInfo],
         is_secondary_rate_limit: bool,
     ) -> float:
-        header_delay = self._calculate_rate_limit_delay(rate_limit_info)
-
-        if is_secondary_rate_limit:
-            secondary_delay = self._calculate_secondary_backoff(attempt)
-            if header_delay is not None:
-                return max(secondary_delay, header_delay)
-            return secondary_delay
-
-        if header_delay is not None:
-            return header_delay
-
-        if use_adaptive:
-            return self._calculate_adaptive_delay(
-                attempt, error, base_delay, backoff_multiplier
-            )
-
-        return self._calculate_backoff(attempt, self._is_rate_limit_error(error))
-
-    def _calculate_backoff(self, attempt: int, is_rate_limit: bool) -> float:
-        """Calculate basic backoff delay with exponential growth and jitter.
-
-        Args:
-            attempt: Current attempt number (0-based)
-            is_rate_limit: Whether this is a rate limit error
-
-        Returns:
-            float: Delay in seconds before next retry
-        """
-        base_delay: float = self.retry_delay * (2**attempt)
-        jitter: float = random.uniform(0, base_delay * 0.1)  # 10% jitter
-        return float(base_delay + jitter)
-
-    def _calculate_adaptive_delay(
-        self,
-        attempt: int,
-        error: Exception,
-        base_delay: float,
-        backoff_multiplier: float,
-    ) -> float:
-        """Calculate adaptive retry delay based on API health and error type.
+        """Calculate retry delay based on error type and configuration.
 
         Args:
             attempt: Current attempt number (0-based)
             error: Exception that caused the retry
             base_delay: Base delay for this context
             backoff_multiplier: Backoff multiplier for this context
+            use_adaptive: Whether to use adaptive retry delays
+            rate_limit_info: Parsed rate limit information
+            is_secondary_rate_limit: Whether this is a secondary rate limit error
 
         Returns:
-            float: Adaptive delay in seconds
+            float: Delay in seconds
         """
-        # Basic exponential backoff
-        exponential_delay = base_delay * (backoff_multiplier**attempt)
-
-        # Add jitter
-        jitter = random.uniform(0, exponential_delay * 0.1)
-        delay_with_jitter = exponential_delay + jitter
-
-        # Adaptive delay based on API health
-        if self.adaptive_retry_enabled and self._health_tracker:
-            adaptive_delay: float = self._health_tracker.get_recommended_delay(
-                delay_with_jitter, self.max_adaptive_delay
-            )
-            return float(adaptive_delay)
-
-        # Rate limit errors get longer delays
-        if self._is_rate_limit_error(error):
-            return min(delay_with_jitter * 2, self.max_adaptive_delay)
-
-        return delay_with_jitter
+        return calculate_retry_delay_impl(
+            attempt=attempt,
+            error=error,
+            base_delay=base_delay,
+            backoff_multiplier=backoff_multiplier,
+            rate_limit_info=rate_limit_info,
+            is_secondary_rate_limit=is_secondary_rate_limit,
+            use_adaptive=use_adaptive,
+            secondary_backoff=self.secondary_rate_limit_backoff,
+            reset_buffer=self.rate_limit_reset_buffer,
+            health_tracker=self._health_tracker,
+            max_adaptive_delay=self.max_adaptive_delay,
+        )
 
     def _record_success(self, start_time: float):
         """Record a successful operation (only used with advanced features).
@@ -747,51 +502,8 @@ class UnifiedRetryHandler(RetryServiceInterface):
             self._circuit_breaker.record_failure()
 
         if self._health_tracker:
-            error_type = self._categorize_error(error)
+            error_type = categorize_error(error)
             self._health_tracker.record_call(0.0, success=False, error_type=error_type)
-
-    def _categorize_error(self, error: Exception) -> str:
-        """Categorize error for health tracking.
-
-        Args:
-            error: Exception to categorize
-
-        Returns:
-            str: Error category
-        """
-        error_str = str(error).lower()
-
-        if "404" in error_str:
-            return "not_found"
-        elif "403" in error_str or "401" in error_str:
-            return "authentication"
-        elif "429" in error_str or "rate limit" in error_str:
-            return "rate_limit"
-        elif any(f"{code}" in error_str for code in [500, 502, 503, 504]):
-            return "server_error"
-        elif "timeout" in error_str:
-            return "timeout"
-        elif "connection" in error_str or "network" in error_str:
-            return "network"
-        else:
-            return "unknown"
-
-    def _get_logger(self):
-        """Get logger instance, lazily loading if needed to avoid circular imports.
-
-        Uses double-checked locking pattern for thread safety.
-        """
-        if not self._logger_fetched:
-            with self._logger_lock:
-                # Double-check pattern to avoid race conditions
-                if not self._logger_fetched:
-                    from prdiffer.infrastructure.logging.console_logger import (
-                        get_logger,
-                    )
-
-                    self._logger = get_logger()
-                    self._logger_fetched = True
-        return self._logger
 
     def _log_retry_attempt(
         self,
@@ -809,6 +521,8 @@ class UnifiedRetryHandler(RetryServiceInterface):
             delay: Delay before next retry in seconds
             error: Exception that caused the retry
             context: Optional operation context
+            rate_limit_info: Parsed rate limit information
+            is_secondary_rate_limit: Whether this is a secondary rate limit error
         """
         is_rate_limit = self._is_rate_limit_error(error)
         context_str = (
@@ -844,7 +558,12 @@ class UnifiedRetryHandler(RetryServiceInterface):
     def _log_rate_limit_headers(
         self, rate_limit_info: RateLimitInfo, is_secondary_rate_limit: bool
     ):
-        """Log rate limit header information."""
+        """Log rate limit header information.
+
+        Args:
+            rate_limit_info: Parsed rate limit information
+            is_secondary_rate_limit: Whether this is a secondary rate limit error
+        """
         level = "WARNING" if is_secondary_rate_limit else "INFO"
         message = (
             "Rate limit headers: remaining=%s limit=%s reset=%s retry_after=%s"
@@ -857,9 +576,8 @@ class UnifiedRetryHandler(RetryServiceInterface):
         )
         self._log_at_level(message, level)
 
-        if (
-            rate_limit_info.remaining is not None
-            and rate_limit_info.remaining <= self.rate_limit_remaining_threshold
+        if is_rate_limit_remaining_below_threshold(
+            rate_limit_info, self.rate_limit_remaining_threshold
         ):
             threshold_message = "Rate limit remaining below threshold: %d <= %d" % (
                 rate_limit_info.remaining,
@@ -932,6 +650,165 @@ class UnifiedRetryHandler(RetryServiceInterface):
             stats["api_health"] = self._health_tracker.get_stats()
 
         return stats
+
+
+class UnifiedRetryHandler(BaseUnifiedRetryHandler):
+    """Unified retry handler supporting both sync and async operations.
+
+    For backward compatibility, this class provides both:
+    - execute_with_retry(): Synchronous execution using time.sleep()
+    - execute_with_retry_async(): Asynchronous execution using anyio.sleep()
+    """
+
+    def _execute_and_sleep(
+        self,
+        func: Callable,
+        args: Tuple,
+        kwargs: Dict,
+        delay: float,
+    ) -> Any:
+        """Execute function and sleep (blocking).
+
+        Args:
+            func: Function to execute
+            args: Positional arguments
+            kwargs: Keyword arguments
+            delay: Delay in seconds (ignored if 0.0)
+
+        Returns:
+            Result of the function call
+        """
+        result = func(*args, **kwargs)
+
+        # Sleep only if delay > 0 (first attempt has delay=0)
+        if delay > 0:
+            time.sleep(delay)
+
+        return result
+
+    def execute_with_retry(
+        self,
+        func: Callable,
+        *args,
+        context: Optional[OperationContext] = None,
+        **kwargs,
+    ) -> Any:
+        """Execute a function with retry logic and exponential backoff.
+
+        Args:
+            func: Function to execute with retry logic
+            *args: Positional arguments for the function
+            context: Optional operation context for context-aware retry (only used with advanced features)
+            **kwargs: Keyword arguments for the function
+
+        Returns:
+            Result of the successful function call
+
+        Raises:
+            Exception: If all retry attempts fail, error is not retryable, or circuit breaker is open
+        """
+        # Use the base class retry logic
+        return self._execute_with_retry_base(func, args, kwargs, context)
+
+    async def execute_with_retry_async(
+        self,
+        func: Callable[..., Coroutine[Any, Any, T]],
+        *args,
+        context: Optional[OperationContext] = None,
+        **kwargs,
+    ) -> T:
+        """Execute an async function with retry logic and exponential backoff (non-blocking).
+
+        This method uses anyio.sleep() instead of time.sleep() to avoid
+        blocking the event loop during retry delays.
+
+        Args:
+            func: Async function to execute with retry logic
+            *args: Positional arguments for the function
+            context: Optional operation context for context-aware retry (only used with advanced features)
+            **kwargs: Keyword arguments for the function
+
+        Returns:
+            Result of the successful function call
+
+        Raises:
+            Exception: If all retry attempts fail, error is not retryable, or circuit breaker is open
+        """
+        if self._circuit_breaker and self.circuit_breaker_enabled:
+            if not self._circuit_breaker.can_execute():
+                from prdiffer.infrastructure.utils.circuit_breaker import (
+                    CircuitBreakerOpenException,
+                )
+
+                raise CircuitBreakerOpenException(
+                    f"Circuit breaker is open. State: {self._circuit_breaker.state.value}"
+                )
+
+        config = self._get_context_config(context)
+        max_retries = config["max_retries"]
+        base_delay = config["retry_delay"]
+        backoff_multiplier = config.get("backoff_multiplier", 2.0)
+
+        last_exception: Optional[Exception] = None
+        start_time = time.time() if self._health_tracker else None
+
+        for attempt in range(max_retries):
+            try:
+                result = await func(*args, **kwargs)
+
+                if self._health_tracker and start_time:
+                    self._record_success(start_time)
+
+                return result
+
+            except RETRY_EXCEPTIONS as e:
+                from typing import cast
+
+                exc = cast(Exception, e)
+                last_exception = exc
+
+                self._record_failure(exc)
+
+                should_retry = self._should_retry_error(exc, context)
+                is_last_attempt = attempt == max_retries - 1
+
+                if not should_retry or is_last_attempt:
+                    self._log_permanent_failure(exc, should_retry, is_last_attempt)
+                    raise
+
+                rate_limit_info = extract_rate_limit_info(exc)
+                is_secondary_rate_limit = is_secondary_rate_limit_error(exc)
+                delay = self._calculate_retry_delay(
+                    attempt,
+                    exc,
+                    base_delay,
+                    backoff_multiplier,
+                    use_adaptive=self.adaptive_retry_enabled,
+                    rate_limit_info=rate_limit_info,
+                    is_secondary_rate_limit=is_secondary_rate_limit,
+                )
+
+                log_retry_attempt(
+                    self._get_logger(),
+                    attempt,
+                    delay,
+                    exc,
+                    self.retry_log_level,
+                    context.value if context else None,
+                    rate_limit_info=rate_limit_info,
+                    is_secondary_rate_limit=is_secondary_rate_limit,
+                    is_rate_limit_checker=self._is_rate_limit_error,
+                )
+
+                await anyio.sleep(delay)
+
+        if last_exception:
+            raise last_exception
+
+        raise PRDifferException(
+            "Unexpected state: no result and no exception",
+            error_code=E5001_INTERNAL_ERROR,
+        )
 
 
 # Backward compatibility aliases

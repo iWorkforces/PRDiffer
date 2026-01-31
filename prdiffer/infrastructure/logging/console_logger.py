@@ -3,7 +3,7 @@ import logging
 import os
 import sys
 from datetime import datetime, timezone
-from typing import Optional, Dict, Any
+from typing import Optional, Any
 from prdiffer.infrastructure.settings import get_settings_service
 from prdiffer.domain.services import LoggerServiceInterface, LogLevel
 
@@ -162,7 +162,7 @@ class ConsoleLogger(LoggerServiceInterface):
         if self.should_log(LogLevel.CRITICAL):
             self._log(LogLevel.CRITICAL, message, kwargs)
 
-    def _log(self, level: LogLevel, message: str, context: Dict[str, Any]) -> None:
+    def _log(self, level: LogLevel, message: str, context: dict[str, Any]) -> None:
         """Internal method to format and output log messages.
 
         Args:
@@ -183,7 +183,7 @@ class ConsoleLogger(LoggerServiceInterface):
         self,
         level: LogLevel,
         message: str,
-        context: Dict[str, Any],
+        context: dict[str, Any],
         timestamp: str,
         color: str,
     ) -> None:
@@ -214,7 +214,7 @@ class ConsoleLogger(LoggerServiceInterface):
         print(log_line, file=stream)
 
     def _log_json(
-        self, level: LogLevel, message: str, context: Dict[str, Any], timestamp: str
+        self, level: LogLevel, message: str, context: dict[str, Any], timestamp: str
     ) -> None:
         """Format and output log messages in JSON format.
 

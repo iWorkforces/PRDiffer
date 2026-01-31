@@ -17,6 +17,8 @@ from enum import StrEnum
 import anyio
 
 from prdiffer.infrastructure.logging.console_logger import get_logger
+from prdiffer.domain.exceptions import PRDifferException
+from prdiffer.domain.errors import E5001_INTERNAL_ERROR
 
 
 class CircuitState(StrEnum):
@@ -265,7 +267,9 @@ class GlobalCircuitBreakerRegistry:
                     cls._instance = instance
         # Type narrowing: instance is guaranteed to be initialized here
         if cls._instance is None:
-            raise RuntimeError("Singleton instance not initialized")
+            raise PRDifferException(
+                "Singleton instance not initialized", error_code=E5001_INTERNAL_ERROR
+            )
         return cls._instance
 
     def __init__(

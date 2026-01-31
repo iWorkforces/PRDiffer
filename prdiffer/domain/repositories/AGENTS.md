@@ -4,10 +4,12 @@ Data access contracts and repository interfaces.
 
 ## Guidelines
 
-- Define repository interfaces only
-- No concrete implementations
+- Define repository interfaces only (no implementations)
+- No concrete implementations in domain
 - Use Protocol or ABC for definitions
 - Async methods should have `_async` suffix in interface
+- **Repository pattern:** Abstract data access operations
+- **Dual sync/async methods** for infrastructure flexibility
 
 ## Common Patterns
 
@@ -22,6 +24,9 @@ class PRDiffRepositoryInterface(Protocol):
     
     def save_diff(self, pr_diff: PRDiff) -> None:
         ...
+    
+    def delete_diff(self, owner: str, repo: str, pr_number: int) -> None:
+        ...
 ```
 
 ### Async Repository
@@ -31,7 +36,34 @@ class AsyncPRDiffRepositoryInterface(Protocol):
         self, owner: str, repo: str, pr_number: int
     ) -> Optional[PRDiff]:
         ...
+    
+    async def save_diff_async(self, pr_diff: PRDiff) -> None:
+        ...
 ```
+
+### VCS Repository Interface
+```python
+from abc import ABC, abstractmethod
+
+class VCSDiffRepositoryInterface(ABC):
+    '''VCS provider contract for multi-provider support'''
+    
+    @abstractmethod
+    def supports_repository(self, url: str) -> bool:
+        '''Auto-detect if this provider supports the URL'''
+        pass
+    
+    @abstractmethod
+    def get_pr_diff(self, url: str) -> PRDiff:
+        pass
+```
+
+## Anti-Patterns
+
+- ❌ Implementing data access in domain (use infrastructure)
+- ❌ Missing async variants (_async suffix)
+- ❌ Large repository interfaces (interface segregation)
+- ❌ Concrete database/API calls in domain
 
 ## Files
 

@@ -1,24 +1,27 @@
 # AGENTS.md - Application/Components
 
-MCP server components (authentication, rate limiting, health monitoring, metrics, operation handler, plugin manager).
+MCP server components with constructor DI pattern (`container=None` for testability).
 
 ## Guidelines
 
 - Single responsibility per component
-- Use domain service interfaces
-- Use dependency injection for testability (ServiceContainer, ServiceFactory)
-- Log operations with sanitized data
-- Return structured responses
+- Use domain service interfaces (not concrete infrastructure types)
+- **Constructor DI with singleton fallbacks:** `container=None, logger=None`
+- Log operations with sanitized data (no tokens/passwords)
+- Return structured responses (Pydantic models)
+- **Thread-safe operations** (RLock for sync, anyio.Lock for async)
 
 ## Common Patterns
 
-### Component with DI
+### Component with Optional DI (Testability)
 ```python
 from prdiffer.infrastructure.di_container import get_container
 from prdiffer.infrastructure.service_factory import get_service_factory
 from prdiffer.domain.services.logger import LoggerServiceInterface
 
 class SomeComponent:
+    '''Constructor DI with singleton fallbacks for testability'''
+    
     def __init__(self, container=None, logger=None):
         self._container = container or get_container()
         factory = get_service_factory(logger=logger)
@@ -28,6 +31,7 @@ class SomeComponent:
 ### Component Factory Pattern
 ```python
 def create_component(container=None, logger=None):
+    '''Factory function for component creation'''
     factory = get_service_factory(logger=logger)
     container = container or get_container()
     return SomeComponent(
@@ -36,21 +40,39 @@ def create_component(container=None, logger=None):
     )
 ```
 
+### Thread-Safe Component (RLock)
+```python
+import threading
+
+class RateLimiter:
+    '''Thread-safe rate limiter with RLock'''
+    
+    def __init__(self):
+        self._lock = threading.RLock()
+        self._clients = {}
+    
+    def check_rate_limit(self, client_id: str) -> bool:
+        with self._lock:
+            # Thread-safe access
+            return self._clients.get(client_id, 0) < 100
+```
+
 ## Component Descriptions
 
 ### AuthenticationMiddleware
-- API key-based authentication with SHA-256 hashing
-- JWT token verification
+- **API key-based authentication** with SHA-256 hashing
+- **JWT token verification** (metadata extraction only, not auth decisions)
 - Admin API key support with elevated privileges
 - Per-client rate limiting and lockout mechanism
 - Runtime API key management (add/remove)
-- Thread-safe operations with RLock
+- **Thread-safe operations** with RLock
+- **Architecture violation:** Directly imports `infrastructure.security.input_validator`
 
 ### RateLimiter
-- Token bucket algorithm: 100 requests per minute per client
+- **Token bucket algorithm:** 100 requests per minute per client
 - Automatic cleanup of inactive clients (1 hour TTL)
 - Global rate monitoring across all clients
-- Thread-safe operations with RLock
+- **Thread-safe operations** with RLock
 
 ### MetricsTracker
 - Request counting (total, successful, failed)
@@ -73,9 +95,10 @@ def create_component(container=None, logger=None):
 ### PROperationHandler
 - PR diff fetching via GitHub API
 - Repository caching for efficiency
-- URL parsing with regex: `r"https://github\.com/([^/]+)/([^/]+)/pull/(\d+)"`
+- URL parsing with regex: `r'https://github\\.com/([^/]+)/([^/]+)/pull/(\\d+)'`
 - Lazy repository initialization
 - Coordinates MetricsTracker, RateLimiter, HealthMonitor for PR operations
+- **Architecture violation:** Imports infrastructure services directly
 
 ### PluginManager
 - Plugin discovery and registration
@@ -83,53 +106,22 @@ def create_component(container=None, logger=None):
 - Tool execution orchestration
 - Supports MCP tool plugins via MCPToolPlugin interface
 - Auto-discovers plugins from `prdiffer.application.plugins`
+- **Current state:** Exists but not integrated (production uses @mcp.tool())
+
+## Anti-Patterns
+
+- ❌ Direct infrastructure imports (9 violations in authentication.py, etc.)
+- ❌ Business logic in components (belongs in domain)
+- ❌ Missing thread safety (use RLock/anyio.Lock)
+- ❌ Logging sensitive data (tokens, passwords, API keys)
+- ❌ Mutable global state (use ServiceContainer)
 
 ## Files
 
-- `authentication.py`: API key authentication with SHA-256 hashing
+- `authentication.py`: API key authentication with SHA-256 hashing (9 violations)
 - `rate_limiter.py`: Per-client rate limiting
 - `metrics_tracker.py`: Request metrics tracking
 - `health_monitor.py`: Server health checks
 - `server_configuration.py`: Runtime configuration
-- `pr_operation_handler.py`: PR operations coordination
-- `factory.py`: Component wiring and injection
-- `plugin_manager.py`: Plugin system manager (NEW)
-
-## Plugin System (NEW)
-
-### Plugin Interface
-- Location: `prdiffer.application.interfaces.tool_plugin`
-- Interface: `MCPToolPlugin`
-- Properties: `name`, `description`, `parameters`
-- Methods: `enabled()`, `execute(**kwargs)`
-
-### Plugin Manager
-- Location: `prdiffer.application.plugin_manager`
-- Class: `PluginManager`
-- Methods:
-  - `register_plugin(plugin)` - Register a plugin
-  - `unregister_plugin(name)` - Unregister a plugin
-  - `get_plugin(name)` - Get plugin instance
-  - `list_plugins()` - List all registered plugins
-  - `list_plugin_names()` - List plugin names
-  - `execute_tool(tool_name, **kwargs)` - Execute a plugin tool
-
-### Plugin Implementations
-- Location: `prdiffer.application.plugins/`
-- Example: `get_pr_diff_plugin.py` - Get PR diff as MCP tool
-
-### Usage Pattern
-```python
-from prdiffer.application.plugin_manager import PluginManager
-
-manager = PluginManager()
-
-# Get plugin and execute
-plugin = manager.get_plugin("get_pr_diff")
-result = await plugin.execute(pr_url="https://github.com/owner/repo/pull/123")
-
-# List all available plugins
-plugins = manager.list_plugin_names()
-for name in plugins:
-    print(f"Available plugin: {name}")
-```
+- `pr_operation_handler.py`: PR operations coordination (violations)
+- `plugin_manager.py`: Plugin system manager (not yet integrated)

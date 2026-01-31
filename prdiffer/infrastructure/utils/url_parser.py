@@ -5,11 +5,10 @@ supporting both 'pull/' and 'pulls/' path formats.
 """
 
 import re
-from typing import Tuple
 from prdiffer.domain.exceptions import InvalidURLError, InvalidPRNumberError
 
 
-def parse_github_pr_url(pr_url: str) -> Tuple[str, str, int]:
+def parse_github_pr_url(pr_url: str) -> tuple[str, str, int]:
     """Parse a GitHub PR URL to extract owner, repository, and PR number.
 
     Supports both path formats:
@@ -20,7 +19,7 @@ def parse_github_pr_url(pr_url: str) -> Tuple[str, str, int]:
         pr_url: The GitHub pull request URL to parse
 
     Returns:
-        Tuple[str, str, int]: (owner, repository_name, pr_number)
+        tuple[str, str, int]: (owner, repository_name, pr_number)
 
     Raises:
         InvalidURLError: If URL format is invalid or components are malformed

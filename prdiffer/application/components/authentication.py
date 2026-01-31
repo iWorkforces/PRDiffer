@@ -28,6 +28,8 @@ from jwt.exceptions import InvalidTokenError, ExpiredSignatureError
 
 from prdiffer.domain.interfaces.protocols import AuthenticationProtocol
 from prdiffer.infrastructure.security.input_validator import InputValidator
+from prdiffer.domain.exceptions import AuthenticationError
+from prdiffer.domain.errors import E2002_AUTH_FAILED
 
 
 @dataclass
@@ -153,11 +155,10 @@ class AuthenticationMiddleware(AuthenticationProtocol):
             client_identifier: The client identifier to check
 
         Returns:
-            True if the client is locked out
+            True if client is locked out
         """
         current_time = time.time()
         with self._lock:
-            # Check if client is in lockout
             if client_identifier in self._locked_clients:
                 unlock_time = self._locked_clients[client_identifier]
                 if current_time < unlock_time:
@@ -167,22 +168,15 @@ class AuthenticationMiddleware(AuthenticationProtocol):
             return False
 
     def _record_failure(self, client_identifier: str) -> None:
-        """Record an authentication failure for a client.
-
-        Args:
-            client_identifier: The client identifier
-        """
+        """Record an authentication failure for a client."""
         current_time = time.time()
         with self._lock:
             record = self._auth_failures[client_identifier]
 
-            # Clean up old failures outside the window
+            # Clean up old failures outside of window
             time_elapsed = current_time - record.first_failure
             if time_elapsed <= 0:
-                # Edge case: same timestamp or clock adjustment, treat as immediate repeat
-                time_elapsed = (
-                    0.001  # Use small positive value to avoid division by zero
-                )
+                time_elapsed = 0.001
             elif time_elapsed > self._failure_window:
                 record.count = 1
                 record.first_failure = current_time
@@ -192,25 +186,8 @@ class AuthenticationMiddleware(AuthenticationProtocol):
 
             record.last_failure = current_time
 
-            # Check if we need to lock out this client
-            # Calculate failures per minute
-            failures_per_minute = record.count / (time_elapsed / 60)
-
-            if failures_per_minute >= self._max_failures_per_minute:
-                # Lock out the client
-                unlock_time = current_time + self._lockout_duration
-                self._locked_clients[client_identifier] = unlock_time
-                self._logger.warning(
-                    f"Client locked out due to excessive failures: {client_identifier[:20]}... "
-                    f"(failures: {record.count}, lockout until: {unlock_time})"
-                )
-
     def _record_success(self, client_identifier: str) -> None:
-        """Record a successful authentication and clear failures.
-
-        Args:
-            client_identifier: The client identifier
-        """
+        """Record a successful authentication and clear failures."""
         with self._lock:
             # Clear any failure records for this client
             if client_identifier in self._auth_failures:
@@ -228,6 +205,37 @@ class AuthenticationMiddleware(AuthenticationProtocol):
         if api_key:
             return f"key_{self._hash_api_key(api_key)[:16]}"
         return "anonymous"
+
+    def _looks_like_jwt_token(self, token: str) -> bool:
+        """Check if a token looks like a JWT token.
+
+        JWT tokens typically have these characteristics:
+        - Contains dots (separates base64 encoded parts)
+        - Longer than 40 characters
+        - May include 'Bearer' prefix in Authorization header
+
+        This is a simple heuristic check and NOT a security validation.
+        Use it to distinguish between API keys and JWT tokens for routing.
+
+        Args:
+            token: The token to check
+
+        Returns:
+            True if token appears to be a JWT token
+        """
+        if "." in token:
+            return True
+
+        if len(token) > 40:
+            return True
+
+        # Check for Bearer prefix (after cleaning)
+        if token.startswith("Bearer "):
+            clean_token = token.replace("Bearer ", "")
+            if clean_token.startswith("Bearer "):
+                return True
+
+        return False
 
     def authenticate(self, api_key: Optional[str]) -> Tuple[bool, Optional[str]]:
         """Authenticate a request using API key with brute-force protection.
@@ -255,8 +263,9 @@ class AuthenticationMiddleware(AuthenticationProtocol):
             self._logger.warning(
                 f"Authentication blocked: Client locked out: {client_identifier[:20]}..."
             )
-            raise RuntimeError(
-                "Too many authentication failures. Please try again later."
+            raise AuthenticationError(
+                "Too many authentication failures. Please try again later.",
+                error_code=E2002_AUTH_FAILED,
             )
 
         # No API key provided
@@ -267,15 +276,60 @@ class AuthenticationMiddleware(AuthenticationProtocol):
             )
             return False, None
 
-        # Check token expiration if enabled and a JWT-like token is provided
-        if self._check_token_expiration:
-            is_expired, error_message = self.is_token_expired(api_key)
-            if is_expired:
-                self._record_failure(client_identifier)
-                self._logger.warning(
-                    f"Authentication failed: {error_message}",
-                )
-                raise RuntimeError(f"Token validation failed: {error_message}")
+        # Check if api_key looks like a JWT token (dots, length, Bearer format)
+        if self._check_token_expiration and api_key:
+            # Check if api_key looks like a JWT token (dots, length, Bearer format)
+            if self._looks_like_jwt_token(api_key):
+                # JWT token: check expiration without signature verification
+                is_expired, error_message = self.is_token_expired(api_key)
+            else:
+                # API key: validate format and check against configured keys
+                if not self.validate_api_key_format(api_key):
+                    self._record_failure(client_identifier)
+                    self._logger.warning(
+                        "Authentication failed: Invalid API key format"
+                    )
+                    return False, None
+                provided_hash = self._hash_api_key(api_key)
+                if (
+                    self._admin_api_key_hash
+                    and provided_hash == self._admin_api_key_hash
+                ):
+                    self._record_success(client_identifier)
+                    self._logger.debug("Admin authentication successful")
+                    return True, "admin"
+                if provided_hash in self._hashed_api_keys:
+                    client_id = f"api_key_{provided_hash[:16]}"
+                    self._record_success(client_identifier)
+                    self._logger.debug(
+                        "API key authentication successful",
+                        extra={"client_id": client_id},
+                    )
+                    return True, client_id
+                else:
+                    self._record_failure(client_identifier)
+                    self._logger.warning("Authentication failed: Invalid API key")
+                    return False, None
+                provided_hash = self._hash_api_key(api_key)
+                if (
+                    self._admin_api_key_hash
+                    and provided_hash == self._admin_api_key_hash
+                ):
+                    self._record_success(client_identifier)
+                    self._logger.debug("Admin authentication successful")
+                    return True, "admin"
+                if provided_hash in self._hashed_api_keys:
+                    client_id = f"api_key_{provided_hash[:16]}"
+                    self._record_success(client_identifier)
+                    self._logger.debug(
+                        "API key authentication successful",
+                        extra={"client_id": client_id},
+                    )
+                    return True, client_id
+                else:
+                    self._record_failure(client_identifier)
+                    self._logger.warning("Authentication failed: Invalid API key")
+                    return False, None
 
         # Hash the provided API key for comparison
         provided_hash = self._hash_api_key(api_key)

@@ -2,10 +2,10 @@
 
 import difflib
 import re
-import threading
 from dataclasses import dataclass
-from typing import Union, Optional, List
+from typing import Union, Optional
 from prdiffer.domain.services import DiffServiceInterface
+from prdiffer.infrastructure.utils.logger_factory import LazyLoggerMixin
 
 
 # Default configuration for large file processing
@@ -41,7 +41,7 @@ class DiffProcessingConfig:
         )
 
 
-class DiffUtils(DiffServiceInterface):
+class DiffUtils(LazyLoggerMixin, DiffServiceInterface):
     """Utility for diff generation, patch extension, and content decoding.
 
     This class provides functionality for creating unified diffs, extending
@@ -57,27 +57,8 @@ class DiffUtils(DiffServiceInterface):
             logger: Logger instance for logging operations
             config: Optional diff processing configuration (uses defaults if not provided)
         """
-        self._logger = logger
-        self._logger_fetched = logger is not None
-        self._logger_lock = threading.Lock()
+        self._init_lazy_logger(logger, __name__)
         self._config = (config or DiffProcessingConfig()).validate()
-
-    def _get_logger(self):
-        """Get logger instance, lazily loading if needed to avoid circular imports.
-
-        Uses double-checked locking pattern for thread safety.
-        """
-        if not self._logger_fetched:
-            with self._logger_lock:
-                # Double-check pattern to avoid race conditions
-                if not self._logger_fetched:
-                    from prdiffer.infrastructure.logging.console_logger import (
-                        get_logger,
-                    )
-
-                    self._logger = get_logger()
-                    self._logger_fetched = True
-        return self._logger
 
     def build_full_file_patch(self, original_file_str: str, new_file_str: str) -> str:
         """Build a single unified-diff hunk that covers the entire file.
@@ -190,8 +171,8 @@ class DiffUtils(DiffServiceInterface):
 
     def _build_chunk_hunk(
         self,
-        orig_lines: List[str],
-        new_lines: List[str],
+        orig_lines: list[str],
+        new_lines: list[str],
         orig_start: int,
         new_start: int,
     ) -> str:

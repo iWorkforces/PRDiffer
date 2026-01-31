@@ -1,12 +1,12 @@
 """Unit tests for File Processor.
 
-This module contains comprehensive tests for the FileProcessor class,
+This module contains comprehensive tests for FileProcessor class,
 covering file filtering, thread safety, and batch processing.
 """
 
 import pytest
+import anyio
 from unittest.mock import Mock
-from threading import Thread
 
 from prdiffer.infrastructure.github.file_processor import FileProcessor
 from github.PullRequest import PullRequest
@@ -86,26 +86,22 @@ class TestFileProcessorThreadSafety:
             logger=mock_logger,
         )
 
-    def test_get_pr_files_thread_safety(self, file_processor):
+    @pytest.mark.asyncio
+    async def test_get_pr_files_thread_safety(self, file_processor):
         """Test that get_pr_files is thread-safe with double-check locking."""
         mock_pr = Mock(spec=PullRequest)
         mock_pr.get_files = Mock(return_value=[Mock(spec=File)])
 
-        # Create multiple threads that call get_pr_files concurrently
-        threads = []
-        results = []
+        # Create multiple async tasks that call get_pr_files concurrently
+        async with anyio.create_task_group() as tg:
+            results = []
 
-        def concurrent_get_files():
-            files = file_processor.get_pr_files(mock_pr)
-            results.append(files)
+            async def get_and_store():
+                result = await file_processor.get_pr_files(mock_pr)
+                results.append(result)
 
-        for _ in range(10):
-            t = Thread(target=concurrent_get_files)
-            threads.append(t)
-            t.start()
-
-        for t in threads:
-            t.join()
+            for _ in range(10):
+                tg.start_soon(get_and_store)
 
         # All threads should complete without exception
         assert len(results) == 10
@@ -113,20 +109,20 @@ class TestFileProcessorThreadSafety:
         for result in results:
             assert result is not None
 
-    def test_cache_consistency_under_concurrent_access(self, file_processor):
+    @pytest.mark.asyncio
+    async def test_cache_consistency_under_concurrent_access(self, file_processor):
         """Test that cache remains consistent under concurrent access."""
         mock_pr = Mock(spec=PullRequest)
         mock_pr.get_files = Mock(return_value=[Mock(spec=File)])
 
-        # Create multiple threads accessing cache
-        threads = []
-        for i in range(50):
-            t = Thread(target=lambda: file_processor.get_pr_files(mock_pr))
-            threads.append(t)
-            t.start()
+        # Create multiple async tasks accessing cache
+        async with anyio.create_task_group() as tg:
 
-        for t in threads:
-            t.join()
+            async def call_get_files():
+                await file_processor.get_pr_files(mock_pr)
+
+            for _ in range(50):
+                tg.start_soon(call_get_files)
 
         # Cache should be in consistent state
         # get_files should only be called once (first call caches the result)
