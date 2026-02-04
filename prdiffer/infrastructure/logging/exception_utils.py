@@ -172,9 +172,11 @@ class ExceptionSanitizer:
         for pattern in cls.GITHUB_TOKEN_PATTERNS:
             sanitized = re.sub(
                 pattern,
-                lambda m: m.group(1)[:8] + "*" * (len(m.group(1)) - 8)
-                if m.group(1)
-                else m.group(0),
+                lambda m: (
+                    m.group(1)[:8] + "*" * (len(m.group(1)) - 8)
+                    if m.group(1)
+                    else m.group(0)
+                ),
                 sanitized,
                 flags=re.IGNORECASE,
             )
@@ -183,10 +185,12 @@ class ExceptionSanitizer:
         for pattern in cls.GENERIC_TOKEN_PATTERNS:
             sanitized = re.sub(
                 pattern,
-                lambda m: m.group(1)
-                + m.group(2)[:4]
-                + "*" * (len(m.group(2)) - 4)
-                + m.group(3),
+                lambda m: (
+                    m.group(1)
+                    + m.group(2)[:4]
+                    + "*" * (len(m.group(2)) - 4)
+                    + m.group(3)
+                ),
                 sanitized,
                 flags=re.IGNORECASE,
             )

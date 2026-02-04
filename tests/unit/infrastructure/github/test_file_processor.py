@@ -49,8 +49,8 @@ class TestFileProcessor:
         mock_files = [mock_file1, mock_file2, mock_file3]
 
         # Mock pattern matcher to only accept .py files
-        file_processor._pattern_matcher.is_valid_file.side_effect = (
-            lambda fname: fname.endswith(".py")
+        file_processor._pattern_matcher.is_valid_file.side_effect = lambda fname: (
+            fname.endswith(".py")
         )
 
         # Call filter_files (public method)

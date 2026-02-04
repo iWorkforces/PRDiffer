@@ -173,7 +173,7 @@ class PROperationHandler(PROperationHandlerProtocol):
             )
             raise ValidationError(f"Invalid request: {e}", error_code=E1001_INVALID_URL)
 
-        except (ValueError, ValidationError, GitHubAPIError):
+        except ValueError, ValidationError, GitHubAPIError:
             raise
 
         except Exception as e:

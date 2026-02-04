@@ -330,7 +330,7 @@ class SettingsService(SettingsServiceInterface):
                 return list(self.settings.settings_files)
             else:
                 return []
-        except (AttributeError, TypeError, KeyError):
+        except AttributeError, TypeError, KeyError:
             return []
 
     def clear_cache(self) -> None:
