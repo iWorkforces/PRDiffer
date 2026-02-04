@@ -128,7 +128,7 @@ class RequestCoalescingService:
             except TimeoutError:
                 self._logger.error(f"Coalesced request timed out for key '{key}'")
                 raise
-            except (RuntimeError, AttributeError, KeyError):
+            except RuntimeError, AttributeError, KeyError:
                 self._logger.error(f"Coalesced request failed for key '{key}'")
                 raise
             finally:
@@ -171,7 +171,7 @@ class RequestCoalescingService:
             except TimeoutError:
                 self._logger.error(f"Coalesced request timed out for key '{key}'")
                 raise
-            except (RuntimeError, AttributeError, KeyError):
+            except RuntimeError, AttributeError, KeyError:
                 self._logger.error(f"Coalesced request failed for key '{key}'")
                 raise
             finally:

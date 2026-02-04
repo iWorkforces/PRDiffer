@@ -139,8 +139,8 @@ class TestAPIHealthTracker:
 
         try:
             # Simulate time passing beyond the window
-            health_module.time.time = (
-                lambda: original_time() + 400.0
+            health_module.time.time = lambda: (
+                original_time() + 400.0
             )  # 400 seconds later
 
             # Record another call

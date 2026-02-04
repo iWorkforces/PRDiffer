@@ -140,5 +140,5 @@ def validate_github_pr_url(pr_url: str) -> bool:
     try:
         parse_github_pr_url(pr_url)
         return True
-    except (InvalidURLError, InvalidPRNumberError):
+    except InvalidURLError, InvalidPRNumberError:
         return False

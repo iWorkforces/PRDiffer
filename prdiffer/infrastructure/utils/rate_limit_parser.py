@@ -65,7 +65,7 @@ def parse_int_header(headers: dict[str, str], name: str) -> Optional[int]:
         if key.lower() == name.lower():
             try:
                 return int(value)
-            except (TypeError, ValueError):
+            except TypeError, ValueError:
                 return None
     return None
 
@@ -94,14 +94,14 @@ def parse_retry_after(headers: dict[str, str]) -> Optional[float]:
 
     try:
         return max(0.0, float(retry_after_value))
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         try:
             parsed = parsedate_to_datetime(str(retry_after_value))
             if parsed.tzinfo is None:
                 parsed = parsed.replace(tzinfo=timezone.utc)
             delay = parsed.timestamp() - time.time()
             return max(0.0, delay)
-        except (TypeError, ValueError, OverflowError):
+        except TypeError, ValueError, OverflowError:
             return None
 
 

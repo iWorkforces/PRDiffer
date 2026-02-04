@@ -560,7 +560,7 @@ class AuthenticationMiddleware(AuthenticationProtocol):
 
             payload_json = base64.urlsafe_b64decode(payload_b64)
             return json.loads(payload_json)
-        except (ValueError, json.JSONDecodeError, binascii.Error):
+        except ValueError, json.JSONDecodeError, binascii.Error:
             return None
 
     @staticmethod
