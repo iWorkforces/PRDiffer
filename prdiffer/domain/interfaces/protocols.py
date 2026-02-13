@@ -7,7 +7,7 @@ These protocols are placed in the domain layer to maintain Clean Architecture
 principles - the domain layer should not depend on the application layer.
 """
 
-from typing import Any, Protocol, Optional
+from typing import Any, Protocol
 
 
 class RateLimiterProtocol(Protocol):
@@ -87,86 +87,6 @@ class PROperationHandlerProtocol(Protocol):
         """
         ...
 
-    # TODO: Future feature - not yet implemented
-    # This method will provide comprehensive PR description including title,
-    # author, reviewers, status, mergeability, and associated commits.
-    async def describe_pr(
-        self, pr_url: str, commit_messages: str, diff_content: str
-    ) -> str:
-        """Generate PR description based on commit messages and diff.
-
-        TODO: Future feature - not yet implemented
-
-        Args:
-            pr_url: GitHub PR URL
-            commit_messages: Commit messages from the PR
-            diff_content: Diff content of the PR
-
-        Returns:
-            Generated PR description
-        """
-        ...
-
-    # TODO: Future feature - not yet implemented
-    # This method will approve a pull request via GitHub API with
-    # approval commit message, reviewer authentication, and approval state verification.
-    async def approve_pr(
-        self, pr_url: str, commit_messages: str, diff_content: str
-    ) -> str:
-        """Generate PR approval message.
-
-        TODO: Future feature - not yet implemented
-
-        Args:
-            pr_url: GitHub PR URL
-            commit_messages: Commit messages from the PR
-            diff_content: Diff content of the PR
-
-        Returns:
-            Generated approval message
-        """
-        ...
-
-    # TODO: Future feature - not yet implemented
-    # This method will submit a PR review with review comments, approval/rejection state,
-    # line-by-line comments, and review summary.
-    async def review_pr(
-        self, pr_url: str, commit_messages: str, diff_content: str
-    ) -> str:
-        """Generate PR review.
-
-        TODO: Future feature - not yet implemented
-
-        Args:
-            pr_url: GitHub PR URL
-            commit_messages: Commit messages from the PR
-            diff_content: Diff content of the PR
-
-        Returns:
-            Generated PR review
-        """
-        ...
-
-    # TODO: Future feature - not yet implemented
-    # This method will update PR changelog with new commits added to PR,
-    # summary of changes, and updated diff information.
-    async def update_pr_changelog(
-        self, pr_url: str, commit_messages: str, diff_content: str
-    ) -> str:
-        """Update PR changelog.
-
-        TODO: Future feature - not yet implemented
-
-        Args:
-            pr_url: GitHub PR URL
-            commit_messages: Commit messages from the PR
-            diff_content: Diff content of the PR
-
-        Returns:
-            Updated changelog content
-        """
-        ...
-
 
 class HealthMonitorProtocol(Protocol):
     """Protocol for health monitoring and status checks."""
@@ -215,7 +135,7 @@ class ServerConfigurationProtocol(Protocol):
 class AuthenticationProtocol(Protocol):
     """Protocol for authentication and authorization."""
 
-    def authenticate(self, api_key: Optional[str]) -> tuple[bool, Optional[str]]:
+    def authenticate(self, api_key: str | None) -> tuple[bool, str | None]:
         """Authenticate a request using API key.
 
         Args:
@@ -230,7 +150,7 @@ class AuthenticationProtocol(Protocol):
 
     def extract_client_identifier(
         self, headers: dict[str, str]
-    ) -> tuple[Optional[str], Optional[str]]:
+    ) -> tuple[str | None, str | None]:
         """Extract client identifier from request headers.
 
         Extracts API keys from X-API-Key or Authorization (Bearer) headers.

@@ -1,6 +1,8 @@
 """PR operation handler component for GitHub PR-related operations."""
 
-from typing import Any, Optional, Callable
+from dataclasses import asdict
+
+from typing import Any, Callable
 
 from prdiffer.domain.interfaces.protocols import PROperationHandlerProtocol
 from prdiffer.domain.entities.pr_diff import PRDiff
@@ -33,7 +35,7 @@ class PROperationHandler(PROperationHandlerProtocol):
         cache_service: CacheServiceInterface,
         repository_cache_service: RepositoryCacheServiceInterface,
         logger: LoggerServiceInterface,
-        input_validator: Optional[InputValidator] = None,
+        input_validator: InputValidator | None = None,
     ):
         """Initialize PR operation handler.
 
@@ -97,7 +99,7 @@ class PROperationHandler(PROperationHandlerProtocol):
                 ) from exc
 
             # Try to get repository from cache first
-            cached_repository: Optional[PRDiffRepositoryInterface] = (
+            cached_repository: PRDiffRepositoryInterface | None = (
                 self._repository_cache_service.retrieve(
                     repo_owner, repo_name, pr_number
                 )
@@ -127,7 +129,7 @@ class PROperationHandler(PROperationHandlerProtocol):
             await repository.initialize()
 
             # Execute the repository directly (since we don't have a PRDiffService)
-            pr_diff: Optional[PRDiff] = await repository.get_pr_diff()
+            pr_diff: PRDiff | None = await repository.get_pr_diff()
 
             # Handle case where repository returns None
             if pr_diff is None:
@@ -155,7 +157,8 @@ class PROperationHandler(PROperationHandlerProtocol):
                         pr_number=pr_number,
                     )
 
-            response = pr_diff.model_dump()
+            response = asdict(pr_diff)
+            response["files"] = list(response["files"])
             self._logger.info(
                 "Successfully fetched PR diff",
                 repo_owner=repo_owner,
@@ -187,95 +190,3 @@ class PROperationHandler(PROperationHandlerProtocol):
             raise GitHubAPIError(
                 f"Failed to fetch PR diff: {e}", error_code=E5002_GITHUB_API_ERROR
             )
-
-    async def describe_pr(
-        self, pr_url: str, commit_messages: str, diff_content: str
-    ) -> str:
-        """Generate PR description based on commit messages and diff.
-
-        Args:
-            pr_url: GitHub PR URL
-            commit_messages: Commit messages from the PR (unused in current implementation)
-            diff_content: Diff content of the PR
-
-        Returns:
-            Generated PR description
-
-        Raises:
-            NotImplementedError: This feature is not yet implemented
-        """
-        # Parameters are part of protocol interface but not used in stub implementation
-        _ = commit_messages, diff_content  # Mark as intentionally unused
-        raise NotImplementedError(
-            "PR description generation is not yet implemented. "
-            "This feature is planned for a future release."
-        )
-
-    async def approve_pr(
-        self, pr_url: str, commit_messages: str, diff_content: str
-    ) -> str:
-        """Generate PR approval message.
-
-        Args:
-            pr_url: GitHub PR URL
-            commit_messages: Commit messages from the PR (unused in current implementation)
-            diff_content: Diff content of the PR
-
-        Returns:
-            Generated approval message
-
-        Raises:
-            NotImplementedError: This feature is not yet implemented
-        """
-        # Parameters are part of protocol interface but not used in stub implementation
-        _ = commit_messages, diff_content  # Mark as intentionally unused
-        raise NotImplementedError(
-            "PR approval generation is not yet implemented. "
-            "This feature is planned for a future release."
-        )
-
-    async def review_pr(
-        self, pr_url: str, commit_messages: str, diff_content: str
-    ) -> str:
-        """Generate PR review.
-
-        Args:
-            pr_url: GitHub PR URL
-            commit_messages: Commit messages from the PR (unused in current implementation)
-            diff_content: Diff content of the PR
-
-        Returns:
-            Generated PR review
-
-        Raises:
-            NotImplementedError: This feature is not yet implemented
-        """
-        # Parameters are part of protocol interface but not used in stub implementation
-        _ = commit_messages, diff_content  # Mark as intentionally unused
-        raise NotImplementedError(
-            "PR review generation is not yet implemented. "
-            "This feature is planned for a future release."
-        )
-
-    async def update_pr_changelog(
-        self, pr_url: str, commit_messages: str, diff_content: str
-    ) -> str:
-        """Update PR changelog.
-
-        Args:
-            pr_url: GitHub PR URL
-            commit_messages: Commit messages from the PR (unused in current implementation)
-            diff_content: Diff content of the PR
-
-        Returns:
-            Updated changelog content
-
-        Raises:
-            NotImplementedError: This feature is not yet implemented
-        """
-        # Parameters are part of protocol interface but not used in stub implementation
-        _ = commit_messages, diff_content  # Mark as intentionally unused
-        raise NotImplementedError(
-            "PR changelog update is not yet implemented. "
-            "This feature is planned for a future release."
-        )
