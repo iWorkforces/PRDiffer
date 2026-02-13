@@ -388,7 +388,14 @@ class CacheService(CacheServiceInterface):
             "cache_evictions_size": self._cache_evictions_size,
         }
 
-        if self._use_hashed_keys and self._store_key_mapping:
+        if self._use_hashed_keys:
+            if self._store_key_mapping:
+                base_stats["keys"] = [
+                    self._key_mapping.get(key, key) for key in self.cache.keys()
+                ]
+            else:
+                base_stats["keys"] = list(self.cache.keys())
+        else:
             base_stats["keys"] = list(self.cache.keys())
 
         return base_stats

@@ -312,10 +312,11 @@ class ToolRegistry:
             self._logger.debug(
                 f"PR diff content preview (sanitized): {sanitized_preview}"
             )
-
-        self._logger.info(
-            "PR Diff (Pretty JSON):\n" + json.dumps(pr_diff.model_dump(), indent=2)
-        )
+            sanitized_json = self._input_validator.sanitize_for_logging(
+                json.dumps(pr_diff.model_dump(), indent=2),
+                max_length=2000,
+            )
+            self._logger.debug(f"PR Diff (Pretty JSON, sanitized):\n{sanitized_json}")
 
         return pr_diff
 

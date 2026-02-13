@@ -223,5 +223,5 @@ class GitLabVCSRepository(VCSDiffRepositoryInterface):
         """
         import re
 
-        pattern = r"https://gitlab\.com/([^/]+)/([^/]+)/(merge_requests|tree)/(\d+)"
+        pattern = r"https://gitlab\.com/([^/]+)/([^/]+)(/-)?/(merge_requests|tree)/([a-zA-Z0-9]+)"
         return bool(re.match(pattern, url))
