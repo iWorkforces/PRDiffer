@@ -7,7 +7,7 @@ covering retry logic, circuit breaker integration, and error classification.
 import pytest
 from unittest.mock import patch
 
-from prdiffer.infrastructure.utils.retry_handler import (
+from prdiffer.infrastructure.utils.retry import (
     UnifiedRetryHandler,
     RETRY_EXCEPTIONS,
 )
@@ -112,7 +112,7 @@ class TestRetryHandlerCircuitBreaker:
 
         # Circuit breaker should be open now after reaching failure threshold
         # Check the state using the enum value
-        from prdiffer.infrastructure.utils.circuit_breaker import CircuitState
+        from prdiffer.infrastructure.utils.circuit_breaker.core import CircuitState
 
         assert (
             retry_handler_with_circuit_breaker._circuit_breaker.state
@@ -191,7 +191,7 @@ class TestRetryHandlerAsync:
             raise ConnectionError("Connection failed")
 
         with patch(
-            "prdiffer.infrastructure.utils.retry_handler.anyio.sleep", mock_sleep
+            "prdiffer.infrastructure.utils.retry.handler.anyio.sleep", mock_sleep
         ):
             with pytest.raises(ConnectionError):
                 await retry_handler.execute_with_retry_async(failing_func)

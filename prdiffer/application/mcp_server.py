@@ -18,7 +18,7 @@ from prdiffer.domain.interfaces.protocols import (
     AuthenticationProtocol,
 )
 from prdiffer.infrastructure.security.input_validator import InputValidator
-from prdiffer.infrastructure.request_coalescing import RequestCoalescingService
+from prdiffer.infrastructure.utils.coalescing import RequestCoalescingService
 
 from prdiffer.application.tool_registry import ToolRegistry
 from prdiffer.application.webhook_handler import WebhookHandler
@@ -115,7 +115,7 @@ class FastMCPServer:
 
         # Initialize request coalescing service - use injected or create default
         if request_coalescing_service is None:
-            from prdiffer.infrastructure.request_coalescing import (
+            from prdiffer.infrastructure.utils.coalescing import (
                 get_request_coalescing_service,
             )
 

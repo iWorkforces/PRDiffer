@@ -8,10 +8,12 @@ import time
 from unittest.mock import Mock
 import pytest
 
-from prdiffer.infrastructure.utils.circuit_breaker import (
+from prdiffer.infrastructure.utils.circuit_breaker.core import (
     CircuitBreaker,
     CircuitState,
     CircuitBreakerOpenException,
+)
+from prdiffer.infrastructure.utils.circuit_breaker.registry import (
     get_global_circuit_breaker_registry,
 )
 
@@ -499,11 +501,11 @@ class TestGlobalCircuitBreakerRegistry:
     def setup_method(self):
         """Reset the singleton before each test."""
         # Clear the singleton instance to get fresh state
-        import prdiffer.infrastructure.utils.circuit_breaker as cb_module
+        import prdiffer.infrastructure.utils.circuit_breaker.registry as cb_registry
 
-        cb_module._global_circuit_breaker_registry = None
-        cb_module.GlobalCircuitBreakerRegistry._instance = None
-        cb_module.GlobalCircuitBreakerRegistry._initialized = False
+        cb_registry._global_circuit_breaker_registry = None
+        cb_registry.GlobalCircuitBreakerRegistry._instance = None
+        cb_registry.GlobalCircuitBreakerRegistry._initialized = False
 
     def test_singleton_pattern(self):
         """Test that get_global_circuit_breaker_registry returns singleton."""

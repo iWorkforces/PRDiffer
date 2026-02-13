@@ -21,7 +21,7 @@ from prdiffer.domain.interfaces.protocols import (
     AuthenticationProtocol,
 )
 from prdiffer.infrastructure.security.input_validator import InputValidator
-from prdiffer.infrastructure.request_coalescing import RequestCoalescingService
+from prdiffer.infrastructure.utils.coalescing import RequestCoalescingService
 from prdiffer.application.utils.pr_url_parser import parse_pr_url
 
 from prdiffer.domain.exceptions import (
@@ -105,7 +105,7 @@ class ToolRegistry:
 
         # Initialize request coalescing service - use injected or create default
         if request_coalescing_service is None:
-            from prdiffer.infrastructure.request_coalescing import (
+            from prdiffer.infrastructure.utils.coalescing import (
                 get_request_coalescing_service,
             )
 

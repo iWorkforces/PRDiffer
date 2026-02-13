@@ -7,7 +7,7 @@ for the same resource to prevent duplicate API calls.
 import pytest
 import anyio
 
-from prdiffer.infrastructure.request_coalescing import (
+from prdiffer.infrastructure.utils.coalescing import (
     RequestCoalescingService,
     CoalescedRequest,
     DEFAULT_MAX_WAITERS,

@@ -347,7 +347,7 @@ def set_test_environment():
 def reset_singletons():
     """Reset singleton instances between tests."""
     # Reset cache services
-    import prdiffer.infrastructure.cache_service as cache_module
+    import prdiffer.infrastructure.cache.service as cache_module
 
     cache_module._cache_service = None
 
@@ -437,9 +437,7 @@ def patch_cache():
     """Context manager to patch cache service."""
 
     def _patcher():
-        return patch(
-            "prdiffer.infrastructure.cache_service.get_cache_service", autospec=True
-        )
+        return patch("prdiffer.infrastructure.cache.get_cache_service", autospec=True)
 
     return _patcher
 

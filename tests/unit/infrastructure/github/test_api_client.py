@@ -8,7 +8,7 @@ import pytest
 from unittest.mock import Mock, patch
 from collections import OrderedDict
 
-from prdiffer.infrastructure.github.api_client import (
+from prdiffer.infrastructure.github.client import (
     GitHubAPIClient,
     DEFAULT_FILE_CONTENT_CACHE_MAX_SIZE,
     DEFAULT_FILE_CONTENT_CACHE_TTL,

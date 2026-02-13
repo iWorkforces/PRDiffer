@@ -7,7 +7,7 @@ with commit-based invalidation, key hashing, and TTL support.
 import anyio
 from unittest.mock import patch
 import pytest
-from prdiffer.infrastructure.cache_service import CacheService, get_cache_service
+from prdiffer.infrastructure.cache import CacheService, get_cache_service
 from prdiffer.domain.entities.pr_diff import PRDiff
 from prdiffer.domain.entities.file_diff_response import FileDiffResponse, FileStats
 from prdiffer.domain.entities.file_patch import EDIT_TYPE
@@ -17,7 +17,7 @@ from prdiffer.domain.exceptions import ValidationError
 @pytest.fixture
 def reset_cache_service():
     """Reset the global cache service before each test."""
-    import prdiffer.infrastructure.cache_service as cache_module
+    import prdiffer.infrastructure.cache.service as cache_module
 
     cache_module._cache_service = None
     yield
@@ -520,7 +520,7 @@ class TestCacheServiceSingleton:
 
     def test_get_cache_service_creates_once(self, reset_cache_service):
         """Test that singleton is created only once."""
-        import prdiffer.infrastructure.cache_service as cache_module
+        import prdiffer.infrastructure.cache.service as cache_module
 
         service1 = get_cache_service()
         service2 = get_cache_service()

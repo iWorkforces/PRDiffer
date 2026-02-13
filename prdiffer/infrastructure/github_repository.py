@@ -25,7 +25,7 @@ from prdiffer.infrastructure.logging.exception_utils import (
 )
 from prdiffer.infrastructure.security.input_validator import InputValidator
 
-from prdiffer.infrastructure.github.api_client import get_github_api_client
+from prdiffer.infrastructure.github.client import get_github_api_client
 from prdiffer.infrastructure.github.file_processor import get_file_processor
 from prdiffer.infrastructure.github.diff_generator import get_diff_generator
 from prdiffer.infrastructure.utils.pattern_matcher import get_pattern_matcher

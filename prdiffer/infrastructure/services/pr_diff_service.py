@@ -14,7 +14,7 @@ from prdiffer.domain.services.logger import LoggerServiceInterface
 from prdiffer.domain.entities.pr_diff import PRDiff
 from prdiffer.domain.entities.file_patch import FilePatchInfo, EDIT_TYPE
 from prdiffer.domain.entities.file_diff_response import FileDiffResponse, FileStats
-from prdiffer.infrastructure.github.api_client import GitHubAPIClient
+from prdiffer.infrastructure.github.client import GitHubAPIClient
 from prdiffer.infrastructure.github.diff_generator import DiffGenerator
 from prdiffer.infrastructure.github.file_processor import FileProcessor
 from prdiffer.infrastructure.logging.console_logger import get_logger
@@ -23,7 +23,7 @@ from prdiffer.infrastructure.logging.exception_utils import (
 )
 from prdiffer.infrastructure.security.input_validator import InputValidator
 from prdiffer.infrastructure.settings import get_settings_service
-from prdiffer.infrastructure.utils.cache_decorator import (
+from prdiffer.infrastructure.cache.decorators import (
     CachingMixin,
     cached_method,
 )

@@ -13,7 +13,7 @@ from prdiffer.domain.services import GitHubAPIServiceInterface
 from prdiffer.domain.services import PatternMatchingServiceInterface
 from prdiffer.domain.services import DiffServiceInterface
 from prdiffer.infrastructure.logging.console_logger import get_logger
-from prdiffer.infrastructure.async_parallel_executor import (
+from prdiffer.infrastructure.utils.parallel import (
     AsyncParallelExecutor,
     ErrorStrategy,
 )

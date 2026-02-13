@@ -77,7 +77,7 @@ def create_mcp_server(
     )
 
     from prdiffer.infrastructure.security.input_validator import InputValidator
-    from prdiffer.infrastructure.request_coalescing import (
+    from prdiffer.infrastructure.utils.coalescing import (
         get_request_coalescing_service,
     )
 

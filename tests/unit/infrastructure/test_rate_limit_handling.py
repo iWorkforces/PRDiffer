@@ -6,7 +6,7 @@ from unittest.mock import patch
 import pytest
 from github import GithubException
 
-from prdiffer.infrastructure.utils.retry_handler import UnifiedRetryHandler
+from prdiffer.infrastructure.utils.retry import UnifiedRetryHandler
 
 
 class FakeGithubException(GithubException):
@@ -35,7 +35,7 @@ def test_retry_after_header_honored():
         return "ok"
 
     with patch(
-        "prdiffer.infrastructure.utils.retry_handler.time.sleep",
+        "prdiffer.infrastructure.utils.retry.handler.time.sleep",
         lambda delay: sleep_calls.append(delay),
     ):
         result = handler.execute_with_retry(flaky)
@@ -66,7 +66,7 @@ def test_rate_limit_reset_header_honored():
     # Patch time.time directly since it's imported locally in delay_calculator
     with patch.object(time_module, "time", return_value=1000.0):
         with patch(
-            "prdiffer.infrastructure.utils.retry_handler.time.sleep",
+            "prdiffer.infrastructure.utils.retry.handler.time.sleep",
             lambda delay: sleep_calls.append(delay),
         ):
             result = handler.execute_with_retry(flaky)
@@ -93,7 +93,7 @@ def test_secondary_rate_limit_backoff_used():
         return_value=0.0,
     ):
         with patch(
-            "prdiffer.infrastructure.utils.retry_handler.time.sleep",
+            "prdiffer.infrastructure.utils.retry.handler.time.sleep",
             lambda delay: sleep_calls.append(delay),
         ):
             with pytest.raises(FakeGithubException):
@@ -120,7 +120,7 @@ def test_missing_headers_fallback_to_backoff():
         return_value=0.0,
     ):
         with patch(
-            "prdiffer.infrastructure.utils.retry_handler.time.sleep",
+            "prdiffer.infrastructure.utils.retry.handler.time.sleep",
             lambda delay: sleep_calls.append(delay),
         ):
             result = handler.execute_with_retry(flaky)

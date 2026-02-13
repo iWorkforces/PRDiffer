@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, patch
 from collections import OrderedDict
 from github import GithubException
 
-from prdiffer.infrastructure.github.api_client import (
+from prdiffer.infrastructure.github.client import (
     GitHubAPIClient,
     get_github_api_client,
     DEFAULT_FILE_CONTENT_CACHE_MAX_SIZE,

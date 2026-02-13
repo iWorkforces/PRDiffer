@@ -1,21 +1,14 @@
-"""Async parallel execution service using anyio task groups.
+"""Async parallel executor using anyio task groups.
 
 This module provides a native async parallel executor that replaces
 ThreadPoolExecutor with anyio's structured concurrency primitives.
 """
 
-from dataclasses import dataclass, field
-from enum import Enum
-from typing import (
-    Callable,
-    Any,
-    TypeVar,
-    Awaitable,
-    Generic,
-    cast,
-)
+from typing import Callable, Any, TypeVar, Awaitable, cast
+
 import anyio
 from prdiffer.infrastructure.logging.console_logger import get_logger
+from prdiffer.infrastructure.utils.parallel.results import BatchResult, ErrorStrategy
 
 # Exceptions to catch in parallel execution
 # Note: We deliberately exclude KeyboardInterrupt, SystemExit, and GeneratorExit
@@ -49,54 +42,6 @@ OPERATIONAL_EXCEPTIONS: tuple[type[BaseException], ...] = (
 
 T = TypeVar("T")
 R = TypeVar("R")
-
-
-class ErrorStrategy(str, Enum):
-    """Error handling strategy for parallel execution."""
-
-    IGNORE = "ignore"  # Log errors, return only successful results
-    RAISE = "raise"  # Raise first exception encountered
-    COLLECT = "collect"  # Return both successful results and errors
-    CONTINUE = "continue"  # Continue processing, return detailed batch results
-
-
-@dataclass
-class BatchResult(Generic[T]):
-    """Result of a batch execution with success/failure tracking."""
-
-    successful: list[T] = field(default_factory=list)
-    failed: list[tuple[Any, Exception]] = field(default_factory=list)
-
-    @property
-    def total(self) -> int:
-        """Total number of items processed."""
-        return len(self.successful) + len(self.failed)
-
-    @property
-    def success_count(self) -> int:
-        """Number of successful items."""
-        return len(self.successful)
-
-    @property
-    def failure_count(self) -> int:
-        """Number of failed items."""
-        return len(self.failed)
-
-    @property
-    def success_rate(self) -> float:
-        """Success rate as a percentage."""
-        if self.total == 0:
-            return 100.0
-        return (self.success_count / self.total) * 100
-
-    @property
-    def all_succeeded(self) -> bool:
-        """Check if all items succeeded."""
-        return len(self.failed) == 0
-
-    def get_errors(self) -> list[Exception]:
-        """Get list of all exceptions."""
-        return [error for _, error in self.failed]
 
 
 class AsyncParallelExecutor:

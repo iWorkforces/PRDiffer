@@ -17,11 +17,11 @@ from unittest.mock import Mock, patch
 
 # Import components to test
 from prdiffer.infrastructure.security.input_validator import InputValidator
-from prdiffer.infrastructure.utils.circuit_breaker import (
+from prdiffer.infrastructure.utils.circuit_breaker.core import (
     CircuitBreaker,
     CircuitState,
 )
-from prdiffer.infrastructure.utils.retry_handler import RetryHandler
+from prdiffer.infrastructure.utils.retry import RetryHandler
 from prdiffer.domain.entities.pr_diff import PRDiff
 
 
@@ -41,7 +41,7 @@ class TestLRUCacheEviction:
     @patch("prdiffer.infrastructure.github.api_client.get_logger")
     def test_cache_eviction_when_max_size_reached(self, mock_get_logger):
         """Test that oldest entries are evicted when cache reaches max size."""
-        from prdiffer.infrastructure.github.api_client import GitHubAPIClient
+        from prdiffer.infrastructure.github.client import GitHubAPIClient
 
         mock_get_logger.return_value = Mock()
 
@@ -71,7 +71,7 @@ class TestLRUCacheEviction:
     @patch("prdiffer.infrastructure.github.api_client.get_logger")
     def test_cache_lru_ordering(self, mock_get_logger):
         """Test that accessing an entry moves it to the end (most recently used)."""
-        from prdiffer.infrastructure.github.api_client import GitHubAPIClient
+        from prdiffer.infrastructure.github.client import GitHubAPIClient
 
         mock_get_logger.return_value = Mock()
 
@@ -101,7 +101,7 @@ class TestLRUCacheEviction:
     @patch("prdiffer.infrastructure.github.api_client.get_logger")
     def test_cache_statistics_tracking(self, mock_get_logger):
         """Test that cache hits, misses, and evictions are tracked."""
-        from prdiffer.infrastructure.github.api_client import GitHubAPIClient
+        from prdiffer.infrastructure.github.client import GitHubAPIClient
 
         mock_get_logger.return_value = Mock()
 
@@ -157,7 +157,7 @@ class TestTTLExpiration:
         self, mock_get_settings, sample_pr_diff
     ):
         """Test that entries are valid within TTL."""
-        from prdiffer.infrastructure.cache_service import CacheService
+        from prdiffer.infrastructure.cache import CacheService
 
         mock_settings = Mock()
         mock_settings.get.side_effect = lambda key, default: {
@@ -180,7 +180,7 @@ class TestTTLExpiration:
     @pytest.mark.asyncio
     async def test_entry_expired_after_ttl(self, mock_get_settings, sample_pr_diff):
         """Test that entries expire after TTL."""
-        from prdiffer.infrastructure.cache_service import CacheService
+        from prdiffer.infrastructure.cache import CacheService
 
         mock_settings = Mock()
         mock_settings.get.side_effect = lambda key, default: {
@@ -206,7 +206,7 @@ class TestTTLExpiration:
     @pytest.mark.asyncio
     async def test_expiration_statistics(self, mock_get_settings, sample_pr_diff):
         """Test that expiration statistics are tracked."""
-        from prdiffer.infrastructure.cache_service import CacheService
+        from prdiffer.infrastructure.cache import CacheService
 
         mock_settings = Mock()
         mock_settings.get.side_effect = lambda key, default: {

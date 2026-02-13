@@ -1,11 +1,11 @@
 """Infrastructure layer module for external integrations and implementations."""
 
-from prdiffer.infrastructure.cache_service import get_cache_service
+from prdiffer.infrastructure.cache import get_cache_service
 from prdiffer.infrastructure.github_repository import (
     GitHubPRDiffRepository,
     get_github_repository,
 )
-from prdiffer.infrastructure.repository_cache_service import (
+from prdiffer.infrastructure.cache.repository import (
     get_repository_cache_service,
 )
 from prdiffer.infrastructure.settings import get_settings_service

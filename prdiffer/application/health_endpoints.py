@@ -14,7 +14,7 @@ from prdiffer.domain.interfaces.protocols import (
     HealthMonitorProtocol,
     AuthenticationProtocol,
 )
-from prdiffer.infrastructure.request_coalescing import RequestCoalescingService
+from prdiffer.infrastructure.utils.coalescing import RequestCoalescingService
 
 
 class HealthEndpoints:

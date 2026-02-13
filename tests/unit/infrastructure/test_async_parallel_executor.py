@@ -8,7 +8,7 @@ import pytest
 import asyncio
 from unittest.mock import Mock, AsyncMock
 
-from prdiffer.infrastructure.async_parallel_executor import (
+from prdiffer.infrastructure.utils.parallel import (
     AsyncParallelExecutor,
     BatchResult,
     ErrorStrategy,
@@ -602,7 +602,7 @@ class TestFactoryFunctions:
     def test_get_async_parallel_executor_singleton(self):
         """Test get_async_parallel_executor returns singleton."""
         # Reset the global singleton
-        import prdiffer.infrastructure.async_parallel_executor as executor_module
+        import prdiffer.infrastructure.utils.parallel.executor as executor_module
 
         executor_module._async_parallel_executor = None
 

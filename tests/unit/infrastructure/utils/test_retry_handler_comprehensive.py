@@ -4,13 +4,13 @@ import pytest
 import time
 from unittest.mock import Mock, patch
 
-from prdiffer.infrastructure.utils.retry_handler import (
+from prdiffer.infrastructure.utils.retry import (
     UnifiedRetryHandler,
     OperationContext,
     get_retry_handler,
     get_advanced_retry_handler,
 )
-from prdiffer.infrastructure.utils.circuit_breaker import CircuitState
+from prdiffer.infrastructure.utils.circuit_breaker.core import CircuitState
 from prdiffer.infrastructure.utils.rate_limit_parser import RateLimitInfo
 
 
@@ -405,7 +405,7 @@ class TestAsyncRetryHandler:
             return "success"
 
         with patch(
-            "prdiffer.infrastructure.utils.retry_handler.anyio.sleep"
+            "prdiffer.infrastructure.utils.retry.handler.anyio.sleep"
         ) as mock_sleep:
             mock_sleep.return_value = None
             result = await handler.execute_with_retry_async(transient_failure)
