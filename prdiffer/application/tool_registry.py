@@ -420,7 +420,7 @@ class ToolRegistry:
     def register_tools(self, mcp):
         """Register FastMCP tools with the server instance.
 
-        This method registers the get_pr_diff and approve_pr tools.
+        This method registers the get_pr_diff, approve_pr, and describe_pr tools.
 
         Args:
             mcp: The FastMCP server instance
@@ -559,6 +559,90 @@ class ToolRegistry:
                 self._metrics_tracker.track_request("approve_pr", True, execution_time)
 
                 self._logger.info(f"Successfully approved PR\n{result}")
+                return result
+
+            except (
+                InvalidURLError,
+                InvalidRepositoryError,
+                InvalidPRNumberError,
+                InputSanitizationError,
+                SuspiciousOperationError,
+            ) as e:
+                self._handle_security_exception(e, start_time, request_id, pr_url)
+
+            except ValueError as e:
+                self._handle_validation_exception(e, start_time, request_id, pr_url)
+
+            except (
+                RuntimeError,
+                KeyError,
+                AttributeError,
+                TypeError,
+                ConnectionError,
+            ) as e:
+                self._handle_runtime_exception(e, start_time, request_id, pr_url)
+
+        @mcp.tool()
+        async def describe_pr(
+            pr_url: str, pr_description: str, api_key: str | None = None
+        ) -> str:
+            """Update a GitHub PR description/body.
+
+            This method updates the description of a pull request with the provided text.
+
+            Args:
+                pr_url: The full GitHub PR URL (e.g., https://github.com/owner/repo/pull/123)
+                pr_description: The new description text to set on the PR
+                api_key: Optional API key for authentication (required if authentication is enabled)
+
+            Returns:
+                str: Success message indicating PR description was updated
+
+            Raises:
+                ValueError: If authentication fails, URL is invalid, or description is missing
+                RuntimeError: If rate limit is exceeded or API request fails
+            """
+            request_id = self._generate_request_id()
+            start_time = time.time()
+
+            self._logger.info(
+                "Processing describe_pr request",
+                request_id=request_id,
+                pr_url=pr_url[:100],
+            )
+
+            client_id = await self._authenticate_request(
+                request_id, start_time, api_key
+            )
+
+            rate_limit_client_id = client_id or "anonymous"
+
+            try:
+                self._check_rate_limit(rate_limit_client_id)
+
+                repo_owner, repo_name, pr_number = (
+                    self._input_validator.validate_github_url(pr_url)
+                )
+
+                repository = self._github_repository_class(
+                    repo_owner, repo_name, pr_number
+                )
+
+                if not pr_description or not isinstance(pr_description, str):
+                    raise ValidationError(
+                        "PR description must be a non-empty string",
+                        error_code=E1001_INVALID_URL,
+                    )
+
+                result = await repository.update_pr_description(
+                    pr_url=pr_url,
+                    description=pr_description,
+                )
+
+                execution_time = time.time() - start_time
+                self._metrics_tracker.track_request("describe_pr", True, execution_time)
+
+                self._logger.info(f"Successfully updated PR description\n{result}")
                 return result
 
             except (

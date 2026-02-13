@@ -92,6 +92,25 @@ class GitHubVCSRepository(PRDiffRepositoryInterface):
         """
         return await self._inner_repo.approve_pr_with_comment(pr_url, compliment)
 
+    async def update_pr_description(self, pr_url: str, description: str) -> str:
+        """Update a GitHub PR description/body.
+
+        This method delegates to the inner repository to update the PR description.
+
+        Args:
+            pr_url: The full GitHub PR URL
+            description: The new description text to set on the PR
+
+        Returns:
+            str: Success message indicating PR description was updated
+
+        Raises:
+            InvalidURLError: If PR URL format is invalid
+            RuntimeError: If GitHub objects failed to initialize
+            GithubException: If PR update fails
+        """
+        return await self._inner_repo.update_pr_description(pr_url, description)
+
     def supports_repository(self, url: str) -> bool:
         """Check if URL belongs to GitHub.
 

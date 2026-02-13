@@ -489,6 +489,102 @@ class TestGitHubPRDiffRepositoryApprovePR:
             )
 
 
+class TestGitHubPRDiffRepositoryUpdatePRDescription:
+    """Tests for update_pr_description method."""
+
+    @pytest.mark.asyncio
+    async def test_update_pr_description_success(self, repository):
+        """Test updating PR description successfully."""
+        mock_repo = Mock()
+        mock_pr = Mock()
+
+        repository._mock_api_client._get_pygithub_repository.return_value = mock_repo
+        repository._mock_api_client._get_pygithub_pull_request.return_value = mock_pr
+
+        result = await repository.update_pr_description(
+            "https://github.com/owner/repo/pull/123", "New description text"
+        )
+
+        assert "Successfully updated description" in result
+        mock_pr.edit.assert_called_once_with(body="New description text")
+
+    @pytest.mark.asyncio
+    async def test_update_pr_description_empty_description(self, repository):
+        """Test updating PR description with empty description fails."""
+        with pytest.raises(ValueError, match="Description cannot be empty"):
+            await repository.update_pr_description(
+                "https://github.com/owner/repo/pull/123", ""
+            )
+
+    @pytest.mark.asyncio
+    async def test_update_pr_description_non_string_description(self, repository):
+        """Test updating PR description with non-string description fails."""
+        with pytest.raises(ValueError, match="Description must be a string"):
+            await repository.update_pr_description(
+                "https://github.com/owner/repo/pull/123", 123
+            )
+
+    @pytest.mark.asyncio
+    async def test_update_pr_description_404_error(self, repository):
+        """Test updating PR description handles 404 error."""
+        mock_repo = Mock()
+        mock_pr = Mock()
+        mock_pr.edit.side_effect = GithubException(404, "Not found")
+
+        repository._mock_api_client._get_pygithub_repository.return_value = mock_repo
+        repository._mock_api_client._get_pygithub_pull_request.return_value = mock_pr
+
+        with pytest.raises(RuntimeError, match="not found"):
+            await repository.update_pr_description(
+                "https://github.com/owner/repo/pull/123", "New description"
+            )
+
+    @pytest.mark.asyncio
+    async def test_update_pr_description_403_error(self, repository):
+        """Test updating PR description handles 403 forbidden error."""
+        mock_repo = Mock()
+        mock_pr = Mock()
+        mock_pr.edit.side_effect = GithubException(403, "Forbidden")
+
+        repository._mock_api_client._get_pygithub_repository.return_value = mock_repo
+        repository._mock_api_client._get_pygithub_pull_request.return_value = mock_pr
+
+        with pytest.raises(RuntimeError, match="Insufficient permissions"):
+            await repository.update_pr_description(
+                "https://github.com/owner/repo/pull/123", "New description"
+            )
+
+    @pytest.mark.asyncio
+    async def test_update_pr_description_rate_limit_error(self, repository):
+        """Test updating PR description handles rate limit error."""
+        mock_repo = Mock()
+        mock_pr = Mock()
+        mock_pr.edit.side_effect = GithubException(429, "Rate limit exceeded")
+
+        repository._mock_api_client._get_pygithub_repository.return_value = mock_repo
+        repository._mock_api_client._get_pygithub_pull_request.return_value = mock_pr
+
+        with pytest.raises(RuntimeError, match="rate limit exceeded"):
+            await repository.update_pr_description(
+                "https://github.com/owner/repo/pull/123", "New description"
+            )
+
+    @pytest.mark.asyncio
+    async def test_update_pr_description_generic_error(self, repository):
+        """Test updating PR description handles generic GitHub error."""
+        mock_repo = Mock()
+        mock_pr = Mock()
+        mock_pr.edit.side_effect = GithubException(500, "Server error")
+
+        repository._mock_api_client._get_pygithub_repository.return_value = mock_repo
+        repository._mock_api_client._get_pygithub_pull_request.return_value = mock_pr
+
+        with pytest.raises(RuntimeError, match="GitHub API error"):
+            await repository.update_pr_description(
+                "https://github.com/owner/repo/pull/123", "New description"
+            )
+
+
 class TestGitHubPRDiffRepositoryGetMergeBaseCommits:
     """Tests for _get_merge_base_commits method."""
 

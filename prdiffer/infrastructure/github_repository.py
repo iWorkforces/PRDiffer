@@ -493,6 +493,134 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
                 f"GitHub API error while approving PR #{pr_number}"
             ) from e
 
+    async def update_pr_description(self, pr_url: str, description: str) -> str:
+        """Update a GitHub PR description/body.
+
+        This method:
+        1. Parses the PR URL to extract owner, repo, and PR number
+        2. Validates PR exists and is accessible
+        3. Calls pr.edit(body=description) to update the description
+        4. Returns success message or raises exceptions loudly on failures
+
+        Args:
+            pr_url: The full GitHub PR URL (e.g., https://github.com/owner/repo/pull/123)
+            description: The new description text to set on the PR
+
+        Returns:
+            str: Success message indicating PR description was updated
+
+        Raises:
+            InvalidURLError: If PR URL format is invalid
+            RuntimeError: If GitHub objects failed to initialize
+            GithubException: If PR update fails (404, 403, rate limit, etc.)
+        """
+        # Validate inputs
+        if not description:
+            raise ValueError("Description cannot be empty")
+
+        if not isinstance(description, str):
+            raise ValueError(
+                f"Description must be a string, got {type(description).__name__}"
+            )
+
+        # Sanitize description for logging
+        safe_description = self._input_validator.sanitize_for_logging(
+            description, max_length=500
+        )
+
+        # Parse PR URL to get components
+        repo_owner, repo_name, pr_number = self._input_validator.validate_github_url(
+            pr_url
+        )
+
+        # Check if parsed components match current instance
+        if repo_owner != self._repo_owner or repo_name != self._repo_name:
+            self._logger.warning(
+                f"PR URL components do not match repository instance: "
+                f"expected {self._repo_owner}/{self._repo_name}, got {repo_owner}/{repo_name}",
+                pr_url=pr_url[:100],
+            )
+
+        if pr_number != self._pr_number:
+            self._logger.warning(
+                f"PR number does not match repository instance: "
+                f"expected {self._pr_number}, got {pr_number}",
+                pr_url=pr_url[:100],
+            )
+
+        self._logger.info(
+            f"Updating description for PR #{pr_number} in {repo_owner}/{repo_name}",
+            pr_number=pr_number,
+            repo=repo_name,
+            owner=repo_owner,
+            description_preview=safe_description,
+        )
+
+        # Initialize GitHub objects if not already initialized
+        self._initialize_github_objects()
+
+        # Verify PR exists and is accessible
+        if self._pull_request is None:
+            raise RuntimeError(
+                f"Failed to access pull request #{pr_number} "
+                f"in repository {repo_owner}/{repo_name} - "
+                "pull request may not exist or be inaccessible"
+            )
+
+        try:
+            # Call edit() with body parameter to update PR description
+            self._pull_request.edit(body=description)
+
+            self._logger.info(
+                f"Successfully updated description for PR #{pr_number}",
+                pr_number=pr_number,
+            )
+
+            return f"Successfully updated description for PR #{pr_number} in {repo_owner}/{repo_name}"
+
+        except GithubException as e:
+            sanitized = sanitize_exception_for_logging(e)
+
+            if "404" in str(e).lower() or "not found" in str(e).lower():
+                self._logger.error(
+                    f"Pull request #{pr_number} not found in {repo_owner}/{repo_name}",
+                    extra=sanitized,
+                    pr_number=pr_number,
+                )
+                raise RuntimeError(
+                    f"Pull request #{pr_number} not found in repository {repo_owner}/{repo_name}"
+                ) from e
+
+            if "403" in str(e).lower() or "forbidden" in str(e).lower():
+                self._logger.error(
+                    f"Permission denied for PR #{pr_number} - insufficient permissions",
+                    extra=sanitized,
+                    pr_number=pr_number,
+                )
+                raise RuntimeError(
+                    f"Insufficient permissions to update PR #{pr_number} - "
+                    "ensure token has 'repo' scope and write access"
+                ) from e
+
+            if "429" in str(e).lower() or "rate limit" in str(e).lower():
+                self._logger.warning(
+                    f"GitHub API rate limit exceeded while updating PR #{pr_number}",
+                    extra=sanitized,
+                    pr_number=pr_number,
+                )
+                raise RuntimeError(
+                    "GitHub API rate limit exceeded - please retry later"
+                ) from e
+
+            self._logger.error(
+                f"GitHub API error while updating description for PR #{pr_number}",
+                extra=sanitized,
+                pr_number=pr_number,
+            )
+            raise RuntimeError(
+                f"GitHub API error while updating description for PR #{pr_number}"
+            ) from e
+
     def _get_latest_commit_sha_sync(self) -> str:
         self._initialize_github_objects()
 
