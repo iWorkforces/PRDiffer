@@ -1,7 +1,6 @@
 """API health tracking for adaptive retry strategies."""
 
 import time
-from typing import Optional
 from dataclasses import dataclass
 from collections import deque
 from prdiffer.infrastructure.logging.console_logger import get_logger
@@ -14,7 +13,7 @@ class APICall:
     timestamp: float
     duration: float
     success: bool
-    error_type: Optional[str] = None
+    error_type: str | None = None
 
 
 class APIHealthTracker:
@@ -46,10 +45,10 @@ class APIHealthTracker:
 
         # Health metrics cache
         self._last_health_check = 0.0
-        self._cached_health_score: Optional[float] = None
+        self._cached_health_score: float | None = None
 
     def record_call(
-        self, duration: float, success: bool, error_type: Optional[str] = None
+        self, duration: float, success: bool, error_type: str | None = None
     ):
         """Record an API call for health tracking.
 

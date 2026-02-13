@@ -61,9 +61,9 @@ class TestAuthenticationMiddlewareInitialization:
         auth = AuthenticationMiddleware()
 
         assert auth.get_configured_api_keys_count() == 3
-        assert "key1" in auth._api_keys
-        assert "key2" in auth._api_keys
-        assert "key3" in auth._api_keys
+        assert auth._hash_api_key("key1") in auth._hashed_api_keys
+        assert auth._hash_api_key("key2") in auth._hashed_api_keys
+        assert auth._hash_api_key("key3") in auth._hashed_api_keys
 
     @patch.dict(
         os.environ, {"MCP_AUTH_ENABLED": "true", "MCP_API_KEYS": "key1 , key2 , key3 "}
@@ -73,9 +73,9 @@ class TestAuthenticationMiddlewareInitialization:
         auth = AuthenticationMiddleware()
 
         assert auth.get_configured_api_keys_count() == 3
-        assert "key1" in auth._api_keys
-        assert "key2" in auth._api_keys
-        assert "key3" in auth._api_keys
+        assert auth._hash_api_key("key1") in auth._hashed_api_keys
+        assert auth._hash_api_key("key2") in auth._hashed_api_keys
+        assert auth._hash_api_key("key3") in auth._hashed_api_keys
 
     @patch.dict(os.environ, {"MCP_AUTH_ENABLED": "true", "MCP_API_KEYS": ""})
     def test_authentication_empty_api_keys(self):
@@ -415,7 +415,7 @@ class TestAuthenticationMiddlewareAddApiKey:
         result = auth.add_api_key("new_key_12345678")
 
         assert result is True
-        assert "new_key_12345678" in auth._api_keys
+        assert auth._hash_api_key("new_key_12345678") in auth._hashed_api_keys
 
     @patch.dict(os.environ, {"MCP_AUTH_ENABLED": "false"})
     def test_add_api_key_invalid_format(self):
@@ -449,7 +449,7 @@ class TestAuthenticationMiddlewareRemoveApiKey:
         result = auth.remove_api_key("test_key_12345678")
 
         assert result is True
-        assert "test_key_12345678" not in auth._api_keys
+        assert auth._hash_api_key("test_key_12345678") not in auth._hashed_api_keys
 
     @patch.dict(os.environ, {"MCP_AUTH_ENABLED": "false"})
     def test_remove_api_key_nonexistent(self):

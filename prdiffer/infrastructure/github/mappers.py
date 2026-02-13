@@ -5,7 +5,6 @@ to our pure domain entities. This maintains Clean Architecture by keeping
 PyGithub dependencies in the infrastructure layer only.
 """
 
-from typing import Optional
 from github.Repository import Repository as PyGithubRepository
 from github.PullRequest import PullRequest as PyGithubPullRequest
 from prdiffer.domain.entities import Repository, PullRequest, PRState
@@ -54,20 +53,20 @@ def map_pygithub_pr_to_domain(
         state = PRState.OPEN
 
     # Extract author username (handle None case)
-    author: Optional[str] = None
+    author: str | None = None
     if gh_pr.user:
         author = gh_pr.user.login
 
     # Format timestamps as ISO 8601 strings (handle None case)
-    created_at: Optional[str] = None
+    created_at: str | None = None
     if gh_pr.created_at:
         created_at = gh_pr.created_at.isoformat()
 
-    updated_at: Optional[str] = None
+    updated_at: str | None = None
     if gh_pr.updated_at:
         updated_at = gh_pr.updated_at.isoformat()
 
-    merged_at: Optional[str] = None
+    merged_at: str | None = None
     if gh_pr.merged_at:
         merged_at = gh_pr.merged_at.isoformat()
 

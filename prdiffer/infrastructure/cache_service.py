@@ -2,7 +2,7 @@ import hashlib
 import time
 import anyio
 from collections import OrderedDict
-from typing import Optional, Any, cast
+from typing import Any, cast
 from prdiffer.domain.entities.pr_diff import PRDiff
 from prdiffer.domain.services import CacheServiceInterface
 from prdiffer.domain.exceptions import ValidationError
@@ -208,7 +208,7 @@ class CacheService(CacheServiceInterface):
                 f"[size={len(self.cache)}/{self._cache_max_size}]"
             )
 
-    async def get(self, cache_key: str, current_commit_sha: str) -> Optional[PRDiff]:
+    async def get(self, cache_key: str, current_commit_sha: str) -> PRDiff | None:
         """Get cached PR diff data if it exists, commit SHA matches, and not expired.
 
         Thread-safe: All cache operations protected by lock.
@@ -370,7 +370,7 @@ class CacheService(CacheServiceInterface):
             cache_entry["etag"] = etag
             cache_entry["timestamp"] = time.time()
 
-    def get_etag(self, cache_key: str) -> Optional[str]:
+    def get_etag(self, cache_key: str) -> str | None:
         """Get stored ETag for a cache key."""
         cache_entry = self.cache.get(cache_key)
         if cache_entry is None:
@@ -402,7 +402,7 @@ class CacheService(CacheServiceInterface):
 
 
 # Global cache service instance
-_cache_service: Optional[CacheService] = None
+_cache_service: CacheService | None = None
 
 
 def get_cache_service() -> CacheService:

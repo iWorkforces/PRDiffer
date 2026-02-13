@@ -375,7 +375,7 @@ class TestGitHubPRDiffRepositoryGetPRDiff:
         result = await repository.get_pr_diff()
 
         assert isinstance(result, PRDiff)
-        assert isinstance(result.files, list)
+        assert isinstance(result.files, tuple)
 
     @pytest.mark.asyncio
     async def test_get_pr_diff_not_initialized(self, repository):

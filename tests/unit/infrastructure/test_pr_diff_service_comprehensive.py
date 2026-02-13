@@ -64,14 +64,14 @@ def sample_file_patch():
 def sample_pr_diff(sample_file_patch):
     """Create sample PRDiff."""
     return PRDiff(
-        files=[
+        files=(
             FileDiffResponse(
                 path="src/test.py",
                 status=EDIT_TYPE.MODIFIED,
                 stats=FileStats(additions=5, deletions=3),
                 diff="test diff",
-            )
-        ]
+            ),
+        )
     )
 
 

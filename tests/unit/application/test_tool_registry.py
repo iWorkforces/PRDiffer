@@ -128,14 +128,14 @@ def tool_registry(
 def sample_pr_diff():
     """Create sample PRDiff."""
     return PRDiff(
-        files=[
+        files=(
             FileDiffResponse(
                 path="src/test.py",
                 status=EDIT_TYPE.MODIFIED,
                 stats=FileStats(additions=10, deletions=5),
                 diff="test diff",
-            )
-        ]
+            ),
+        )
     )
 
 

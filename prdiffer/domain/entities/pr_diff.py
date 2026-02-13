@@ -1,9 +1,10 @@
-from pydantic import BaseModel, Field
+from dataclasses import dataclass, field
 
 from prdiffer.domain.entities.file_diff_response import FileDiffResponse
 
 
-class PRDiff(BaseModel):
+@dataclass(frozen=True)
+class PRDiff:
     """Domain entity representing a pull request diff content.
 
     This entity contains structured file-level diff information for PR analysis.
@@ -13,6 +14,4 @@ class PRDiff(BaseModel):
     - list[FilePatchInfo] → list[FileDiffResponse] (with mapping)
     """
 
-    files: list[FileDiffResponse] = Field(
-        default_factory=list, description="Array of file-level diff responses"
-    )
+    files: tuple[FileDiffResponse, ...] = field(default_factory=tuple)

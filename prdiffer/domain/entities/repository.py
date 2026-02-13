@@ -1,7 +1,6 @@
 """Domain entity for VCS Repository (pure, no external dependencies)."""
 
 from dataclasses import dataclass
-from typing import Optional
 
 
 @dataclass
@@ -25,14 +24,14 @@ class Repository:
     default_branch: str
     """Default branch name (e.g., 'main', 'master')"""
 
-    description: Optional[str] = None
+    description: str | None = None
     """Repository description"""
 
     is_private: bool = False
     """Whether the repository is private"""
 
-    clone_url: Optional[str] = None
+    clone_url: str | None = None
     """URL for cloning the repository"""
 
-    html_url: Optional[str] = None
+    html_url: str | None = None
     """Web URL for the repository"""

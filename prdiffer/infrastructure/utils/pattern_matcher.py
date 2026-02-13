@@ -1,7 +1,6 @@
 """Pattern matching utility for file filtering and validation."""
 
 import re
-from typing import Optional, Union
 from prdiffer.domain.services import PatternMatchingServiceInterface
 
 
@@ -14,7 +13,7 @@ class PatternMatcher(PatternMatchingServiceInterface):
     """
 
     def __init__(
-        self, ignore_patterns: list[str], valid_extensions: Optional[list[str]] = None
+        self, ignore_patterns: list[str], valid_extensions: list[str] | None = None
     ):
         """Initialize the pattern matcher with configuration.
 
@@ -28,7 +27,7 @@ class PatternMatcher(PatternMatchingServiceInterface):
 
     def _compile_patterns(
         self, patterns: list[str]
-    ) -> list[tuple[str, Union[str, re.Pattern]]]:
+    ) -> list[tuple[str, str | re.Pattern]]:
         """Pre-compile regex patterns for efficient matching.
 
         Args:
@@ -39,7 +38,7 @@ class PatternMatcher(PatternMatchingServiceInterface):
             - pattern_type: 'regex' for compiled regex, 'string' for string patterns
             - pattern: The compiled regex or original string pattern
         """
-        compiled: list[tuple[str, Union[str, re.Pattern]]] = []
+        compiled: list[tuple[str, str | re.Pattern]] = []
         for pattern in patterns:
             if "*" in pattern and not pattern.startswith("*."):
                 # Convert wildcard pattern to regex
@@ -159,7 +158,7 @@ class PatternMatcher(PatternMatchingServiceInterface):
 
 
 def get_pattern_matcher(
-    ignore_patterns: list[str], valid_extensions: Optional[list[str]] = None
+    ignore_patterns: list[str], valid_extensions: list[str] | None = None
 ) -> PatternMatcher:
     """Get a configured pattern matcher instance.
 

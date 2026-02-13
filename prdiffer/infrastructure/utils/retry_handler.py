@@ -12,12 +12,12 @@ Common logic is extracted to BaseUnifiedRetryHandler to avoid code duplication.
 
 import time
 from abc import abstractmethod
-from typing import Any, Callable, Optional, Dict, Coroutine, TypeVar, Tuple
+from typing import Any, Callable, Coroutine, TypeVar
 
 import anyio
 
 from enum import StrEnum
-from typing import Type, cast
+from typing import cast
 
 from prdiffer.domain.services import RetryServiceInterface
 from prdiffer.infrastructure.utils.logger_factory import LazyLoggerMixin
@@ -49,7 +49,7 @@ T = TypeVar("T")
 try:  # pragma: no cover - optional dependency for type narrowing
     from github import GithubException as PyGithubException
 except Exception:  # pragma: no cover - fallback when PyGithub isn't available
-    PyGithubException: Optional[Type[BaseException]] = None
+    PyGithubException: type[BaseException] | None = None
 
 
 # Exceptions to catch in retry operations.
@@ -58,7 +58,7 @@ except Exception:  # pragma: no cover - fallback when PyGithub isn't available
 # bugs that should propagate immediately for detection and fixing.
 # Note: We deliberately exclude KeyboardInterrupt, SystemExit, and GeneratorExit
 # to allow system-level exceptions to propagate for proper shutdown/cleanup.
-RETRY_EXCEPTIONS: Tuple[Type[BaseException], ...] = (
+RETRY_EXCEPTIONS: tuple[type[BaseException], ...] = (
     # Network and timeout exceptions (transient)
     TimeoutError,
     ConnectionError,
@@ -174,8 +174,8 @@ class BaseUnifiedRetryHandler(LazyLoggerMixin, RetryServiceInterface):
         self.secondary_rate_limit_backoff = secondary_rate_limit_backoff
 
         # Initialize advanced components if enabled
-        self._circuit_breaker: Optional[Any] = None
-        self._health_tracker: Optional[Any] = None
+        self._circuit_breaker: Any | None = None
+        self._health_tracker: Any | None = None
 
         if self.circuit_breaker_enabled:
             from prdiffer.infrastructure.utils.circuit_breaker import CircuitBreaker
@@ -194,7 +194,7 @@ class BaseUnifiedRetryHandler(LazyLoggerMixin, RetryServiceInterface):
             self._health_tracker = APIHealthTracker(logger=self._get_logger())
 
         # Context-specific retry configurations
-        self._context_configs: Dict[OperationContext, Dict] = {}
+        self._context_configs: dict[OperationContext, dict] = {}
         if self.context_aware_retry:
             self._context_configs = {
                 OperationContext.REPOSITORY_ACCESS: {
@@ -223,8 +223,8 @@ class BaseUnifiedRetryHandler(LazyLoggerMixin, RetryServiceInterface):
     def _execute_and_sleep(
         self,
         func: Callable,
-        args: Tuple,
-        kwargs: Dict,
+        args: tuple,
+        kwargs: dict,
         delay: float,
     ) -> Any:
         """Execute function and sleep before next retry.
@@ -245,9 +245,9 @@ class BaseUnifiedRetryHandler(LazyLoggerMixin, RetryServiceInterface):
     def _execute_with_retry_base(
         self,
         func: Callable,
-        args: Tuple,
-        kwargs: Dict,
-        context: Optional[OperationContext] = None,
+        args: tuple,
+        kwargs: dict,
+        context: OperationContext | None = None,
     ) -> Any:
         """Base retry logic shared by sync and async handlers.
 
@@ -354,7 +354,7 @@ class BaseUnifiedRetryHandler(LazyLoggerMixin, RetryServiceInterface):
         if last_exception:
             raise last_exception
 
-    def _get_context_config(self, context: Optional[OperationContext]) -> Dict:
+    def _get_context_config(self, context: OperationContext | None) -> dict:
         """Get configuration for specific operation context.
 
         Args:
@@ -374,7 +374,7 @@ class BaseUnifiedRetryHandler(LazyLoggerMixin, RetryServiceInterface):
         }
 
     def _should_retry_error(
-        self, error: Exception, context: Optional[OperationContext] = None
+        self, error: Exception, context: OperationContext | None = None
     ) -> bool:
         """Determine if an error should be retried based on configuration.
 
@@ -430,7 +430,7 @@ class BaseUnifiedRetryHandler(LazyLoggerMixin, RetryServiceInterface):
         base_delay: float,
         backoff_multiplier: float,
         use_adaptive: bool,
-        rate_limit_info: Optional[RateLimitInfo],
+        rate_limit_info: RateLimitInfo | None,
         is_secondary_rate_limit: bool,
     ) -> float:
         """Calculate retry delay based on error type and configuration.
@@ -493,8 +493,8 @@ class BaseUnifiedRetryHandler(LazyLoggerMixin, RetryServiceInterface):
         attempt: int,
         delay: float,
         error: Exception,
-        context: Optional[OperationContext] = None,
-        rate_limit_info: Optional[RateLimitInfo] = None,
+        context: OperationContext | None = None,
+        rate_limit_info: RateLimitInfo | None = None,
         is_secondary_rate_limit: bool = False,
     ):
         """Log retry attempt information at configured level.
@@ -613,13 +613,13 @@ class BaseUnifiedRetryHandler(LazyLoggerMixin, RetryServiceInterface):
             # Fallback to INFO for unknown levels
             logger.info(message)
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """Get comprehensive retry handler statistics (only for advanced features).
 
         Returns:
             dict: Statistics including circuit breaker and health tracker info
         """
-        stats: Dict[str, Any] = {
+        stats: dict[str, Any] = {
             "circuit_breaker_enabled": self.circuit_breaker_enabled,
             "adaptive_retry_enabled": self.adaptive_retry_enabled,
             "api_health_tracking": self.api_health_tracking,
@@ -646,8 +646,8 @@ class UnifiedRetryHandler(BaseUnifiedRetryHandler):
     def _execute_and_sleep(
         self,
         func: Callable,
-        args: Tuple,
-        kwargs: Dict,
+        args: tuple,
+        kwargs: dict,
         delay: float,
     ) -> Any:
         """Execute function and sleep (blocking).
@@ -673,7 +673,7 @@ class UnifiedRetryHandler(BaseUnifiedRetryHandler):
         self,
         func: Callable,
         *args,
-        context: Optional[OperationContext] = None,
+        context: OperationContext | None = None,
         **kwargs,
     ) -> Any:
         """Execute a function with retry logic and exponential backoff.
@@ -697,7 +697,7 @@ class UnifiedRetryHandler(BaseUnifiedRetryHandler):
         self,
         func: Callable[..., Coroutine[Any, Any, T]],
         *args,
-        context: Optional[OperationContext] = None,
+        context: OperationContext | None = None,
         **kwargs,
     ) -> T:
         """Execute an async function with retry logic and exponential backoff (non-blocking).
@@ -732,7 +732,7 @@ class UnifiedRetryHandler(BaseUnifiedRetryHandler):
         base_delay = config["retry_delay"]
         backoff_multiplier = config.get("backoff_multiplier", 2.0)
 
-        last_exception: Optional[Exception] = None
+        last_exception: Exception | None = None
         start_time = time.time() if self._health_tracker else None
 
         for attempt in range(max_retries):

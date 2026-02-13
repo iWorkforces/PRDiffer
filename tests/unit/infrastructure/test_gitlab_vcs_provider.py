@@ -58,8 +58,8 @@ class TestGitLabVCSRepository:
             mock_httpx.AsyncClient.return_value = mock_gitlab_client()
             await provider.initialize()
             diff = await provider.get_pr_diff("owner", "repo", 123)
-            # PRDiff now uses files list structure
-            assert isinstance(diff.files, list)
+            # PRDiff now uses frozen dataclass with tuple fields
+            assert isinstance(diff.files, tuple)
 
     @pytest.mark.asyncio
     async def test_get_pr_diff_with_token(self):
@@ -71,7 +71,7 @@ class TestGitLabVCSRepository:
             mock_httpx.AsyncClient.return_value = mock_gitlab_client()
             await provider.initialize()
             diff = await provider.get_pr_diff("owner", "repo", 123)
-            assert isinstance(diff.files, list)
+            assert isinstance(diff.files, tuple)
 
     @pytest.mark.asyncio
     async def test_get_latest_commit_sha(self):

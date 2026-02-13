@@ -34,7 +34,7 @@ class MockVCSProvider(VCSDiffRepositoryInterface):
     async def get_pr_diff(self, owner: str, repo: str, pr: int):
         from prdiffer.domain.entities.pr_diff import PRDiff
 
-        return PRDiff(files=[])
+        return PRDiff(files=())
 
     async def get_latest_commit_sha(self, owner: str, repo: str, pr: int) -> str:
         return "abc123def"
@@ -60,7 +60,7 @@ class GitHubMockProvider(VCSDiffRepositoryInterface):
     async def get_pr_diff(self, owner: str, repo: str, pr: int):
         from prdiffer.domain.entities.pr_diff import PRDiff
 
-        return PRDiff(files=[])
+        return PRDiff(files=())
 
     async def get_latest_commit_sha(self, owner: str, repo: str, pr: int) -> str:
         return "sha123"
@@ -86,7 +86,7 @@ class GitLabMockProvider(VCSDiffRepositoryInterface):
     async def get_pr_diff(self, owner: str, repo: str, pr: int):
         from prdiffer.domain.entities.pr_diff import PRDiff
 
-        return PRDiff(files=[])
+        return PRDiff(files=())
 
     async def get_latest_commit_sha(self, owner: str, repo: str, pr: int) -> str:
         return "sha456"

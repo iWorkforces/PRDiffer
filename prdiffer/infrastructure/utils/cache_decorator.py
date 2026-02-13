@@ -7,7 +7,7 @@ import logging
 import threading
 import time
 from collections import OrderedDict
-from typing import Any, Callable, Dict, Optional, Tuple, TypeVar, cast
+from typing import Any, Callable, TypeVar, cast
 
 logger = logging.getLogger(__name__)
 
@@ -98,7 +98,7 @@ class CachingMixin:
             }
 
 
-def _make_hashable(obj: Any, _seen: Optional[set[int]] = None, _depth: int = 0) -> Any:
+def _make_hashable(obj: Any, _seen: set[int] | None = None, _depth: int = 0) -> Any:
     """Convert an object to a hashable form recursively with circular reference protection.
 
     Args:
@@ -175,7 +175,7 @@ def _make_hashable(obj: Any, _seen: Optional[set[int]] = None, _depth: int = 0) 
         return f"<{type(obj).__name__}:{id(type(obj))}>"
 
 
-def _generate_cache_key(method_name: str, args: Tuple, kwargs: Dict) -> str:
+def _generate_cache_key(method_name: str, args: tuple, kwargs: dict) -> str:
     """Generate a cache key from method name and arguments.
 
     Args:
@@ -200,7 +200,7 @@ def _generate_cache_key(method_name: str, args: Tuple, kwargs: Dict) -> str:
     return f"{method_name}_{key_hash}"
 
 
-def cached_method(ttl: Optional[int] = None, key_prefix: Optional[str] = None):
+def cached_method(ttl: int | None = None, key_prefix: str | None = None):
     """Decorator for caching method results with support for unhashable parameters.
 
     This decorator can be applied to methods of classes that inherit from CachingMixin.
@@ -246,7 +246,9 @@ def cached_method(ttl: Optional[int] = None, key_prefix: Optional[str] = None):
                 if (self._cache_hits + self._cache_misses) % 10 == 0:
                     # We need to release lock to call _evict_expired_entries which also uses lock
                     # But _evict_expired_entries already uses lock, so we can call it directly
-                    pass
+                    self._logger.debug(
+                        "Skipping periodic eviction inside lock to avoid deadlock"
+                    ) if hasattr(self, "_logger") else None
 
                 # Check cache and validate TTL
                 if cache_key in self._method_cache:

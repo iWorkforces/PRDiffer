@@ -51,7 +51,7 @@ class TestCompleteWorkflow:
 
         logger = ConsoleLogger()
         # Disable actual logging during tests
-        logger._logger = Mock()
+        setattr(logger, "_logger", Mock())
         return logger
 
     @pytest.fixture
@@ -84,10 +84,7 @@ class TestCompleteWorkflow:
     @pytest.fixture
     def sample_pr_diff(self):
         """Create sample PRDiff for testing."""
-        return PRDiff(
-            diff_content="diff --git a/file.py b/file.py\n+ new line",
-            commit_messages="Initial commit\nAdd feature",
-        )
+        return PRDiff(files=())
 
     def test_complete_workflow_success(
         self,
@@ -392,14 +389,14 @@ class TestWorkflowWithRealServices:
         from prdiffer.domain.entities.file_patch import EDIT_TYPE
 
         pr_diff = PRDiff(
-            files=[
+            files=(
                 FileDiffResponse(
                     path="test.py",
                     status=EDIT_TYPE.MODIFIED,
                     stats=FileStats(additions=5, deletions=2),
                     diff="test diff content",
-                )
-            ]
+                ),
+            )
         )
 
         # Test cache set and get

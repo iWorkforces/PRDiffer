@@ -3,7 +3,7 @@
 import time
 from anyio import to_thread
 from collections import OrderedDict
-from typing import Optional, Any, cast, Type
+from typing import Any, cast
 from github import Github, GithubException
 from github.Auth import Token
 from github.Repository import Repository as PyGithubRepository
@@ -33,7 +33,7 @@ from .etag_adapter import ETagRequestAdapter
 # Exceptions to catch in GitHub API operations
 # Note: We deliberately exclude KeyboardInterrupt, SystemExit, and GeneratorExit
 # to allow system-level exceptions to propagate for proper shutdown/cleanup.
-GITHUB_API_EXCEPTIONS: tuple[Type[BaseException], ...] = (
+GITHUB_API_EXCEPTIONS: tuple[type[BaseException], ...] = (
     # GitHub-specific exceptions
     GithubException,
     # Network and timeout exceptions
@@ -112,7 +112,7 @@ class GitHubAPIClient(GitHubAPIServiceInterface):
             file_content_cache_max_size: Maximum number of entries in file content cache
             file_content_cache_ttl: TTL for file content cache entries in seconds
         """
-        self._github_client: Optional[Github] = None
+        self._github_client: Github | None = None
         self._logger = logger or get_logger()
 
         # File content cache configuration (LRU with TTL)
@@ -180,7 +180,7 @@ class GitHubAPIClient(GitHubAPIServiceInterface):
         )
 
     def initialize_client(
-        self, github_token: Optional[str] = None, timeout: int = 30
+        self, github_token: str | None = None, timeout: int = 30
     ) -> None:
         """Initialize the GitHub client with authentication.
 
@@ -194,7 +194,7 @@ class GitHubAPIClient(GitHubAPIServiceInterface):
         else:
             self._github_client = Github(timeout=timeout)
 
-    def get_repository(self, repo_full_name: str) -> Optional[Repository]:
+    def get_repository(self, repo_full_name: str) -> Repository | None:
         """Get a GitHub repository instance with retry logic.
 
         Args:
@@ -231,7 +231,7 @@ class GitHubAPIClient(GitHubAPIServiceInterface):
 
     def _get_pygithub_repository(
         self, repo_full_name: str
-    ) -> Optional[PyGithubRepository]:
+    ) -> PyGithubRepository | None:
         """Internal method to get PyGithub Repository object.
 
         Args:
@@ -251,7 +251,7 @@ class GitHubAPIClient(GitHubAPIServiceInterface):
                 repo_full_name,
                 context=OperationContext.REPOSITORY_ACCESS,
             )
-            return cast(Optional[PyGithubRepository], result)
+            return cast(PyGithubRepository | None, result)
         except GITHUB_API_EXCEPTIONS as e:
             exc = cast(Exception, e)
             sanitized = sanitize_exception_for_logging(exc)
@@ -262,7 +262,7 @@ class GitHubAPIClient(GitHubAPIServiceInterface):
 
     def get_pull_request(
         self, repo_full_name: str, pr_number: int
-    ) -> Optional[PullRequest]:
+    ) -> PullRequest | None:
         """Get a pull request instance with retry logic.
 
         Args:
@@ -303,7 +303,7 @@ class GitHubAPIClient(GitHubAPIServiceInterface):
 
     def _get_pygithub_pull_request(
         self, pygithub_repo: PyGithubRepository, pr_number: int
-    ) -> Optional[PyGithubPullRequest]:
+    ) -> PyGithubPullRequest | None:
         """Internal method to get PyGithub PullRequest object.
 
         Args:
@@ -317,7 +317,7 @@ class GitHubAPIClient(GitHubAPIServiceInterface):
             result = self._retry_handler.execute_with_retry(
                 pygithub_repo.get_pull, pr_number, context=OperationContext.PULL_REQUEST
             )
-            return cast(Optional[PyGithubPullRequest], result)
+            return cast(PyGithubPullRequest | None, result)
         except GITHUB_API_EXCEPTIONS as e:
             exc = cast(Exception, e)
             sanitized = sanitize_exception_for_logging(exc)
@@ -397,7 +397,7 @@ class GitHubAPIClient(GitHubAPIServiceInterface):
             "timestamp": time.time(),
         }
 
-    def _cache_get(self, cache_key: tuple) -> Optional[str]:
+    def _cache_get(self, cache_key: tuple) -> str | None:
         """Get a cache entry, updating its LRU position if valid.
 
         Args:
@@ -694,9 +694,9 @@ def get_github_api_client(
     circuit_breaker_timeout: float = 60.0,
     adaptive_retry_enabled: bool = True,
     max_adaptive_delay: float = 30.0,
-    rate_limit_remaining_threshold: Optional[int] = None,
-    rate_limit_reset_buffer: Optional[float] = None,
-    secondary_rate_limit_backoff: Optional[float] = None,
+    rate_limit_remaining_threshold: int | None = None,
+    rate_limit_reset_buffer: float | None = None,
+    secondary_rate_limit_backoff: float | None = None,
     api_health_tracking: bool = True,
     context_aware_retry: bool = True,
     use_advanced_retry: bool = True,

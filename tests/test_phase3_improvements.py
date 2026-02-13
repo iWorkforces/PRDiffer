@@ -216,7 +216,7 @@ class TestFilePatchInfoExtensions:
             num_plus_lines=5,
             num_minus_lines=3,
             suggested_review_priority="high",
-            code_smell_indicators=["Contains TODO"],
+            code_smell_indicators=("Contains TODO",),
         )
 
         summary = patch.get_summary()
@@ -224,7 +224,7 @@ class TestFilePatchInfoExtensions:
         assert "review_priority" in summary
         assert "code_smell_indicators" in summary
         assert summary["review_priority"] == "high"
-        assert summary["code_smell_indicators"] == ["Contains TODO"]
+        assert summary["code_smell_indicators"] == ("Contains TODO",)
 
 
 # =============================================================================
@@ -245,14 +245,14 @@ class TestPRDiffExtensions:
         from prdiffer.domain.entities.file_patch import EDIT_TYPE
 
         diff = PRDiff(
-            files=[
+            files=(
                 FileDiffResponse(
                     path="test.py",
                     status=EDIT_TYPE.MODIFIED,
                     stats=FileStats(additions=1, deletions=1),
                     diff="@@ -1,3 +1,3 @@",
-                )
-            ]
+                ),
+            )
         )
         assert len(diff.files) == 1
 
@@ -260,7 +260,7 @@ class TestPRDiffExtensions:
         """Test that PRDiff can be empty."""
         from prdiffer.domain.entities.pr_diff import PRDiff
 
-        diff = PRDiff(files=[])
+        diff = PRDiff(files=())
         assert len(diff.files) == 0
 
 
@@ -574,14 +574,14 @@ class TestPhase3Integration:
         from prdiffer.domain.entities.file_patch import EDIT_TYPE
 
         diff = PRDiff(
-            files=[
+            files=(
                 FileDiffResponse(
                     path="test.py",
                     status=EDIT_TYPE.MODIFIED,
                     stats=FileStats(additions=1, deletions=1),
                     diff="@@ -1,10 +1,15 @@\n-old\n+new",
-                )
-            ]
+                ),
+            )
         )
 
         # Verify files array works correctly

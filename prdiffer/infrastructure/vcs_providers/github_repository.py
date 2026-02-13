@@ -5,7 +5,6 @@ ensuring backward compatibility with existing code while providing
 a foundation for the new VCS provider abstraction.
 """
 
-from typing import Optional
 from prdiffer.domain.repositories.pr_diff_repository import PRDiffRepositoryInterface
 from prdiffer.domain.entities.pr_diff import PRDiff
 
@@ -24,7 +23,7 @@ class GitHubVCSRepository(PRDiffRepositoryInterface):
         repo_owner: str,
         repo_name: str,
         pr_number: int,
-        github_token: Optional[str] = None,
+        github_token: str | None = None,
     ):
         """Initialize GitHub VCS repository.
 
@@ -112,7 +111,7 @@ def get_github_vcs_repository(
     repo_owner: str,
     repo_name: str,
     pr_number: int,
-    github_token: Optional[str] = None,
+    github_token: str | None = None,
 ) -> GitHubVCSRepository:
     """Get GitHub VCS repository instance.
 

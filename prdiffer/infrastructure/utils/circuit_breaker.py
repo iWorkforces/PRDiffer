@@ -11,7 +11,6 @@ Thread Safety:
 
 import time
 import threading
-from typing import Dict, List, Optional
 from enum import StrEnum
 
 import anyio
@@ -54,12 +53,12 @@ class CircuitBreaker:
 
         # Thread safety locks
         self._sync_lock = threading.Lock()
-        self._async_lock: Optional[anyio.Lock] = None  # Lazy initialization
+        self._async_lock: anyio.Lock | None = None  # Lazy initialization
 
         # Circuit state (protected by locks)
         self._state = CircuitState.CLOSED
         self._failure_count = 0
-        self._last_failure_time: Optional[float] = None
+        self._last_failure_time: float | None = None
         self._successful_calls = 0
 
     def _get_async_lock(self) -> anyio.Lock:
@@ -249,7 +248,7 @@ class GlobalCircuitBreakerRegistry:
     - Statistics aggregation across all breakers
     """
 
-    _instance: Optional["GlobalCircuitBreakerRegistry"] = None
+    _instance: "GlobalCircuitBreakerRegistry | None" = None
     _lock = threading.Lock()
     _initialized: bool = False
 
@@ -288,7 +287,7 @@ class GlobalCircuitBreakerRegistry:
 
         self._default_failure_threshold = default_failure_threshold
         self._default_timeout = default_timeout
-        self._breakers: Dict[str, CircuitBreaker] = {}
+        self._breakers: dict[str, CircuitBreaker] = {}
         self._registry_lock = threading.Lock()
         self._logger = get_logger()
 
@@ -326,7 +325,7 @@ class GlobalCircuitBreakerRegistry:
         """Get the global circuit breaker."""
         return self._global_breaker
 
-    def can_execute(self, endpoint: Optional[str] = None) -> bool:
+    def can_execute(self, endpoint: str | None = None) -> bool:
         """Check if execution is allowed for an endpoint.
 
         Checks both the endpoint-specific breaker and the global breaker.
@@ -349,7 +348,7 @@ class GlobalCircuitBreakerRegistry:
 
         return True
 
-    async def can_execute_async(self, endpoint: Optional[str] = None) -> bool:
+    async def can_execute_async(self, endpoint: str | None = None) -> bool:
         """Async version of can_execute.
 
         Args:
@@ -370,7 +369,7 @@ class GlobalCircuitBreakerRegistry:
 
         return True
 
-    def record_success(self, endpoint: Optional[str] = None) -> None:
+    def record_success(self, endpoint: str | None = None) -> None:
         """Record a successful operation.
 
         Args:
@@ -380,7 +379,7 @@ class GlobalCircuitBreakerRegistry:
         if endpoint:
             self.get_breaker(endpoint).record_success()
 
-    async def record_success_async(self, endpoint: Optional[str] = None) -> None:
+    async def record_success_async(self, endpoint: str | None = None) -> None:
         """Async version of record_success.
 
         Args:
@@ -390,7 +389,7 @@ class GlobalCircuitBreakerRegistry:
         if endpoint:
             await self.get_breaker(endpoint).record_success_async()
 
-    def record_failure(self, endpoint: Optional[str] = None) -> None:
+    def record_failure(self, endpoint: str | None = None) -> None:
         """Record a failed operation.
 
         Args:
@@ -400,7 +399,7 @@ class GlobalCircuitBreakerRegistry:
         if endpoint:
             self.get_breaker(endpoint).record_failure()
 
-    async def record_failure_async(self, endpoint: Optional[str] = None) -> None:
+    async def record_failure_async(self, endpoint: str | None = None) -> None:
         """Async version of record_failure.
 
         Args:
@@ -410,7 +409,7 @@ class GlobalCircuitBreakerRegistry:
         if endpoint:
             await self.get_breaker(endpoint).record_failure_async()
 
-    def get_all_stats(self) -> Dict[str, dict]:
+    def get_all_stats(self) -> dict[str, dict]:
         """Get statistics for all circuit breakers.
 
         Returns:
@@ -422,7 +421,7 @@ class GlobalCircuitBreakerRegistry:
                 stats[endpoint] = breaker.get_stats()
             return stats
 
-    def get_open_breakers(self) -> List[str]:
+    def get_open_breakers(self) -> list[str]:
         """Get list of endpoints with open circuit breakers.
 
         Returns:
@@ -458,7 +457,7 @@ class GlobalCircuitBreakerRegistry:
 
 
 # Global registry instance (singleton)
-_global_circuit_breaker_registry: Optional[GlobalCircuitBreakerRegistry] = None
+_global_circuit_breaker_registry: GlobalCircuitBreakerRegistry | None = None
 
 
 def get_global_circuit_breaker_registry(

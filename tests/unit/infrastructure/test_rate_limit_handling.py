@@ -4,20 +4,19 @@ import time as time_module
 from unittest.mock import patch
 
 import pytest
+from github import GithubException
 
 from prdiffer.infrastructure.utils.retry_handler import UnifiedRetryHandler
 
 
-class FakeGithubException(RuntimeError):
+class FakeGithubException(GithubException):
     """Minimal exception type that exposes headers/data like PyGithub.
 
-    Inherits from RuntimeError to be included in RETRY_EXCEPTIONS.
+    Inherits from GithubException to be included in RETRY_EXCEPTIONS.
     """
 
     def __init__(self, message, headers=None, data=None):
-        super().__init__(message)
-        self.headers = headers or {}
-        self.data = data
+        super().__init__(403, data, headers or {}, message)
 
 
 @pytest.mark.unit

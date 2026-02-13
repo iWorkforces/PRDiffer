@@ -149,10 +149,7 @@ class TestTTLExpiration:
     @pytest.fixture
     def sample_pr_diff(self):
         """Create sample PRDiff for testing."""
-        return PRDiff(
-            diff_content="test diff content",
-            commit_messages="test commit message",
-        )
+        return PRDiff(files=())
 
     @patch("prdiffer.infrastructure.settings.get_settings_service")
     @pytest.mark.asyncio

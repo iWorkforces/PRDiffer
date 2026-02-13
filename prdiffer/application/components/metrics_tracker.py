@@ -3,14 +3,14 @@
 import time
 import logging
 import threading
-from typing import Any, Optional
+from typing import Any
 from prdiffer.domain.interfaces.protocols import MetricsTrackerProtocol
 
 
 class MetricsTracker(MetricsTrackerProtocol):
     """Component responsible for tracking metrics and request statistics."""
 
-    def __init__(self, logger: Optional[Any] = None):
+    def __init__(self, logger: Any | None = None):
         """Initialize metrics tracker.
 
         Args:

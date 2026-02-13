@@ -21,14 +21,14 @@ from prdiffer.domain.services.pr_diff_service import PRDiffServiceInterface
 def create_sample_pr_diff() -> PRDiff:
     """Helper to create a sample PRDiff with the new structure."""
     return PRDiff(
-        files=[
+        files=(
             FileDiffResponse(
                 path="src/test.py",
                 status=EDIT_TYPE.MODIFIED,
                 stats=FileStats(additions=10, deletions=5),
                 diff="test diff content",
-            )
-        ]
+            ),
+        )
     )
 
 

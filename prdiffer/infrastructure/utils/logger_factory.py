@@ -19,7 +19,6 @@ Thread Safety:
 
 import logging
 import threading
-from typing import Optional
 
 
 def get_logger(name: str) -> logging.Logger:
@@ -68,7 +67,7 @@ class LazyLoggerMixin:
     """
 
     def _init_lazy_logger(
-        self, logger: Optional[logging.Logger], logger_name: str
+        self, logger: logging.Logger | None, logger_name: str
     ) -> None:
         """Initialize lazy logger state.
 
@@ -78,7 +77,7 @@ class LazyLoggerMixin:
             logger: Optional logger instance. If None, will be lazily created.
             logger_name: Name for the logger (typically __name__)
         """
-        self._logger: Optional[logging.Logger] = logger
+        self._logger: logging.Logger | None = logger
         self._logger_name = logger_name
         self._logger_fetched = logger is not None
         self._logger_lock = threading.Lock()
@@ -100,7 +99,7 @@ class LazyLoggerMixin:
         return self._logger  # type: ignore[return-value]
 
 
-def get_null_logger(name: Optional[str] = None) -> logging.Logger:
+def get_null_logger(name: str | None = None) -> logging.Logger:
     """Get a null logger that suppresses all log output.
 
     This is useful for testing or when you need to suppress logging

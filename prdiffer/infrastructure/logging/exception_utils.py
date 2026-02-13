@@ -7,7 +7,7 @@ and other credentials in log files and console output.
 
 import re
 import traceback
-from typing import Optional, Any
+from typing import Any
 from types import TracebackType
 
 
@@ -85,9 +85,9 @@ class ExceptionSanitizer:
     @classmethod
     def sanitize_traceback(
         cls,
-        exc_type: Optional[type] = None,
-        exc_value: Optional[BaseException] = None,
-        exc_traceback: Optional[TracebackType] = None,
+        exc_type: type | None = None,
+        exc_value: BaseException | None = None,
+        exc_traceback: TracebackType | None = None,
         max_frames: int = 10,
     ) -> str:
         """Sanitize a traceback for safe logging.
@@ -283,9 +283,9 @@ def sanitize_exception_message(exception: Exception, max_length: int = 500) -> s
 
 
 def sanitize_traceback(
-    exc_type: Optional[type] = None,
-    exc_value: Optional[BaseException] = None,
-    exc_traceback: Optional[TracebackType] = None,
+    exc_type: type | None = None,
+    exc_value: BaseException | None = None,
+    exc_traceback: TracebackType | None = None,
     max_frames: int = 10,
 ) -> str:
     """Convenience function for sanitizing tracebacks.

@@ -9,7 +9,6 @@ from enum import Enum
 from typing import (
     Callable,
     Any,
-    Optional,
     TypeVar,
     Awaitable,
     Generic,
@@ -118,9 +117,9 @@ class AsyncParallelExecutor:
     def __init__(
         self,
         max_concurrent: int = 10,
-        timeout: Optional[float] = None,
+        timeout: float | None = None,
         error_strategy: ErrorStrategy = ErrorStrategy.IGNORE,
-        logger: Optional[Any] = None,
+        logger: Any | None = None,
     ):
         """Initialize the async parallel executor.
 
@@ -134,7 +133,7 @@ class AsyncParallelExecutor:
         self.timeout = timeout
         self.error_strategy = error_strategy
         self._logger = logger or get_logger()
-        self._semaphore: Optional[anyio.Semaphore] = None
+        self._semaphore: anyio.Semaphore | None = None
 
     async def _get_semaphore(self) -> anyio.Semaphore:
         """Get or create the semaphore for concurrency control."""
@@ -261,7 +260,7 @@ class AsyncParallelExecutor:
         self,
         func_map: dict[Any, Callable[[Any], Awaitable[R]]],
         items: list[Any],
-        default_func: Optional[Callable[[Any], Awaitable[R]]] = None,
+        default_func: Callable[[Any], Awaitable[R]] | None = None,
     ) -> list[R]:
         """Execute different async functions based on item type/key in parallel.
 
@@ -282,7 +281,7 @@ class AsyncParallelExecutor:
 
         async def process_item(item: Any) -> None:
             # Determine which function to use
-            func: Optional[Callable[[Any], Awaitable[R]]] = None
+            func: Callable[[Any], Awaitable[R]] | None = None
             if hasattr(item, "__class__"):
                 func = func_map.get(type(item))
             if func is None:
@@ -331,7 +330,7 @@ class AsyncParallelExecutor:
         self,
         func: Callable[[T], Awaitable[R]],
         items: list[T],
-        progress_callback: Optional[Callable[[int, int], Any]] = None,
+        progress_callback: Callable[[int, int], Any] | None = None,
     ) -> list[R]:
         """Execute an async function with progress tracking.
 
@@ -455,12 +454,12 @@ class AsyncParallelExecutor:
 
 
 # Global instance for singleton pattern
-_async_parallel_executor: Optional[AsyncParallelExecutor] = None
+_async_parallel_executor: AsyncParallelExecutor | None = None
 
 
 def get_async_parallel_executor(
     max_concurrent: int = 10,
-    timeout: Optional[float] = None,
+    timeout: float | None = None,
     error_strategy: ErrorStrategy = ErrorStrategy.IGNORE,
 ) -> AsyncParallelExecutor:
     """Get a configured async parallel executor instance.
@@ -485,7 +484,7 @@ def get_async_parallel_executor(
 
 def create_async_parallel_executor(
     max_concurrent: int = 10,
-    timeout: Optional[float] = None,
+    timeout: float | None = None,
     error_strategy: ErrorStrategy = ErrorStrategy.IGNORE,
 ) -> AsyncParallelExecutor:
     """Create a new async parallel executor instance (not singleton).

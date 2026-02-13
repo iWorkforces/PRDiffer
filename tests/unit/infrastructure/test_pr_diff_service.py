@@ -63,8 +63,8 @@ async def test_get_pr_diff_with_truncation(monkeypatch):
     result = await service.get_pr_diff("owner", "repo", 1)
 
     assert result is not None
-    # PRDiff now uses files list structure
-    assert isinstance(result.files, list)
+    # PRDiff now uses frozen dataclass with tuple fields
+    assert isinstance(result.files, tuple)
 
 
 @pytest.mark.asyncio

@@ -6,7 +6,6 @@ dependency for use cases.
 """
 
 from abc import ABC, abstractmethod
-from typing import Optional
 
 from prdiffer.domain.entities.pr_diff import PRDiff
 
@@ -20,7 +19,7 @@ class PRDiffServiceInterface(ABC):
         repo_owner: str,
         repo_name: str,
         pr_number: int,
-    ) -> Optional[PRDiff]:
+    ) -> PRDiff | None:
         """Get PR diff data for the specified repository and PR.
 
         Args:
@@ -45,7 +44,7 @@ class PRDiffServiceInterface(ABC):
         repo_owner: str,
         repo_name: str,
         pr_number: int,
-    ) -> Optional[str]:
+    ) -> str | None:
         """Get the latest head commit SHA for the pull request.
 
         Args:

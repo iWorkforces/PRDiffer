@@ -5,7 +5,7 @@ using GitHub API operations.
 """
 
 import os
-from typing import Optional, Type, cast
+from typing import cast
 
 import asyncer
 from github import GithubException
@@ -32,7 +32,7 @@ from prdiffer.infrastructure.utils.cache_decorator import (
 # Exceptions to catch in PR diff service operations
 # Note: We deliberately exclude KeyboardInterrupt, SystemExit, and GeneratorExit
 # to allow system-level exceptions to propagate for proper shutdown/cleanup.
-PR_SERVICE_EXCEPTIONS: tuple[Type[BaseException], ...] = (
+PR_SERVICE_EXCEPTIONS: tuple[type[BaseException], ...] = (
     # GitHub-specific exceptions
     GithubException,
     # Network and timeout exceptions
@@ -57,10 +57,10 @@ class GitHubPRDiffService(CachingMixin, PRDiffServiceInterface):
 
     def __init__(
         self,
-        github_api_client: Optional[GitHubAPIClient] = None,
-        diff_generator: Optional[DiffGenerator] = None,
-        file_processor: Optional[FileProcessor] = None,
-        logger: Optional[LoggerServiceInterface] = None,
+        github_api_client: GitHubAPIClient | None = None,
+        diff_generator: DiffGenerator | None = None,
+        file_processor: FileProcessor | None = None,
+        logger: LoggerServiceInterface | None = None,
     ):
         """Initialize the service with GitHub API client and diff generation components.
 
@@ -102,7 +102,7 @@ class GitHubPRDiffService(CachingMixin, PRDiffServiceInterface):
         repo_owner: str,
         repo_name: str,
         pr_number: int,
-    ) -> Optional[PRDiff]:
+    ) -> PRDiff | None:
         """Get PR diff data for the specified repository and PR.
 
         This implementation uses native async with the async file processor
@@ -140,7 +140,7 @@ class GitHubPRDiffService(CachingMixin, PRDiffServiceInterface):
         repo_owner: str,
         repo_name: str,
         pr_number: int,
-    ) -> Optional[PRDiff]:
+    ) -> PRDiff | None:
         """Get PR diff data using native async implementation with parallel file processing.
 
         This method provides better performance for PRs with multiple files by:
@@ -181,7 +181,7 @@ class GitHubPRDiffService(CachingMixin, PRDiffServiceInterface):
                 for file_patch in diff_files
             ]
 
-            pr_diff = PRDiff(files=file_responses)
+            pr_diff = PRDiff(files=tuple(file_responses))
 
             self._logger.info(
                 "Generated diff content (async parallel)",
@@ -290,7 +290,7 @@ class GitHubPRDiffService(CachingMixin, PRDiffServiceInterface):
         repo_owner: str,
         repo_name: str,
         pr_number: int,
-    ) -> Optional[str]:
+    ) -> str | None:
         """Get the latest head commit SHA for the pull request.
 
         Args:
@@ -299,7 +299,7 @@ class GitHubPRDiffService(CachingMixin, PRDiffServiceInterface):
             pr_number: Pull request number
 
         Returns:
-            Optional[str]: Latest commit SHA if successful, None otherwise
+            str | None: Latest commit SHA if successful, None otherwise
 
         Raises:
             RepositoryNotFoundError: If repository or PR doesn't exist
@@ -315,7 +315,7 @@ class GitHubPRDiffService(CachingMixin, PRDiffServiceInterface):
         repo_owner: str,
         repo_name: str,
         pr_number: int,
-    ) -> Optional[PRDiff]:
+    ) -> PRDiff | None:
         """Get PR diff data synchronously with method-level caching.
 
         Caching:
@@ -355,7 +355,7 @@ class GitHubPRDiffService(CachingMixin, PRDiffServiceInterface):
                 for file_patch in diff_files
             ]
 
-            pr_diff = PRDiff(files=file_responses)
+            pr_diff = PRDiff(files=tuple(file_responses))
 
             self._logger.info(
                 "Generated diff content",
@@ -389,7 +389,7 @@ class GitHubPRDiffService(CachingMixin, PRDiffServiceInterface):
         repo_owner: str,
         repo_name: str,
         pr_number: int,
-    ) -> Optional[str]:
+    ) -> str | None:
         try:
             repository = self._github_api._get_pygithub_repository(
                 f"{repo_owner}/{repo_name}"
@@ -546,7 +546,7 @@ class GitHubPRDiffService(CachingMixin, PRDiffServiceInterface):
             self._logger.error("Failed to generate diff content", extra=sanitized)
             return []
 
-    def _get_base_commit_sha(self, repository, pull_request) -> Optional[str]:
+    def _get_base_commit_sha(self, repository, pull_request) -> str | None:
         """Get the base commit SHA for the pull request.
 
         Args:
@@ -558,14 +558,14 @@ class GitHubPRDiffService(CachingMixin, PRDiffServiceInterface):
         """
         try:
             # Try to get the merge base
-            base_branch: Optional[str] = pull_request.base.sha
+            base_branch: str | None = pull_request.base.sha
             if base_branch:
                 return base_branch
 
             # Fallback: use the base branch reference
             base_ref = repository.get_git_ref(f"heads/{pull_request.base.ref}")
             if base_ref:
-                base_sha: Optional[str] = base_ref.object.sha
+                base_sha: str | None = base_ref.object.sha
                 return base_sha
 
             return None

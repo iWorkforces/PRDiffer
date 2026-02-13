@@ -162,14 +162,14 @@ def mock_cache():
     mock._data = {}
     mock._commit_shas = {}
 
-    def get(key: str, commit_sha: str = None) -> Optional[Any]:
+    def get(key: str, commit_sha: Optional[str] = None) -> Optional[Any]:
         if commit_sha and key in mock._commit_shas:
             cached_sha = mock._commit_shas.get(key)
             if cached_sha != commit_sha:
                 return None
         return mock._data.get(key)
 
-    def set(key: str, value: Any, commit_sha: str = None) -> None:
+    def set(key: str, value: Any, commit_sha: Optional[str] = None) -> None:
         mock._data[key] = value
         if commit_sha:
             mock._commit_shas[key] = commit_sha
@@ -265,9 +265,7 @@ def mock_github_file():
 @pytest.fixture
 def sample_pr_diff():
     """Create a sample PRDiff entity for testing."""
-    return PRDiff(
-        diff_content="@@ -1,5 +1,10 @@\n+new line\n old line\n",
-    )
+    return PRDiff(files=())
 
 
 @pytest.fixture

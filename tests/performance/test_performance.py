@@ -156,7 +156,6 @@ class TestAuthenticationPerformance:
         auth._check_token_expiration = False
 
         # Add the key for authentication
-        auth._api_keys.add(api_key)
         auth._hashed_api_keys.add(auth._hash_api_key(api_key))
 
         # Warm up

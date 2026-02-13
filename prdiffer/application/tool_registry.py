@@ -7,7 +7,8 @@ providing cleaner separation of concerns.
 import time
 import hashlib
 import json
-from typing import Optional, Callable, NoReturn
+from dataclasses import asdict
+from typing import Callable, NoReturn
 
 from prdiffer.domain.entities.pr_diff import PRDiff
 from prdiffer.domain.usecases.pr_diff_usecases import GetPRDiffUseCase
@@ -67,9 +68,9 @@ class ToolRegistry:
         github_repository_class: Callable,
         rate_limiter: RateLimiterProtocol,
         metrics_tracker: MetricsTrackerProtocol,
-        authentication: Optional[AuthenticationProtocol] = None,
-        input_validator: Optional[InputValidator] = None,
-        request_coalescing_service: Optional[RequestCoalescingService] = None,
+        authentication: AuthenticationProtocol | None = None,
+        input_validator: InputValidator | None = None,
+        request_coalescing_service: RequestCoalescingService | None = None,
     ):
         """Initialize ToolRegistry with dependencies.
 
@@ -139,8 +140,8 @@ class ToolRegistry:
         self._rate_limiter.increment_rate_limit(client_id)
 
     async def _authenticate_request(
-        self, request_id: str, start_time: float, api_key: Optional[str]
-    ) -> Optional[str]:
+        self, request_id: str, start_time: float, api_key: str | None
+    ) -> str | None:
         """Authenticate the incoming request using API key if authentication is enabled.
 
         Args:
@@ -313,7 +314,7 @@ class ToolRegistry:
                 f"PR diff content preview (sanitized): {sanitized_preview}"
             )
             sanitized_json = self._input_validator.sanitize_for_logging(
-                json.dumps(pr_diff.model_dump(), indent=2),
+                json.dumps(asdict(pr_diff), indent=2),
                 max_length=2000,
             )
             self._logger.debug(f"PR Diff (Pretty JSON, sanitized):\n{sanitized_json}")
@@ -426,7 +427,7 @@ class ToolRegistry:
         """
 
         @mcp.tool()
-        async def get_pr_diff(pr_url: str, api_key: Optional[str] = None) -> PRDiff:
+        async def get_pr_diff(pr_url: str, api_key: str | None = None) -> PRDiff:
             """Get the structured file-level diff content for a specific GitHub pull request.
 
             Returns per-file diff information including:
@@ -499,7 +500,7 @@ class ToolRegistry:
 
         @mcp.tool()
         async def approve_pr(
-            pr_url: str, compliment: str, api_key: Optional[str] = None
+            pr_url: str, compliment: str, api_key: str | None = None
         ) -> str:
             """Approve a GitHub PR with a compliment comment.
 

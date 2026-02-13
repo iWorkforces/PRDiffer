@@ -4,6 +4,9 @@ Tests FileDiffResponse Pydantic model which represents individual file change
 for structured PR diff response.
 """
 
+import json
+from dataclasses import asdict
+
 from prdiffer.domain.entities.file_patch import EDIT_TYPE
 from prdiffer.domain.entities.file_diff_response import FileDiffResponse, FileStats
 
@@ -29,7 +32,7 @@ class TestFileStatsCreation:
         """Test FileStats can be serialized."""
         stats = FileStats(additions=50, deletions=10)
 
-        data = stats.model_dump()
+        data = asdict(stats)
 
         assert data == {"additions": 50, "deletions": 10}
 
@@ -46,7 +49,12 @@ class TestFileDiffResponseCreation:
             "diff": "@@ -0,0 +1,50 @@\n+new code\n",
         }
 
-        response = FileDiffResponse(**file_data)
+        response = FileDiffResponse(
+            path=file_data["path"],
+            status=EDIT_TYPE(file_data["status"]),
+            stats=FileStats(**file_data["stats"]),
+            diff=file_data["diff"],
+        )
 
         assert response.path == "src/test.ts"
         assert response.status == EDIT_TYPE.ADDED
@@ -91,8 +99,7 @@ class TestFileDiffResponseCreation:
 class TestFileDiffResponseSerialization:
     """Test suite for FileDiffResponse serialization."""
 
-    def test_model_dump(self):
-        """Test Pydantic model_dump serialization."""
+    def test_asdict(self):
         response = FileDiffResponse(
             path="src/file.ts",
             status=EDIT_TYPE.MODIFIED,
@@ -100,15 +107,14 @@ class TestFileDiffResponseSerialization:
             diff="@@ -1,1 +1,1 @@\n-old\n+new",
         )
 
-        data = response.model_dump()
+        data = asdict(response)
 
         assert data["path"] == "src/file.ts"
-        assert data["status"] == "modified"
+        assert data["status"] == EDIT_TYPE.MODIFIED
         assert data["stats"] == {"additions": 10, "deletions": 5}
         assert data["diff"] == "@@ -1,1 +1,1 @@\n-old\n+new"
 
-    def test_model_dump_json(self):
-        """Test Pydantic model_dump_json serialization."""
+    def test_json_serialization(self):
         response = FileDiffResponse(
             path="test.py",
             status=EDIT_TYPE.ADDED,
@@ -116,23 +122,28 @@ class TestFileDiffResponseSerialization:
             diff="@@ -0,0 +1,100 @@\n+content",
         )
 
-        json_string = response.model_dump_json()
+        json_string = json.dumps(asdict(response))
+        payload = json.loads(json_string)
 
-        assert '"path":"test.py"' in json_string
-        assert '"status":"added"' in json_string
-        assert '"additions":100' in json_string
-        assert '"deletions":0' in json_string
+        assert payload["path"] == "test.py"
+        assert payload["status"] == "added"
+        assert payload["stats"]["additions"] == 100
+        assert payload["stats"]["deletions"] == 0
 
-    def test_model_validate(self):
-        """Test Pydantic model_validate deserialization."""
+    def test_construct_from_dict_data(self):
         data = {
             "path": "src/component.ts",
-            "status": EDIT_TYPE.DELETED,
+            "status": "deleted",
             "stats": {"additions": 0, "deletions": 50},
             "diff": "@@ -1,50 +1,0 @@\n-removed lines",
         }
 
-        response = FileDiffResponse.model_validate(data)
+        response = FileDiffResponse(
+            path=data["path"],
+            status=EDIT_TYPE(data["status"]),
+            stats=FileStats(**data["stats"]),
+            diff=data["diff"],
+        )
 
         assert response.path == "src/component.ts"
         assert response.status == EDIT_TYPE.DELETED
@@ -149,10 +160,16 @@ class TestFileDiffResponseSerialization:
         )
 
         # Serialize
-        json_data = original.model_dump_json()
+        json_data = json.dumps(asdict(original))
 
         # Deserialize
-        restored = FileDiffResponse.model_validate_json(json_data)
+        payload = json.loads(json_data)
+        restored = FileDiffResponse(
+            path=payload["path"],
+            status=EDIT_TYPE(payload["status"]),
+            stats=FileStats(**payload["stats"]),
+            diff=payload["diff"],
+        )
 
         # Verify equality
         assert restored.path == original.path

@@ -2,7 +2,6 @@
 
 import re
 import time
-from typing import Dict, Optional
 from prdiffer.domain.entities.file_patch import FilePatchInfo
 from prdiffer.domain.services import DiffServiceInterface
 from prdiffer.infrastructure.logging.console_logger import get_logger
@@ -121,7 +120,7 @@ class DiffGenerator:
         return patch_with_lines_str.rstrip()
 
     def _generate_file_header(
-        self, file: Optional[FilePatchInfo], is_first_file: bool
+        self, file: FilePatchInfo | None, is_first_file: bool
     ) -> str:
         """Generate the file header for the patch output.
 
@@ -139,7 +138,7 @@ class DiffGenerator:
 
         return f"{separator}\n## Full file path: `{file.filename.strip()}`\n"
 
-    def _parse_hunks_from_patch(self, patch_lines: list[str]) -> list[Dict]:
+    def _parse_hunks_from_patch(self, patch_lines: list[str]) -> list[dict]:
         """Parse hunks from patch lines.
 
         Args:
@@ -186,7 +185,7 @@ class DiffGenerator:
 
     def _add_line_to_hunk(
         self,
-        hunk: Dict,
+        hunk: dict,
         line: str,
         line_i: int,
         patch_lines: list[str],
@@ -217,7 +216,7 @@ class DiffGenerator:
             hunk["new_lines"].append(line)
             hunk["old_lines"].append(line)
 
-    def _format_hunk_with_line_numbers(self, hunk: Dict) -> str:
+    def _format_hunk_with_line_numbers(self, hunk: dict) -> str:
         """Format a hunk with line numbers.
 
         Handles edge cases:
@@ -336,16 +335,14 @@ class DiffGenerator:
         section_header = res[4] if len(res) > 4 else ""
         return section_header, size1, size2, start1, start2
 
-    def _process_single_file_for_diff(
-        self, indexed_file_data: tuple
-    ) -> Optional[tuple]:
+    def _process_single_file_for_diff(self, indexed_file_data: tuple) -> tuple | None:
         """Process a single file for diff generation (worker function for parallel processing).
 
         Args:
             indexed_file_data: Tuple of (index, file, add_line_numbers_to_hunks, total_files)
 
         Returns:
-            Optional[tuple]: (index, extended_patch_string) or None if processing fails
+            tuple | None: (index, extended_patch_string) or None if processing fails
         """
         i, file, add_line_numbers_to_hunks, total_files = indexed_file_data
 

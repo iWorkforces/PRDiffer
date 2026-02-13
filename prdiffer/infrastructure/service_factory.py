@@ -4,7 +4,6 @@ This module provides factory functions for creating commonly used services,
 facilitating dependency injection and testability.
 """
 
-from typing import Optional
 from prdiffer.domain.services.logger import LoggerServiceInterface
 from prdiffer.infrastructure.settings import SettingsService
 from prdiffer.infrastructure.logging.console_logger import get_logger
@@ -23,9 +22,9 @@ class ServiceFactory:
 
     def __init__(
         self,
-        logger: Optional[LoggerServiceInterface] = None,
-        settings_service: Optional[SettingsService] = None,
-        input_validator: Optional[InputValidator] = None,
+        logger: LoggerServiceInterface | None = None,
+        settings_service: SettingsService | None = None,
+        input_validator: InputValidator | None = None,
     ):
         """Initialize service factory.
 
@@ -64,13 +63,13 @@ class ServiceFactory:
 
 
 # Global service factory instance
-_service_factory: Optional[ServiceFactory] = None
+_service_factory: ServiceFactory | None = None
 
 
 def get_service_factory(
-    logger: Optional[LoggerServiceInterface] = None,
-    settings_service: Optional[SettingsService] = None,
-    input_validator: Optional[InputValidator] = None,
+    logger: LoggerServiceInterface | None = None,
+    settings_service: SettingsService | None = None,
+    input_validator: InputValidator | None = None,
 ) -> ServiceFactory:
     """Get or create global service factory.
 

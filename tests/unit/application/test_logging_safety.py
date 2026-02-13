@@ -17,14 +17,14 @@ from prdiffer.domain.entities.file_patch import EDIT_TYPE
 def _create_pr_diff_with_content(diff_content: str) -> PRDiff:
     """Helper to create PRDiff with the new files structure."""
     return PRDiff(
-        files=[
+        files=(
             FileDiffResponse(
                 path="file.py",
                 status=EDIT_TYPE.MODIFIED,
                 stats=FileStats(additions=5, deletions=2),
                 diff=diff_content,
-            )
-        ]
+            ),
+        )
     )
 
 

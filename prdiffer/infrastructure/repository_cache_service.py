@@ -7,7 +7,7 @@ repeated initialization of GitHub API objects for the same repositories.
 import time
 from dataclasses import dataclass
 from functools import wraps
-from typing import Optional, Dict, Callable
+from typing import Callable
 from threading import RLock
 from prdiffer.domain.services import RepositoryCacheServiceInterface
 
@@ -153,7 +153,7 @@ class RepositoryCacheService(RepositoryCacheServiceInterface):
 
     def _get_valid_entry(
         self, cache_key: tuple[str, str, int], extend_ttl: bool = False
-    ) -> Optional[CacheEntry]:
+    ) -> CacheEntry | None:
         """Retrieve and validate a cache entry, removing it if invalid.
 
         Args:
@@ -220,7 +220,7 @@ class RepositoryCacheService(RepositoryCacheServiceInterface):
     @with_lock()
     def retrieve(
         self, repo_owner: str, repo_name: str, pr_number: int
-    ) -> Optional[GitHubPRDiffRepository]:
+    ) -> GitHubPRDiffRepository | None:
         """Retrieve a cached repository instance.
 
         Args:
@@ -314,7 +314,7 @@ class RepositoryCacheService(RepositoryCacheServiceInterface):
         return len(self._cache)
 
     @with_lock()
-    def stats(self) -> Dict:
+    def stats(self) -> dict:
         """Get cache statistics.
 
         Returns:

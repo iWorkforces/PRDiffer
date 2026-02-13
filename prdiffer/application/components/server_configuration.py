@@ -1,7 +1,7 @@
 """Server configuration component for setup and configuration management."""
 
 import logging
-from typing import Any, Optional, TypedDict
+from typing import Any, TypedDict
 from prdiffer.domain.interfaces.protocols import ServerConfigurationProtocol
 from prdiffer.version import __version__
 
@@ -20,7 +20,7 @@ class ServerConfiguration(ServerConfigurationProtocol):
     def __init__(
         self,
         settings_service,  # SettingsServiceInterface
-        logger: Optional[Any] = None,
+        logger: Any | None = None,
     ):
         """Initialize server configuration.
 

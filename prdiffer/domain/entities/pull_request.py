@@ -2,7 +2,6 @@
 
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import Optional
 
 
 class PRState(StrEnum):
@@ -43,20 +42,20 @@ class PullRequest:
     base_ref: str
     """Branch name for the base (target)"""
 
-    author: Optional[str] = None
+    author: str | None = None
     """Pull request author username"""
 
-    body: Optional[str] = None
+    body: str | None = None
     """Pull request description/body"""
 
-    created_at: Optional[str] = None
+    created_at: str | None = None
     """ISO 8601 timestamp when PR was created"""
 
-    updated_at: Optional[str] = None
+    updated_at: str | None = None
     """ISO 8601 timestamp when PR was last updated"""
 
-    merged_at: Optional[str] = None
+    merged_at: str | None = None
     """ISO 8601 timestamp when PR was merged (if applicable)"""
 
-    html_url: Optional[str] = None
+    html_url: str | None = None
     """Web URL for the pull request"""

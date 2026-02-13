@@ -1,7 +1,7 @@
 """Health monitoring component for server status and metrics."""
 
 import logging
-from typing import Any, Optional
+from typing import Any
 from prdiffer.domain.interfaces.protocols import (
     HealthMonitorProtocol,
     MetricsTrackerProtocol,
@@ -16,7 +16,7 @@ class HealthMonitor(HealthMonitorProtocol):
         self,
         metrics_tracker: MetricsTrackerProtocol,
         rate_limiter: RateLimiterProtocol,
-        logger: Optional[Any] = None,
+        logger: Any | None = None,
     ):
         """Initialize health monitor.
 

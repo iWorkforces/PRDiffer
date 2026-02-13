@@ -17,7 +17,7 @@ Each error includes:
 """
 
 from dataclasses import dataclass
-from typing import Optional, Dict, Any
+from typing import Any
 from enum import Enum
 
 
@@ -44,7 +44,7 @@ class ErrorCode:
     def __str__(self) -> str:
         return f"{self.code}_{self.name}"
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert error code to dictionary for API response."""
         return {
             "error_code": str(self),
@@ -430,15 +430,15 @@ class MCPError(Exception):
     def __init__(
         self,
         error_code: ErrorCode,
-        detail: Optional[str] = None,
-        context: Optional[Dict[str, Any]] = None,
+        detail: str | None = None,
+        context: dict[str, Any] | None = None,
     ):
         self.error_code = error_code
         self.detail = detail
         self.context = context or {}
         super().__init__(str(error_code))
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert exception to dictionary for API response."""
         result = self.error_code.to_dict()
         if self.detail:
@@ -518,9 +518,9 @@ def get_error_for_exception(exception: Exception) -> ErrorCode:
 
 def create_error_response(
     error_code: ErrorCode,
-    detail: Optional[str] = None,
-    context: Optional[Dict[str, Any]] = None,
-) -> Dict[str, Any]:
+    detail: str | None = None,
+    context: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     """Create a standardized error response.
 
     Args:
@@ -531,7 +531,7 @@ def create_error_response(
     Returns:
         Dict[str, Any]: Standardized error response
     """
-    error_dict: Dict[str, Any] = error_code.to_dict()
+    error_dict: dict[str, Any] = error_code.to_dict()
 
     if detail:
         error_dict["detail"] = detail
@@ -539,7 +539,7 @@ def create_error_response(
     if context:
         error_dict["context"] = context
 
-    response: Dict[str, Any] = {
+    response: dict[str, Any] = {
         "success": False,
         "error": error_dict,
     }

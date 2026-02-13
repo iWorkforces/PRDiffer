@@ -5,7 +5,7 @@ for the same resource when multiple concurrent requests arrive.
 """
 
 import anyio
-from typing import Any, Optional, Callable, Awaitable
+from typing import Any, Callable, Awaitable
 from dataclasses import dataclass, field
 from prdiffer.infrastructure.logging.console_logger import get_logger
 from prdiffer.infrastructure.settings import get_settings_service
@@ -23,8 +23,8 @@ class CoalescedRequest:
 
     key: str
     event: anyio.Event = field(default_factory=anyio.Event)
-    result: Optional[Any] = None
-    exception: Optional[BaseException] = None
+    result: Any | None = None
+    exception: BaseException | None = None
     request_count: int = 1
 
 
@@ -41,7 +41,7 @@ class RequestCoalescingService:
     - Atomic state management with anyio.Lock
     """
 
-    def __init__(self, logger=None, max_waiters: Optional[int] = None):
+    def __init__(self, logger=None, max_waiters: int | None = None):
         """Initialize the request coalescing service.
 
         Args:
@@ -58,14 +58,16 @@ class RequestCoalescingService:
             max_waiters = settings_service.get(
                 "request_coalescing.max_waiters", DEFAULT_MAX_WAITERS
             )
+        if max_waiters is None:
+            max_waiters = DEFAULT_MAX_WAITERS
 
-        self._max_waiters = max_waiters
+        self._max_waiters = int(max_waiters)
 
     async def coalesce(
         self,
         key: str,
         fetch_func: Callable[[], Awaitable[Any]],
-        timeout: Optional[float] = 30.0,
+        timeout: float | None = 30.0,
     ) -> Any:
         """Coalesce requests for the same key with timeout protection.
 
@@ -136,7 +138,7 @@ class RequestCoalescingService:
                 await self._decrement_waiter(key)
 
         # Phase 3: Create new request (double-check pattern with proper locking)
-        new_request: Optional[CoalescedRequest] = None
+        new_request: CoalescedRequest | None = None
         async with self._lock:
             # Double-check after acquiring lock
             if key in self._pending_requests:
@@ -307,7 +309,7 @@ class RequestCoalescingService:
 
 
 # Global instance for singleton pattern
-_request_coalescing_service: Optional[RequestCoalescingService] = None
+_request_coalescing_service: RequestCoalescingService | None = None
 
 
 def get_request_coalescing_service() -> RequestCoalescingService:

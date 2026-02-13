@@ -1,5 +1,5 @@
 import os
-from typing import Optional, Literal, TypeAlias, cast, Callable
+from typing import Literal, TypeAlias, cast, Callable
 
 from fastmcp import FastMCP
 from prdiffer.version import __version__
@@ -56,10 +56,10 @@ class FastMCPServer:
         pr_operation_handler: PROperationHandlerProtocol,
         health_monitor: HealthMonitorProtocol,
         server_configuration: ServerConfigurationProtocol,
-        authentication: Optional[AuthenticationProtocol] = None,
+        authentication: AuthenticationProtocol | None = None,
         # Security and request coalescing services from infrastructure
-        input_validator: Optional[InputValidator] = None,
-        request_coalescing_service: Optional[RequestCoalescingService] = None,
+        input_validator: InputValidator | None = None,
+        request_coalescing_service: RequestCoalescingService | None = None,
     ):
         """Initialize the FastMCP server with dependency injection.
 

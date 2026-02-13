@@ -5,7 +5,6 @@ that cache PRDiffRepositoryInterface instances to avoid repeated initialization.
 """
 
 from abc import ABC, abstractmethod
-from typing import Optional
 
 from prdiffer.domain.repositories import PRDiffRepositoryInterface
 
@@ -32,7 +31,7 @@ class RepositoryCacheServiceInterface(ABC):
     @abstractmethod
     def retrieve(
         self, repo_owner: str, repo_name: str, pr_number: int
-    ) -> Optional[PRDiffRepositoryInterface]:
+    ) -> PRDiffRepositoryInterface | None:
         """Retrieve a cached repository instance.
 
         Args:

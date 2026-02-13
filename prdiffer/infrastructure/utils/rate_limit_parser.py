@@ -7,7 +7,6 @@ from HTTP responses and exceptions.
 import time
 from datetime import timezone
 from email.utils import parsedate_to_datetime
-from typing import Optional
 from dataclasses import dataclass
 
 
@@ -22,13 +21,13 @@ class RateLimitInfo:
         retry_after: Seconds to wait before retrying (from Retry-After header)
     """
 
-    remaining: Optional[int]
-    limit: Optional[int]
-    reset_at: Optional[int]
-    retry_after: Optional[float]
+    remaining: int | None
+    limit: int | None
+    reset_at: int | None
+    retry_after: float | None
 
 
-def get_error_headers(error: Exception) -> Optional[dict[str, str]]:
+def get_error_headers(error: Exception) -> dict[str, str] | None:
     """Extract headers from a GitHub exception if available.
 
     Args:
@@ -51,7 +50,7 @@ def get_error_headers(error: Exception) -> Optional[dict[str, str]]:
         return None
 
 
-def parse_int_header(headers: dict[str, str], name: str) -> Optional[int]:
+def parse_int_header(headers: dict[str, str], name: str) -> int | None:
     """Parse an integer header value from headers dictionary.
 
     Args:
@@ -70,7 +69,7 @@ def parse_int_header(headers: dict[str, str], name: str) -> Optional[int]:
     return None
 
 
-def parse_retry_after(headers: dict[str, str]) -> Optional[float]:
+def parse_retry_after(headers: dict[str, str]) -> float | None:
     """Parse Retry-After header value from headers dictionary.
 
     The Retry-After header can be specified as:
@@ -105,7 +104,7 @@ def parse_retry_after(headers: dict[str, str]) -> Optional[float]:
             return None
 
 
-def extract_rate_limit_info(error: Exception) -> Optional[RateLimitInfo]:
+def extract_rate_limit_info(error: Exception) -> RateLimitInfo | None:
     """Extract rate limit information from an exception.
 
     Parses GitHub rate limit headers from the exception if available.
@@ -137,9 +136,9 @@ def extract_rate_limit_info(error: Exception) -> Optional[RateLimitInfo]:
 
 
 def calculate_rate_limit_delay(
-    rate_limit_info: Optional[RateLimitInfo],
+    rate_limit_info: RateLimitInfo | None,
     reset_buffer: float = 1.0,
-) -> Optional[float]:
+) -> float | None:
     """Calculate delay needed based on rate limit information.
 
     Args:
@@ -163,7 +162,7 @@ def calculate_rate_limit_delay(
 
 
 def is_rate_limit_remaining_below_threshold(
-    rate_limit_info: Optional[RateLimitInfo],
+    rate_limit_info: RateLimitInfo | None,
     threshold: int = 1,
 ) -> bool:
     """Check if remaining rate limit is below threshold.

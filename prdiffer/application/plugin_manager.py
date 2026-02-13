@@ -4,7 +4,6 @@ This module provides centralized management for MCP tool plugins,
 enabling dynamic tool registration, discovery, and execution.
 """
 
-from typing import Optional
 from prdiffer.application.interfaces.tool_plugin import MCPToolPlugin
 from prdiffer.domain.services.logger import LoggerServiceInterface
 from prdiffer.domain.exceptions import ValidationError, PRDifferException
@@ -64,7 +63,7 @@ class PluginManager:
         del self._plugins[plugin_name]
         self._logger.info(f"Unregistered plugin: {plugin_name}")
 
-    def get_plugin(self, tool_name: str) -> Optional[MCPToolPlugin]:
+    def get_plugin(self, tool_name: str) -> MCPToolPlugin | None:
         """Get plugin by name.
 
         Args:
@@ -75,7 +74,7 @@ class PluginManager:
         """
         return self._plugins.get(tool_name)
 
-    def get_plugin_by_name(self, tool_name: str) -> Optional[MCPToolPlugin]:
+    def get_plugin_by_name(self, tool_name: str) -> MCPToolPlugin | None:
         """Get plugin by name (alias for get_plugin).
 
         Args:

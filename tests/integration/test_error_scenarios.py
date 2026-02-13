@@ -4,6 +4,7 @@ These tests verify proper error handling for various failure scenarios
 including API failures, rate limits, network errors, and invalid inputs.
 """
 
+from typing import cast
 from unittest.mock import Mock, AsyncMock
 import pytest
 from github import GithubException, RateLimitExceededException, UnknownObjectException
@@ -48,7 +49,7 @@ class TestAPIErrorScenarios:
         from prdiffer.infrastructure.logging.console_logger import ConsoleLogger
 
         logger = ConsoleLogger()
-        logger._logger = Mock()
+        setattr(logger, "_logger", Mock())
         return logger
 
     @pytest.fixture
@@ -175,7 +176,7 @@ class TestValidationErrorScenarios:
         from prdiffer.infrastructure.logging.console_logger import ConsoleLogger
 
         logger = ConsoleLogger()
-        logger._logger = Mock()
+        setattr(logger, "_logger", Mock())
         return logger
 
     @pytest.fixture
@@ -284,7 +285,7 @@ class TestValidationErrorScenarios:
 
         # Act & Assert: Should raise InvalidURLError
         with pytest.raises(InvalidURLError, match="cannot be None"):
-            parse_pr_url(none_url)
+            parse_pr_url(cast(str, none_url))
 
     def test_whitespace_only_url(self, server):
         """Test handling of whitespace-only URL."""
@@ -302,7 +303,7 @@ class TestValidationErrorScenarios:
 
         # Act & Assert: Should raise InvalidURLError
         with pytest.raises(InvalidURLError, match="must be a string"):
-            parse_pr_url(non_string_url)
+            parse_pr_url(cast(str, non_string_url))
 
     def test_invalid_pr_number(self, server):
         """Test handling of invalid PR number."""
@@ -363,7 +364,7 @@ class TestRateLimitingScenarios:
         from prdiffer.infrastructure.logging.console_logger import ConsoleLogger
 
         logger = ConsoleLogger()
-        logger._logger = Mock()
+        setattr(logger, "_logger", Mock())
         return logger
 
     @pytest.fixture
@@ -520,7 +521,7 @@ class TestCacheErrorScenarios:
         from prdiffer.infrastructure.logging.console_logger import ConsoleLogger
 
         logger = ConsoleLogger()
-        logger._logger = Mock()
+        setattr(logger, "_logger", Mock())
         return logger
 
     @pytest.fixture
@@ -544,12 +545,7 @@ class TestCacheErrorScenarios:
 
         mock_service = Mock()
         # Even with cache failure, service should still work
-        mock_service.get_pr_diff = AsyncMock(
-            return_value=PRDiff(
-                diff_content="test diff",
-                commit_messages="test commit",
-            )
-        )
+        mock_service.get_pr_diff = AsyncMock(return_value=PRDiff(files=()))
         return mock_service
 
     @pytest.fixture
@@ -602,7 +598,7 @@ class TestAuthenticationErrorScenarios:
         from prdiffer.infrastructure.logging.console_logger import ConsoleLogger
 
         logger = ConsoleLogger()
-        logger._logger = Mock()
+        setattr(logger, "_logger", Mock())
         return logger
 
     @pytest.fixture

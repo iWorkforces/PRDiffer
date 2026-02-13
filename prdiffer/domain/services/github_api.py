@@ -1,7 +1,6 @@
 """GitHub API service interface for domain layer."""
 
 from abc import ABC, abstractmethod
-from typing import Optional
 
 from prdiffer.domain.entities import Repository, PullRequest
 
@@ -15,7 +14,7 @@ class GitHubAPIServiceInterface(ABC):
 
     @abstractmethod
     def initialize_client(
-        self, github_token: Optional[str] = None, timeout: int = 30
+        self, github_token: str | None = None, timeout: int = 30
     ) -> None:
         """Initialize the GitHub client with authentication.
 
@@ -26,7 +25,7 @@ class GitHubAPIServiceInterface(ABC):
         pass
 
     @abstractmethod
-    def get_repository(self, repo_full_name: str) -> Optional[Repository]:
+    def get_repository(self, repo_full_name: str) -> Repository | None:
         """Get a GitHub repository instance.
 
         Args:
@@ -40,7 +39,7 @@ class GitHubAPIServiceInterface(ABC):
     @abstractmethod
     def get_pull_request(
         self, repo_full_name: str, pr_number: int
-    ) -> Optional[PullRequest]:
+    ) -> PullRequest | None:
         """Get a pull request instance.
 
         Args:
