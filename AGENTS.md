@@ -1,12 +1,12 @@
 # PROJECT KNOWLEDGE BASE
 
-**Generated:** 2026-01-31T13:05:52Z
-**Commit:** 775ce0f
+**Generated:** 2026-02-13T04:19:00Z
+**Commit:** 6c14fd0
 **Branch:** upstream
 **Version:** 0.5.0
 
 ## OVERVIEW
-Python 3.14+ MCP server for GitHub PR diff analysis with Clean Architecture (Domain → Application → Infrastructure). FastMCP framework, Pydantic v2, anyio async. 215 files, 1.18M+ lines, 26 AGENTS.md files.
+Python 3.14+ MCP server for GitHub PR diff analysis with Clean Architecture (Domain → Application → Infrastructure). FastMCP framework, Pydantic v2, anyio async. 661 files, 52K+ lines Python, 43 files >500 lines, 26 AGENTS.md files.
 
 ## STRUCTURE
 ```
@@ -151,8 +151,10 @@ PRDifferMCP/
 - **NO git commands with -i flag** → Interactive commands not supported (e.g., `git rebase -i`, `git add -i`).
 
 ### Large File Anti-Patterns
-- **NO single files >500 lines** → Extract methods/classes into modules. (20 files >500 lines, documented as needing refactoring).
+- **NO single files >500 lines** → Extract methods/classes into modules. (43 files >500 lines, documented as needing refactoring).
 - **PRIORITY1**: retry_handler.py (848 lines) - SRP violation with 12+ responsibilities.
+- **PRIORITY2**: api_client.py (771 lines) - GitHub API client with retry, circuit breaker, caching.
+- **PRIORITY3**: github_repository.py (709 lines) - Main repository implementation.
 
 ## UNIQUE STYLES
 
@@ -242,7 +244,7 @@ python scripts/analyze_dependencies.py --path prdiffer
 - **Retry logic**: 404/403/500 with smart retry, circuit breaker, exponential backoff.
 - **File filtering**: Pattern-based ignores, extension allowlist, max_files_allowed limit.
 - **Test markers for filtering**: `-m unit`, `-m integration`, `-m slow`, `-m security`.
-- **Complex files**: 20 files >500 lines, most in infrastructure (retry_handler.py: 848 lines).
+- **Complex files**: 43 files >500 lines, most in infrastructure (retry_handler.py: 848 lines).
 - **Thread safety**: RLock for sync, anyio.Lock for async, double-check locking patterns.
 - **Maximum directory depth**: 3 levels (prdiffer/{layer}/{package}/{module}.py), actual max depth: 15.
 - **No CI/CD infrastructure**: Manual quality gates only; no GitHub Actions workflows exist.

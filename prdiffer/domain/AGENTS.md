@@ -18,7 +18,7 @@ prdiffer/domain/
 ## WHERE TO LOOK
 | Task | Location | Notes |
 |------|----------|-------|
-| **Rich domain model** | `entities/file_patch.py` | 414 lines, business methods |
+| **Rich domain model** | `entities/file_patch.py` | 413 lines, business methods |
 | **Service interfaces** | `services/*.py` | ABC with @abstractmethod |
 | **VCS provider contract** | `interfaces/vcs_provider.py` | VCSDiffRepositoryInterface |
 | **Provider registry** | `vcs_provider_registry.py` | Auto-detect from URL |
@@ -67,3 +67,12 @@ prdiffer/domain/
 - **NO anemic entities everywhere** → Rich models preferred for business logic
 - **NO mutable dataclasses** → Always frozen=True
 - **NO list in frozen dataclasses** → Use tuple for hashability
+- **NO Pydantic in domain** → Use frozen dataclasses instead (2 violations exist)
+
+## KNOWN VIOLATIONS
+
+**Pydantic Imports (Clean Architecture Violation):**
+- `entities/pr_diff.py` — imports `from pydantic import BaseModel, Field`
+- `entities/file_diff_response.py` — imports `from pydantic import BaseModel, Field`
+
+**Fix approach:** Convert Pydantic models to frozen dataclasses to maintain domain purity.
