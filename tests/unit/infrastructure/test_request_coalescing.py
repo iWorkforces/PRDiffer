@@ -105,8 +105,10 @@ class TestRequestCoalescingServiceCoalesceConcurrentRequests:
         results = [None, None]
         async with anyio.create_task_group() as tg:
             for i in range(2):
+
                 async def capture_result(idx=i):
                     results[idx] = await service.coalesce("key1", mock_fetch)
+
                 tg.start_soon(capture_result)
 
         assert len(fetch_count) == 1
@@ -127,8 +129,10 @@ class TestRequestCoalescingServiceCoalesceConcurrentRequests:
         results = [None, None, None]
         async with anyio.create_task_group() as tg:
             for i in range(3):
+
                 async def capture_result(idx=i):
                     results[idx] = await service.coalesce("key1", mock_fetch)
+
                 tg.start_soon(capture_result)
 
         assert len(fetch_count) == 1
@@ -153,10 +157,13 @@ class TestRequestCoalescingServiceCoalesceConcurrentRequests:
 
         results = [None, None]
         async with anyio.create_task_group() as tg:
+
             async def capture_key1():
                 results[0] = await service.coalesce("key1", mock_fetch_key1)
+
             async def capture_key2():
                 results[1] = await service.coalesce("key2", mock_fetch_key2)
+
             tg.start_soon(capture_key1)
             tg.start_soon(capture_key2)
 
@@ -183,10 +190,13 @@ class TestRequestCoalescingServiceCoalesceConcurrentRequests:
 
         results = [None, None]
         async with anyio.create_task_group() as tg:
+
             async def capture_key1():
                 results[0] = await delayed_request("key1")
+
             async def capture_key2():
                 results[1] = await delayed_request("key2")
+
             tg.start_soon(capture_key1)
             tg.start_soon(capture_key2)
 
@@ -207,11 +217,13 @@ class TestRequestCoalescingServiceCoalesceExceptionHandling:
 
         exceptions_caught = []
         async with anyio.create_task_group() as tg:
+
             async def capture_exception():
                 try:
                     await service.coalesce("key1", mock_fetch)
                 except ValueError as e:
                     exceptions_caught.append(e)
+
             tg.start_soon(capture_exception)
             tg.start_soon(capture_exception)
 
@@ -292,11 +304,13 @@ class TestRequestCoalescingServiceCoalesceTimeout:
 
         exceptions_caught = []
         async with anyio.create_task_group() as tg:
+
             async def capture_timeout():
                 try:
                     await service.coalesce("key1", mock_fetch, timeout=0.1)
                 except TimeoutError:
                     exceptions_caught.append(True)
+
             tg.start_soon(capture_timeout)
             tg.start_soon(capture_timeout)
 
@@ -326,8 +340,10 @@ class TestRequestCoalescingServiceMaxWaiters:
         results = [None] * 4
         async with anyio.create_task_group() as tg:
             for i in range(4):
+
                 async def capture_result(idx=i):
                     results[idx] = await make_request("key1")
+
                 tg.start_soon(capture_result)
 
         # At least 2 fetches should have been made (due to max_waiters limit)
@@ -349,8 +365,10 @@ class TestRequestCoalescingServiceMaxWaiters:
         results = [None] * 5
         async with anyio.create_task_group() as tg:
             for i in range(5):
+
                 async def capture_result(idx=i):
                     results[idx] = await service.coalesce("key1", mock_fetch)
+
                 tg.start_soon(capture_result)
 
         # At least 2 fetches should have been made (due to max_waiters limit)

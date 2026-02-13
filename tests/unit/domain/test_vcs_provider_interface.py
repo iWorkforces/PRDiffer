@@ -24,17 +24,22 @@ class MockVCSProvider(VCSDiffRepositoryInterface):
 
     async def get_pr_diff(self, owner: str, repo: str, pr: int):
         from prdiffer.domain.entities.pr_diff import PRDiff
-        from prdiffer.domain.entities.file_diff_response import FileDiffResponse, FileStats
+        from prdiffer.domain.entities.file_diff_response import (
+            FileDiffResponse,
+            FileStats,
+        )
         from prdiffer.domain.entities.file_patch import EDIT_TYPE
 
-        return PRDiff(files=[
-            FileDiffResponse(
-                path="mock_file.py",
-                status=EDIT_TYPE.MODIFIED,
-                stats=FileStats(additions=1, deletions=1),
-                diff="mock diff"
-            )
-        ])
+        return PRDiff(
+            files=[
+                FileDiffResponse(
+                    path="mock_file.py",
+                    status=EDIT_TYPE.MODIFIED,
+                    stats=FileStats(additions=1, deletions=1),
+                    diff="mock diff",
+                )
+            ]
+        )
 
     async def get_latest_commit_sha(self, owner: str, repo: str, pr: int) -> str:
         return "abc123def"

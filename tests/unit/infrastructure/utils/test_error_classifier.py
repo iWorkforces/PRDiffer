@@ -1,6 +1,5 @@
 """Comprehensive tests for error_classifier module."""
 
-
 from prdiffer.infrastructure.utils.error_classifier import (
     PERMANENT_ERROR_CODES,
     SERVER_ERROR_CODES,

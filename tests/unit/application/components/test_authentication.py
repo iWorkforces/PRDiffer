@@ -93,7 +93,9 @@ class TestAuthenticationMiddlewareInitialization:
         auth = AuthenticationMiddleware()
 
         assert auth._admin_api_key_hash is not None
-        assert auth._admin_api_key_hash == auth._hash_api_key("admin_secret_12345678901")
+        assert auth._admin_api_key_hash == auth._hash_api_key(
+            "admin_secret_12345678901"
+        )
 
     def test_authentication_with_logger(self):
         """Test AuthenticationMiddleware with custom logger."""
@@ -187,7 +189,8 @@ class TestAuthenticationMiddlewareAuthenticate:
         assert client_id is None
 
     @patch.dict(
-        os.environ, {"MCP_AUTH_ENABLED": "true", "MCP_ADMIN_API_KEY": "admin_secret_12345678901"}
+        os.environ,
+        {"MCP_AUTH_ENABLED": "true", "MCP_ADMIN_API_KEY": "admin_secret_12345678901"},
     )
     def test_authenticate_admin_key(self):
         """Test admin API key authentication."""
@@ -198,7 +201,13 @@ class TestAuthenticationMiddlewareAuthenticate:
         assert is_auth is True
         assert client_id == "admin"
 
-    @patch.dict(os.environ, {"MCP_AUTH_ENABLED": "true", "MCP_API_KEYS": "key1_12345678901,key2_12345678901"})
+    @patch.dict(
+        os.environ,
+        {
+            "MCP_AUTH_ENABLED": "true",
+            "MCP_API_KEYS": "key1_12345678901,key2_12345678901",
+        },
+    )
     def test_authenticate_multiple_keys(self):
         """Test authentication with multiple valid keys."""
         auth = AuthenticationMiddleware()
@@ -487,7 +496,13 @@ class TestAuthenticationMiddlewareGetStatus:
         assert status["admin_api_key_configured"] is False
         assert status["default_client_id"] == "anonymous"
 
-    @patch.dict(os.environ, {"MCP_AUTH_ENABLED": "true", "MCP_API_KEYS": "key1_12345678901,key2_12345678901"})
+    @patch.dict(
+        os.environ,
+        {
+            "MCP_AUTH_ENABLED": "true",
+            "MCP_API_KEYS": "key1_12345678901,key2_12345678901",
+        },
+    )
     def test_get_status_enabled_with_keys(self):
         """Test status when enabled with keys."""
         auth = AuthenticationMiddleware()
@@ -914,7 +929,12 @@ class TestJWTSecurity:
         assert error is not None
         # Type guard: after assert not None, error is str
         error_str: str = error
-        assert "Invalid token" in error_str or "signature" in error_str.lower() or "key" in error_str.lower() or "failed" in error_str.lower()
+        assert (
+            "Invalid token" in error_str
+            or "signature" in error_str.lower()
+            or "key" in error_str.lower()
+            or "failed" in error_str.lower()
+        )
 
     @pytest.mark.security
     def test_jwt_with_invalid_audience_rejected(self):

@@ -84,8 +84,8 @@ def mock_logger():
 def mock_input_validator():
     """Create mock input validator."""
     validator = Mock()
-    validator.sanitize_for_logging.side_effect = (
-        lambda s, max_length=None: s[:max_length] if max_length else s
+    validator.sanitize_for_logging.side_effect = lambda s, max_length=None: (
+        s[:max_length] if max_length else s
     )
     validator.validate_github_url.return_value = ("owner", "repo", 123)
     return validator

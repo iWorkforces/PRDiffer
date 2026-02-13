@@ -238,17 +238,22 @@ class TestPRDiffExtensions:
     def test_has_files_true(self):
         """Test that PRDiff can have files."""
         from prdiffer.domain.entities.pr_diff import PRDiff
-        from prdiffer.domain.entities.file_diff_response import FileDiffResponse, FileStats
+        from prdiffer.domain.entities.file_diff_response import (
+            FileDiffResponse,
+            FileStats,
+        )
         from prdiffer.domain.entities.file_patch import EDIT_TYPE
 
-        diff = PRDiff(files=[
-            FileDiffResponse(
-                path="test.py",
-                status=EDIT_TYPE.MODIFIED,
-                stats=FileStats(additions=1, deletions=1),
-                diff="@@ -1,3 +1,3 @@"
-            )
-        ])
+        diff = PRDiff(
+            files=[
+                FileDiffResponse(
+                    path="test.py",
+                    status=EDIT_TYPE.MODIFIED,
+                    stats=FileStats(additions=1, deletions=1),
+                    diff="@@ -1,3 +1,3 @@",
+                )
+            ]
+        )
         assert len(diff.files) == 1
 
     def test_has_files_false_empty(self):
@@ -562,17 +567,22 @@ class TestPhase3Integration:
     def test_pr_diff_simplified(self):
         """Test PRDiff with simplified structure."""
         from prdiffer.domain.entities.pr_diff import PRDiff
-        from prdiffer.domain.entities.file_diff_response import FileDiffResponse, FileStats
+        from prdiffer.domain.entities.file_diff_response import (
+            FileDiffResponse,
+            FileStats,
+        )
         from prdiffer.domain.entities.file_patch import EDIT_TYPE
 
-        diff = PRDiff(files=[
-            FileDiffResponse(
-                path="test.py",
-                status=EDIT_TYPE.MODIFIED,
-                stats=FileStats(additions=1, deletions=1),
-                diff="@@ -1,10 +1,15 @@\n-old\n+new"
-            )
-        ])
+        diff = PRDiff(
+            files=[
+                FileDiffResponse(
+                    path="test.py",
+                    status=EDIT_TYPE.MODIFIED,
+                    stats=FileStats(additions=1, deletions=1),
+                    diff="@@ -1,10 +1,15 @@\n-old\n+new",
+                )
+            ]
+        )
 
         # Verify files array works correctly
         assert len(diff.files) == 1

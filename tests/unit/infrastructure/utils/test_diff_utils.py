@@ -308,9 +308,9 @@ class TestDecodeIfBytes:
         with patch.object(
             type(diff_utils),
             "decode_if_bytes",
-            lambda self, content: ""
-            if isinstance(content, (bytes, bytearray))
-            else content,
+            lambda self, content: (
+                "" if isinstance(content, (bytes, bytearray)) else content
+            ),
         ):
             pass
 

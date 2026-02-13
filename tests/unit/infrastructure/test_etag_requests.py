@@ -7,24 +7,28 @@ from prdiffer.infrastructure.github.etag_adapter import ETagRequestAdapter
 
 class MockCacheService:
     """Mock cache service that mimics the expected interface for ETagRequestAdapter."""
-    
+
     def __init__(self):
         self._store = {}  # URL -> {"etag": str, "content": any, "timestamp": float}
-    
+
     def get_etag(self, url: str):
         """Get cached ETag for URL."""
         entry = self._store.get(url)
         return entry.get("etag") if entry else None
-    
+
     def set_etag(self, url: str, etag: str, content=None):
         """Store ETag and optional content for URL."""
         if url not in self._store:
-            self._store[url] = {"etag": etag, "content": content, "timestamp": time.time()}
+            self._store[url] = {
+                "etag": etag,
+                "content": content,
+                "timestamp": time.time(),
+            }
         else:
             self._store[url]["etag"] = etag
             if content is not None:
                 self._store[url]["content"] = content
-    
+
     def get(self, url: str):
         """Get cache entry for URL. Returns dict with timestamp for _store_etag compatibility."""
         entry = self._store.get(url)
@@ -33,7 +37,7 @@ class MockCacheService:
         # Return the entry dict so that cache_entry.get("timestamp") works
         # and we can also access entry["content"] for 304 responses
         return entry
-    
+
     def get_content(self, url: str):
         """Get just the content for URL (for 304 response handling)."""
         entry = self._store.get(url)
@@ -113,7 +117,9 @@ class TestETagStorage:
         url = "http://example.com/file.txt"
         etag = '"abc123"'
 
-        adapter = ETagRequestAdapter(cache_service=mock_cache_service, enabled=True, etag_ttl=1)
+        adapter = ETagRequestAdapter(
+            cache_service=mock_cache_service, enabled=True, etag_ttl=1
+        )
         adapter._store_etag(url, etag, "file content")
 
         time.sleep(1.5)
@@ -144,7 +150,12 @@ class TestETagCacheEviction:
 
     def test_cache_size_limit(self, mock_cache_service):
         """Test cache evicts oldest entries when size limit reached."""
-        adapter = ETagRequestAdapter(cache_service=mock_cache_service, enabled=True, etag_cache_size=2, etag_ttl=600)
+        adapter = ETagRequestAdapter(
+            cache_service=mock_cache_service,
+            enabled=True,
+            etag_cache_size=2,
+            etag_ttl=600,
+        )
 
         adapter._store_etag("url1", "etag1", "content1")
         adapter._store_etag("url2", "etag2", "content2")
@@ -175,7 +186,12 @@ class TestETagCacheEviction:
 
     def test_ttl_eviction(self, mock_cache_service):
         """Test expired entries are evicted."""
-        adapter = ETagRequestAdapter(cache_service=mock_cache_service, enabled=True, etag_cache_size=1000, etag_ttl=1)
+        adapter = ETagRequestAdapter(
+            cache_service=mock_cache_service,
+            enabled=True,
+            etag_cache_size=1000,
+            etag_ttl=1,
+        )
 
         url1 = "http://example.com/file1.txt"
         url2 = "http://example.com/file2.txt"
@@ -301,7 +317,7 @@ class TestETagResponseHandling:
     def test_handle_304_no_cache_entry(self, mock_cache_service):
         """Test 304 response when no cache entry exists at all."""
         adapter = ETagRequestAdapter(cache_service=mock_cache_service, enabled=True)
-        
+
         url = "http://example.com/file.txt"
         etag = '"abc123"'
 

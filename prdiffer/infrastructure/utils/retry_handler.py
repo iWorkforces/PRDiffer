@@ -52,7 +52,10 @@ except Exception:  # pragma: no cover - fallback when PyGithub isn't available
     PyGithubException: Optional[Type[BaseException]] = None
 
 
-# Exceptions to catch in retry operations
+# Exceptions to catch in retry operations.
+# Only transient/network exceptions should be retried. Programming errors
+# (TypeError, ValueError, KeyError, etc.) must NOT be retried as they indicate
+# bugs that should propagate immediately for detection and fixing.
 # Note: We deliberately exclude KeyboardInterrupt, SystemExit, and GeneratorExit
 # to allow system-level exceptions to propagate for proper shutdown/cleanup.
 RETRY_EXCEPTIONS: Tuple[Type[BaseException], ...] = (
@@ -60,28 +63,8 @@ RETRY_EXCEPTIONS: Tuple[Type[BaseException], ...] = (
     TimeoutError,
     ConnectionError,
     OSError,
-    # Common runtime exceptions
-    RuntimeError,
-    ValueError,
-    TypeError,
-    KeyError,
-    IndexError,
-    AttributeError,
-    LookupError,
-    EOFError,
     IOError,
-    ImportError,
-    ArithmeticError,
-    FloatingPointError,
-    OverflowError,
-    ZeroDivisionError,
-    AssertionError,
-    NameError,
-    UnboundLocalError,
-    UnicodeError,
-    UnicodeDecodeError,
-    UnicodeEncodeError,
-    UnicodeTranslateError,
+    EOFError,
 )
 
 if PyGithubException is not None:

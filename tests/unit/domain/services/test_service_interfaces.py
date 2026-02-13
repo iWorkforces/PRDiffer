@@ -64,8 +64,6 @@ class TestCacheServiceInterface:
         """Test invalidate method signature."""
         assert hasattr(CacheServiceInterface, "invalidate")
 
-
-
     def test_get_stats_signature(self):
         """Test get_stats method signature."""
         assert hasattr(CacheServiceInterface, "get_stats")

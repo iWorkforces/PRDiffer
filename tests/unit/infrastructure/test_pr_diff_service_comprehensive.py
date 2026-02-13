@@ -522,7 +522,7 @@ class TestGenerateDiffContent:
         mock_pr = MagicMock()
         mock_pr.head.sha = "abc123"
         mock_pr.base.sha = "def456"
-        
+
         mock_file = MagicMock()
         mock_file.filename = "test.py"
         mock_pr.get_files.return_value = [mock_file]

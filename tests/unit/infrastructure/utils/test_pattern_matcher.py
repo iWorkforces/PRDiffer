@@ -1,6 +1,5 @@
 """Comprehensive tests for PatternMatcher."""
 
-
 from prdiffer.infrastructure.utils.pattern_matcher import (
     PatternMatcher,
     get_pattern_matcher,

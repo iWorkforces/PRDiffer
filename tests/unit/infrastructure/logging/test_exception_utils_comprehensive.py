@@ -1,6 +1,5 @@
 """Comprehensive tests for ExceptionSanitizer."""
 
-
 from prdiffer.infrastructure.logging.exception_utils import (
     ExceptionSanitizer,
     sanitize_exception_message,
@@ -53,7 +52,6 @@ class TestSanitizeExceptionMessage:
 
         assert "ghp_1234567890" not in result
         assert "ghp_" in result or "*" in result
-
 
         result = ExceptionSanitizer.sanitize_exception_message(exception)
 

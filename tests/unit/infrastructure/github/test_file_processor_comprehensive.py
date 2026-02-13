@@ -547,8 +547,8 @@ class TestFileProcessorInvalidFiles:
         self, file_processor, mock_github_api, mock_pattern_matcher
     ):
         """Test that invalid files are filtered out."""
-        mock_pattern_matcher.is_valid_file.side_effect = lambda f: not f.endswith(
-            ".lock"
+        mock_pattern_matcher.is_valid_file.side_effect = lambda f: (
+            not f.endswith(".lock")
         )
 
         mock_file1 = Mock()
