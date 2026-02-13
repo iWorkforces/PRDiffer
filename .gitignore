@@ -228,3 +228,5 @@ start-oc-zai.sh
 # Documentation drafts (committed docs/ are tracked)
 docs/
 
+.coverage
+.opencode/
