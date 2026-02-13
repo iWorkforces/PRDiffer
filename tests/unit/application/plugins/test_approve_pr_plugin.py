@@ -6,6 +6,7 @@ Tests for ApprovePRPlugin which provides MCP tool for PR approval.
 from unittest.mock import Mock, AsyncMock
 import pytest
 from prdiffer.application.plugins.approve_pr_plugin import ApprovePRPlugin
+from prdiffer.domain.exceptions import ValidationError
 from prdiffer.domain.usecases.pr_approval_usecases import ApprovePRUseCase
 
 
@@ -75,21 +76,21 @@ class TestApprovePRPlugin:
     async def test_execute_without_compliment_raises_error(self, plugin):
         """Test execute raises error when compliment is missing."""
         # Act & Assert
-        with pytest.raises(ValueError, match="compliment is required"):
+        with pytest.raises(ValidationError, match="compliment is required"):
             await plugin.execute(pr_url="https://github.com/owner/repo/pull/123")
 
     @pytest.mark.asyncio
     async def test_execute_without_pr_url_raises_error(self, plugin):
         """Test execute raises error when pr_url is missing."""
         # Act & Assert
-        with pytest.raises(ValueError, match="pr_url is required"):
+        with pytest.raises(ValidationError, match="pr_url is required"):
             await plugin.execute(compliment="Nice PR!")
 
     @pytest.mark.asyncio
     async def test_execute_with_empty_compliment_raises_error(self, plugin):
         """Test execute raises error when compliment is empty."""
         # Act & Assert
-        with pytest.raises(ValueError, match="compliment is required"):
+        with pytest.raises(ValidationError, match="compliment is required"):
             await plugin.execute(
                 pr_url="https://github.com/owner/repo/pull/123", compliment=""
             )
@@ -98,7 +99,7 @@ class TestApprovePRPlugin:
     async def test_execute_with_invalid_compliment_type_raises_error(self, plugin):
         """Test execute raises error when compliment is not a string."""
         # Act & Assert
-        with pytest.raises(ValueError, match="must be a string"):
+        with pytest.raises(ValidationError, match="must be a string"):
             await plugin.execute(
                 compliment=12345, pr_url="https://github.com/owner/repo/pull/123"
             )
@@ -107,7 +108,7 @@ class TestApprovePRPlugin:
     async def test_execute_with_invalid_pr_url_type_raises_error(self, plugin):
         """Test execute raises error when pr_url is not a string."""
         # Act & Assert
-        with pytest.raises(ValueError, match="must be a string"):
+        with pytest.raises(ValidationError, match="must be a string"):
             await plugin.execute(compliment="Nice PR!", pr_url=12345)
 
     @pytest.mark.asyncio

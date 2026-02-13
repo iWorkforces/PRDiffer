@@ -14,6 +14,7 @@ from prdiffer.domain.services.cache import CacheServiceInterface
 from prdiffer.domain.services.repository_cache import RepositoryCacheServiceInterface
 from prdiffer.domain.repositories.pr_diff_repository import PRDiffRepositoryInterface
 from prdiffer.domain.entities.pr_diff import PRDiff
+from prdiffer.domain.exceptions import ValidationError, GitHubAPIError
 
 
 class MockLogger(LoggerServiceInterface):
@@ -238,7 +239,7 @@ class TestPROperationHandlerGetPrDiff:
             logger=logger,
         )
 
-        with pytest.raises(ValueError) as exc_info:
+        with pytest.raises(ValidationError) as exc_info:
             await handler.get_pr_diff("")
 
         assert "required" in str(exc_info.value)
@@ -319,7 +320,7 @@ class TestPROperationHandlerGetPrDiff:
 
         url = "https://github.com/owner/repo/pull/123"
 
-        with pytest.raises(RuntimeError) as exc_info:
+        with pytest.raises(GitHubAPIError) as exc_info:
             await handler.get_pr_diff(url)
 
         assert "Failed to fetch PR diff" in str(exc_info.value)
@@ -343,7 +344,7 @@ class TestPROperationHandlerGetPrDiff:
 
         invalid_url = "https://github.com/owner/repo/pull/invalid"
 
-        with pytest.raises(ValueError) as exc_info:
+        with pytest.raises(ValidationError) as exc_info:
             await handler.get_pr_diff(invalid_url)
 
         assert "Invalid request" in str(exc_info.value)
@@ -528,7 +529,7 @@ class TestPROperationHandlerErrorHandling:
 
         url = "https://github.com/owner/repo/pull/123"
 
-        with pytest.raises(RuntimeError) as exc_info:
+        with pytest.raises(GitHubAPIError) as exc_info:
             await handler.get_pr_diff(url)
 
         assert "Failed to fetch PR diff" in str(exc_info.value)

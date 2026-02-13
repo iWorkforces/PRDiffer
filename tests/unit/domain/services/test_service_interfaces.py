@@ -41,7 +41,8 @@ class TestCacheServiceInterface:
             "get",
             "set",
             "invalidate",
-            "clear",
+            "get_etag",
+            "set_etag",
             "get_stats",
         }
 
@@ -63,9 +64,7 @@ class TestCacheServiceInterface:
         """Test invalidate method signature."""
         assert hasattr(CacheServiceInterface, "invalidate")
 
-    def test_clear_signature(self):
-        """Test clear method signature."""
-        assert hasattr(CacheServiceInterface, "clear")
+
 
     def test_get_stats_signature(self):
         """Test get_stats method signature."""
@@ -517,6 +516,12 @@ class TestMockImplementationCompliance:
             def clear(self):
                 self._data.clear()
 
+            def get_etag(self, cache_key: str):
+                return None
+
+            def set_etag(self, cache_key: str, etag: str):
+                pass
+
             def get_stats(self):
                 return {"size": len(self._data)}
 
@@ -668,6 +673,10 @@ class TestMockImplementationCompliance:
 
             def stats(self):
                 return {"size": len(self._cache), "keys": list(self._cache.keys())}
+
+            def invalidate(self, cache_key: str) -> bool:
+                key = cache_key
+                return self._cache.pop(key, None) is not None
 
         mock = MockRepositoryCacheService()
         assert isinstance(mock, RepositoryCacheServiceInterface)

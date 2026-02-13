@@ -12,6 +12,7 @@ This module tests all Phase 1 improvements including:
 import time
 import threading
 import pytest
+import anyio
 from unittest.mock import Mock, patch
 
 # Import components to test
@@ -154,7 +155,10 @@ class TestTTLExpiration:
         )
 
     @patch("prdiffer.infrastructure.settings.get_settings_service")
-    def test_entry_not_expired_within_ttl(self, mock_get_settings, sample_pr_diff):
+    @pytest.mark.asyncio
+    async def test_entry_not_expired_within_ttl(
+        self, mock_get_settings, sample_pr_diff
+    ):
         """Test that entries are valid within TTL."""
         from prdiffer.infrastructure.cache_service import CacheService
 
@@ -169,14 +173,15 @@ class TestTTLExpiration:
         cache_key = "owner/repo/pr/123"
         commit_sha = "abc123"
 
-        cache_service.set(cache_key, commit_sha, sample_pr_diff)
+        await cache_service.set(cache_key, commit_sha, sample_pr_diff)
 
         # Should retrieve successfully (within TTL)
-        result = cache_service.get(cache_key, commit_sha)
+        result = await cache_service.get(cache_key, commit_sha)
         assert result == sample_pr_diff
 
     @patch("prdiffer.infrastructure.settings.get_settings_service")
-    def test_entry_expired_after_ttl(self, mock_get_settings, sample_pr_diff):
+    @pytest.mark.asyncio
+    async def test_entry_expired_after_ttl(self, mock_get_settings, sample_pr_diff):
         """Test that entries expire after TTL."""
         from prdiffer.infrastructure.cache_service import CacheService
 
@@ -191,17 +196,18 @@ class TestTTLExpiration:
         cache_key = "owner/repo/pr/123"
         commit_sha = "abc123"
 
-        cache_service.set(cache_key, commit_sha, sample_pr_diff)
+        await cache_service.set(cache_key, commit_sha, sample_pr_diff)
 
         # Wait for TTL to expire
-        time.sleep(1.5)
+        await anyio.sleep(1.5)
 
         # Should return None (expired)
-        result = cache_service.get(cache_key, commit_sha)
+        result = await cache_service.get(cache_key, commit_sha)
         assert result is None
 
     @patch("prdiffer.infrastructure.settings.get_settings_service")
-    def test_expiration_statistics(self, mock_get_settings, sample_pr_diff):
+    @pytest.mark.asyncio
+    async def test_expiration_statistics(self, mock_get_settings, sample_pr_diff):
         """Test that expiration statistics are tracked."""
         from prdiffer.infrastructure.cache_service import CacheService
 
@@ -216,16 +222,16 @@ class TestTTLExpiration:
         cache_key = "owner/repo/pr/123"
         commit_sha = "abc123"
 
-        cache_service.set(cache_key, commit_sha, sample_pr_diff)
+        await cache_service.set(cache_key, commit_sha, sample_pr_diff)
 
         # Initial stats
         assert cache_service._cache_expirations == 0
 
         # Wait for expiration
-        time.sleep(1.5)
+        await anyio.sleep(1.5)
 
         # Trigger expiration check
-        cache_service.get(cache_key, commit_sha)
+        await cache_service.get(cache_key, commit_sha)
 
         assert cache_service._cache_expirations == 1
 
@@ -567,7 +573,7 @@ class TestErrorMessageSanitization:
             pass
 
         exc = GithubException("Detailed internal error: token xyz123 invalid")
-        safe_message = server._create_safe_error_message(exc)
+        safe_message = server._tool_registry._create_safe_error_message(exc)
 
         assert safe_message == "GitHub API error occurred"
         assert "xyz123" not in safe_message
@@ -589,7 +595,7 @@ class TestErrorMessageSanitization:
             pass
 
         exc = RateLimitExceededException("Rate limit: 5000/hour exceeded at 14:32:01")
-        safe_message = server._create_safe_error_message(exc)
+        safe_message = server._tool_registry._create_safe_error_message(exc)
 
         assert safe_message == "API rate limit exceeded. Please try again later"
 
@@ -611,7 +617,7 @@ class TestErrorMessageSanitization:
         exc = UnknownInternalError(
             "Internal: database connection string is postgres://user:pass@host"
         )
-        safe_message = server._create_safe_error_message(exc)
+        safe_message = server._tool_registry._create_safe_error_message(exc)
 
         assert safe_message == "Request processing failed"
         assert "postgres" not in safe_message
@@ -635,7 +641,7 @@ class TestErrorMessageSanitization:
 
         # InvalidURLError
         invalid_url_exc = InvalidURLError("URL contains malicious pattern: $(whoami)")
-        safe_message = server._create_safe_error_message(invalid_url_exc)
+        safe_message = server._tool_registry._create_safe_error_message(invalid_url_exc)
         assert safe_message == "Invalid GitHub PR URL format"
         assert "whoami" not in safe_message
 
@@ -643,7 +649,7 @@ class TestErrorMessageSanitization:
         suspicious_exc = SuspiciousOperationError(
             "Detected SQL injection: DROP TABLE users"
         )
-        safe_message = server._create_safe_error_message(suspicious_exc)
+        safe_message = server._tool_registry._create_safe_error_message(suspicious_exc)
         assert safe_message == "Request contains suspicious patterns"
         assert "DROP TABLE" not in safe_message
 

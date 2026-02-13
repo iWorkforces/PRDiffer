@@ -9,6 +9,7 @@ import pytest
 from github import GithubException, RateLimitExceededException, UnknownObjectException
 
 from prdiffer.application.factory import create_mcp_server
+from prdiffer.application.utils.pr_url_parser import parse_pr_url
 from prdiffer.domain.entities.pr_diff import PRDiff
 from prdiffer.domain.exceptions import (
     InvalidURLError,
@@ -227,7 +228,7 @@ class TestValidationErrorScenarios:
 
         # Act & Assert: Should raise InvalidURLError
         with pytest.raises(InvalidURLError):
-            server._parse_pr_url(invalid_url)
+            parse_pr_url(invalid_url)
 
     def test_malformed_github_url(self, server):
         """Test handling of malformed GitHub URL."""
@@ -236,7 +237,7 @@ class TestValidationErrorScenarios:
 
         # Act & Assert: Should raise InvalidURLError
         with pytest.raises(InvalidURLError):
-            server._parse_pr_url(malformed_url)
+            parse_pr_url(malformed_url)
 
     def test_url_with_command_injection(self, server):
         """Test handling of URL with command injection attempt."""
@@ -245,7 +246,7 @@ class TestValidationErrorScenarios:
 
         # Act & Assert: Should raise SuspiciousOperationError
         with pytest.raises((SuspiciousOperationError, InvalidURLError)):
-            server._parse_pr_url(malicious_url)
+            parse_pr_url(malicious_url)
 
     def test_url_with_sql_injection(self, server):
         """Test handling of URL with SQL injection attempt."""
@@ -254,7 +255,7 @@ class TestValidationErrorScenarios:
 
         # Act & Assert: Should raise SuspiciousOperationError or InvalidURLError
         with pytest.raises((SuspiciousOperationError, InvalidURLError)):
-            server._parse_pr_url(malicious_url)
+            parse_pr_url(malicious_url)
 
     def test_url_with_path_traversal(self, server):
         """Test handling of URL with path traversal attempt."""
@@ -265,7 +266,7 @@ class TestValidationErrorScenarios:
         with pytest.raises(
             (SuspiciousOperationError, InvalidRepositoryError, InvalidURLError)
         ):
-            server._parse_pr_url(malicious_url)
+            parse_pr_url(malicious_url)
 
     def test_empty_url(self, server):
         """Test handling of empty URL."""
@@ -274,7 +275,7 @@ class TestValidationErrorScenarios:
 
         # Act & Assert: Should raise InvalidURLError or InputSanitizationError
         with pytest.raises((InvalidURLError, InputSanitizationError)):
-            server._parse_pr_url(empty_url)
+            parse_pr_url(empty_url)
 
     def test_none_url(self, server):
         """Test handling of None URL."""
@@ -283,7 +284,7 @@ class TestValidationErrorScenarios:
 
         # Act & Assert: Should raise InvalidURLError
         with pytest.raises(InvalidURLError, match="cannot be None"):
-            server._parse_pr_url(none_url)
+            parse_pr_url(none_url)
 
     def test_whitespace_only_url(self, server):
         """Test handling of whitespace-only URL."""
@@ -292,7 +293,7 @@ class TestValidationErrorScenarios:
 
         # Act & Assert: Should raise InvalidURLError
         with pytest.raises(InvalidURLError, match="whitespace-only"):
-            server._parse_pr_url(whitespace_url)
+            parse_pr_url(whitespace_url)
 
     def test_non_string_url(self, server):
         """Test handling of non-string URL type."""
@@ -301,7 +302,7 @@ class TestValidationErrorScenarios:
 
         # Act & Assert: Should raise InvalidURLError
         with pytest.raises(InvalidURLError, match="must be a string"):
-            server._parse_pr_url(non_string_url)
+            parse_pr_url(non_string_url)
 
     def test_invalid_pr_number(self, server):
         """Test handling of invalid PR number."""
@@ -310,7 +311,7 @@ class TestValidationErrorScenarios:
 
         # Act & Assert: Should raise InvalidURLError or InvalidPRNumberError
         with pytest.raises((InvalidURLError, InvalidPRNumberError)):
-            server._parse_pr_url(invalid_url)
+            parse_pr_url(invalid_url)
 
     def test_negative_pr_number(self, server):
         """Test handling of negative PR number."""
@@ -319,7 +320,7 @@ class TestValidationErrorScenarios:
 
         # Act & Assert: Should raise InvalidURLError or InvalidPRNumberError
         with pytest.raises((InvalidURLError, InvalidPRNumberError)):
-            server._parse_pr_url(invalid_url)
+            parse_pr_url(invalid_url)
 
     def test_zero_pr_number(self, server):
         """Test handling of zero PR number."""
@@ -328,7 +329,7 @@ class TestValidationErrorScenarios:
 
         # Act & Assert: Should raise InvalidURLError or InvalidPRNumberError
         with pytest.raises((InvalidURLError, InvalidPRNumberError)):
-            server._parse_pr_url(invalid_url)
+            parse_pr_url(invalid_url)
 
     def test_exceeds_max_pr_number(self, server):
         """Test handling of PR number exceeding maximum."""
@@ -337,7 +338,7 @@ class TestValidationErrorScenarios:
 
         # Act & Assert: Should raise InvalidURLError or InvalidPRNumberError
         with pytest.raises((InvalidURLError, InvalidPRNumberError)):
-            server._parse_pr_url(invalid_url)
+            parse_pr_url(invalid_url)
 
 
 @pytest.mark.integration

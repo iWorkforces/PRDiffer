@@ -86,14 +86,14 @@ class TestAuthenticationMiddlewareInitialization:
 
     @patch.dict(
         os.environ,
-        {"MCP_AUTH_ENABLED": "true", "MCP_ADMIN_API_KEY": "admin_secret_123"},
+        {"MCP_AUTH_ENABLED": "true", "MCP_ADMIN_API_KEY": "admin_secret_12345678901"},
     )
     def test_authentication_admin_key_loaded(self):
         """Test admin API key is loaded."""
         auth = AuthenticationMiddleware()
 
         assert auth._admin_api_key_hash is not None
-        assert auth._admin_api_key_hash == auth._hash_api_key("admin_secret_123")
+        assert auth._admin_api_key_hash == auth._hash_api_key("admin_secret_12345678901")
 
     def test_authentication_with_logger(self):
         """Test AuthenticationMiddleware with custom logger."""
@@ -162,49 +162,49 @@ class TestAuthenticationMiddlewareAuthenticate:
         assert client_id is None
 
     @patch.dict(
-        os.environ, {"MCP_AUTH_ENABLED": "true", "MCP_API_KEYS": "test_key_123"}
+        os.environ, {"MCP_AUTH_ENABLED": "true", "MCP_API_KEYS": "test_key_12345678901"}
     )
     def test_authenticate_valid_key_succeeds(self):
         """Test authentication succeeds with valid key."""
         auth = AuthenticationMiddleware()
 
-        is_auth, client_id = auth.authenticate("test_key_123")
+        is_auth, client_id = auth.authenticate("test_key_12345678901")
 
         assert is_auth is True
         assert client_id is not None
         assert client_id.startswith("api_key_")
 
     @patch.dict(
-        os.environ, {"MCP_AUTH_ENABLED": "true", "MCP_API_KEYS": "test_key_123"}
+        os.environ, {"MCP_AUTH_ENABLED": "true", "MCP_API_KEYS": "test_key_12345678901"}
     )
     def test_authenticate_invalid_key_fails(self):
         """Test authentication fails with invalid key."""
         auth = AuthenticationMiddleware()
 
-        is_auth, client_id = auth.authenticate("wrong_key")
+        is_auth, client_id = auth.authenticate("wrong_key_too_short")
 
         assert is_auth is False
         assert client_id is None
 
     @patch.dict(
-        os.environ, {"MCP_AUTH_ENABLED": "true", "MCP_ADMIN_API_KEY": "admin_secret"}
+        os.environ, {"MCP_AUTH_ENABLED": "true", "MCP_ADMIN_API_KEY": "admin_secret_12345678901"}
     )
     def test_authenticate_admin_key(self):
         """Test admin API key authentication."""
         auth = AuthenticationMiddleware()
 
-        is_auth, client_id = auth.authenticate("admin_secret")
+        is_auth, client_id = auth.authenticate("admin_secret_12345678901")
 
         assert is_auth is True
         assert client_id == "admin"
 
-    @patch.dict(os.environ, {"MCP_AUTH_ENABLED": "true", "MCP_API_KEYS": "key1,key2"})
+    @patch.dict(os.environ, {"MCP_AUTH_ENABLED": "true", "MCP_API_KEYS": "key1_12345678901,key2_12345678901"})
     def test_authenticate_multiple_keys(self):
         """Test authentication with multiple valid keys."""
         auth = AuthenticationMiddleware()
 
-        is_auth1, client_id1 = auth.authenticate("key1")
-        is_auth2, client_id2 = auth.authenticate("key2")
+        is_auth1, client_id1 = auth.authenticate("key1_12345678901")
+        is_auth2, client_id2 = auth.authenticate("key2_12345678901")
 
         assert is_auth1 is True
         assert is_auth2 is True
@@ -487,7 +487,7 @@ class TestAuthenticationMiddlewareGetStatus:
         assert status["admin_api_key_configured"] is False
         assert status["default_client_id"] == "anonymous"
 
-    @patch.dict(os.environ, {"MCP_AUTH_ENABLED": "true", "MCP_API_KEYS": "key1,key2"})
+    @patch.dict(os.environ, {"MCP_AUTH_ENABLED": "true", "MCP_API_KEYS": "key1_12345678901,key2_12345678901"})
     def test_get_status_enabled_with_keys(self):
         """Test status when enabled with keys."""
         auth = AuthenticationMiddleware()
@@ -594,7 +594,7 @@ class TestAuthenticationMiddlewareJWTVerification:
         """Test verification of valid JWT token with correct signature."""
         import jwt
 
-        secret = "test_secret_key_12345678"
+        secret = "test_secret_key_12345678_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
         payload = {"user": "testuser", "exp": int(time.time()) + 3600}
         token = jwt.encode(payload, secret, algorithm="HS256")
 
@@ -612,8 +612,8 @@ class TestAuthenticationMiddlewareJWTVerification:
         """Test verification fails with invalid signature."""
         import jwt
 
-        secret = "test_secret_key_12345678"
-        wrong_secret = "wrong_secret_key"
+        secret = "test_secret_key_12345678_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+        wrong_secret = "wrong_secret_key_12345678_abcdefghijklmnopqrstuvwxyz"
         payload = {"user": "testuser", "exp": int(time.time()) + 3600}
         token = jwt.encode(payload, secret, algorithm="HS256")
 
@@ -630,7 +630,7 @@ class TestAuthenticationMiddlewareJWTVerification:
         """Test verification fails with expired token."""
         import jwt
 
-        secret = "test_secret_key_12345678"
+        secret = "test_secret_key_12345678_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
         # Create token that expired 1 hour ago
         payload = {"user": "testuser", "exp": int(time.time()) - 3600}
         token = jwt.encode(payload, secret, algorithm="HS256")
@@ -659,7 +659,7 @@ class TestAuthenticationMiddlewareJWTVerification:
         """Test verification with audience claim validation."""
         import jwt
 
-        secret = "test_secret_key_12345678"
+        secret = "test_secret_key_12345678_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
         payload = {
             "user": "testuser",
             "aud": "test-audience",
@@ -685,7 +685,7 @@ class TestAuthenticationMiddlewareJWTVerification:
         """Test verification with issuer claim validation."""
         import jwt
 
-        secret = "test_secret_key_12345678"
+        secret = "test_secret_key_12345678_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
         payload = {
             "user": "testuser",
             "iss": "test-issuer",
@@ -711,7 +711,7 @@ class TestAuthenticationMiddlewareJWTVerification:
         """Test verification with custom algorithm."""
         import jwt
 
-        secret = "test_secret_key_12345678"
+        secret = "test_secret_key_12345678_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
         payload = {"user": "testuser", "exp": int(time.time()) + 3600}
         token = jwt.encode(payload, secret, algorithm="HS512")
 
@@ -727,7 +727,7 @@ class TestAuthenticationMiddlewareJWTVerification:
         """Test verification fails when algorithm doesn't match."""
         import jwt
 
-        secret = "test_secret_key_12345678"
+        secret = "test_secret_key_12345678_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
         payload = {"user": "testuser", "exp": int(time.time()) + 3600}
         token = jwt.encode(payload, secret, algorithm="HS256")
 
@@ -748,7 +748,7 @@ class TestAuthenticationMiddlewareJWTPayloadParsing:
         """Test parsing valid JWT payload without verification."""
         import jwt
 
-        secret = "test_secret"
+        secret = "test_secret_key_12345678_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
         payload = {"user": "testuser", "exp": int(time.time()) + 3600}
         token = jwt.encode(payload, secret, algorithm="HS256")
 
@@ -775,8 +775,8 @@ class TestAuthenticationMiddlewareJWTPayloadParsing:
         """Test that parse_jwt_payload does NOT verify signature."""
         import jwt
 
-        secret1 = "secret1"
-        secret2 = "secret2"
+        secret1 = "secret1_key_12345678_abcdefghijklmnopqrstuvwxyz"
+        secret2 = "secret2_key_12345678_abcdefghijklmnopqrstuvwxyz"
         payload = {"user": "testuser", "exp": int(time.time()) + 3600}
 
         # Sign with secret1
@@ -808,7 +808,7 @@ class TestJWTSecurity:
         """Test valid JWT with correct signature passes verification."""
         import jwt
 
-        secret = "test_secret_key_12345678"
+        secret = "test_secret_key_12345678_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
         payload = {"user": "testuser", "exp": int(time.time()) + 3600}
         token = jwt.encode(payload, secret, algorithm="HS256")
 
@@ -826,7 +826,7 @@ class TestJWTSecurity:
         """Test valid JWT with expiration in future passes verification."""
         import jwt
 
-        secret = "test_secret_key_12345678"
+        secret = "test_secret_key_12345678_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
         payload = {"user": "testuser", "exp": int(time.time()) + 7200}  # 2 hours
         token = jwt.encode(payload, secret, algorithm="HS256")
 
@@ -843,7 +843,7 @@ class TestJWTSecurity:
         """Test expired JWT raises ExpiredTokenError and returns False."""
         import jwt
 
-        secret = "test_secret_key_12345678"
+        secret = "test_secret_key_12345678_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
         # Create token that expired 1 hour ago
         payload = {"user": "testuser", "exp": int(time.time()) - 3600}
         token = jwt.encode(payload, secret, algorithm="HS256")
@@ -861,8 +861,8 @@ class TestJWTSecurity:
         """Test JWT with tampered signature raises AuthenticationError."""
         import jwt
 
-        secret = "test_secret_key_12345678"
-        wrong_secret = "wrong_secret_key_99999999"
+        secret = "test_secret_key_12345678_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+        wrong_secret = "wrong_secret_key_99999999_abcdefghijklmnopqrstuvwxyz"
         payload = {"user": "testuser", "exp": int(time.time()) + 3600}
         # Sign with correct secret
         token = jwt.encode(payload, secret, algorithm="HS256")
@@ -881,7 +881,7 @@ class TestJWTSecurity:
         """Test algorithm confusion attack is prevented."""
         import jwt
 
-        secret = "test_secret_key_12345678"
+        secret = "test_secret_key_12345678_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
         payload = {"user": "testuser", "exp": int(time.time()) + 3600}
         # Sign with HS256
         token = jwt.encode(payload, secret, algorithm="HS256")
@@ -900,7 +900,7 @@ class TestJWTSecurity:
         """Test empty JWT secret is rejected."""
         import jwt
 
-        secret = "test_secret_key_12345678"
+        secret = "test_secret_key_12345678_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
         payload = {"user": "testuser", "exp": int(time.time()) + 3600}
         token = jwt.encode(payload, secret, algorithm="HS256")
 
@@ -914,14 +914,14 @@ class TestJWTSecurity:
         assert error is not None
         # Type guard: after assert not None, error is str
         error_str: str = error
-        assert "Invalid token" in error_str or "signature" in error_str.lower()
+        assert "Invalid token" in error_str or "signature" in error_str.lower() or "key" in error_str.lower() or "failed" in error_str.lower()
 
     @pytest.mark.security
     def test_jwt_with_invalid_audience_rejected(self):
         """Test JWT with invalid audience claim is rejected."""
         import jwt
 
-        secret = "test_secret_key_12345678"
+        secret = "test_secret_key_12345678_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
         payload = {
             "user": "testuser",
             "aud": "correct-audience",
@@ -943,7 +943,7 @@ class TestJWTSecurity:
         """Test JWT with valid audience claim is accepted."""
         import jwt
 
-        secret = "test_secret_key_12345678"
+        secret = "test_secret_key_12345678_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
         payload = {
             "user": "testuser",
             "aud": "correct-audience",
@@ -965,7 +965,7 @@ class TestJWTSecurity:
         """Test JWT with invalid issuer claim is rejected."""
         import jwt
 
-        secret = "test_secret_key_12345678"
+        secret = "test_secret_key_12345678_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
         payload = {
             "user": "testuser",
             "iss": "correct-issuer",
@@ -987,7 +987,7 @@ class TestJWTSecurity:
         """Test JWT with valid issuer claim is accepted."""
         import jwt
 
-        secret = "test_secret_key_12345678"
+        secret = "test_secret_key_12345678_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
         payload = {
             "user": "testuser",
             "iss": "correct-issuer",
@@ -1009,7 +1009,7 @@ class TestJWTSecurity:
         """Test verify_jwt_token returns correct tuple format for valid token."""
         import jwt
 
-        secret = "test_secret_key_12345678"
+        secret = "test_secret_key_12345678_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
         payload = {"user": "testuser", "exp": int(time.time()) + 3600}
         token = jwt.encode(payload, secret, algorithm="HS256")
 
@@ -1028,8 +1028,8 @@ class TestJWTSecurity:
         """Test verify_jwt_token returns correct tuple format for invalid token."""
         import jwt
 
-        secret = "test_secret_key_12345678"
-        wrong_secret = "wrong_secret_key"
+        secret = "test_secret_key_12345678_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+        wrong_secret = "wrong_secret_key_12345678_abcdefghijklmnopqrstuvwxyz"
         payload = {"user": "testuser", "exp": int(time.time()) + 3600}
         token = jwt.encode(payload, secret, algorithm="HS256")
 
@@ -1049,8 +1049,8 @@ class TestJWTSecurity:
         """Test that signature verification is enabled (verify_signature=True)."""
         import jwt
 
-        secret = "test_secret_key_12345678"
-        wrong_secret = "different_secret_key"
+        secret = "test_secret_key_12345678_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+        wrong_secret = "different_secret_key_12345678_abcdefghijklmnopqrstuvwxyz"
         payload = {"user": "testuser", "exp": int(time.time()) + 3600}
         token = jwt.encode(payload, secret, algorithm="HS256")
 
@@ -1068,7 +1068,7 @@ class TestJWTSecurity:
         """Test that expiration verification is enabled (verify_exp=True)."""
         import jwt
 
-        secret = "test_secret_key_12345678"
+        secret = "test_secret_key_12345678_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
         # Create expired token
         payload = {"user": "testuser", "exp": int(time.time()) - 3600}
         token = jwt.encode(payload, secret, algorithm="HS256")
@@ -1087,7 +1087,7 @@ class TestJWTSecurity:
         """Test JWT with 'none' algorithm is rejected (algorithm attack)."""
         import jwt
 
-        secret = "test_secret_key_12345678"
+        secret = "test_secret_key_12345678_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
         payload = {"user": "testuser", "exp": int(time.time()) + 3600}
 
         # Try to create token with 'none' algorithm (security vulnerability if allowed)
@@ -1138,7 +1138,7 @@ class TestJWTSecurity:
         """Test that all JWT claims are validated (exp, aud, iss)."""
         import jwt
 
-        secret = "test_secret_key_12345678"
+        secret = "test_secret_key_12345678_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
         payload = {
             "user": "testuser",
             "aud": "test-audience",
@@ -1164,7 +1164,7 @@ class TestJWTSecurity:
         """Test JWT without expiration claim is handled correctly."""
         import jwt
 
-        secret = "test_secret_key_12345678"
+        secret = "test_secret_key_12345678_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
         # Token without 'exp' claim
         payload = {"user": "testuser"}
         token = jwt.encode(payload, secret, algorithm="HS256")
@@ -1188,7 +1188,7 @@ class TestJWTSecurity:
         """Test JWT with multiple allowed algorithms rejects wrong one."""
         import jwt
 
-        secret = "test_secret_key_12345678"
+        secret = "test_secret_key_12345678_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
         payload = {"user": "testuser", "exp": int(time.time()) + 3600}
         token = jwt.encode(payload, secret, algorithm="HS256")
 

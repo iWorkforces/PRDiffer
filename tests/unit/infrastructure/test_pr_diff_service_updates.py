@@ -7,7 +7,7 @@ WAVE 1 & 2 COMPLETE: Domain entities updated with new structure
 """
 
 import pytest
-from unittest.mock import Mock
+from unittest.mock import Mock, AsyncMock
 
 from prdiffer.infrastructure.services.pr_diff_service import GitHubPRDiffService
 from prdiffer.domain.entities.file_patch import FilePatchInfo, EDIT_TYPE
@@ -46,10 +46,19 @@ class TestGenerateDiffContentReturnsFilePatchList:
             patch="@@ -1,3 +1,8 @@\n-old\n+new\n",
         )
 
-        # Setup mock to return FilePatchInfo list
+        # Setup mock to return FilePatchInfo list (both sync and async methods)
         mock_file_processor.process_files_to_patches.return_value = [
             file_patch_1,
             file_patch_2,
+        ]
+        mock_file_processor.process_files_to_patches_async = AsyncMock(
+            return_value=[file_patch_1, file_patch_2]
+        )
+
+        # Setup diff generator to return list of strings
+        mock_diff_generator.generate_extended_diff.return_value = [
+            "diff content for file1",
+            "diff content for file2",
         ]
 
         service = GitHubPRDiffService(
@@ -63,8 +72,9 @@ class TestGenerateDiffContentReturnsFilePatchList:
         mock_pull_request = Mock()
         mock_pull_request.head = Mock()
         mock_pull_request.head.sha = "commit123"
-        mock_pull_request.get_files.return_value = []
-        mock_pull_request.base = None
+        mock_pull_request.get_files.return_value = [Mock(), Mock()]  # 2 mock files
+        mock_pull_request.base = Mock()
+        mock_pull_request.base.sha = "base123"
 
         mock_github_api_client.get_repository.return_value = mock_repository
         mock_github_api_client.get_pull_request.return_value = mock_pull_request
@@ -74,9 +84,11 @@ class TestGenerateDiffContentReturnsFilePatchList:
             mock_repository, mock_pull_request
         )
 
-        # Assert - expecting List[FilePatchInfo] after breaking change
-        assert isinstance(result, list)
-        assert len(result) == 2
-        assert all(isinstance(f, FilePatchInfo) for f in result)
-        assert result[0].filename == "file1.ts"
-        assert result[1].filename == "file2.ts"
+        # Assert - expecting tuple[str, list[FilePatchInfo]] after breaking change
+        assert isinstance(result, tuple)
+        diff_content, diff_files = result
+        assert isinstance(diff_files, list)
+        assert len(diff_files) == 2
+        assert all(isinstance(f, FilePatchInfo) for f in diff_files)
+        assert diff_files[0].filename == "file1.ts"
+        assert diff_files[1].filename == "file2.ts"

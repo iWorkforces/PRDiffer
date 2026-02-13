@@ -1,5 +1,6 @@
 """Unit tests for rate limit handling in UnifiedRetryHandler."""
 
+import time as time_module
 from unittest.mock import patch
 
 import pytest
@@ -7,8 +8,11 @@ import pytest
 from prdiffer.infrastructure.utils.retry_handler import UnifiedRetryHandler
 
 
-class FakeGithubException(Exception):
-    """Minimal exception type that exposes headers/data like PyGithub."""
+class FakeGithubException(RuntimeError):
+    """Minimal exception type that exposes headers/data like PyGithub.
+
+    Inherits from RuntimeError to be included in RETRY_EXCEPTIONS.
+    """
 
     def __init__(self, message, headers=None, data=None):
         super().__init__(message)
@@ -60,10 +64,8 @@ def test_rate_limit_reset_header_honored():
             )
         return "ok"
 
-    with patch(
-        "prdiffer.infrastructure.utils.retry_handler.time.time",
-        return_value=1000.0,
-    ):
+    # Patch time.time directly since it's imported locally in delay_calculator
+    with patch.object(time_module, "time", return_value=1000.0):
         with patch(
             "prdiffer.infrastructure.utils.retry_handler.time.sleep",
             lambda delay: sleep_calls.append(delay),
@@ -86,8 +88,9 @@ def test_secondary_rate_limit_backoff_used():
     def always_fails():
         raise FakeGithubException("Abuse detection mechanism triggered")
 
+    # Patch random.uniform in delay_calculator where it's actually imported
     with patch(
-        "prdiffer.infrastructure.utils.retry_handler.random.uniform",
+        "prdiffer.infrastructure.utils.delay_calculator.random.uniform",
         return_value=0.0,
     ):
         with patch(
@@ -112,8 +115,9 @@ def test_missing_headers_fallback_to_backoff():
             raise FakeGithubException("Rate limit exceeded")
         return "ok"
 
+    # Patch random.uniform in delay_calculator where it's actually imported
     with patch(
-        "prdiffer.infrastructure.utils.retry_handler.random.uniform",
+        "prdiffer.infrastructure.utils.delay_calculator.random.uniform",
         return_value=0.0,
     ):
         with patch(
@@ -123,4 +127,5 @@ def test_missing_headers_fallback_to_backoff():
             result = handler.execute_with_retry(flaky)
 
     assert result == "ok"
-    assert sleep_calls == [1.0]
+    # Rate limit errors get double delay: base_delay * 2 = 1.0 * 2 = 2.0
+    assert sleep_calls == [2.0]

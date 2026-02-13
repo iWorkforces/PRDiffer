@@ -9,6 +9,7 @@ import pytest
 from unittest.mock import Mock, patch
 from prdiffer.infrastructure.cache_service import CacheService
 from prdiffer.domain.entities.pr_diff import PRDiff
+from prdiffer.domain.exceptions import ValidationError
 
 
 @pytest.fixture
@@ -106,11 +107,12 @@ class TestCacheKeyHashing:
 
         cache_service = CacheService()
 
-        with pytest.raises(ValueError, match="Unsupported hash algorithm"):
+        with pytest.raises(ValidationError, match="Unsupported hash algorithm"):
             cache_service._hash_key("test/repo/pr/123")
 
     @patch("prdiffer.infrastructure.settings.get_settings_service")
-    def test_get_internal_key_with_hashing(
+    @pytest.mark.asyncio
+    async def test_get_internal_key_with_hashing(
         self, mock_get_settings, mock_settings_hashing_enabled
     ):
         """Test internal key generation with hashing enabled."""
@@ -118,7 +120,7 @@ class TestCacheKeyHashing:
         cache_service = CacheService()
 
         original_key = "owner/repo/pr/123"
-        internal_key, hash_display = cache_service._get_internal_key(original_key)
+        internal_key, hash_display = await cache_service._get_internal_key(original_key)
 
         # Internal key should be the hash
         expected_hash = hashlib.md5(original_key.encode("utf-8")).hexdigest()
@@ -129,7 +131,8 @@ class TestCacheKeyHashing:
         assert len(hash_display) == 11  # 8 chars + "..."
 
     @patch("prdiffer.infrastructure.settings.get_settings_service")
-    def test_get_internal_key_without_hashing(
+    @pytest.mark.asyncio
+    async def test_get_internal_key_without_hashing(
         self, mock_get_settings, mock_settings_hashing_disabled
     ):
         """Test internal key generation with hashing disabled."""
@@ -137,7 +140,7 @@ class TestCacheKeyHashing:
         cache_service = CacheService()
 
         original_key = "owner/repo/pr/123"
-        internal_key, hash_display = cache_service._get_internal_key(original_key)
+        internal_key, hash_display = await cache_service._get_internal_key(original_key)
 
         # Internal key should be the original key
         assert internal_key == original_key
@@ -145,7 +148,8 @@ class TestCacheKeyHashing:
         assert hash_display == ""
 
     @patch("prdiffer.infrastructure.settings.get_settings_service")
-    def test_reverse_mapping_stored(
+    @pytest.mark.asyncio
+    async def test_reverse_mapping_stored(
         self, mock_get_settings, mock_settings_hashing_enabled
     ):
         """Test that reverse mapping is stored when configured."""
@@ -153,7 +157,7 @@ class TestCacheKeyHashing:
         cache_service = CacheService()
 
         original_key = "owner/repo/pr/123"
-        internal_key, _ = cache_service._get_internal_key(
+        internal_key, _ = await cache_service._get_internal_key(
             original_key, store_mapping=True
         )
 
@@ -162,7 +166,8 @@ class TestCacheKeyHashing:
         assert cache_service._key_mapping[internal_key] == original_key
 
     @patch("prdiffer.infrastructure.settings.get_settings_service")
-    def test_reverse_mapping_not_stored(
+    @pytest.mark.asyncio
+    async def test_reverse_mapping_not_stored(
         self, mock_get_settings, mock_settings_no_mapping
     ):
         """Test that reverse mapping is not stored when disabled."""
@@ -170,13 +175,14 @@ class TestCacheKeyHashing:
         cache_service = CacheService()
 
         original_key = "owner/repo/pr/123"
-        cache_service._get_internal_key(original_key)
+        await cache_service._get_internal_key(original_key)
 
         # Reverse mapping should be empty
         assert len(cache_service._key_mapping) == 0
 
     @patch("prdiffer.infrastructure.settings.get_settings_service")
-    def test_get_original_key_with_mapping(
+    @pytest.mark.asyncio
+    async def test_get_original_key_with_mapping(
         self, mock_get_settings, mock_settings_hashing_enabled
     ):
         """Test retrieving original key from hash using mapping."""
@@ -184,16 +190,17 @@ class TestCacheKeyHashing:
         cache_service = CacheService()
 
         original_key = "owner/repo/pr/123"
-        internal_key, _ = cache_service._get_internal_key(
+        internal_key, _ = await cache_service._get_internal_key(
             original_key, store_mapping=True
         )
 
         # Get original key back from hash
-        retrieved_key = cache_service._get_original_key(internal_key)
+        retrieved_key = await cache_service._get_original_key(internal_key)
         assert retrieved_key == original_key
 
     @patch("prdiffer.infrastructure.settings.get_settings_service")
-    def test_get_original_key_without_mapping(
+    @pytest.mark.asyncio
+    async def test_get_original_key_without_mapping(
         self, mock_get_settings, mock_settings_no_mapping
     ):
         """Test getting original key when mapping is disabled."""
@@ -201,7 +208,7 @@ class TestCacheKeyHashing:
         cache_service = CacheService()
 
         hashed_key = "abc123def456"
-        retrieved_key = cache_service._get_original_key(hashed_key)
+        retrieved_key = await cache_service._get_original_key(hashed_key)
 
         # Should return the hash itself since no mapping exists
         assert retrieved_key == hashed_key
@@ -211,7 +218,8 @@ class TestCacheOperationsWithHashing:
     """Test cache operations (get, set, invalidate) with hashing."""
 
     @patch("prdiffer.infrastructure.settings.get_settings_service")
-    def test_set_and_get_with_hashing(
+    @pytest.mark.asyncio
+    async def test_set_and_get_with_hashing(
         self, mock_get_settings, mock_settings_hashing_enabled, sample_pr_diff
     ):
         """Test setting and getting cache with hashed keys."""
@@ -222,7 +230,7 @@ class TestCacheOperationsWithHashing:
         commit_sha = "abc123"
 
         # Set cache
-        cache_service.set(cache_key, commit_sha, sample_pr_diff)
+        await cache_service.set(cache_key, commit_sha, sample_pr_diff)
 
         # Verify data is stored under hashed key
         expected_hash = hashlib.md5(cache_key.encode("utf-8")).hexdigest()
@@ -230,11 +238,12 @@ class TestCacheOperationsWithHashing:
         assert expected_hash not in ["owner/repo/pr/123"]  # Original key not used
 
         # Get cache
-        retrieved = cache_service.get(cache_key, commit_sha)
+        retrieved = await cache_service.get(cache_key, commit_sha)
         assert retrieved == sample_pr_diff
 
     @patch("prdiffer.infrastructure.settings.get_settings_service")
-    def test_set_and_get_without_hashing(
+    @pytest.mark.asyncio
+    async def test_set_and_get_without_hashing(
         self, mock_get_settings, mock_settings_hashing_disabled, sample_pr_diff
     ):
         """Test setting and getting cache without hashing."""
@@ -245,17 +254,18 @@ class TestCacheOperationsWithHashing:
         commit_sha = "abc123"
 
         # Set cache
-        cache_service.set(cache_key, commit_sha, sample_pr_diff)
+        await cache_service.set(cache_key, commit_sha, sample_pr_diff)
 
         # Verify data is stored under original key
         assert cache_key in cache_service.cache
 
         # Get cache
-        retrieved = cache_service.get(cache_key, commit_sha)
+        retrieved = await cache_service.get(cache_key, commit_sha)
         assert retrieved == sample_pr_diff
 
     @patch("prdiffer.infrastructure.settings.get_settings_service")
-    def test_cache_miss_with_hashing(
+    @pytest.mark.asyncio
+    async def test_cache_miss_with_hashing(
         self, mock_get_settings, mock_settings_hashing_enabled
     ):
         """Test cache miss with hashing enabled."""
@@ -266,11 +276,12 @@ class TestCacheOperationsWithHashing:
         commit_sha = "xyz789"
 
         # Cache miss should return None
-        retrieved = cache_service.get(cache_key, commit_sha)
+        retrieved = await cache_service.get(cache_key, commit_sha)
         assert retrieved is None
 
     @patch("prdiffer.infrastructure.settings.get_settings_service")
-    def test_invalidate_with_hashing(
+    @pytest.mark.asyncio
+    async def test_invalidate_with_hashing(
         self, mock_get_settings, mock_settings_hashing_enabled, sample_pr_diff
     ):
         """Test cache invalidation with hashing."""
@@ -281,21 +292,22 @@ class TestCacheOperationsWithHashing:
         commit_sha = "abc123"
 
         # Set and verify
-        cache_service.set(cache_key, commit_sha, sample_pr_diff)
-        assert cache_service.get(cache_key, commit_sha) == sample_pr_diff
+        await cache_service.set(cache_key, commit_sha, sample_pr_diff)
+        assert await cache_service.get(cache_key, commit_sha) == sample_pr_diff
 
         # Invalidate
-        cache_service.invalidate(cache_key)
+        await cache_service.invalidate(cache_key)
 
         # Verify removed
-        assert cache_service.get(cache_key, commit_sha) is None
+        assert await cache_service.get(cache_key, commit_sha) is None
 
         # Verify reverse mapping also removed
         expected_hash = hashlib.md5(cache_key.encode("utf-8")).hexdigest()
         assert expected_hash not in cache_service._key_mapping
 
     @patch("prdiffer.infrastructure.settings.get_settings_service")
-    def test_clear_with_hashing(
+    @pytest.mark.asyncio
+    async def test_clear_with_hashing(
         self, mock_get_settings, mock_settings_hashing_enabled, sample_pr_diff
     ):
         """Test clearing cache with hashing."""
@@ -305,21 +317,22 @@ class TestCacheOperationsWithHashing:
         # Add multiple entries
         for i in range(3):
             cache_key = f"owner/repo/pr/{i}"
-            cache_service.set(cache_key, f"sha{i}", sample_pr_diff)
+            await cache_service.set(cache_key, f"sha{i}", sample_pr_diff)
 
         # Verify entries and mappings exist
         assert len(cache_service.cache) == 3
         assert len(cache_service._key_mapping) == 3
 
         # Clear
-        cache_service.clear()
+        await cache_service.clear()
 
         # Verify everything cleared
         assert len(cache_service.cache) == 0
         assert len(cache_service._key_mapping) == 0
 
     @patch("prdiffer.infrastructure.settings.get_settings_service")
-    def test_commit_sha_mismatch_with_hashing(
+    @pytest.mark.asyncio
+    async def test_commit_sha_mismatch_with_hashing(
         self, mock_get_settings, mock_settings_hashing_enabled, sample_pr_diff
     ):
         """Test cache invalidation when commit SHA changes."""
@@ -331,10 +344,10 @@ class TestCacheOperationsWithHashing:
         new_commit = "xyz789"
 
         # Set with old commit
-        cache_service.set(cache_key, old_commit, sample_pr_diff)
+        await cache_service.set(cache_key, old_commit, sample_pr_diff)
 
         # Try to get with new commit (should be cache miss)
-        retrieved = cache_service.get(cache_key, new_commit)
+        retrieved = await cache_service.get(cache_key, new_commit)
         assert retrieved is None
 
 
@@ -342,7 +355,8 @@ class TestCacheStatsWithHashing:
     """Test cache statistics with hashing."""
 
     @patch("prdiffer.infrastructure.settings.get_settings_service")
-    def test_stats_with_hashing_and_mapping(
+    @pytest.mark.asyncio
+    async def test_stats_with_hashing_and_mapping(
         self, mock_get_settings, mock_settings_hashing_enabled, sample_pr_diff
     ):
         """Test that stats return original keys when mapping is enabled."""
@@ -356,20 +370,18 @@ class TestCacheStatsWithHashing:
             "karcher-digital/iotc-device-management/pr/163",
         ]
         for key in keys:
-            cache_service.set(key, "sha", sample_pr_diff)
+            await cache_service.set(key, "sha", sample_pr_diff)
 
         # Get stats
         stats = cache_service.get_stats()
 
         # Should return original keys, not hashes
-        assert stats["size"] == 3
-        assert stats["total_entries"] == 3
-        assert stats["hashing_enabled"] is True
-        assert stats["mapping_size"] == 3
+        assert stats["cache_size"] == 3
         assert set(stats["keys"]) == set(keys)  # Original keys returned
 
     @patch("prdiffer.infrastructure.settings.get_settings_service")
-    def test_stats_with_hashing_no_mapping(
+    @pytest.mark.asyncio
+    async def test_stats_with_hashing_no_mapping(
         self, mock_get_settings, mock_settings_no_mapping, sample_pr_diff
     ):
         """Test that stats return hashed keys when mapping is disabled."""
@@ -378,19 +390,19 @@ class TestCacheStatsWithHashing:
 
         # Add entry
         cache_key = "owner/repo/pr/123"
-        cache_service.set(cache_key, "sha", sample_pr_diff)
+        await cache_service.set(cache_key, "sha", sample_pr_diff)
 
         # Get stats
         stats = cache_service.get_stats()
 
         # Should return hashed keys since no mapping
-        assert stats["size"] == 1
-        assert stats["hashing_enabled"] is True
+        assert stats["cache_size"] == 1
         expected_hash = hashlib.md5(cache_key.encode("utf-8")).hexdigest()
         assert stats["keys"] == [expected_hash]
 
     @patch("prdiffer.infrastructure.settings.get_settings_service")
-    def test_stats_without_hashing(
+    @pytest.mark.asyncio
+    async def test_stats_without_hashing(
         self, mock_get_settings, mock_settings_hashing_disabled, sample_pr_diff
     ):
         """Test stats without hashing enabled."""
@@ -399,14 +411,13 @@ class TestCacheStatsWithHashing:
 
         # Add entry
         cache_key = "owner/repo/pr/123"
-        cache_service.set(cache_key, "sha", sample_pr_diff)
+        await cache_service.set(cache_key, "sha", sample_pr_diff)
 
         # Get stats
         stats = cache_service.get_stats()
 
         # Should return original keys
-        assert stats["size"] == 1
-        assert stats["hashing_enabled"] is False
+        assert stats["cache_size"] == 1
         assert stats["keys"] == [cache_key]
 
 

@@ -195,7 +195,7 @@ class TestCompleteWorkflow:
         assert hasattr(server._health_monitor, "check_health")
 
         # Get health status
-        health = anyio.run(server._get_health_status)
+        health = anyio.run(server._health_endpoints._get_health_status)
         assert "status" in health
         assert "uptime_seconds" in health
 
@@ -384,10 +384,22 @@ class TestWorkflowWithRealServices:
 
     async def test_cache_operations(self, real_cache):
         """Test real cache service operations."""
-        # Create sample PR diff
+        # Create sample PR diff with new structure
+        from prdiffer.domain.entities.file_diff_response import (
+            FileDiffResponse,
+            FileStats,
+        )
+        from prdiffer.domain.entities.file_patch import EDIT_TYPE
+
         pr_diff = PRDiff(
-            diff_content="test diff content",
-            commit_messages="test commit",
+            files=[
+                FileDiffResponse(
+                    path="test.py",
+                    status=EDIT_TYPE.MODIFIED,
+                    stats=FileStats(additions=5, deletions=2),
+                    diff="test diff content",
+                )
+            ]
         )
 
         # Test cache set and get
@@ -395,12 +407,12 @@ class TestWorkflowWithRealServices:
 
         # Verify cache contains data
         stats = real_cache.get_stats()
-        assert stats["size"] == 1
+        assert stats["cache_size"] == 1
 
         # Test cache retrieval
         result = await real_cache.get("owner/repo/pr/123", "abc123")
         assert result is not None
-        assert result.diff_content == "test diff content"
+        assert result.files[0].diff == "test diff content"
 
         # Clean up
         await real_cache.clear()
@@ -452,8 +464,10 @@ class TestEndToEndScenarios:
     def test_component_interaction_scenario(self):
         """Test interaction between components."""
         from prdiffer.infrastructure.factories import get_infrastructure_factory
+        from prdiffer.application.factories import get_application_factory
 
-        factory = get_infrastructure_factory()
+        infra_factory = get_infrastructure_factory()
+        app_factory = get_application_factory()
 
         # Mock repository
         mock_repo = Mock(spec=GitHubPRDiffRepository)
@@ -464,11 +478,11 @@ class TestEndToEndScenarios:
         mock_pr_diff_service.get_pr_diff = AsyncMock()
 
         # Create services
-        settings_service = factory.create_settings_service()
-        logger_service = factory.create_logger_service()
-        cache_service = factory.create_cache_service()
-        metrics_tracker = factory.create_metrics_tracker(logger_service)
-        rate_limiter = factory.create_rate_limiter(logger_service)
+        settings_service = infra_factory.create_settings_service()
+        logger_service = infra_factory.create_logger_service()
+        cache_service = infra_factory.create_cache_service()
+        metrics_tracker = app_factory.create_metrics_tracker(logger_service)
+        rate_limiter = app_factory.create_rate_limiter(logger_service)
 
         # Mock repository cache
         mock_repo_cache = Mock()
@@ -535,7 +549,7 @@ class TestEndToEndScenarios:
         )
 
         # Get health status
-        health = anyio.run(server._get_health_status)
+        health = anyio.run(server._health_endpoints._get_health_status)
 
         # Verify health status structure
         assert "status" in health

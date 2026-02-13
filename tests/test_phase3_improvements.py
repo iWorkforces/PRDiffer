@@ -235,22 +235,28 @@ class TestFilePatchInfoExtensions:
 class TestPRDiffExtensions:
     """Tests for extended PRDiff data model."""
 
-    def test_has_content_true(self):
-        """Test has_content returns True for non-empty content."""
+    def test_has_files_true(self):
+        """Test that PRDiff can have files."""
+        from prdiffer.domain.entities.pr_diff import PRDiff
+        from prdiffer.domain.entities.file_diff_response import FileDiffResponse, FileStats
+        from prdiffer.domain.entities.file_patch import EDIT_TYPE
+
+        diff = PRDiff(files=[
+            FileDiffResponse(
+                path="test.py",
+                status=EDIT_TYPE.MODIFIED,
+                stats=FileStats(additions=1, deletions=1),
+                diff="@@ -1,3 +1,3 @@"
+            )
+        ])
+        assert len(diff.files) == 1
+
+    def test_has_files_false_empty(self):
+        """Test that PRDiff can be empty."""
         from prdiffer.domain.entities.pr_diff import PRDiff
 
-        diff = PRDiff(diff_content="@@ -1,3 +1,3 @@")
-        assert diff.has_content is True
-
-    def test_has_content_false_empty(self):
-        """Test has_content returns False for empty content."""
-        from prdiffer.domain.entities.pr_diff import PRDiff
-
-        diff = PRDiff(diff_content="")
-        assert diff.has_content is False
-
-        diff2 = PRDiff(diff_content="   ")
-        assert diff2.has_content is False
+        diff = PRDiff(files=[])
+        assert len(diff.files) == 0
 
 
 # =============================================================================
@@ -556,14 +562,21 @@ class TestPhase3Integration:
     def test_pr_diff_simplified(self):
         """Test PRDiff with simplified structure."""
         from prdiffer.domain.entities.pr_diff import PRDiff
+        from prdiffer.domain.entities.file_diff_response import FileDiffResponse, FileStats
+        from prdiffer.domain.entities.file_patch import EDIT_TYPE
 
-        diff = PRDiff(
-            diff_content="@@ -1,10 +1,15 @@\n-old\n+new",
-        )
+        diff = PRDiff(files=[
+            FileDiffResponse(
+                path="test.py",
+                status=EDIT_TYPE.MODIFIED,
+                stats=FileStats(additions=1, deletions=1),
+                diff="@@ -1,10 +1,15 @@\n-old\n+new"
+            )
+        ])
 
-        # Verify has_content works correctly
-        assert diff.has_content is True
-        assert diff.diff_content.startswith("@@")
+        # Verify files array works correctly
+        assert len(diff.files) == 1
+        assert diff.files[0].diff.startswith("@@")
 
     def test_error_handling_flow(self):
         """Test complete error handling flow."""

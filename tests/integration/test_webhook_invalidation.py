@@ -13,7 +13,7 @@ from prdiffer.application.mcp_server import FastMCPServer
 def mock_cache_service():
     """Create a mock cache service."""
     mock = Mock()
-    mock.invalidate = Mock()
+    mock.invalidate = AsyncMock()
     return mock
 
 
@@ -21,7 +21,7 @@ def mock_cache_service():
 def mock_repository_cache_service():
     """Create a mock repository cache service."""
     mock = Mock()
-    mock.invalidate = Mock()
+    mock.invalidate = Mock(return_value=True)
     return mock
 
 
@@ -84,7 +84,7 @@ class TestWebhookCacheInvalidation:
         payload_bytes = json.dumps(payload).encode("utf-8")
         signature = f"sha256={hmac.new(webhook_secret.encode(), payload_bytes, 'sha256').hexdigest()}"
 
-        result = await mcp_server.webhook_invalidate_cache(
+        result = await mcp_server._webhook_handler.webhook_invalidate_cache(
             payload_bytes, signature, "pull_request"
         )
 
@@ -108,7 +108,7 @@ class TestWebhookCacheInvalidation:
         payload_bytes = json.dumps(payload).encode("utf-8")
         signature = f"sha256={hmac.new(webhook_secret.encode(), payload_bytes, 'sha256').hexdigest()}"
 
-        result = await mcp_server.webhook_invalidate_cache(
+        result = await mcp_server._webhook_handler.webhook_invalidate_cache(
             payload_bytes, signature, "pull_request"
         )
 
@@ -131,7 +131,7 @@ class TestWebhookCacheInvalidation:
         payload_bytes = json.dumps(payload).encode("utf-8")
         signature = f"sha256={hmac.new(webhook_secret.encode(), payload_bytes, 'sha256').hexdigest()}"
 
-        result = await mcp_server.webhook_invalidate_cache(
+        result = await mcp_server._webhook_handler.webhook_invalidate_cache(
             payload_bytes, signature, "push"
         )
 
@@ -148,7 +148,7 @@ class TestWebhookCacheInvalidation:
         payload = {"action": "opened", "repository": {"full_name": "owner/repo"}}
         payload_bytes = json.dumps(payload).encode("utf-8")
 
-        result = await mcp_server.webhook_invalidate_cache(
+        result = await mcp_server._webhook_handler.webhook_invalidate_cache(
             payload_bytes, "sha256=valid", "pull_request"
         )
 
@@ -167,7 +167,7 @@ class TestWebhookCacheInvalidation:
         payload_bytes = json.dumps(payload).encode("utf-8")
         signature = f"sha256={hmac.new(webhook_secret.encode(), payload_bytes, 'sha256').hexdigest()}"
 
-        result = await mcp_server.webhook_invalidate_cache(
+        result = await mcp_server._webhook_handler.webhook_invalidate_cache(
             payload_bytes, signature, "pull_request"
         )
 
@@ -184,7 +184,7 @@ class TestWebhookCacheInvalidation:
         payload_bytes = json.dumps(payload).encode("utf-8")
         signature = "sha256=valid_signature"
 
-        result = await mcp_server.webhook_invalidate_cache(
+        result = await mcp_server._webhook_handler.webhook_invalidate_cache(
             payload_bytes, signature, "pull_request"
         )
 
@@ -207,7 +207,7 @@ class TestWebhookCacheInvalidation:
         with patch.object(mcp_server, "_settings_service") as mock_settings:
             mock_settings.get = Mock(return_value=webhook_secret)
 
-            result = await mcp_server.webhook_invalidate_cache(
+            result = await mcp_server._webhook_handler.webhook_invalidate_cache(
                 payload_bytes, expected_signature, "pull_request"
             )
 
@@ -227,7 +227,7 @@ class TestWebhookCacheInvalidation:
         payload_bytes = json.dumps(payload).encode("utf-8")
         invalid_signature = "sha256=invalid_signature_here"
 
-        result = await mcp_server.webhook_invalidate_cache(
+        result = await mcp_server._webhook_handler.webhook_invalidate_cache(
             payload_bytes, invalid_signature, "pull_request"
         )
 
@@ -262,7 +262,7 @@ class TestWebhookHTTPHandler:
         }
         mock_request.body = AsyncMock(return_value=payload_bytes)
 
-        handler = mcp_server.webhook_handler
+        handler = mcp_server._webhook_handler.get_webhook_handler()
         response = await handler(mock_request)
 
         assert response.status_code == 200
@@ -284,7 +284,7 @@ class TestWebhookHTTPHandler:
         }
         mock_request.body = AsyncMock(return_value=invalid_payload_bytes)
 
-        handler = mcp_server.webhook_handler
+        handler = mcp_server._webhook_handler.get_webhook_handler()
         response = await handler(mock_request)
 
         assert response.status_code == 400
@@ -302,7 +302,7 @@ class TestWebhookHTTPHandler:
         }
         mock_request.body = AsyncMock(side_effect=Exception("Unexpected error"))
 
-        handler = mcp_server.webhook_handler
+        handler = mcp_server._webhook_handler.get_webhook_handler()
         response = await handler(mock_request)
 
         assert response.status_code == 500

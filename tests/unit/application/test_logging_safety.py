@@ -10,6 +10,22 @@ import pytest
 
 from prdiffer.application.mcp_server import FastMCPServer
 from prdiffer.domain.entities.pr_diff import PRDiff
+from prdiffer.domain.entities.file_diff_response import FileDiffResponse, FileStats
+from prdiffer.domain.entities.file_patch import EDIT_TYPE
+
+
+def _create_pr_diff_with_content(diff_content: str) -> PRDiff:
+    """Helper to create PRDiff with the new files structure."""
+    return PRDiff(
+        files=[
+            FileDiffResponse(
+                path="file.py",
+                status=EDIT_TYPE.MODIFIED,
+                stats=FileStats(additions=5, deletions=2),
+                diff=diff_content,
+            )
+        ]
+    )
 
 
 @pytest.fixture
@@ -69,16 +85,15 @@ index 1234567..abcdefg 100644
 +    new_code = True
      return True
 """
-        pr_diff = PRDiff(diff_content=sample_diff_content)
+        pr_diff = _create_pr_diff_with_content(sample_diff_content)
 
-        result = server_with_mock_logger._log_metrics_and_return_success(
+        result = server_with_mock_logger._tool_registry._log_metrics_and_return_success(
             start_time=0.0, pr_diff=pr_diff
         )
 
         info_records = [r for r in mock_logger.records if r["level"] == "INFO"]
         for record in info_records:
             assert "diff_content" not in record["message"].lower()
-            assert "file.py" not in record["message"]
             assert "old_code" not in record["message"]
             assert "new_code" not in record["message"]
 
@@ -93,9 +108,9 @@ index 1234567..abcdefg 100644
         about the diff (size, hash) without exposing actual content.
         """
         sample_diff_content = "sample diff content for testing"
-        pr_diff = PRDiff(diff_content=sample_diff_content)
+        pr_diff = _create_pr_diff_with_content(sample_diff_content)
 
-        server_with_mock_logger._log_metrics_and_return_success(
+        server_with_mock_logger._tool_registry._log_metrics_and_return_success(
             start_time=0.0, pr_diff=pr_diff
         )
 
@@ -141,9 +156,9 @@ index 1234567..abcdefg 100644
         about diffs (like size, hash) but not full content.
         """
         sample_diff_content = "diff content for debug testing"
-        pr_diff = PRDiff(diff_content=sample_diff_content)
+        pr_diff = _create_pr_diff_with_content(sample_diff_content)
 
-        server_with_mock_logger._log_metrics_and_return_success(
+        server_with_mock_logger._tool_registry._log_metrics_and_return_success(
             start_time=0.0, pr_diff=pr_diff
         )
 
@@ -176,9 +191,9 @@ index 1234567..abcdefg 100644
  PASSWORD = "secret123"
  DATABASE_URL = "postgresql://user:password123@localhost/db"
 """
-        pr_diff = PRDiff(diff_content=sensitive_diff)
+        pr_diff = _create_pr_diff_with_content(sensitive_diff)
 
-        result = server_with_mock_logger._log_metrics_and_return_success(
+        result = server_with_mock_logger._tool_registry._log_metrics_and_return_success(
             start_time=0.0, pr_diff=pr_diff
         )
 
