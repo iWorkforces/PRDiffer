@@ -3,7 +3,7 @@
 import inspect
 import time
 import anyio
-from typing import Optional, cast
+from typing import cast
 from github.File import File
 from github.PaginatedList import PaginatedList
 from github.Repository import Repository
@@ -13,7 +13,7 @@ from prdiffer.domain.services import GitHubAPIServiceInterface
 from prdiffer.domain.services import PatternMatchingServiceInterface
 from prdiffer.domain.services import DiffServiceInterface
 from prdiffer.infrastructure.logging.console_logger import get_logger
-from prdiffer.infrastructure.async_parallel_executor import (
+from prdiffer.infrastructure.utils.parallel import (
     AsyncParallelExecutor,
     ErrorStrategy,
 )
@@ -74,7 +74,7 @@ class FileProcessor:
         self._cache_lock = anyio.Lock()
 
         # Cache for PR files to avoid repeated API calls
-        self._pr_files_cache: Optional[PaginatedList[File]] = None
+        self._pr_files_cache: PaginatedList[File] | None = None
         self._pr_cache_timestamp: float = 0.0
 
         # Async parallel executor for concurrent operations

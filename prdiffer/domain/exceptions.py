@@ -4,7 +4,7 @@ This module defines custom exceptions for different error scenarios,
 providing better error handling and more informative error messages.
 """
 
-from typing import Optional, Any
+from typing import Any
 from .errors import ErrorCode, E5001_INTERNAL_ERROR
 
 
@@ -20,8 +20,8 @@ class PRDifferException(Exception):
     def __init__(
         self,
         message: str,
-        error_code: Optional[ErrorCode] = None,
-        details: Optional[dict[str, Any]] = None,
+        error_code: ErrorCode | None = None,
+        details: dict[str, Any] | None = None,
     ):
         """Initialize PRDifferException with message, error code, and optional details.
 
@@ -106,9 +106,9 @@ class RateLimitError(PRDifferException):
     def __init__(
         self,
         message: str,
-        retry_after: Optional[int] = None,
-        error_code: Optional[ErrorCode] = None,
-        details: Optional[dict[str, Any]] = None,
+        retry_after: int | None = None,
+        error_code: ErrorCode | None = None,
+        details: dict[str, Any] | None = None,
     ):
         """Initialize with retry information.
 
@@ -180,9 +180,9 @@ class GitHubAPIError(PRDifferException):
     def __init__(
         self,
         message: str,
-        status_code: Optional[int] = None,
-        error_code: Optional[ErrorCode] = None,
-        details: Optional[dict[str, Any]] = None,
+        status_code: int | None = None,
+        error_code: ErrorCode | None = None,
+        details: dict[str, Any] | None = None,
     ):
         """Initialize with HTTP status code.
 
@@ -232,10 +232,10 @@ class GitHubRateLimitError(GitHubAPIError):
     def __init__(
         self,
         message: str,
-        retry_after: Optional[int] = None,
-        status_code: Optional[int] = None,
-        error_code: Optional[ErrorCode] = None,
-        details: Optional[dict[str, Any]] = None,
+        retry_after: int | None = None,
+        status_code: int | None = None,
+        error_code: ErrorCode | None = None,
+        details: dict[str, Any] | None = None,
     ):
         """Initialize with retry information.
 

@@ -4,24 +4,24 @@ This module provides FileDiffResponse entity that represents individual file cha
 in a pull request with structured metadata (path, status, stats, diff).
 """
 
-from pydantic import BaseModel, Field
+from dataclasses import dataclass
 
 from prdiffer.domain.entities.file_patch import EDIT_TYPE
 
 
-class FileStats(BaseModel):
+@dataclass(frozen=True)
+class FileStats:
     """Statistics for file changes in a PR.
 
     Contains line change statistics for a single file modification.
     """
 
-    additions: int = Field(default=0, description="Number of lines added to the file")
-    deletions: int = Field(
-        default=0, description="Number of lines removed from the file"
-    )
+    additions: int = 0
+    deletions: int = 0
 
 
-class FileDiffResponse(BaseModel):
+@dataclass(frozen=True)
+class FileDiffResponse:
     """Domain entity representing a file change in a pull request.
 
     This entity contains structured information about a single file change,
@@ -37,9 +37,7 @@ class FileDiffResponse(BaseModel):
     - patch → diff
     """
 
-    path: str = Field(description="File path relative to repository root")
-    status: EDIT_TYPE = Field(
-        description="File edit status (added, modified, deleted, renamed, unknown)"
-    )
-    stats: FileStats = Field(description="Line change statistics for this file")
-    diff: str = Field(description="Full patch content for this file change")
+    path: str
+    status: EDIT_TYPE
+    stats: FileStats
+    diff: str

@@ -182,7 +182,7 @@ class TestAsyncParallelExecutor:
     @pytest.mark.asyncio
     async def test_execute_batch_basic(self):
         """Test basic batch execution."""
-        from prdiffer.infrastructure.async_parallel_executor import (
+        from prdiffer.infrastructure.utils.parallel import (
             AsyncParallelExecutor,
         )
 
@@ -197,7 +197,7 @@ class TestAsyncParallelExecutor:
     @pytest.mark.asyncio
     async def test_execute_batch_empty(self):
         """Test batch execution with empty list."""
-        from prdiffer.infrastructure.async_parallel_executor import (
+        from prdiffer.infrastructure.utils.parallel import (
             AsyncParallelExecutor,
         )
 
@@ -212,7 +212,7 @@ class TestAsyncParallelExecutor:
     @pytest.mark.asyncio
     async def test_execute_batch_with_errors_ignore(self):
         """Test batch execution with errors using IGNORE strategy."""
-        from prdiffer.infrastructure.async_parallel_executor import (
+        from prdiffer.infrastructure.utils.parallel import (
             AsyncParallelExecutor,
             ErrorStrategy,
         )
@@ -230,7 +230,7 @@ class TestAsyncParallelExecutor:
     @pytest.mark.asyncio
     async def test_execute_batch_with_errors_raise(self):
         """Test batch execution with errors using RAISE strategy."""
-        from prdiffer.infrastructure.async_parallel_executor import (
+        from prdiffer.infrastructure.utils.parallel import (
             AsyncParallelExecutor,
             ErrorStrategy,
         )
@@ -246,7 +246,7 @@ class TestAsyncParallelExecutor:
     @pytest.mark.asyncio
     async def test_execute_batch_with_context(self):
         """Test batch execution with shared context."""
-        from prdiffer.infrastructure.async_parallel_executor import (
+        from prdiffer.infrastructure.utils.parallel import (
             AsyncParallelExecutor,
         )
 
@@ -263,7 +263,7 @@ class TestAsyncParallelExecutor:
     @pytest.mark.asyncio
     async def test_execute_batch_with_progress(self):
         """Test batch execution with progress tracking."""
-        from prdiffer.infrastructure.async_parallel_executor import (
+        from prdiffer.infrastructure.utils.parallel import (
             AsyncParallelExecutor,
         )
 
@@ -289,7 +289,7 @@ class TestAsyncParallelExecutor:
     @pytest.mark.asyncio
     async def test_execute_batch_detailed(self):
         """Test detailed batch execution with BatchResult."""
-        from prdiffer.infrastructure.async_parallel_executor import (
+        from prdiffer.infrastructure.utils.parallel import (
             AsyncParallelExecutor,
         )
 
@@ -310,7 +310,7 @@ class TestAsyncParallelExecutor:
     @pytest.mark.asyncio
     async def test_concurrency_limit(self):
         """Test that semaphore limits concurrent operations."""
-        from prdiffer.infrastructure.async_parallel_executor import (
+        from prdiffer.infrastructure.utils.parallel import (
             AsyncParallelExecutor,
         )
 
@@ -336,7 +336,7 @@ class TestAsyncParallelExecutor:
 
     def test_get_stats(self):
         """Test executor statistics."""
-        from prdiffer.infrastructure.async_parallel_executor import (
+        from prdiffer.infrastructure.utils.parallel import (
             AsyncParallelExecutor,
             ErrorStrategy,
         )
@@ -359,7 +359,7 @@ class TestBatchResult:
 
     def test_batch_result_properties(self):
         """Test BatchResult computed properties."""
-        from prdiffer.infrastructure.async_parallel_executor import BatchResult
+        from prdiffer.infrastructure.utils.parallel import BatchResult
 
         result = BatchResult[int](
             successful=[1, 2, 3],
@@ -374,7 +374,7 @@ class TestBatchResult:
 
     def test_batch_result_all_success(self):
         """Test BatchResult when all operations succeed."""
-        from prdiffer.infrastructure.async_parallel_executor import BatchResult
+        from prdiffer.infrastructure.utils.parallel import BatchResult
 
         result = BatchResult[str](successful=["a", "b", "c"], failed=[])
 
@@ -383,7 +383,7 @@ class TestBatchResult:
 
     def test_batch_result_get_errors(self):
         """Test getting list of errors from BatchResult."""
-        from prdiffer.infrastructure.async_parallel_executor import BatchResult
+        from prdiffer.infrastructure.utils.parallel import BatchResult
 
         e1 = ValueError("error1")
         e2 = RuntimeError("error2")
@@ -417,7 +417,7 @@ class TestGlobalCircuitBreakerRegistry:
 
     def test_singleton_pattern(self):
         """Test that registry is a singleton."""
-        from prdiffer.infrastructure.utils.circuit_breaker import (
+        from prdiffer.infrastructure.utils.circuit_breaker.core import (
             GlobalCircuitBreakerRegistry,
         )
 
@@ -431,7 +431,7 @@ class TestGlobalCircuitBreakerRegistry:
 
     def test_get_breaker_creates_new(self):
         """Test getting a breaker creates it if not exists."""
-        from prdiffer.infrastructure.utils.circuit_breaker import (
+        from prdiffer.infrastructure.utils.circuit_breaker.core import (
             get_global_circuit_breaker_registry,
         )
 
@@ -446,7 +446,7 @@ class TestGlobalCircuitBreakerRegistry:
 
     def test_get_breaker_returns_same(self):
         """Test getting same breaker returns same instance."""
-        from prdiffer.infrastructure.utils.circuit_breaker import (
+        from prdiffer.infrastructure.utils.circuit_breaker.core import (
             get_global_circuit_breaker_registry,
         )
 
@@ -461,7 +461,7 @@ class TestGlobalCircuitBreakerRegistry:
 
     def test_can_execute_checks_both_breakers(self):
         """Test can_execute checks both endpoint and global breakers."""
-        from prdiffer.infrastructure.utils.circuit_breaker import (
+        from prdiffer.infrastructure.utils.circuit_breaker.core import (
             get_global_circuit_breaker_registry,
         )
 
@@ -475,7 +475,7 @@ class TestGlobalCircuitBreakerRegistry:
 
     def test_record_success_updates_both(self):
         """Test record_success updates both endpoint and global breakers."""
-        from prdiffer.infrastructure.utils.circuit_breaker import (
+        from prdiffer.infrastructure.utils.circuit_breaker.core import (
             get_global_circuit_breaker_registry,
         )
 
@@ -492,7 +492,7 @@ class TestGlobalCircuitBreakerRegistry:
 
     def test_record_failure_updates_both(self):
         """Test record_failure updates both endpoint and global breakers."""
-        from prdiffer.infrastructure.utils.circuit_breaker import (
+        from prdiffer.infrastructure.utils.circuit_breaker.core import (
             get_global_circuit_breaker_registry,
         )
 
@@ -511,7 +511,7 @@ class TestGlobalCircuitBreakerRegistry:
 
     def test_get_all_stats(self):
         """Test getting statistics for all breakers."""
-        from prdiffer.infrastructure.utils.circuit_breaker import (
+        from prdiffer.infrastructure.utils.circuit_breaker.core import (
             get_global_circuit_breaker_registry,
         )
 
@@ -530,7 +530,7 @@ class TestGlobalCircuitBreakerRegistry:
 
     def test_get_open_breakers(self):
         """Test getting list of open breakers."""
-        from prdiffer.infrastructure.utils.circuit_breaker import (
+        from prdiffer.infrastructure.utils.circuit_breaker.core import (
             get_global_circuit_breaker_registry,
         )
 
@@ -556,7 +556,7 @@ class TestGlobalCircuitBreakerRegistry:
 
     def test_reset_all(self):
         """Test resetting all circuit breakers."""
-        from prdiffer.infrastructure.utils.circuit_breaker import (
+        from prdiffer.infrastructure.utils.circuit_breaker.core import (
             get_global_circuit_breaker_registry,
             CircuitState,
         )
@@ -581,7 +581,7 @@ class TestGlobalCircuitBreakerRegistry:
 
     def test_clear_endpoint(self):
         """Test removing a specific endpoint's breaker."""
-        from prdiffer.infrastructure.utils.circuit_breaker import (
+        from prdiffer.infrastructure.utils.circuit_breaker.core import (
             get_global_circuit_breaker_registry,
         )
 
@@ -603,7 +603,7 @@ class TestCircuitBreakerForEndpoint:
 
     def test_get_circuit_breaker_from_registry(self):
         """Test getting circuit breaker from global registry."""
-        from prdiffer.infrastructure.utils.circuit_breaker import (
+        from prdiffer.infrastructure.utils.circuit_breaker.core import (
             get_global_circuit_breaker_registry,
         )
 
@@ -640,10 +640,10 @@ class TestPhase4Integration:
     @pytest.mark.asyncio
     async def test_async_executor_with_circuit_breaker(self):
         """Test AsyncParallelExecutor with circuit breaker integration."""
-        from prdiffer.infrastructure.async_parallel_executor import (
+        from prdiffer.infrastructure.utils.parallel import (
             AsyncParallelExecutor,
         )
-        from prdiffer.infrastructure.utils.circuit_breaker import (
+        from prdiffer.infrastructure.utils.circuit_breaker.core import (
             get_global_circuit_breaker_registry,
         )
 

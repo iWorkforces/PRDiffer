@@ -10,7 +10,7 @@ when content hasn't changed, which saves on data transfer for large responses.
 
 import time
 from collections import OrderedDict
-from typing import Optional, Any
+from typing import Any
 
 from prdiffer.infrastructure.logging.console_logger import get_logger
 
@@ -65,14 +65,14 @@ class ETagRequestAdapter:
         """Generate a cache key for a given URL."""
         return url
 
-    def _get_etag(self, cache_key: str) -> Optional[str]:
+    def _get_etag(self, cache_key: str) -> str | None:
         """Get cached ETag from cache service."""
         if self._cache_service:
             return self._cache_service.get_etag(cache_key)
         return None
 
     def _store_etag(
-        self, cache_key: str, etag: str, commit_sha: Optional[str] = None
+        self, cache_key: str, etag: str, commit_sha: str | None = None
     ) -> None:
         """Store ETag in cache service."""
         if self._cache_service:

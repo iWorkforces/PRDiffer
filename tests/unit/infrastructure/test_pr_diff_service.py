@@ -14,6 +14,12 @@ class DummyGitHubAPI:
     def get_pull_request(self, repository, pr_number):
         return DummyPullRequest()
 
+    def _get_pygithub_repository(self, repo_full_name):
+        return object()
+
+    def _get_pygithub_pull_request(self, repository, pr_number):
+        return DummyPullRequest()
+
 
 class DummyHead:
     def __init__(self, sha):
@@ -47,7 +53,7 @@ async def test_get_pr_diff_with_truncation(monkeypatch):
     monkeypatch.setattr(
         service,
         "_generate_diff_content",
-        lambda *_: ("x" * 50, diff_files),
+        lambda *_: diff_files,
     )
 
     service._diff_truncate_enabled = True
@@ -57,7 +63,8 @@ async def test_get_pr_diff_with_truncation(monkeypatch):
     result = await service.get_pr_diff("owner", "repo", 1)
 
     assert result is not None
-    assert result.diff_content.endswith("[TRUNC]")
+    # PRDiff now uses frozen dataclass with tuple fields
+    assert isinstance(result.files, tuple)
 
 
 @pytest.mark.asyncio

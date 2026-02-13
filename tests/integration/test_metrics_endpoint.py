@@ -1,6 +1,16 @@
 """Tests for metrics endpoint and Prometheus format."""
 
 import pytest
+from unittest.mock import Mock, AsyncMock
+
+
+@pytest.fixture
+def mock_mcp_server():
+    """Mock MCP server with metrics tracker for testing."""
+    mock_server = Mock()
+    mock_server._metrics_tracker = Mock()
+    mock_server._metrics_tracker.get_metrics_summary = AsyncMock()
+    return mock_server
 
 
 @pytest.mark.unit

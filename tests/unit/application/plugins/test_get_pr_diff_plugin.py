@@ -9,8 +9,27 @@ import pytest
 
 from prdiffer.domain.usecases.pr_diff_usecases import GetPRDiffUseCase
 from prdiffer.domain.entities.pr_diff import PRDiff
+from prdiffer.domain.entities.file_diff_response import (
+    FileDiffResponse,
+    FileStats,
+    EDIT_TYPE,
+)
 from prdiffer.domain.services.cache import CacheServiceInterface
 from prdiffer.domain.services.pr_diff_service import PRDiffServiceInterface
+
+
+def create_sample_pr_diff() -> PRDiff:
+    """Helper to create a sample PRDiff with the new structure."""
+    return PRDiff(
+        files=(
+            FileDiffResponse(
+                path="src/test.py",
+                status=EDIT_TYPE.MODIFIED,
+                stats=FileStats(additions=10, deletions=5),
+                diff="test diff content",
+            ),
+        )
+    )
 
 
 @pytest.mark.unit
@@ -27,11 +46,11 @@ class TestGetPRDiffUseCase:
 
     @pytest.fixture
     def mock_cache(self):
-        """Mock cache service."""
+        """Mock cache service with async methods."""
         cache = Mock(spec=CacheServiceInterface)
-        cache.get = Mock(return_value=None)
+        cache.get = AsyncMock(return_value=None)
         cache.get_cache_key = Mock(return_value="test-owner/test-repo/pr/123")
-        cache.set = Mock()
+        cache.set = AsyncMock()
         cache.get_stats = Mock(return_value={"size": 0})
         return cache
 
@@ -52,7 +71,7 @@ class TestGetPRDiffUseCase:
         repo = "test-repo"
         pr_number = 123
         current_commit = "abc123"
-        fresh_pr_diff = PRDiff(diff_content="test diff content")
+        fresh_pr_diff = create_sample_pr_diff()
 
         mock_cache.get.return_value = None  # Cache miss
         mock_pr_diff_service.get_pr_diff.return_value = fresh_pr_diff
@@ -79,7 +98,7 @@ class TestGetPRDiffUseCase:
         repo = "test-repo"
         pr_number = 123
         cached_commit = "abc123"
-        cached_pr_diff = PRDiff(diff_content="cached diff content")
+        cached_pr_diff = create_sample_pr_diff()
 
         mock_cache.get.return_value = cached_pr_diff
         mock_pr_diff_service.get_latest_commit_sha.return_value = cached_commit
@@ -103,7 +122,7 @@ class TestGetPRDiffUseCase:
         repo = "test-repo"
         pr_number = 123
         current_commit = "new456"
-        fresh_pr_diff = PRDiff(diff_content="fresh diff content")
+        fresh_pr_diff = create_sample_pr_diff()
 
         # Cache returns None (commit SHA mismatch)
         mock_cache.get.return_value = None
@@ -150,7 +169,7 @@ class TestGetPRDiffUseCase:
         pr_number = 456
         expected_cache_key = f"{owner}/{repo}/pr/{pr_number}"
         current_commit = "xyz789"
-        fresh_pr_diff = PRDiff(diff_content="content")
+        fresh_pr_diff = create_sample_pr_diff()
 
         mock_cache.get_cache_key.return_value = expected_cache_key
         mock_cache.get.return_value = None
@@ -177,7 +196,7 @@ class TestGetPRDiffUseCase:
 
         mock_cache.get.return_value = None
         mock_pr_diff_service.get_latest_commit_sha.return_value = expected_commit
-        mock_pr_diff_service.get_pr_diff.return_value = PRDiff(diff_content="diff")
+        mock_pr_diff_service.get_pr_diff.return_value = create_sample_pr_diff()
 
         # Act
         await use_case.execute(owner, repo, pr_number)
@@ -221,7 +240,7 @@ class TestGetPRDiffUseCase:
         # Cache returns None (cache miss)
         mock_cache.get.return_value = None
         mock_pr_diff_service.get_latest_commit_sha.return_value = current_commit
-        mock_pr_diff_service.get_pr_diff.return_value = PRDiff(diff_content="diff")
+        mock_pr_diff_service.get_pr_diff.return_value = create_sample_pr_diff()
 
         # Act
         result = await use_case.execute(owner, repo, pr_number)

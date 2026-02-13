@@ -2,7 +2,7 @@
 
 import time
 import logging
-from typing import Optional, Any
+from typing import Any
 from collections import defaultdict
 from prdiffer.domain.interfaces.protocols import RateLimiterProtocol
 
@@ -15,7 +15,7 @@ class RateLimiter(RateLimiterProtocol):
     has their own rate limit tracking.
     """
 
-    def __init__(self, logger: Optional[Any] = None):
+    def __init__(self, logger: Any | None = None):
         """Initialize rate limiter.
 
         Args:

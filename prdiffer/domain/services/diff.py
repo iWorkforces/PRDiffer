@@ -1,7 +1,6 @@
 """Diff utility service interface for domain layer."""
 
 from abc import ABC, abstractmethod
-from typing import Union
 
 
 class DiffServiceInterface(ABC):
@@ -25,7 +24,7 @@ class DiffServiceInterface(ABC):
         pass
 
     @abstractmethod
-    def decode_if_bytes(self, content: Union[str, bytes, bytearray]) -> str:
+    def decode_if_bytes(self, content: str | bytes | bytearray) -> str:
         """Decode bytes content to string with fallback encoding support.
 
         Args:

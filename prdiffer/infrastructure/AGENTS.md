@@ -19,14 +19,14 @@ prdiffer/infrastructure/
 ## WHERE TO LOOK
 | Task | Location | Notes |
 |------|----------|-------|
-| **Retry logic** | `utils/retry_handler.py` | 971-line unified handler with exponential backoff, context-aware configs |
+| **Retry logic** | `utils/retry_handler.py` | 848-line unified handler with exponential backoff, context-aware configs |
 | **Circuit breaker** | `utils/circuit_breaker.py` | State machine: CLOSED → OPEN → HALF_OPEN, failure threshold, timeout |
 | **Caching** | `cache_service.py`, `repository_cache_service.py` | Commit-based MD5 invalidation, LRU eviction, TTL support |
 | **ETag handling** | `github/etag_adapter.py` | HTTP 304 conditional requests to reduce bandwidth |
-| **Async execution** | `async_parallel_executor.py` | 509-line anyio task groups, Semaphore/Lock/Event primitives |
+| **Async execution** | `async_parallel_executor.py` | 505-line anyio task groups, Semaphore/Lock/Event primitives |
 | **Request coalescing** | `request_coalescing.py` | Deduplicate concurrent requests for same resource |
-| **Security** | `security/input_validator.py` | 765-line injection detection: command, path traversal, SQL |
-| **GitHub API** | `github/api_client.py` | PyGithub wrapper with retry/circuit breaker integration |
+| **Security** | `security/input_validator.py` | 571-line injection detection: command, path traversal, SQL |
+| **GitHub API** | `github/api_client.py` | 771-line PyGithub wrapper with retry/circuit breaker integration |
 | **VCS providers** | `vcs_providers/{github,gitlab}_repository.py` | VCSDiffRepositoryInterface implementations |
 
 ## CONVENTIONS
@@ -77,4 +77,4 @@ prdiffer/infrastructure/
 - **NO bypassing circuit breaker** → Always go through CircuitBreaker for external APIs
 - **NO cache without invalidation** → Commit-based keys prevent stale data
 - **NO asyncio in infrastructure** → Use anyio.Lock, anyio.Semaphore, anyio.create_task_group()
-- **NO old-style typing** → Project uses `from typing import List` (48 violations, documented deviation)
+- **NO old-style typing** → Project uses `from typing import List` (63 violations, documented deviation)

@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 from enum import StrEnum
-from typing import Optional, Any
+from typing import Any
 
 
 class EDIT_TYPE(StrEnum):
@@ -13,7 +13,7 @@ class EDIT_TYPE(StrEnum):
     UNKNOWN = "unknown"
 
 
-@dataclass
+@dataclass(frozen=True)
 class FilePatchInfo:
     """Domain entity representing a file change in a pull request.
 
@@ -30,34 +30,36 @@ class FilePatchInfo:
 
     # Edit metadata
     edit_type: EDIT_TYPE = EDIT_TYPE.UNKNOWN
-    old_filename: Optional[str] = None
-    language: Optional[str] = None
+    old_filename: str | None = None
+    language: str | None = None
 
     # Line statistics
     num_plus_lines: int = 0
     num_minus_lines: int = 0
 
     # Analysis results
-    ai_file_summary: Optional[str] = None
+    ai_file_summary: str | None = None
     tokens: int = -1
 
     # Phase 3: Extended metadata for API enhancement
-    diff_metadata: Optional[dict[str, Any]] = None
-    code_smell_indicators: Optional[list[str]] = None
+    diff_metadata: dict[str, Any] | None = None
+    code_smell_indicators: tuple[str, ...] | None = None
     suggested_review_priority: str = "normal"  # "high", "normal", "low"
 
     # Computed properties (not stored, computed from other fields)
-    _file_extension: Optional[str] = field(init=False, default=None, compare=False)
+    _file_extension: str | None = field(init=False, default=None, compare=False)
     _is_binary: bool = field(init=False, default=False, compare=False)
     _change_percentage: float = field(init=False, default=0.0, compare=False)
 
     def __post_init__(self):
         """Initialize computed properties after dataclass creation."""
-        self._file_extension = self._extract_file_extension()
-        self._is_binary = self._detect_binary_file()
-        self._change_percentage = self._calculate_change_percentage()
+        object.__setattr__(self, "_file_extension", self._extract_file_extension())
+        object.__setattr__(self, "_is_binary", self._detect_binary_file())
+        object.__setattr__(
+            self, "_change_percentage", self._calculate_change_percentage()
+        )
 
-    def _extract_file_extension(self) -> Optional[str]:
+    def _extract_file_extension(self) -> str | None:
         """Extract file extension from filename.
 
         Returns:
@@ -136,7 +138,7 @@ class FilePatchInfo:
         return min((total_lines / original_lines) * 100, 100.0)
 
     @property
-    def file_extension(self) -> Optional[str]:
+    def file_extension(self) -> str | None:
         """Get the file extension.
 
         Returns:
@@ -183,11 +185,11 @@ class FilePatchInfo:
         Returns:
             bool: True if change is significant
         """
-        return self.total_changes > 50 or self.edit_type in [
+        return self.total_changes > 50 or self.edit_type in (
             EDIT_TYPE.ADDED,
             EDIT_TYPE.DELETED,
             EDIT_TYPE.RENAMED,
-        ]
+        )
 
     def get_summary(self) -> dict:
         """Get a summary of the file change.
@@ -328,7 +330,7 @@ class FilePatchInfo:
 
         return errors
 
-    def is_ignored_file(self, ignore_patterns: Optional[list[str]] = None) -> bool:
+    def is_ignored_file(self, ignore_patterns: list[str] | None = None) -> bool:
         """Check if file should be ignored based on patterns.
 
         Args:

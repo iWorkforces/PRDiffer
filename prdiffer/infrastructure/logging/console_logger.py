@@ -3,7 +3,7 @@ import logging
 import os
 import sys
 from datetime import datetime, timezone
-from typing import Optional, Any
+from typing import Any
 from prdiffer.infrastructure.settings import get_settings_service
 from prdiffer.domain.services import LoggerServiceInterface, LogLevel
 
@@ -243,7 +243,7 @@ class ConsoleLogger(LoggerServiceInterface):
 
 
 # Global logger instance
-_logger_instance: Optional[ConsoleLogger] = None
+_logger_instance: ConsoleLogger | None = None
 
 
 def get_logger() -> ConsoleLogger:

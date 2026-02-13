@@ -4,7 +4,7 @@ These tests verify that concurrency settings are properly read
 from settings.toml and applied to GitHubAPIClient and FileProcessor.
 """
 
-from prdiffer.infrastructure.github.api_client import GitHubAPIClient
+from prdiffer.infrastructure.github.client import GitHubAPIClient
 from prdiffer.infrastructure.github.file_processor import FileProcessor
 from prdiffer.infrastructure.settings import SettingsService
 
@@ -116,7 +116,7 @@ class TestConcurrencySettings:
 
     def test_async_parallel_executor_configurable(self):
         """Verify that AsyncParallelExecutor can be configured with different concurrency values."""
-        from prdiffer.infrastructure.async_parallel_executor import (
+        from prdiffer.infrastructure.utils.parallel import (
             AsyncParallelExecutor,
             ErrorStrategy,
         )

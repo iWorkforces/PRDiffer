@@ -20,7 +20,7 @@ class TestFileProcessor:
     def file_processor(self):
         """Create FileProcessor instance for testing."""
         from prdiffer.infrastructure.utils.pattern_matcher import PatternMatcher
-        from prdiffer.infrastructure.github.api_client import GitHubAPIClient
+        from prdiffer.infrastructure.github.client import GitHubAPIClient
         from prdiffer.infrastructure.utils.diff_utils import DiffUtils
         from prdiffer.infrastructure.logging.console_logger import get_logger
 
@@ -70,7 +70,7 @@ class TestFileProcessorThreadSafety:
     def file_processor(self):
         """Create FileProcessor instance for testing."""
         from prdiffer.infrastructure.utils.pattern_matcher import PatternMatcher
-        from prdiffer.infrastructure.github.api_client import GitHubAPIClient
+        from prdiffer.infrastructure.github.client import GitHubAPIClient
         from prdiffer.infrastructure.utils.diff_utils import DiffUtils
         from prdiffer.infrastructure.logging.console_logger import get_logger
 
@@ -136,7 +136,7 @@ class TestFileProcessorBatchProcessing:
     def file_processor(self):
         """Create FileProcessor instance for testing."""
         from prdiffer.infrastructure.utils.pattern_matcher import PatternMatcher
-        from prdiffer.infrastructure.github.api_client import GitHubAPIClient
+        from prdiffer.infrastructure.github.client import GitHubAPIClient
         from prdiffer.infrastructure.utils.diff_utils import DiffUtils
         from prdiffer.infrastructure.logging.console_logger import get_logger
 
@@ -190,7 +190,7 @@ class TestFileProcessorBatchProcessing:
 
         # Create a file processor with smaller limit
         from prdiffer.infrastructure.utils.pattern_matcher import PatternMatcher
-        from prdiffer.infrastructure.github.api_client import GitHubAPIClient
+        from prdiffer.infrastructure.github.client import GitHubAPIClient
         from prdiffer.infrastructure.utils.diff_utils import DiffUtils
         from prdiffer.infrastructure.logging.console_logger import get_logger
 

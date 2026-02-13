@@ -1,17 +1,16 @@
-"""Cache decorator utility for method-level caching with unhashable parameter support."""
+"""Cache decorators for method-level caching."""
 
 import functools
-import hashlib
-import json
 import logging
 import threading
 import time
 from collections import OrderedDict
-from typing import Any, Callable, Dict, Optional, Tuple, TypeVar, cast
+from typing import Any, Callable, TypeVar, cast
+
+from prdiffer.infrastructure.cache.decorators.utils import _generate_cache_key
 
 logger = logging.getLogger(__name__)
 
-# Type variable for generic function signatures
 F = TypeVar("F", bound=Callable[..., Any])
 
 
@@ -33,7 +32,6 @@ class CachingMixin:
             max_cache_size: Maximum number of cache entries (default: 1000)
             default_ttl: Default TTL in seconds (default: 300 = 5 minutes)
         """
-        # Thread safety lock for cache operations
         self._cache_lock = threading.RLock()
         self._method_cache: OrderedDict[str, dict[str, Any]] = OrderedDict()
         self._cache_hits = 0
@@ -63,7 +61,7 @@ class CachingMixin:
         """
         with self._cache_lock:
             while len(self._method_cache) > self._max_cache_size:
-                self._method_cache.popitem(last=False)  # Remove oldest entry
+                self._method_cache.popitem(last=False)
 
     def clear_cache(self):
         """Clear all cached method results.
@@ -98,109 +96,7 @@ class CachingMixin:
             }
 
 
-def _make_hashable(obj: Any, _seen: Optional[set[int]] = None, _depth: int = 0) -> Any:
-    """Convert an object to a hashable form recursively with circular reference protection.
-
-    Args:
-        obj: Object to convert
-        _seen: Set of already processed object IDs (for circular reference detection)
-        _depth: Current recursion depth (for depth protection)
-
-    Returns:
-        Hashable version of the object
-    """
-    MAX_DEPTH = 20
-    if _depth > MAX_DEPTH:
-        return f"<max_depth_exceeded:{type(obj).__name__}>"
-
-    if _seen is None:
-        _seen = set()
-
-    # Primitives don't need circular reference checking
-    if isinstance(obj, (str, int, float, bool, type(None))):
-        return obj
-
-    # Check for circular references using object id
-    obj_id = id(obj)
-    if obj_id in _seen:
-        return f"<circular_ref:{type(obj).__name__}>"
-
-    if isinstance(obj, (list, tuple)):
-        _seen.add(obj_id)
-        try:
-            result = tuple(
-                _make_hashable(item, _seen.copy(), _depth + 1) for item in obj
-            )
-        finally:
-            _seen.discard(obj_id)
-        return result
-    elif isinstance(obj, dict):
-        _seen.add(obj_id)
-        try:
-            result = tuple(
-                sorted(
-                    (k, _make_hashable(v, _seen.copy(), _depth + 1))
-                    for k, v in obj.items()
-                )
-            )
-        finally:
-            _seen.discard(obj_id)
-        return result
-    elif isinstance(obj, set):
-        _seen.add(obj_id)
-        try:
-            # Convert set items to hashable and sort them for consistent ordering
-            hashable_items = [
-                _make_hashable(item, _seen.copy(), _depth + 1) for item in obj
-            ]
-            # Sort with a fallback for unhashable types
-            try:
-                result = tuple(sorted(hashable_items))
-            except TypeError as e:
-                # If items can't be sorted, use string representation
-                logger.debug(
-                    "Cannot sort hashable items, using string representation",
-                    extra={
-                        "error": str(e),
-                        "error_type": type(e).__name__,
-                        "item_count": len(hashable_items),
-                    },
-                )
-                result = tuple(sorted(str(item) for item in hashable_items))
-        finally:
-            _seen.discard(obj_id)
-        return result
-    else:
-        # For complex objects, use type and a simple representation to avoid exposing sensitive data
-        return f"<{type(obj).__name__}:{id(type(obj))}>"
-
-
-def _generate_cache_key(method_name: str, args: Tuple, kwargs: Dict) -> str:
-    """Generate a cache key from method name and arguments.
-
-    Args:
-        method_name: Name of the method being cached
-        args: Positional arguments (excluding self)
-        kwargs: Keyword arguments
-
-    Returns:
-        String cache key
-    """
-    # Convert arguments to hashable forms with circular reference protection
-    hashable_args = _make_hashable(args)
-    hashable_kwargs = _make_hashable(kwargs)
-
-    # Create a dictionary representation for hashing
-    key_data = {"method": method_name, "args": hashable_args, "kwargs": hashable_kwargs}
-
-    # Generate a stable hash using JSON serialization
-    key_json = json.dumps(key_data, sort_keys=True)
-    key_hash = hashlib.md5(key_json.encode()).hexdigest()
-
-    return f"{method_name}_{key_hash}"
-
-
-def cached_method(ttl: Optional[int] = None, key_prefix: Optional[str] = None):
+def cached_method(ttl: int | None = None, key_prefix: str | None = None):
     """Decorator for caching method results with support for unhashable parameters.
 
     This decorator can be applied to methods of classes that inherit from CachingMixin.
@@ -214,19 +110,11 @@ def cached_method(ttl: Optional[int] = None, key_prefix: Optional[str] = None):
 
     Returns:
         Decorated method with caching capability
-
-    Example:
-        class MyService(CachingMixin):
-            @cached_method(ttl=60)
-            def expensive_operation(self, param: list[str]) -> str:
-                # Lists are automatically converted to tuples for caching
-                return do_expensive_work(param)
     """
 
     def decorator(method: F) -> F:
         @functools.wraps(method)
         def wrapper(self, *args, **kwargs):
-            # Ensure the class has CachingMixin
             if not isinstance(self, CachingMixin):
                 raise TypeError(
                     f"@cached_method can only be used on methods of classes "
@@ -234,7 +122,6 @@ def cached_method(ttl: Optional[int] = None, key_prefix: Optional[str] = None):
                     f"does not inherit from CachingMixin."
                 )
 
-            # Generate cache key
             method_name = method.__name__
             if key_prefix:
                 method_name = f"{key_prefix}_{method_name}"
@@ -242,36 +129,27 @@ def cached_method(ttl: Optional[int] = None, key_prefix: Optional[str] = None):
             cache_key = _generate_cache_key(method_name, args, kwargs)
 
             with self._cache_lock:
-                # Clean up expired entries periodically (every 10 cache operations)
                 if (self._cache_hits + self._cache_misses) % 10 == 0:
-                    # We need to release lock to call _evict_expired_entries which also uses lock
-                    # But _evict_expired_entries already uses lock, so we can call it directly
                     pass
 
-                # Check cache and validate TTL
                 if cache_key in self._method_cache:
                     entry = self._method_cache[cache_key]
                     current_time = time.time()
                     if current_time <= entry.get("expires_at", float("inf")):
-                        # Move to end for LRU
                         self._method_cache.move_to_end(cache_key)
                         self._cache_hits += 1
                         return entry["value"]
                     else:
-                        # Entry expired, remove it
                         del self._method_cache[cache_key]
 
-            # Periodic cleanup done outside main lock
             if (self._cache_hits + self._cache_misses) % 10 == 0:
                 self._evict_expired_entries()
 
-            # Cache miss - execute method (outside lock to allow concurrent execution)
             with self._cache_lock:
                 self._cache_misses += 1
 
             result = method(self, *args, **kwargs)
 
-            # Store in cache with TTL
             entry_ttl = ttl if ttl is not None else self._default_ttl
             expires_at = time.time() + entry_ttl if entry_ttl > 0 else float("inf")
 
@@ -282,17 +160,12 @@ def cached_method(ttl: Optional[int] = None, key_prefix: Optional[str] = None):
                     "created_at": time.time(),
                 }
 
-            # Enforce size limit (uses its own lock)
             self._enforce_size_limit()
 
             return result
 
-        # Add a method to clear this specific method's cache
         def clear_method_cache(self):
-            """Clear cache entries for this specific method.
-
-            Thread-safe: Uses lock for all cache operations.
-            """
+            """Clear cache entries for this specific method."""
             method_name = method.__name__
             if key_prefix:
                 method_name = f"{key_prefix}_{method_name}"
@@ -306,7 +179,6 @@ def cached_method(ttl: Optional[int] = None, key_prefix: Optional[str] = None):
                 for key in keys_to_remove:
                     del self._method_cache[key]
 
-        # Use setattr to dynamically add clear_cache method
         setattr(wrapper, "clear_cache", clear_method_cache)
 
         return cast(F, wrapper)

@@ -5,6 +5,7 @@ enabling service registration (singleton and transient) and resolution.
 """
 
 import pytest
+from prdiffer.domain.exceptions import ConfigurationError
 
 from prdiffer.infrastructure import di_container
 from prdiffer.infrastructure.di_container import (
@@ -224,11 +225,11 @@ class TestServiceContainerGet:
         assert isinstance(instance2, MockService)
 
     def test_get_not_registered_raises_error(self):
-        """Test that getting unregistered service raises ValueError."""
+        """Test that getting unregistered service raises ConfigurationError."""
         logger = MockLogger()
         container = ServiceContainer(logger)
 
-        with pytest.raises(ValueError) as exc_info:
+        with pytest.raises(ConfigurationError) as exc_info:
             container.get(MockService)
 
         assert "MockService" in str(exc_info.value)
@@ -495,10 +496,10 @@ class TestGetContainerGlobal:
         assert container1 is container2
 
     def test_get_container_without_logger_raises_error(self):
-        """Test get_container raises ValueError when no logger provided."""
+        """Test get_container raises ConfigurationError when no logger provided."""
         di_container._container = None
 
-        with pytest.raises(ValueError) as exc_info:
+        with pytest.raises(ConfigurationError) as exc_info:
             get_container()
 
         assert "not initialized" in str(exc_info.value)

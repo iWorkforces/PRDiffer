@@ -1,5 +1,5 @@
 import os
-from typing import Optional, Literal, TypeAlias, cast, Callable
+from typing import Literal, TypeAlias, cast, Callable
 
 from fastmcp import FastMCP
 from prdiffer.version import __version__
@@ -18,7 +18,7 @@ from prdiffer.domain.interfaces.protocols import (
     AuthenticationProtocol,
 )
 from prdiffer.infrastructure.security.input_validator import InputValidator
-from prdiffer.infrastructure.request_coalescing import RequestCoalescingService
+from prdiffer.infrastructure.utils.coalescing import RequestCoalescingService
 
 from prdiffer.application.tool_registry import ToolRegistry
 from prdiffer.application.webhook_handler import WebhookHandler
@@ -56,10 +56,10 @@ class FastMCPServer:
         pr_operation_handler: PROperationHandlerProtocol,
         health_monitor: HealthMonitorProtocol,
         server_configuration: ServerConfigurationProtocol,
-        authentication: Optional[AuthenticationProtocol] = None,
+        authentication: AuthenticationProtocol | None = None,
         # Security and request coalescing services from infrastructure
-        input_validator: Optional[InputValidator] = None,
-        request_coalescing_service: Optional[RequestCoalescingService] = None,
+        input_validator: InputValidator | None = None,
+        request_coalescing_service: RequestCoalescingService | None = None,
     ):
         """Initialize the FastMCP server with dependency injection.
 
@@ -115,7 +115,7 @@ class FastMCPServer:
 
         # Initialize request coalescing service - use injected or create default
         if request_coalescing_service is None:
-            from prdiffer.infrastructure.request_coalescing import (
+            from prdiffer.infrastructure.utils.coalescing import (
                 get_request_coalescing_service,
             )
 

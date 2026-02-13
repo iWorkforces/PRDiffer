@@ -1,7 +1,5 @@
 """Factory for creating FastMCPServer with all dependencies properly injected."""
 
-from typing import Optional
-
 from prdiffer.domain.services.pr_diff_service import PRDiffServiceInterface
 
 from .mcp_server import FastMCPServer
@@ -13,16 +11,14 @@ from prdiffer.domain.services.logger import LoggerServiceInterface
 from prdiffer.infrastructure.factories import get_infrastructure_factory
 from prdiffer.application.factories import get_application_factory
 
-import logging
-
 
 def create_mcp_server(
     github_repository_class,
-    settings_service: Optional[SettingsServiceInterface] = None,
-    cache_service: Optional[CacheServiceInterface] = None,
-    repository_cache_service: Optional[RepositoryCacheServiceInterface] = None,
-    pr_diff_service: Optional[PRDiffServiceInterface] = None,
-    logger: Optional[LoggerServiceInterface] = None,
+    settings_service: SettingsServiceInterface | None = None,
+    cache_service: CacheServiceInterface | None = None,
+    repository_cache_service: RepositoryCacheServiceInterface | None = None,
+    pr_diff_service: PRDiffServiceInterface | None = None,
+    logger: LoggerServiceInterface | None = None,
 ) -> FastMCPServer:
     """Create FastMCPServer with all dependencies properly injected.
 
@@ -81,7 +77,7 @@ def create_mcp_server(
     )
 
     from prdiffer.infrastructure.security.input_validator import InputValidator
-    from prdiffer.infrastructure.request_coalescing import (
+    from prdiffer.infrastructure.utils.coalescing import (
         get_request_coalescing_service,
     )
 
@@ -106,73 +102,4 @@ def create_mcp_server(
         authentication=authentication,
         input_validator=input_validator_instance,
         request_coalescing_service=request_coalescing_instance,
-    )
-
-
-def create_mcp_server_legacy(
-    github_repository_class,
-    settings_service: SettingsServiceInterface,
-    cache_service: CacheServiceInterface,
-    repository_cache_service: RepositoryCacheServiceInterface,
-    logger: Optional[logging.Logger] = None,
-) -> FastMCPServer:
-    """Create FastMCPServer using the legacy constructor (for backward compatibility).
-
-    This function maintains backward compatibility by using the original
-    constructor signature, allowing existing code to work without changes
-    during the migration period.
-
-    Args:
-        Same as create_mcp_server
-
-    Returns:
-        FastMCPServer instance created with legacy constructor
-    """
-    if logger is None:
-        from prdiffer.infrastructure.logging.console_logger import get_logger
-
-        logger_service = get_logger()
-    else:
-        from prdiffer.infrastructure.logging.console_logger import get_logger
-
-        logger_service = get_logger()
-
-    infrastructure_factory = get_infrastructure_factory()
-    application_factory = get_application_factory()
-
-    pr_diff_service = infrastructure_factory.create_pr_diff_service()
-    rate_limiter = application_factory.create_rate_limiter(logger_service)
-    metrics_tracker = application_factory.create_metrics_tracker(logger_service)
-    authentication = application_factory.create_authentication(logger_service)
-    pr_operation_handler = application_factory.create_pr_operation_handler(
-        github_repository_class=github_repository_class,
-        cache_service=cache_service,
-        repository_cache_service=repository_cache_service,
-        diff_service=infrastructure_factory.create_diff_service(),
-        pattern_matching_service=infrastructure_factory.create_pattern_matching_service(),
-        retry_service=infrastructure_factory.create_retry_service(),
-        logger=logger_service,
-    )
-    health_monitor = application_factory.create_health_monitor(
-        metrics_tracker=metrics_tracker,
-        rate_limiter=rate_limiter,
-        logger=logger_service,
-    )
-    server_configuration = application_factory.create_server_configuration(
-        settings_service, logger_service
-    )
-
-    return FastMCPServer(
-        settings_service=settings_service,
-        cache_service=cache_service,
-        repository_cache_service=repository_cache_service,
-        pr_diff_service=pr_diff_service,
-        logger=logger_service,
-        github_repository_class=github_repository_class,
-        rate_limiter=rate_limiter,
-        metrics_tracker=metrics_tracker,
-        pr_operation_handler=pr_operation_handler,
-        health_monitor=health_monitor,
-        server_configuration=server_configuration,
-        authentication=authentication,
     )

@@ -1,22 +1,14 @@
-"""Async parallel execution service using anyio task groups.
+"""Async parallel executor using anyio task groups.
 
 This module provides a native async parallel executor that replaces
 ThreadPoolExecutor with anyio's structured concurrency primitives.
 """
 
-from dataclasses import dataclass, field
-from enum import Enum
-from typing import (
-    Callable,
-    Any,
-    Optional,
-    TypeVar,
-    Awaitable,
-    Generic,
-    cast,
-)
+from typing import Callable, Any, TypeVar, Awaitable, cast
+
 import anyio
 from prdiffer.infrastructure.logging.console_logger import get_logger
+from prdiffer.infrastructure.utils.parallel.results import BatchResult, ErrorStrategy
 
 # Exceptions to catch in parallel execution
 # Note: We deliberately exclude KeyboardInterrupt, SystemExit, and GeneratorExit
@@ -52,54 +44,6 @@ T = TypeVar("T")
 R = TypeVar("R")
 
 
-class ErrorStrategy(str, Enum):
-    """Error handling strategy for parallel execution."""
-
-    IGNORE = "ignore"  # Log errors, return only successful results
-    RAISE = "raise"  # Raise first exception encountered
-    COLLECT = "collect"  # Return both successful results and errors
-    CONTINUE = "continue"  # Continue processing, return detailed batch results
-
-
-@dataclass
-class BatchResult(Generic[T]):
-    """Result of a batch execution with success/failure tracking."""
-
-    successful: list[T] = field(default_factory=list)
-    failed: list[tuple[Any, Exception]] = field(default_factory=list)
-
-    @property
-    def total(self) -> int:
-        """Total number of items processed."""
-        return len(self.successful) + len(self.failed)
-
-    @property
-    def success_count(self) -> int:
-        """Number of successful items."""
-        return len(self.successful)
-
-    @property
-    def failure_count(self) -> int:
-        """Number of failed items."""
-        return len(self.failed)
-
-    @property
-    def success_rate(self) -> float:
-        """Success rate as a percentage."""
-        if self.total == 0:
-            return 100.0
-        return (self.success_count / self.total) * 100
-
-    @property
-    def all_succeeded(self) -> bool:
-        """Check if all items succeeded."""
-        return len(self.failed) == 0
-
-    def get_errors(self) -> list[Exception]:
-        """Get list of all exceptions."""
-        return [error for _, error in self.failed]
-
-
 class AsyncParallelExecutor:
     """Native async parallel executor using anyio task groups.
 
@@ -118,9 +62,9 @@ class AsyncParallelExecutor:
     def __init__(
         self,
         max_concurrent: int = 10,
-        timeout: Optional[float] = None,
+        timeout: float | None = None,
         error_strategy: ErrorStrategy = ErrorStrategy.IGNORE,
-        logger: Optional[Any] = None,
+        logger: Any | None = None,
     ):
         """Initialize the async parallel executor.
 
@@ -134,7 +78,7 @@ class AsyncParallelExecutor:
         self.timeout = timeout
         self.error_strategy = error_strategy
         self._logger = logger or get_logger()
-        self._semaphore: Optional[anyio.Semaphore] = None
+        self._semaphore: anyio.Semaphore | None = None
 
     async def _get_semaphore(self) -> anyio.Semaphore:
         """Get or create the semaphore for concurrency control."""
@@ -261,7 +205,7 @@ class AsyncParallelExecutor:
         self,
         func_map: dict[Any, Callable[[Any], Awaitable[R]]],
         items: list[Any],
-        default_func: Optional[Callable[[Any], Awaitable[R]]] = None,
+        default_func: Callable[[Any], Awaitable[R]] | None = None,
     ) -> list[R]:
         """Execute different async functions based on item type/key in parallel.
 
@@ -282,7 +226,7 @@ class AsyncParallelExecutor:
 
         async def process_item(item: Any) -> None:
             # Determine which function to use
-            func: Optional[Callable[[Any], Awaitable[R]]] = None
+            func: Callable[[Any], Awaitable[R]] | None = None
             if hasattr(item, "__class__"):
                 func = func_map.get(type(item))
             if func is None:
@@ -331,7 +275,7 @@ class AsyncParallelExecutor:
         self,
         func: Callable[[T], Awaitable[R]],
         items: list[T],
-        progress_callback: Optional[Callable[[int, int], Any]] = None,
+        progress_callback: Callable[[int, int], Any] | None = None,
     ) -> list[R]:
         """Execute an async function with progress tracking.
 
@@ -455,12 +399,12 @@ class AsyncParallelExecutor:
 
 
 # Global instance for singleton pattern
-_async_parallel_executor: Optional[AsyncParallelExecutor] = None
+_async_parallel_executor: AsyncParallelExecutor | None = None
 
 
 def get_async_parallel_executor(
     max_concurrent: int = 10,
-    timeout: Optional[float] = None,
+    timeout: float | None = None,
     error_strategy: ErrorStrategy = ErrorStrategy.IGNORE,
 ) -> AsyncParallelExecutor:
     """Get a configured async parallel executor instance.
@@ -485,7 +429,7 @@ def get_async_parallel_executor(
 
 def create_async_parallel_executor(
     max_concurrent: int = 10,
-    timeout: Optional[float] = None,
+    timeout: float | None = None,
     error_strategy: ErrorStrategy = ErrorStrategy.IGNORE,
 ) -> AsyncParallelExecutor:
     """Create a new async parallel executor instance (not singleton).

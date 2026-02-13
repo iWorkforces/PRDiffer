@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Optional, Any
+from typing import Any
 
 from prdiffer.domain.entities.pr_diff import PRDiff
 
@@ -26,7 +26,7 @@ class CacheServiceInterface(ABC):
         pass
 
     @abstractmethod
-    async def get(self, cache_key: str, current_commit_sha: str) -> Optional[PRDiff]:
+    async def get(self, cache_key: str, current_commit_sha: str) -> PRDiff | None:
         """Get cached PR diff data if it exists and commit SHA matches.
 
         Args:
@@ -59,7 +59,7 @@ class CacheServiceInterface(ABC):
         pass
 
     @abstractmethod
-    def get_etag(self, cache_key: str) -> Optional[str]:
+    def get_etag(self, cache_key: str) -> str | None:
         """Get stored ETag for a cache key."""
         pass
 

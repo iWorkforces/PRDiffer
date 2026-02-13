@@ -14,6 +14,7 @@ from prdiffer.domain.services.cache import CacheServiceInterface
 from prdiffer.domain.services.repository_cache import RepositoryCacheServiceInterface
 from prdiffer.domain.repositories.pr_diff_repository import PRDiffRepositoryInterface
 from prdiffer.domain.entities.pr_diff import PRDiff
+from prdiffer.domain.exceptions import ValidationError, GitHubAPIError
 
 
 class MockLogger(LoggerServiceInterface):
@@ -44,13 +45,13 @@ class MockCacheService(CacheServiceInterface):
     def get_cache_key(self, repo_owner: str, repo_name: str, pr_number: int) -> str:
         return f"{repo_owner}/{repo_name}/{pr_number}"
 
-    def get(self, cache_key: str, current_commit_sha: str):
+    async def get(self, cache_key: str, current_commit_sha: str):
         return None
 
-    def set(self, cache_key: str, commit_sha: str, data: PRDiff):
+    async def set(self, cache_key: str, commit_sha: str, data: PRDiff):
         pass
 
-    def invalidate(self, cache_key: str):
+    async def invalidate(self, cache_key: str):
         pass
 
     def get_etag(self, cache_key: str):
@@ -123,14 +124,14 @@ class MockRepository(PRDiffRepositoryInterface):
         from prdiffer.domain.entities.file_patch import EDIT_TYPE
 
         return PRDiff(
-            files=[
+            files=(
                 FileDiffResponse(
                     path="test.py",
                     status=EDIT_TYPE.MODIFIED,
                     stats=FileStats(additions=10, deletions=5),
                     diff="mock diff content",
-                )
-            ],
+                ),
+            ),
         )
 
     async def get_latest_commit_sha(self) -> str:
@@ -238,7 +239,7 @@ class TestPROperationHandlerGetPrDiff:
             logger=logger,
         )
 
-        with pytest.raises(ValueError) as exc_info:
+        with pytest.raises(ValidationError) as exc_info:
             await handler.get_pr_diff("")
 
         assert "required" in str(exc_info.value)
@@ -319,7 +320,7 @@ class TestPROperationHandlerGetPrDiff:
 
         url = "https://github.com/owner/repo/pull/123"
 
-        with pytest.raises(RuntimeError) as exc_info:
+        with pytest.raises(GitHubAPIError) as exc_info:
             await handler.get_pr_diff(url)
 
         assert "Failed to fetch PR diff" in str(exc_info.value)
@@ -343,134 +344,10 @@ class TestPROperationHandlerGetPrDiff:
 
         invalid_url = "https://github.com/owner/repo/pull/invalid"
 
-        with pytest.raises(ValueError) as exc_info:
+        with pytest.raises(ValidationError) as exc_info:
             await handler.get_pr_diff(invalid_url)
 
         assert "Invalid request" in str(exc_info.value)
-
-
-class TestPROperationHandlerDescribePr:
-    """Test suite for describe_pr method."""
-
-    @pytest.mark.asyncio
-    async def test_describe_pr_raises_not_implemented(self):
-        """Test that describe_pr raises NotImplementedError."""
-        logger = MockLogger()
-        cache_service = MockCacheService()
-        repository_cache_service = MockRepositoryCacheService()
-
-        def mock_github_repo_class(repo_owner, repo_name, pr_number):
-            return MockRepository(repo_owner, repo_name, pr_number)
-
-        handler = PROperationHandler(
-            github_repository_class=mock_github_repo_class,
-            cache_service=cache_service,
-            repository_cache_service=repository_cache_service,
-            logger=logger,
-        )
-
-        url = "https://github.com/owner/repo/pull/123"
-        commit_messages = "Test commit"
-        diff_content = "Test diff"
-
-        with pytest.raises(NotImplementedError) as exc_info:
-            await handler.describe_pr(url, commit_messages, diff_content)
-
-        assert "not yet implemented" in str(exc_info.value)
-        assert "PR description generation" in str(exc_info.value)
-
-
-class TestPROperationHandlerApprovePr:
-    """Test suite for approve_pr method."""
-
-    @pytest.mark.asyncio
-    async def test_approve_pr_raises_not_implemented(self):
-        """Test that approve_pr raises NotImplementedError."""
-        logger = MockLogger()
-        cache_service = MockCacheService()
-        repository_cache_service = MockRepositoryCacheService()
-
-        def mock_github_repo_class(repo_owner, repo_name, pr_number):
-            return MockRepository(repo_owner, repo_name, pr_number)
-
-        handler = PROperationHandler(
-            github_repository_class=mock_github_repo_class,
-            cache_service=cache_service,
-            repository_cache_service=repository_cache_service,
-            logger=logger,
-        )
-
-        url = "https://github.com/owner/repo/pull/123"
-        commit_messages = "Test commit"
-        diff_content = "Test diff"
-
-        with pytest.raises(NotImplementedError) as exc_info:
-            await handler.approve_pr(url, commit_messages, diff_content)
-
-        assert "not yet implemented" in str(exc_info.value)
-        assert "PR approval generation" in str(exc_info.value)
-
-
-class TestPROperationHandlerReviewPr:
-    """Test suite for review_pr method."""
-
-    @pytest.mark.asyncio
-    async def test_review_pr_raises_not_implemented(self):
-        """Test that review_pr raises NotImplementedError."""
-        logger = MockLogger()
-        cache_service = MockCacheService()
-        repository_cache_service = MockRepositoryCacheService()
-
-        def mock_github_repo_class(repo_owner, repo_name, pr_number):
-            return MockRepository(repo_owner, repo_name, pr_number)
-
-        handler = PROperationHandler(
-            github_repository_class=mock_github_repo_class,
-            cache_service=cache_service,
-            repository_cache_service=repository_cache_service,
-            logger=logger,
-        )
-
-        url = "https://github.com/owner/repo/pull/123"
-        commit_messages = "Test commit"
-        diff_content = "Test diff"
-
-        with pytest.raises(NotImplementedError) as exc_info:
-            await handler.review_pr(url, commit_messages, diff_content)
-
-        assert "not yet implemented" in str(exc_info.value)
-        assert "PR review generation" in str(exc_info.value)
-
-
-class TestPROperationHandlerUpdatePrChangelog:
-    """Test suite for update_pr_changelog method."""
-
-    @pytest.mark.asyncio
-    async def test_update_pr_changelog_raises_not_implemented(self):
-        """Test that update_pr_changelog raises NotImplementedError."""
-        logger = MockLogger()
-        cache_service = MockCacheService()
-        repository_cache_service = MockRepositoryCacheService()
-
-        def mock_github_repo_class(repo_owner, repo_name, pr_number):
-            return MockRepository(repo_owner, repo_name, pr_number)
-
-        handler = PROperationHandler(
-            github_repository_class=mock_github_repo_class,
-            cache_service=cache_service,
-            repository_cache_service=repository_cache_service,
-            logger=logger,
-        )
-
-        url = "https://github.com/owner/repo/pull/123"
-        commit_messages = "Test commit"
-        diff_content = "Test diff"
-
-        with pytest.raises(NotImplementedError) as exc_info:
-            await handler.update_pr_changelog(url, commit_messages, diff_content)
-
-        assert "not yet implemented" in str(exc_info.value)
-        assert "PR changelog update" in str(exc_info.value)
 
 
 class TestPROperationHandlerErrorHandling:
@@ -528,7 +405,7 @@ class TestPROperationHandlerErrorHandling:
 
         url = "https://github.com/owner/repo/pull/123"
 
-        with pytest.raises(RuntimeError) as exc_info:
+        with pytest.raises(GitHubAPIError) as exc_info:
             await handler.get_pr_diff(url)
 
         assert "Failed to fetch PR diff" in str(exc_info.value)

@@ -7,6 +7,7 @@ enabling dynamic tool registration, discovery, and execution.
 import pytest
 
 from prdiffer.application.plugin_manager import PluginManager
+from prdiffer.domain.exceptions import ValidationError, PRDifferException
 from prdiffer.application.interfaces.tool_plugin import MCPToolPlugin
 from prdiffer.domain.services.logger import LoggerServiceInterface
 
@@ -167,7 +168,7 @@ class TestPluginManagerRegisterPlugin:
 
         manager.register_plugin(plugin1)
 
-        with pytest.raises(ValueError) as exc_info:
+        with pytest.raises(ValidationError) as exc_info:
             manager.register_plugin(plugin2)
 
         assert "already registered" in str(exc_info.value)
@@ -375,7 +376,7 @@ class TestPluginManagerExecutePlugin:
 
         manager.register_plugin(plugin)
 
-        with pytest.raises(RuntimeError) as exc_info:
+        with pytest.raises(PRDifferException) as exc_info:
             await manager.execute_plugin(plugin.name)
 
         assert "is disabled" in str(exc_info.value)
@@ -387,7 +388,7 @@ class TestPluginManagerExecutePlugin:
         logger = MockLogger()
         manager = PluginManager(logger)
 
-        with pytest.raises(ValueError) as exc_info:
+        with pytest.raises(ValidationError) as exc_info:
             await manager.execute_plugin("nonexistent")
 
         assert "not found" in str(exc_info.value)

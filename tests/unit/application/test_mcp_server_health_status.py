@@ -52,7 +52,7 @@ def test_health_status_includes_cache_and_coalescing():
             request_coalescing_service=request_coalescing_service,
         )
 
-    health = anyio.run(server._get_health_status)
+    health = anyio.run(server._health_endpoints._get_health_status)
 
     assert health["cache"] == {"size": 1}
     assert health["repository_cache"] == {"total_entries": 2}

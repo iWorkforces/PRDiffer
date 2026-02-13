@@ -59,7 +59,7 @@ tests/
 - Test retry logic, circuit breaker, parallel execution
 
 ### Phase-Based Organization
-- 4 phase test files: `test_phase_1.py`, `test_phase_2.py`, etc. (80K+ lines combined)
+- 4 phase test files: `test_phase1_improvements.py`, `test_phase2_improvements.py`, etc. (80K+ lines combined)
 - Organized by development phase for historical context
 
 ## COMMANDS

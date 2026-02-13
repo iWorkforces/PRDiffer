@@ -3,7 +3,6 @@
 import difflib
 import re
 from dataclasses import dataclass
-from typing import Union, Optional
 from prdiffer.domain.services import DiffServiceInterface
 from prdiffer.infrastructure.utils.logger_factory import LazyLoggerMixin
 
@@ -50,7 +49,7 @@ class DiffUtils(LazyLoggerMixin, DiffServiceInterface):
 
     RE_HUNK_HEADER = re.compile(r"^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@[ ]?(.*)")
 
-    def __init__(self, logger=None, config: Optional[DiffProcessingConfig] = None):
+    def __init__(self, logger=None, config: DiffProcessingConfig | None = None):
         """Initialize the diff utility.
 
         Args:
@@ -104,8 +103,8 @@ class DiffUtils(LazyLoggerMixin, DiffServiceInterface):
         self,
         original_file_str: str,
         new_file_str: str,
-        chunk_size: Optional[int] = None,
-        large_file_threshold: Optional[int] = None,
+        chunk_size: int | None = None,
+        large_file_threshold: int | None = None,
     ) -> str:
         """Build a unified diff with chunked processing for large files.
 
@@ -218,7 +217,7 @@ class DiffUtils(LazyLoggerMixin, DiffServiceInterface):
             return "\n".join(["", header] + body_lines)
         return ""
 
-    def decode_if_bytes(self, content: Union[str, bytes, bytearray]) -> str:
+    def decode_if_bytes(self, content: str | bytes | bytearray) -> str:
         """Decode bytes content to string with fallback encoding support.
 
         Args:
@@ -320,7 +319,7 @@ class DiffUtils(LazyLoggerMixin, DiffServiceInterface):
 
 
 def get_diff_utils(
-    logger=None, config: Optional[DiffProcessingConfig] = None
+    logger=None, config: DiffProcessingConfig | None = None
 ) -> DiffUtils:
     """Get a diff utils instance.
 

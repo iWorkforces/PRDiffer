@@ -4,7 +4,6 @@ This is the refactored version using composition with extracted components.
 """
 
 import os
-from typing import Optional
 from github.Repository import Repository
 from github.PullRequest import PullRequest
 from github.GithubException import (
@@ -26,7 +25,7 @@ from prdiffer.infrastructure.logging.exception_utils import (
 )
 from prdiffer.infrastructure.security.input_validator import InputValidator
 
-from prdiffer.infrastructure.github.api_client import get_github_api_client
+from prdiffer.infrastructure.github.client import get_github_api_client
 from prdiffer.infrastructure.github.file_processor import get_file_processor
 from prdiffer.infrastructure.github.diff_generator import get_diff_generator
 from prdiffer.infrastructure.utils.pattern_matcher import get_pattern_matcher
@@ -51,10 +50,10 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
         repo_owner: str,
         repo_name: str,
         pr_number: int,
-        github_token: Optional[str] = None,
-        settings_service: Optional[SettingsService] = None,
-        logger: Optional[LoggerServiceInterface] = None,
-        input_validator: Optional[InputValidator] = None,
+        github_token: str | None = None,
+        settings_service: SettingsService | None = None,
+        logger: LoggerServiceInterface | None = None,
+        input_validator: InputValidator | None = None,
     ):
         """Initialize GitHub repository with repository details and optional authentication.
 
@@ -196,8 +195,8 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
         )
 
         # Lazy initialization for GitHub objects
-        self._repository: Optional[Repository] = None
-        self._pull_request: Optional[PullRequest] = None
+        self._repository: Repository | None = None
+        self._pull_request: PullRequest | None = None
         self._initialized: bool = False
 
     async def initialize(self) -> None:
@@ -570,7 +569,7 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
             )
             self._logger.debug(f"Diff content preview:\n{safe_diff_preview}")
 
-        return PRDiff(files=file_responses)
+        return PRDiff(files=tuple(file_responses))
 
     def _get_merge_base_commits(self) -> tuple[str, str]:
         """Get base and head commit SHAs, using merge base for accurate comparison.
@@ -666,10 +665,10 @@ def get_github_repository(
     repo_owner: str,
     repo_name: str,
     pr_number: int,
-    github_token: Optional[str] = None,
-    settings_service: Optional[SettingsService] = None,
-    logger: Optional[LoggerServiceInterface] = None,
-    input_validator: Optional[InputValidator] = None,
+    github_token: str | None = None,
+    settings_service: SettingsService | None = None,
+    logger: LoggerServiceInterface | None = None,
+    input_validator: InputValidator | None = None,
 ) -> GitHubPRDiffRepository:
     """Get a GitHub repository instance (singleton pattern per repository/PR).
 

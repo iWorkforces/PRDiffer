@@ -1,55 +1,12 @@
-"""Repository caching service for GitHubPRDiffRepository instances.
-
-This service provides caching of GitHub repository instances to avoid
-repeated initialization of GitHub API objects for the same repositories.
-"""
+"""Repository cache service implementation."""
 
 import time
-from dataclasses import dataclass
-from functools import wraps
-from typing import Optional, Dict, Callable
 from threading import RLock
-from prdiffer.domain.services import RepositoryCacheServiceInterface
 
+from prdiffer.domain.services import RepositoryCacheServiceInterface
 from prdiffer.infrastructure.github_repository import GitHubPRDiffRepository
 from prdiffer.infrastructure.logging.console_logger import get_logger
-
-
-@dataclass
-class CacheEntry:
-    """Data class representing a cache entry.
-
-    Attributes:
-        repository: The cached GitHubPRDiffRepository instance
-        timestamp: Unix timestamp when the entry was created/updated
-        initialized: Whether the repository has been initialized
-    """
-
-    repository: GitHubPRDiffRepository
-    timestamp: float
-    initialized: bool
-
-
-def with_lock(lock_attr: str = "_lock"):
-    """Decorator for automatic lock management.
-
-    Args:
-        lock_attr: The attribute name of the RLock instance
-
-    Returns:
-        Decorated function that automatically acquires and releases the lock
-    """
-
-    def decorator(func: Callable) -> Callable:
-        @wraps(func)
-        def wrapper(self, *args, **kwargs):
-            lock = getattr(self, lock_attr)
-            with lock:
-                return func(self, *args, **kwargs)
-
-        return wrapper
-
-    return decorator
+from prdiffer.infrastructure.cache.repository.models import CacheEntry, with_lock
 
 
 class RepositoryCacheService(RepositoryCacheServiceInterface):
@@ -61,12 +18,7 @@ class RepositoryCacheService(RepositoryCacheServiceInterface):
     """
 
     def __init__(self, max_size: int = 100, ttl_seconds: int = 300):
-        """Initialize the repository cache service.
-
-        Args:
-            max_size: Maximum number of repository instances to cache
-            ttl_seconds: Time-to-live for cached instances in seconds
-        """
+        """Initialize the repository cache service."""
         self._cache: dict[tuple[str, str, int], CacheEntry] = {}
         self._max_size = max_size
         self._ttl_seconds = ttl_seconds
@@ -76,16 +28,7 @@ class RepositoryCacheService(RepositoryCacheServiceInterface):
     def _get_cache_key(
         self, repo_owner: str, repo_name: str, pr_number: int
     ) -> tuple[str, str, int]:
-        """Generate a cache key from repository details.
-
-        Args:
-            repo_owner: Repository owner/organization
-            repo_name: Repository name
-            pr_number: Pull request number
-
-        Returns:
-            Tuple containing (repo_owner, repo_name, pr_number)
-        """
+        """Generate a cache key from repository details."""
         return (repo_owner.lower(), repo_name.lower(), pr_number)
 
     @with_lock()
@@ -113,10 +56,7 @@ class RepositoryCacheService(RepositoryCacheServiceInterface):
         if len(self._cache) <= self._max_size:
             return
 
-        # Find oldest entries to remove without sorting (more efficient)
-        # Convert to list to avoid "dictionary changed size during iteration" error
         entries_list = list(self._cache.items())
-        # Sort by timestamp (oldest first) only the excess entries
         excess_count = len(entries_list) - self._max_size
         entries_to_remove = sorted(entries_list, key=lambda x: x[1].timestamp)[
             :excess_count
@@ -132,20 +72,10 @@ class RepositoryCacheService(RepositoryCacheServiceInterface):
             )
 
     def _is_entry_valid(self, entry: CacheEntry, current_time: float) -> bool:
-        """Check if a cache entry is valid (not expired and initialized).
-
-        Args:
-            entry: The cache entry to validate
-            current_time: Current timestamp for expiration check
-
-        Returns:
-            bool: True if the entry is valid, False otherwise
-        """
-        # Check expiration
+        """Check if a cache entry is valid."""
         if current_time - entry.timestamp > self._ttl_seconds:
             return False
 
-        # Check if repository is initialized
         if not entry.initialized:
             return False
 
@@ -153,23 +83,14 @@ class RepositoryCacheService(RepositoryCacheServiceInterface):
 
     def _get_valid_entry(
         self, cache_key: tuple[str, str, int], extend_ttl: bool = False
-    ) -> Optional[CacheEntry]:
-        """Retrieve and validate a cache entry, removing it if invalid.
-
-        Args:
-            cache_key: The cache key to look up
-            extend_ttl: Whether to extend the TTL on access
-
-        Returns:
-            CacheEntry if found and valid, None otherwise
-        """
+    ) -> CacheEntry | None:
+        """Retrieve and validate a cache entry."""
         if cache_key not in self._cache:
             return None
 
         entry = self._cache[cache_key]
         current_time = time.time()
 
-        # Check if entry is valid
         if not self._is_entry_valid(entry, current_time):
             del self._cache[cache_key]
             self._logger.debug(
@@ -180,7 +101,6 @@ class RepositoryCacheService(RepositoryCacheServiceInterface):
             )
             return None
 
-        # Update timestamp to extend TTL if requested
         if extend_ttl:
             entry.timestamp = current_time
 
@@ -188,14 +108,7 @@ class RepositoryCacheService(RepositoryCacheServiceInterface):
 
     @with_lock()
     def insert(self, repository: GitHubPRDiffRepository) -> bool:
-        """Insert a repository instance into the cache.
-
-        Args:
-            repository: GitHubPRDiffRepository instance to cache
-
-        Returns:
-            bool: True if inserted successfully, False otherwise
-        """
+        """Insert a repository instance into the cache."""
         cache_key = self._get_cache_key(
             repository.repo_owner, repository.repo_name, repository.pr_number
         )
@@ -220,23 +133,12 @@ class RepositoryCacheService(RepositoryCacheServiceInterface):
     @with_lock()
     def retrieve(
         self, repo_owner: str, repo_name: str, pr_number: int
-    ) -> Optional[GitHubPRDiffRepository]:
-        """Retrieve a cached repository instance.
-
-        Args:
-            repo_owner: Repository owner/organization
-            repo_name: Repository name
-            pr_number: Pull request number
-
-        Returns:
-            GitHubPRDiffRepository instance if found and valid, None otherwise
-        """
+    ) -> GitHubPRDiffRepository | None:
+        """Retrieve a cached repository instance."""
         cache_key = self._get_cache_key(repo_owner, repo_name, pr_number)
 
-        # Use the shared validation logic with TTL extension
         entry = self._get_valid_entry(cache_key, extend_ttl=True)
         if entry is None:
-            # Log only if entry was not found (not if it was expired/invalid)
             if cache_key not in self._cache:
                 self._logger.debug(
                     "Repository not found in cache",
@@ -256,34 +158,15 @@ class RepositoryCacheService(RepositoryCacheServiceInterface):
 
     @with_lock()
     def validate(self, repo_owner: str, repo_name: str, pr_number: int) -> bool:
-        """Validate if a repository instance exists and is valid in the cache.
-
-        Args:
-            repo_owner: Repository owner/organization
-            repo_name: Repository name
-            pr_number: Pull request number
-
-        Returns:
-            bool: True if valid cached instance exists, False otherwise
-        """
+        """Validate if a repository instance exists and is valid in the cache."""
         cache_key = self._get_cache_key(repo_owner, repo_name, pr_number)
 
-        # Use the shared validation logic without TTL extension
         entry = self._get_valid_entry(cache_key, extend_ttl=False)
         return entry is not None
 
     @with_lock()
     def remove(self, repo_owner: str, repo_name: str, pr_number: int) -> bool:
-        """Remove a repository instance from the cache.
-
-        Args:
-            repo_owner: Repository owner/organization
-            repo_name: Repository name
-            pr_number: Pull request number
-
-        Returns:
-            bool: True if removed successfully, False if not found
-        """
+        """Remove a repository instance from the cache."""
         cache_key = self._get_cache_key(repo_owner, repo_name, pr_number)
 
         if cache_key in self._cache:
@@ -306,20 +189,12 @@ class RepositoryCacheService(RepositoryCacheServiceInterface):
 
     @with_lock()
     def size(self) -> int:
-        """Get the current number of entries in the cache.
-
-        Returns:
-            int: Number of cached repository instances
-        """
+        """Get the current number of entries in the cache."""
         return len(self._cache)
 
     @with_lock()
-    def stats(self) -> Dict:
-        """Get cache statistics.
-
-        Returns:
-            Dict containing cache statistics
-        """
+    def stats(self) -> dict:
+        """Get cache statistics."""
         current_time = time.time()
         initialized_count = 0
         expired_count = 0
@@ -340,14 +215,7 @@ class RepositoryCacheService(RepositoryCacheServiceInterface):
 
     @with_lock()
     def invalidate(self, cache_key: str) -> bool:
-        """Invalidate a cache entry by key.
-
-        Args:
-            cache_key: Cache key to invalidate (format: "owner/repo" or "owner/repo/pr/number")
-
-        Returns:
-            bool: True if invalidated successfully, False if not found
-        """
+        """Invalidate a cache entry by key."""
         parts = cache_key.split("/")
         if len(parts) == 2:
             repo_owner, repo_name = parts
@@ -371,16 +239,11 @@ class RepositoryCacheService(RepositoryCacheServiceInterface):
             return False
 
 
-# Singleton instance for global access
-_repository_cache_service = None
+_repository_cache_service: RepositoryCacheService | None = None
 
 
 def get_repository_cache_service() -> RepositoryCacheService:
-    """Get the singleton repository cache service instance.
-
-    Returns:
-        RepositoryCacheService singleton instance
-    """
+    """Get the singleton repository cache service instance."""
     global _repository_cache_service
     if _repository_cache_service is None:
         _repository_cache_service = RepositoryCacheService()

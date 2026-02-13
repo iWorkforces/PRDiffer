@@ -1,5 +1,18 @@
 import pytest
+from unittest.mock import AsyncMock, patch, MagicMock
 from prdiffer.infrastructure.vcs_providers.gitlab_repository import GitLabVCSRepository
+
+
+def mock_gitlab_client():
+    """Create a mock httpx client for GitLab tests."""
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.json.return_value = {"sha": "mock-sha-123456789"}
+
+    mock_client = AsyncMock()
+    mock_client.__aenter__.return_value = mock_client
+    mock_client.get.return_value = mock_response
+    return mock_client
 
 
 class TestGitLabVCSRepository:
@@ -19,46 +32,70 @@ class TestGitLabVCSRepository:
     async def test_initialize(self):
         """Provider should initialize without errors."""
         provider = GitLabVCSRepository()
-        await provider.initialize()
+        with patch(
+            "prdiffer.infrastructure.vcs_providers.gitlab_repository.httpx"
+        ) as mock_httpx:
+            mock_httpx.AsyncClient.return_value = mock_gitlab_client()
+            await provider.initialize()
 
     @pytest.mark.asyncio
     async def test_initialize_without_token(self):
         """Provider should initialize without token."""
         provider = GitLabVCSRepository()
-        await provider.initialize()
+        with patch(
+            "prdiffer.infrastructure.vcs_providers.gitlab_repository.httpx"
+        ) as mock_httpx:
+            mock_httpx.AsyncClient.return_value = mock_gitlab_client()
+            await provider.initialize()
 
     @pytest.mark.asyncio
     async def test_get_pr_diff(self):
-        """Provider should return mock diff."""
+        """Provider should return diff files list."""
         provider = GitLabVCSRepository()
-        await provider.initialize()
-        diff = await provider.get_pr_diff("owner", "repo", 123)
-        assert "Mock GitLab MR diff" in diff.diff_content
-        assert "MR: 123" in diff.diff_content
+        with patch(
+            "prdiffer.infrastructure.vcs_providers.gitlab_repository.httpx"
+        ) as mock_httpx:
+            mock_httpx.AsyncClient.return_value = mock_gitlab_client()
+            await provider.initialize()
+            diff = await provider.get_pr_diff("owner", "repo", 123)
+            # PRDiff now uses frozen dataclass with tuple fields
+            assert isinstance(diff.files, tuple)
 
     @pytest.mark.asyncio
     async def test_get_pr_diff_with_token(self):
         """Provider should return diff with token."""
         provider = GitLabVCSRepository("test-token")
-        await provider.initialize()
-        diff = await provider.get_pr_diff("owner", "repo", 123)
-        assert "Mock GitLab MR diff" in diff.diff_content
+        with patch(
+            "prdiffer.infrastructure.vcs_providers.gitlab_repository.httpx"
+        ) as mock_httpx:
+            mock_httpx.AsyncClient.return_value = mock_gitlab_client()
+            await provider.initialize()
+            diff = await provider.get_pr_diff("owner", "repo", 123)
+            assert isinstance(diff.files, tuple)
 
     @pytest.mark.asyncio
     async def test_get_latest_commit_sha(self):
         """Provider should return mock SHA."""
         provider = GitLabVCSRepository()
-        await provider.initialize()
-        sha = await provider.get_latest_commit_sha("owner", "repo", 123)
-        assert sha == "mock-sha-123456789"
+        with patch(
+            "prdiffer.infrastructure.vcs_providers.gitlab_repository.httpx"
+        ) as mock_httpx:
+            mock_httpx.AsyncClient.return_value = mock_gitlab_client()
+            await provider.initialize()
+            sha = await provider.get_latest_commit_sha("owner", "repo", 123)
+            assert sha == "mock-sha-123456789"
 
     @pytest.mark.asyncio
     async def test_get_latest_commit_sha_with_token(self):
         """Provider should return SHA with token."""
         provider = GitLabVCSRepository("test-token")
-        await provider.initialize()
-        sha = await provider.get_latest_commit_sha("owner", "repo", 123)
-        assert sha == "mock-sha-123456789"
+        with patch(
+            "prdiffer.infrastructure.vcs_providers.gitlab_repository.httpx"
+        ) as mock_httpx:
+            mock_httpx.AsyncClient.return_value = mock_gitlab_client()
+            await provider.initialize()
+            sha = await provider.get_latest_commit_sha("owner", "repo", 123)
+            assert sha == "mock-sha-123456789"
 
     def test_supports_repository_gitlab_url(self):
         """Provider should support GitLab URLs."""

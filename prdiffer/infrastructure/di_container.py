@@ -4,7 +4,7 @@ This module provides a lightweight DI container for managing service lifecycles,
 enabling testability and proper dependency injection throughout the codebase.
 """
 
-from typing import Type, Callable, Any, Optional
+from typing import Callable, Any
 from threading import Lock
 from prdiffer.domain.services.logger import LoggerServiceInterface
 from prdiffer.domain.exceptions import PRDifferException, ConfigurationError
@@ -56,10 +56,10 @@ class ServiceContainer:
 
     def register_singleton(
         self,
-        interface_type: Type,
+        interface_type: type,
         factory: Callable,
         force: bool = False,
-        instance: Optional[Any] = None,
+        instance: Any | None = None,
     ) -> None:
         """Register a singleton service.
 
@@ -95,7 +95,7 @@ class ServiceContainer:
 
     def register_transient(
         self,
-        interface_type: Type,
+        interface_type: type,
         factory: Callable,
     ) -> None:
         """Register a transient service.
@@ -120,7 +120,7 @@ class ServiceContainer:
 
     def get(
         self,
-        interface_type: Type,
+        interface_type: type,
     ) -> Any:
         """Get service instance by interface type.
 
@@ -152,7 +152,7 @@ class ServiceContainer:
             f"Service {type_name} not registered", error_code=E5009_CONFIGURATION_ERROR
         )
 
-    def has(self, interface_type: Type) -> bool:
+    def has(self, interface_type: type) -> bool:
         """Check if interface type is registered.
 
         Args:
@@ -172,7 +172,7 @@ class ServiceContainer:
             or type_name in self._transient_factories
         )
 
-    def is_singleton(self, interface_type: Type) -> bool:
+    def is_singleton(self, interface_type: type) -> bool:
         """Check if interface type is registered as singleton.
 
         Args:
@@ -194,9 +194,9 @@ class ServiceContainer:
 
     def create(
         self,
-        interface_type: Type,
+        interface_type: type,
         factory: Callable,
-        instance: Optional[Any] = None,
+        instance: Any | None = None,
     ) -> Any:
         """Create and register a service instance.
 
@@ -246,7 +246,7 @@ class ServiceContainer:
             self._transient_factories.clear()
             self._logger.info("Cleared all services")
 
-    def get_instance_count(self, interface_type: Type) -> int:
+    def get_instance_count(self, interface_type: type) -> int:
         """Get count of registered instances (singleton + transient).
 
         Args:
@@ -271,10 +271,10 @@ class ServiceContainer:
 
 
 # Global container instance
-_container: Optional[ServiceContainer] = None
+_container: ServiceContainer | None = None
 
 
-def get_container(logger: Optional[LoggerServiceInterface] = None) -> ServiceContainer:
+def get_container(logger: LoggerServiceInterface | None = None) -> ServiceContainer:
     """Get or create global service container.
 
     Args:
@@ -300,7 +300,7 @@ def get_container(logger: Optional[LoggerServiceInterface] = None) -> ServiceCon
 
 
 def register_singleton_service(
-    interface_type: Type, factory: Callable, instance: Optional[Any] = None
+    interface_type: type, factory: Callable, instance: Any | None = None
 ) -> None:
     """Convenience function to register a singleton service.
 
@@ -313,7 +313,7 @@ def register_singleton_service(
     container.register_singleton(interface_type, factory, instance=instance)
 
 
-def register_transient_factory(interface_type: Type, factory: Callable) -> None:
+def register_transient_factory(interface_type: type, factory: Callable) -> None:
     """Convenience function to register a transient factory.
 
     Args:

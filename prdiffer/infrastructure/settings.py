@@ -1,5 +1,5 @@
 import logging
-from typing import Optional, Any
+from typing import Any
 import os
 from threading import RLock
 from dynaconf import Dynaconf
@@ -26,7 +26,7 @@ class SettingsService(SettingsServiceInterface):
 
     def __init__(
         self,
-        settings_files: Optional[list] = None,
+        settings_files: list | None = None,
     ):
         """Initialize the settings service with configuration files.
 
@@ -45,10 +45,10 @@ class SettingsService(SettingsServiceInterface):
 
         # Manual caching with thread-safe access
         self._cache_lock = RLock()
-        self._github_settings_cache: Optional[dict[str, Any]] = None
-        self._github_config_cache: Optional[GitHubConfig] = None
-        self._cache_settings_cache: Optional[dict[str, Any]] = None
-        self._app_settings_cache: Optional[dict[str, Any]] = None
+        self._github_settings_cache: dict[str, Any] | None = None
+        self._github_config_cache: GitHubConfig | None = None
+        self._cache_settings_cache: dict[str, Any] | None = None
+        self._app_settings_cache: dict[str, Any] | None = None
 
     def get(self, key: str, default: Any = None) -> Any:
         """Get a configuration value.
@@ -346,7 +346,7 @@ class SettingsService(SettingsServiceInterface):
 
 
 # Global settings service instance
-_settings_service: Optional[SettingsService] = None
+_settings_service: SettingsService | None = None
 
 
 def get_settings_service() -> SettingsService:

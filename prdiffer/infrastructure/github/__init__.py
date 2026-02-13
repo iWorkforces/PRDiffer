@@ -4,7 +4,7 @@ This module contains all GitHub-related infrastructure components including
 API client, file processing, diff generation, and parallel execution utilities.
 """
 
-from .api_client import GitHubAPIClient, get_github_api_client
+from .client import GitHubAPIClient, get_github_api_client
 from .file_processor import FileProcessor, get_file_processor
 from .diff_generator import DiffGenerator, get_diff_generator
 

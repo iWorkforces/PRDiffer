@@ -20,7 +20,7 @@ import logging
 import time
 from collections import defaultdict
 from dataclasses import dataclass, field
-from typing import Dict, Any, Tuple, Optional, Set, List
+from typing import Any
 from threading import RLock
 
 import jwt
@@ -60,12 +60,12 @@ class AuthenticationMiddleware(AuthenticationProtocol):
 
     def __init__(
         self,
-        logger: Optional[Any] = None,
+        logger: Any | None = None,
         max_failures_per_minute: int = DEFAULT_MAX_FAILURES_PER_MINUTE,
         lockout_duration: int = DEFAULT_LOCKOUT_DURATION,
         failure_window: int = DEFAULT_FAILURE_WINDOW,
         check_token_expiration: bool = True,
-        input_validator: Optional[InputValidator] = None,
+        input_validator: InputValidator | None = None,
     ):
         """Initialize authentication middleware.
 
@@ -97,25 +97,24 @@ class AuthenticationMiddleware(AuthenticationProtocol):
 
         # Thread-safe failure tracking
         self._lock = RLock()
-        self._auth_failures: Dict[str, AuthFailureRecord] = defaultdict(
+        self._auth_failures: dict[str, AuthFailureRecord] = defaultdict(
             AuthFailureRecord
         )
-        self._locked_clients: Dict[str, float] = {}  # client_id -> unlock_time
+        self._locked_clients: dict[str, float] = {}  # client_id -> unlock_time
 
-        # Parse API keys from environment (comma-separated)
-        self._api_keys: Set[str] = set()
+        # Parse API keys from environment and store ONLY hashes (no raw keys)
+        self._hashed_api_keys: set[str] = set()
+        self._api_key_count: int = 0
         if self._api_keys_env:
-            self._api_keys = set(
+            raw_keys = [
                 key.strip() for key in self._api_keys_env.split(",") if key.strip()
-            )
-
-        # Hash API keys for secure comparison
-        self._hashed_api_keys: Set[str] = set()
-        for key in self._api_keys:
-            self._hashed_api_keys.add(self._hash_api_key(key))
+            ]
+            self._api_key_count = len(raw_keys)
+            for key in raw_keys:
+                self._hashed_api_keys.add(self._hash_api_key(key))
 
         # Admin API key (if provided)
-        self._admin_api_key_hash: Optional[str] = None
+        self._admin_api_key_hash: str | None = None
         admin_key = os.getenv("MCP_ADMIN_API_KEY", "")
         if admin_key:
             self._admin_api_key_hash = self._hash_api_key(admin_key)
@@ -127,7 +126,7 @@ class AuthenticationMiddleware(AuthenticationProtocol):
             "Authentication middleware initialized",
             extra={
                 "enabled": self._auth_enabled,
-                "api_keys_configured": len(self._api_keys),
+                "api_keys_configured": self._api_key_count,
                 "admin_configured": self._admin_api_key_hash is not None,
                 "max_failures_per_minute": self._max_failures_per_minute,
                 "lockout_duration": self._lockout_duration,
@@ -193,7 +192,7 @@ class AuthenticationMiddleware(AuthenticationProtocol):
             if client_identifier in self._auth_failures:
                 del self._auth_failures[client_identifier]
 
-    def _get_client_identifier(self, api_key: Optional[str]) -> str:
+    def _get_client_identifier(self, api_key: str | None) -> str:
         """Get a client identifier for tracking authentication attempts.
 
         Args:
@@ -237,7 +236,7 @@ class AuthenticationMiddleware(AuthenticationProtocol):
 
         return False
 
-    def authenticate(self, api_key: Optional[str]) -> Tuple[bool, Optional[str]]:
+    def authenticate(self, api_key: str | None) -> tuple[bool, str | None]:
         """Authenticate a request using API key with brute-force protection.
 
         Args:
@@ -366,8 +365,8 @@ class AuthenticationMiddleware(AuthenticationProtocol):
         return False, None
 
     def extract_client_identifier(
-        self, headers: Dict[str, str]
-    ) -> Tuple[Optional[str], Optional[str]]:
+        self, headers: dict[str, str]
+    ) -> tuple[str | None, str | None]:
         """Extract client identifier from request headers.
 
         This method extracts API keys from various header sources:
@@ -486,7 +485,7 @@ class AuthenticationMiddleware(AuthenticationProtocol):
             return False
 
         self._hashed_api_keys.add(api_key_hash)
-        self._api_keys.add(api_key)
+        self._api_key_count += 1
         self._logger.info("API key added successfully")
         return True
 
@@ -502,7 +501,7 @@ class AuthenticationMiddleware(AuthenticationProtocol):
         api_key_hash = self._hash_api_key(api_key)
         if api_key_hash in self._hashed_api_keys:
             self._hashed_api_keys.remove(api_key_hash)
-            self._api_keys.discard(api_key)
+            self._api_key_count -= 1
             self._logger.info("API key removed successfully")
             return True
         return False
@@ -513,9 +512,9 @@ class AuthenticationMiddleware(AuthenticationProtocol):
         Returns:
             Number of configured API keys
         """
-        return len(self._api_keys)
+        return self._api_key_count
 
-    def get_status(self) -> Dict[str, Any]:
+    def get_status(self) -> dict[str, Any]:
         """Get authentication status and configuration.
 
         Returns:
@@ -523,13 +522,13 @@ class AuthenticationMiddleware(AuthenticationProtocol):
         """
         return {
             "authentication_enabled": self._auth_enabled,
-            "api_keys_configured": len(self._api_keys),
+            "api_keys_configured": self._api_key_count,
             "admin_api_key_configured": self._admin_api_key_hash is not None,
             "default_client_id": self._default_client_id,
         }
 
     @staticmethod
-    def parse_jwt_payload(token: str) -> Optional[Dict[str, Any]]:
+    def parse_jwt_payload(token: str) -> dict[str, Any] | None:
         """Parse JWT token payload without verification.
 
         SECURITY WARNING: This method extracts and decodes the payload from a JWT token
@@ -567,10 +566,10 @@ class AuthenticationMiddleware(AuthenticationProtocol):
     def verify_jwt_token(
         token: str,
         secret: str,
-        algorithms: Optional[List[str]] = None,
-        audience: Optional[str] = None,
-        issuer: Optional[str] = None,
-    ) -> Tuple[bool, Optional[Dict[str, Any]], Optional[str]]:
+        algorithms: list[str] | None = None,
+        audience: str | None = None,
+        issuer: str | None = None,
+    ) -> tuple[bool, dict[str, Any] | None, str | None]:
         """Verify JWT token with signature validation.
 
         This method performs cryptographic verification of the JWT signature
@@ -630,7 +629,7 @@ class AuthenticationMiddleware(AuthenticationProtocol):
 
     def is_token_expired(
         self, token: str, leeway_seconds: int = 60
-    ) -> Tuple[bool, Optional[str]]:
+    ) -> tuple[bool, str | None]:
         """Check if a token is expired.
 
         Supports JWT tokens with 'exp' claim and GitHub fine-grained tokens

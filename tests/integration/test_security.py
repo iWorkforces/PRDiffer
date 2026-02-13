@@ -8,6 +8,7 @@ from unittest.mock import Mock, AsyncMock
 import pytest
 
 from prdiffer.application.factory import create_mcp_server
+from prdiffer.application.utils.pr_url_parser import parse_pr_url
 from prdiffer.domain.exceptions import (
     InvalidURLError,
     InvalidRepositoryError,
@@ -64,7 +65,7 @@ class TestCommandInjectionPrevention:
 
         for url in malicious_urls:
             with pytest.raises((SuspiciousOperationError, InvalidURLError)):
-                server._parse_pr_url(url)
+                parse_pr_url(url)
 
     def test_blocks_pipe_command_injection(self, server):
         """Test that pipe command injection is blocked."""
@@ -75,7 +76,7 @@ class TestCommandInjectionPrevention:
 
         for url in malicious_urls:
             with pytest.raises((SuspiciousOperationError, InvalidURLError)):
-                server._parse_pr_url(url)
+                parse_pr_url(url)
 
     def test_blocks_command_substitution(self, server):
         """Test that command substitution is blocked."""
@@ -87,7 +88,7 @@ class TestCommandInjectionPrevention:
 
         for url in malicious_urls:
             with pytest.raises((SuspiciousOperationError, InvalidURLError)):
-                server._parse_pr_url(url)
+                parse_pr_url(url)
 
     def test_blocks_backtick_injection(self, server):
         """Test that backtick injection is blocked."""
@@ -98,7 +99,7 @@ class TestCommandInjectionPrevention:
 
         for url in malicious_urls:
             with pytest.raises((SuspiciousOperationError, InvalidURLError)):
-                server._parse_pr_url(url)
+                parse_pr_url(url)
 
     def test_blocks_redirect_injection(self, server):
         """Test that redirect injection is blocked."""
@@ -109,7 +110,7 @@ class TestCommandInjectionPrevention:
 
         for url in malicious_urls:
             with pytest.raises((SuspiciousOperationError, InvalidURLError)):
-                server._parse_pr_url(url)
+                parse_pr_url(url)
 
     def test_blocks_newline_command_injection(self, server):
         """Test that newline command injection is blocked."""
@@ -120,7 +121,7 @@ class TestCommandInjectionPrevention:
 
         for url in malicious_urls:
             with pytest.raises((SuspiciousOperationError, InvalidURLError)):
-                server._parse_pr_url(url)
+                parse_pr_url(url)
 
     def test_blocks_variable_expansion(self, server):
         """Test that variable expansion is blocked."""
@@ -131,7 +132,7 @@ class TestCommandInjectionPrevention:
 
         for url in malicious_urls:
             with pytest.raises((SuspiciousOperationError, InvalidURLError)):
-                server._parse_pr_url(url)
+                parse_pr_url(url)
 
 
 @pytest.mark.integration
@@ -182,7 +183,7 @@ class TestSQLInjectionPrevention:
 
         for url in malicious_inputs:
             with pytest.raises((SuspiciousOperationError, InvalidURLError)):
-                server._parse_pr_url(url)
+                parse_pr_url(url)
 
     def test_blocks_union_select_injection(self, server):
         """Test that UNION SELECT injection is blocked."""
@@ -193,7 +194,7 @@ class TestSQLInjectionPrevention:
 
         for url in malicious_inputs:
             with pytest.raises((SuspiciousOperationError, InvalidURLError)):
-                server._parse_pr_url(url)
+                parse_pr_url(url)
 
     def test_blocks_or_injection(self, server):
         """Test that OR-based injection is blocked."""
@@ -204,7 +205,7 @@ class TestSQLInjectionPrevention:
 
         for url in malicious_inputs:
             with pytest.raises((SuspiciousOperationError, InvalidURLError)):
-                server._parse_pr_url(url)
+                parse_pr_url(url)
 
     def test_blocks_drop_table_injection(self, server):
         """Test that DROP TABLE injection is blocked."""
@@ -215,7 +216,7 @@ class TestSQLInjectionPrevention:
 
         for url in malicious_inputs:
             with pytest.raises((SuspiciousOperationError, InvalidURLError)):
-                server._parse_pr_url(url)
+                parse_pr_url(url)
 
     def test_blocks_insert_injection(self, server):
         """Test that INSERT injection is blocked."""
@@ -226,7 +227,7 @@ class TestSQLInjectionPrevention:
 
         for url in malicious_inputs:
             with pytest.raises((SuspiciousOperationError, InvalidURLError)):
-                server._parse_pr_url(url)
+                parse_pr_url(url)
 
     def test_blocks_update_injection(self, server):
         """Test that UPDATE injection is blocked."""
@@ -237,7 +238,7 @@ class TestSQLInjectionPrevention:
 
         for url in malicious_inputs:
             with pytest.raises((SuspiciousOperationError, InvalidURLError)):
-                server._parse_pr_url(url)
+                parse_pr_url(url)
 
     def test_blocks_delete_injection(self, server):
         """Test that DELETE injection is blocked."""
@@ -248,7 +249,7 @@ class TestSQLInjectionPrevention:
 
         for url in malicious_inputs:
             with pytest.raises((SuspiciousOperationError, InvalidURLError)):
-                server._parse_pr_url(url)
+                parse_pr_url(url)
 
 
 @pytest.mark.integration
@@ -300,7 +301,7 @@ class TestPathTraversalPrevention:
             with pytest.raises(
                 (SuspiciousOperationError, InvalidRepositoryError, InvalidURLError)
             ):
-                server._parse_pr_url(url)
+                parse_pr_url(url)
 
     def test_blocks_encoded_path_traversal(self, server):
         """Test that encoded path traversal is blocked."""
@@ -313,7 +314,7 @@ class TestPathTraversalPrevention:
             with pytest.raises(
                 (SuspiciousOperationError, InvalidRepositoryError, InvalidURLError)
             ):
-                server._parse_pr_url(url)
+                parse_pr_url(url)
 
     def test_blocks_absolute_path_traversal(self, server):
         """Test that absolute path traversal is blocked."""
@@ -327,7 +328,7 @@ class TestPathTraversalPrevention:
             with pytest.raises(
                 (SuspiciousOperationError, InvalidRepositoryError, InvalidURLError)
             ):
-                server._parse_pr_url(url)
+                parse_pr_url(url)
 
     def test_blocks_system_directory_access(self, server):
         """Test that system directory access is blocked."""
@@ -338,7 +339,7 @@ class TestPathTraversalPrevention:
             with pytest.raises(
                 (SuspiciousOperationError, InvalidRepositoryError, InvalidURLError)
             ):
-                server._parse_pr_url(url)
+                parse_pr_url(url)
 
     def test_blocks_windows_path_traversal(self, server):
         """Test that Windows path traversal is blocked."""
@@ -351,7 +352,7 @@ class TestPathTraversalPrevention:
             with pytest.raises(
                 (SuspiciousOperationError, InvalidRepositoryError, InvalidURLError)
             ):
-                server._parse_pr_url(url)
+                parse_pr_url(url)
 
 
 @pytest.mark.integration
@@ -553,7 +554,7 @@ class TestRepositoryValidation:
             with pytest.raises(
                 (SuspiciousOperationError, InvalidRepositoryError, InvalidURLError)
             ):
-                server._parse_pr_url(url)
+                parse_pr_url(url)
 
     def test_rejects_invalid_repo_names(self, server):
         """Test that invalid repo names are rejected."""
@@ -568,7 +569,7 @@ class TestRepositoryValidation:
             with pytest.raises(
                 (SuspiciousOperationError, InvalidRepositoryError, InvalidURLError)
             ):
-                server._parse_pr_url(url)
+                parse_pr_url(url)
 
     def test_accepts_valid_names(self, server):
         """Test that valid repository names are accepted."""
@@ -586,7 +587,7 @@ class TestRepositoryValidation:
 
         for url in valid_urls:
             # Should not raise exception for valid URLs
-            owner, repo, pr = server._parse_pr_url(url)
+            owner, repo, pr = parse_pr_url(url)
             assert owner is not None
             assert repo is not None
             assert pr == 123

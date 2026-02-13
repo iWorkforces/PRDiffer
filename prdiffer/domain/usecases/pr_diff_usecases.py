@@ -1,4 +1,3 @@
-from typing import Optional
 from prdiffer.domain.entities.pr_diff import PRDiff
 from prdiffer.domain.services import CacheServiceInterface
 from prdiffer.domain.services import PRDiffServiceInterface
@@ -26,7 +25,7 @@ class GetPRDiffUseCase:
         repo_owner: str,
         repo_name: str,
         pr_number: int,
-    ) -> Optional[PRDiff]:
+    ) -> PRDiff | None:
         """Execute the use case with automatic commit-based caching.
 
         The cache automatically invalidates when new commits are pushed to the PR,

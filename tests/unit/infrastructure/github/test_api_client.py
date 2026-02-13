@@ -8,11 +8,12 @@ import pytest
 from unittest.mock import Mock, patch
 from collections import OrderedDict
 
-from prdiffer.infrastructure.github.api_client import (
+from prdiffer.infrastructure.github.client import (
     GitHubAPIClient,
     DEFAULT_FILE_CONTENT_CACHE_MAX_SIZE,
     DEFAULT_FILE_CONTENT_CACHE_TTL,
 )
+from prdiffer.domain.exceptions import PRDifferException
 from github import GithubException
 from github.Repository import Repository
 
@@ -46,11 +47,11 @@ class TestGitHubAPIClient:
         assert client._github_client is not None
 
     def test_get_repository_without_initialization_raises_error(self):
-        """Test that get_repository raises RuntimeError when client not initialized."""
+        """Test that get_repository raises PRDifferException when client not initialized."""
         client = GitHubAPIClient()
         # Don't call initialize_client()
 
-        with pytest.raises(RuntimeError, match="GitHub client not initialized"):
+        with pytest.raises(PRDifferException, match="GitHub client not initialized"):
             client.get_repository("owner/repo")
 
     def test_cache_entry_valid(self):

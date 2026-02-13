@@ -9,9 +9,9 @@ import pytest
 from collections import deque
 
 from prdiffer.infrastructure.utils.api_health_tracker import APIHealthTracker
-from prdiffer.infrastructure.utils.cache_decorator import CachingMixin, cached_method
+from prdiffer.infrastructure.cache.decorators import CachingMixin, cached_method
 from prdiffer.infrastructure.security.input_validator import InputValidator
-from prdiffer.infrastructure.request_coalescing import RequestCoalescingService
+from prdiffer.infrastructure.utils.coalescing import RequestCoalescingService
 from prdiffer.application.components.authentication import AuthenticationMiddleware
 
 
@@ -156,7 +156,6 @@ class TestAuthenticationPerformance:
         auth._check_token_expiration = False
 
         # Add the key for authentication
-        auth._api_keys.add(api_key)
         auth._hashed_api_keys.add(auth._hash_api_key(api_key))
 
         # Warm up

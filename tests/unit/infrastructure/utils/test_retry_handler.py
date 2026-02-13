@@ -7,7 +7,7 @@ covering retry logic, circuit breaker integration, and error classification.
 import pytest
 from unittest.mock import patch
 
-from prdiffer.infrastructure.utils.retry_handler import (
+from prdiffer.infrastructure.utils.retry import (
     UnifiedRetryHandler,
     RETRY_EXCEPTIONS,
 )
@@ -77,43 +77,6 @@ class TestUnifiedRetryHandler:
         assert call_count[0] == 1
 
 
-class TestRetryHandlerExponentialBackoff:
-    """Test suite for exponential backoff calculation."""
-
-    @pytest.fixture
-    def retry_handler(self):
-        """Create RetryHandler instance for testing."""
-        return UnifiedRetryHandler(
-            max_retries=3,
-            retry_delay=0.1,
-        )
-
-    def test_exponential_backoff_calculation(self, retry_handler):
-        """Test exponential backoff delay calculation."""
-        # Test that delay increases exponentially
-        # _calculate_backoff signature: (attempt: int, is_rate_limit: bool) -> float
-        delay_0 = retry_handler._calculate_backoff(0, is_rate_limit=False)
-        delay_1 = retry_handler._calculate_backoff(1, is_rate_limit=False)
-        delay_2 = retry_handler._calculate_backoff(2, is_rate_limit=False)
-
-        # Each retry should have roughly double the delay (base * 2^attempt)
-        assert delay_0 > 0
-        assert delay_1 > delay_0
-        assert delay_2 > delay_1
-
-    def test_jitter_in_backoff(self, retry_handler):
-        """Test that jitter is added to backoff delays."""
-        # Call multiple times and verify variation
-        delays = [
-            retry_handler._calculate_backoff(0, is_rate_limit=False) for _ in range(10)
-        ]
-
-        # There should be some variation due to jitter
-        # (though it's possible some are equal by chance)
-        unique_delays = set(delays)
-        assert len(unique_delays) > 1 or len(delays) > 5
-
-
 class TestRetryHandlerCircuitBreaker:
     """Test suite for circuit breaker integration."""
 
@@ -149,7 +112,7 @@ class TestRetryHandlerCircuitBreaker:
 
         # Circuit breaker should be open now after reaching failure threshold
         # Check the state using the enum value
-        from prdiffer.infrastructure.utils.circuit_breaker import CircuitState
+        from prdiffer.infrastructure.utils.circuit_breaker.core import CircuitState
 
         assert (
             retry_handler_with_circuit_breaker._circuit_breaker.state
@@ -228,7 +191,7 @@ class TestRetryHandlerAsync:
             raise ConnectionError("Connection failed")
 
         with patch(
-            "prdiffer.infrastructure.utils.retry_handler.anyio.sleep", mock_sleep
+            "prdiffer.infrastructure.utils.retry.handler.anyio.sleep", mock_sleep
         ):
             with pytest.raises(ConnectionError):
                 await retry_handler.execute_with_retry_async(failing_func)

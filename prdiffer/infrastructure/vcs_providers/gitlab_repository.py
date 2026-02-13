@@ -5,7 +5,6 @@ demonstrating multi-provider support capability.
 """
 
 import logging
-from typing import Optional
 from prdiffer.domain.interfaces.vcs_provider import VCSDiffRepositoryInterface
 from prdiffer.domain.entities.pr_diff import PRDiff
 from prdiffer.domain.exceptions import PRDifferException
@@ -17,12 +16,12 @@ from prdiffer.domain.errors import (
 
 httpx = None
 
+logger = logging.getLogger(__name__)
+
 try:
     import httpx
 except ImportError:
-    pass
-
-logger = logging.getLogger(__name__)
+    logger.debug("httpx not installed; GitLab VCS provider will not be available")
 
 
 class GitLabVCSRepository(VCSDiffRepositoryInterface):
@@ -37,7 +36,7 @@ class GitLabVCSRepository(VCSDiffRepositoryInterface):
 
     def __init__(
         self,
-        gitlab_token: Optional[str] = None,
+        gitlab_token: str | None = None,
     ):
         """Initialize GitLab VCS repository.
 
@@ -115,7 +114,7 @@ class GitLabVCSRepository(VCSDiffRepositoryInterface):
                             error_code=E4002_PR_NOT_FOUND,
                         )
 
-                    return PRDiff(files=[])
+                    return PRDiff(files=())
             except httpx.HTTPError as e:
                 logger.error(
                     "GitLab API HTTP error when fetching MR diff",
@@ -145,7 +144,7 @@ class GitLabVCSRepository(VCSDiffRepositoryInterface):
                     f"GitLab API error: {e}", error_code=E5002_GITHUB_API_ERROR
                 ) from e
         else:
-            return PRDiff(files=[])
+            return PRDiff(files=())
 
     async def get_latest_commit_sha(self, owner: str, repo: str, pr: int) -> str:
         """Get latest head commit SHA for merge request.
@@ -223,5 +222,5 @@ class GitLabVCSRepository(VCSDiffRepositoryInterface):
         """
         import re
 
-        pattern = r"https://gitlab\.com/([^/]+)/([^/]+)/(merge_requests|tree)/(\d+)"
+        pattern = r"https://gitlab\.com/([^/]+)/([^/]+)(/-)?/(merge_requests|tree)/([a-zA-Z0-9]+)"
         return bool(re.match(pattern, url))

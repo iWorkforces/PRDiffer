@@ -4,7 +4,6 @@ This module provides utilities for logging retry attempts,
 rate limit information, and failures.
 """
 
-from typing import Optional
 from prdiffer.infrastructure.utils.rate_limit_parser import (
     RateLimitInfo,
     is_rate_limit_remaining_below_threshold,
@@ -17,8 +16,8 @@ def log_retry_attempt(
     delay: float,
     error: Exception,
     retry_log_level: str,
-    context: Optional[str] = None,
-    rate_limit_info: Optional[RateLimitInfo] = None,
+    context: str | None = None,
+    rate_limit_info: RateLimitInfo | None = None,
     is_secondary_rate_limit: bool = False,
     is_rate_limit_checker=lambda e: False,
 ):

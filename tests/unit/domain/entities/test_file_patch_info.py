@@ -43,7 +43,7 @@ class TestFilePatchInfoCreation:
             ai_file_summary="Added new feature",
             tokens=1000,
             diff_metadata={"hunks": 1},
-            code_smell_indicators=["Contains TODO comments"],
+            code_smell_indicators=("Contains TODO comments",),
             suggested_review_priority="high",
         )
 
@@ -59,7 +59,7 @@ class TestFilePatchInfoCreation:
         assert patch.ai_file_summary == "Added new feature"
         assert patch.tokens == 1000
         assert patch.diff_metadata == {"hunks": 1}
-        assert patch.code_smell_indicators == ["Contains TODO comments"]
+        assert patch.code_smell_indicators == ("Contains TODO comments",)
         assert patch.suggested_review_priority == "high"
 
     def test_computed_properties_initialized(self):

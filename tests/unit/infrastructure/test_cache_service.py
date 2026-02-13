@@ -4,19 +4,20 @@ Tests for CacheService component which provides in-memory caching
 with commit-based invalidation, key hashing, and TTL support.
 """
 
-import time
 import anyio
-import threading
 from unittest.mock import patch
 import pytest
-from prdiffer.infrastructure.cache_service import CacheService, get_cache_service
+from prdiffer.infrastructure.cache import CacheService, get_cache_service
 from prdiffer.domain.entities.pr_diff import PRDiff
+from prdiffer.domain.entities.file_diff_response import FileDiffResponse, FileStats
+from prdiffer.domain.entities.file_patch import EDIT_TYPE
+from prdiffer.domain.exceptions import ValidationError
 
 
 @pytest.fixture
 def reset_cache_service():
     """Reset the global cache service before each test."""
-    import prdiffer.infrastructure.cache_service as cache_module
+    import prdiffer.infrastructure.cache.service as cache_module
 
     cache_module._cache_service = None
     yield
@@ -26,7 +27,16 @@ def reset_cache_service():
 @pytest.fixture
 def sample_pr_diff():
     """Create a sample PRDiff for testing."""
-    return PRDiff(diff_content="sample diff content")
+    return PRDiff(
+        files=(
+            FileDiffResponse(
+                path="test.py",
+                status=EDIT_TYPE.MODIFIED,
+                stats=FileStats(additions=10, deletions=5),
+                diff="sample patch content",
+            ),
+        )
+    )
 
 
 class TestCacheServiceInitialization:
@@ -128,70 +138,87 @@ class TestCacheServiceHashKey:
         assert len(hashed) == 64
 
     def test_hash_key_unsupported_algorithm(self, reset_cache_service):
-        """Test unsupported hash algorithm raises ValueError."""
+        """Test unsupported hash algorithm raises ValidationError."""
         with patch.object(CacheService, "__init__", lambda self: None):
             service = CacheService()
             service._hash_algorithm = "invalid"
 
-        with pytest.raises(ValueError, match="Unsupported hash algorithm"):
+        with pytest.raises(ValidationError, match="Unsupported hash algorithm"):
             service._hash_key("test_key")
 
 
 class TestCacheServiceGetSet:
     """Test suite for get and set methods."""
 
-    def test_set_and_get_cache_hit(self, reset_cache_service, sample_pr_diff):
+    @pytest.mark.anyio
+    async def test_set_and_get_cache_hit(self, reset_cache_service, sample_pr_diff):
         """Test setting and getting cached data."""
         service = CacheService()
         cache_key = service.get_cache_key("owner", "repo", 123)
 
-        service.set(cache_key, "abc123", sample_pr_diff)
-        result = service.get(cache_key, "abc123")
+        await service.set(cache_key, "abc123", sample_pr_diff)
+        result = await service.get(cache_key, "abc123")
 
         assert result is not None
-        assert result.diff_content == "sample diff content"
+        assert result == sample_pr_diff
+        assert len(result.files) == 1
+        assert result.files[0].path == "test.py"
 
-    def test_get_cache_miss(self, reset_cache_service):
+    @pytest.mark.anyio
+    async def test_get_cache_miss(self, reset_cache_service):
         """Test getting non-existent key returns None."""
         service = CacheService()
         cache_key = service.get_cache_key("owner", "repo", 123)
 
-        result = service.get(cache_key, "abc123")
+        result = await service.get(cache_key, "abc123")
 
         assert result is None
 
-    def test_get_commit_sha_mismatch(self, reset_cache_service, sample_pr_diff):
+    @pytest.mark.anyio
+    async def test_get_commit_sha_mismatch(self, reset_cache_service, sample_pr_diff):
         """Test cache miss when commit SHA doesn't match."""
         service = CacheService()
         cache_key = service.get_cache_key("owner", "repo", 123)
 
-        service.set(cache_key, "abc123", sample_pr_diff)
-        result = service.get(cache_key, "def456")  # Different SHA
+        await service.set(cache_key, "abc123", sample_pr_diff)
+        result = await service.get(cache_key, "def456")  # Different SHA
 
         assert result is None
 
-    def test_set_overwrites_existing(self, reset_cache_service, sample_pr_diff):
+    @pytest.mark.anyio
+    async def test_set_overwrites_existing(self, reset_cache_service, sample_pr_diff):
         """Test setting same key overwrites existing data."""
         service = CacheService()
         cache_key = service.get_cache_key("owner", "repo", 123)
 
-        new_diff = PRDiff(diff_content="new content")
-        service.set(cache_key, "abc123", sample_pr_diff)
-        service.set(cache_key, "def456", new_diff)
+        new_diff = PRDiff(
+            files=(
+                FileDiffResponse(
+                    path="new_file.py",
+                    status=EDIT_TYPE.ADDED,
+                    stats=FileStats(additions=20, deletions=0),
+                    diff="new content patch",
+                ),
+            )
+        )
+        await service.set(cache_key, "abc123", sample_pr_diff)
+        await service.set(cache_key, "def456", new_diff)
 
-        result = service.get(cache_key, "def456")
+        result = await service.get(cache_key, "def456")
 
-        assert result.diff_content == "new content"
+        assert result == new_diff
+        assert result.files[0].path == "new_file.py"
 
-    def test_statistics_updated(self, reset_cache_service, sample_pr_diff):
+    @pytest.mark.anyio
+    async def test_statistics_updated(self, reset_cache_service, sample_pr_diff):
         """Test cache hit/miss statistics are updated."""
         service = CacheService()
         cache_key = service.get_cache_key("owner", "repo", 123)
 
-        service.set(cache_key, "abc123", sample_pr_diff)
-        service.get(cache_key, "abc123")  # Hit
-        service.get(cache_key, "def456")  # Miss (SHA mismatch)
-        service.get("owner/repo/pr/999", "abc123")  # Miss (not found)
+        await service.set(cache_key, "abc123", sample_pr_diff)
+        await service.get(cache_key, "abc123")  # Hit
+        await service.get(cache_key, "def456")  # Miss (SHA mismatch)
+        await service.get("owner/repo/pr/999", "abc123")  # Miss (not found)
 
         assert service._cache_hits == 1
         assert service._cache_misses == 2
@@ -200,41 +227,45 @@ class TestCacheServiceGetSet:
 class TestCacheServiceInvalidate:
     """Test suite for invalidate method."""
 
-    def test_invalidate_existing_key(self, reset_cache_service, sample_pr_diff):
+    @pytest.mark.anyio
+    async def test_invalidate_existing_key(self, reset_cache_service, sample_pr_diff):
         """Test invalidating an existing cache entry."""
         service = CacheService()
         cache_key = service.get_cache_key("owner", "repo", 123)
 
-        service.set(cache_key, "abc123", sample_pr_diff)
-        service.invalidate(cache_key)
+        await service.set(cache_key, "abc123", sample_pr_diff)
+        await service.invalidate(cache_key)
 
-        result = service.get(cache_key, "abc123")
+        result = await service.get(cache_key, "abc123")
 
         assert result is None
 
-    def test_invalidate_nonexistent_key(self, reset_cache_service):
+    @pytest.mark.anyio
+    async def test_invalidate_nonexistent_key(self, reset_cache_service):
         """Test invalidating a non-existent key doesn't raise error."""
         service = CacheService()
         cache_key = service.get_cache_key("owner", "repo", 123)
 
         # Should not raise
-        service.invalidate(cache_key)
+        await service.invalidate(cache_key)
 
 
 class TestCacheServiceClear:
     """Test suite for clear method."""
 
-    def test_clear_cache(self, reset_cache_service, sample_pr_diff):
+    @pytest.mark.anyio
+    async def test_clear_cache(self, reset_cache_service, sample_pr_diff):
         """Test clearing all cached data."""
         service = CacheService()
 
-        service.set("owner1/repo1/pr/1", "abc123", sample_pr_diff)
-        service.set("owner2/repo2/pr/2", "def456", sample_pr_diff)
+        await service.set("owner1/repo1/pr/1", "abc123", sample_pr_diff)
+        await service.set("owner2/repo2/pr/2", "def456", sample_pr_diff)
 
-        service.clear()
+        await service.clear()
 
         assert len(service.cache) == 0
-        assert service.get("owner1/repo1/pr/1", "abc123") is None
+        result = await service.get("owner1/repo1/pr/1", "abc123")
+        assert result is None
 
 
 class TestCacheServiceGetStats:
@@ -246,175 +277,178 @@ class TestCacheServiceGetStats:
 
         stats = service.get_stats()
 
-        assert stats["size"] == 0
+        assert stats["cache_size"] == 0
         assert stats["cache_hits"] == 0
         assert stats["cache_misses"] == 0
-        assert stats["hit_rate_percent"] == 0.0
 
-    def test_get_stats_with_data(self, reset_cache_service, sample_pr_diff):
+    @pytest.mark.anyio
+    async def test_get_stats_with_data(self, reset_cache_service, sample_pr_diff):
         """Test stats with cached data."""
         service = CacheService()
         cache_key = service.get_cache_key("owner", "repo", 123)
 
-        service.set(cache_key, "abc123", sample_pr_diff)
+        await service.set(cache_key, "abc123", sample_pr_diff)
 
         stats = service.get_stats()
 
-        assert stats["size"] == 1
-        assert "ttl_seconds" in stats
+        assert stats["cache_size"] == 1
 
-    def test_get_stats_hit_rate(self, reset_cache_service, sample_pr_diff):
+    @pytest.mark.anyio
+    async def test_get_stats_hit_rate(self, reset_cache_service, sample_pr_diff):
         """Test hit rate calculation."""
         service = CacheService()
         cache_key = service.get_cache_key("owner", "repo", 123)
 
-        service.set(cache_key, "abc123", sample_pr_diff)
-        service.get(cache_key, "abc123")  # Hit
-        service.get(cache_key, "def456")  # Miss
+        await service.set(cache_key, "abc123", sample_pr_diff)
+        await service.get(cache_key, "abc123")  # Hit
+        await service.get(cache_key, "def456")  # Miss
 
         stats = service.get_stats()
 
-        assert stats["hit_rate_percent"] == 50.0
+        # 1 hit, 1 miss = 50% hit rate
+        assert stats["cache_hits"] == 1
+        assert stats["cache_misses"] == 1
 
 
 class TestCacheServiceTTL:
     """Test suite for TTL-based expiration."""
 
-    def test_ttl_expiration(self, reset_cache_service, sample_pr_diff):
+    @pytest.mark.anyio
+    async def test_ttl_expiration(self, reset_cache_service, sample_pr_diff):
         """Test that entries expire after TTL."""
         # Create service with short TTL
         service = CacheService()
         service._ttl = 0.1  # 100ms TTL
 
         cache_key = service.get_cache_key("owner", "repo", 123)
-        service.set(cache_key, "abc123", sample_pr_diff)
+        await service.set(cache_key, "abc123", sample_pr_diff)
 
         # Wait for TTL to expire
-        time.sleep(0.15)
+        await anyio.sleep(0.15)
 
-        result = service.get(cache_key, "abc123")
+        result = await service.get(cache_key, "abc123")
 
         assert result is None
 
-    def test_ttl_not_expired(self, reset_cache_service, sample_pr_diff):
+    @pytest.mark.anyio
+    async def test_ttl_not_expired(self, reset_cache_service, sample_pr_diff):
         """Test that entries are valid before TTL expires."""
         service = CacheService()
         service._ttl = 10  # 10 second TTL
 
         cache_key = service.get_cache_key("owner", "repo", 123)
-        service.set(cache_key, "abc123", sample_pr_diff)
+        await service.set(cache_key, "abc123", sample_pr_diff)
 
-        time.sleep(0.05)  # Small sleep
+        await anyio.sleep(0.05)  # Small sleep
 
-        result = service.get(cache_key, "abc123")
+        result = await service.get(cache_key, "abc123")
 
         assert result is not None
 
-    def test_expiration_increments_counter(self, reset_cache_service, sample_pr_diff):
+    @pytest.mark.anyio
+    async def test_expiration_increments_counter(
+        self, reset_cache_service, sample_pr_diff
+    ):
         """Test that expiration increments expiration counter."""
         service = CacheService()
         service._ttl = 0.1
 
         cache_key = service.get_cache_key("owner", "repo", 123)
-        service.set(cache_key, "abc123", sample_pr_diff)
+        await service.set(cache_key, "abc123", sample_pr_diff)
 
-        time.sleep(0.15)
-        service.get(cache_key, "abc123")
+        await anyio.sleep(0.15)
+        await service.get(cache_key, "abc123")
 
         assert service._cache_expirations == 1
 
 
 class TestCacheServiceThreadSafety:
-    """Test suite for thread safety."""
+    """Test suite for thread safety using anyio async patterns."""
 
-    def test_concurrent_set_operations(self, reset_cache_service, sample_pr_diff):
-        """Test concurrent set operations are thread-safe."""
+    @pytest.mark.anyio
+    async def test_concurrent_set_operations(self, reset_cache_service, sample_pr_diff):
+        """Test concurrent set operations are thread-safe using anyio."""
         service = CacheService()
-        num_threads = 10
+        num_tasks = 10
         results = []
 
-        def set_value(i):
+        async def set_value(i):
             key = f"owner/repo/pr/{i}"
-            service.set(key, f"sha{i}", sample_pr_diff)
+            await service.set(key, f"sha{i}", sample_pr_diff)
             results.append(key)
 
-        threads = [
-            threading.Thread(target=set_value, args=(i,)) for i in range(num_threads)
-        ]
+        async with anyio.create_task_group() as tg:
+            for i in range(num_tasks):
+                tg.start_soon(set_value, i)
 
-        for t in threads:
-            t.start()
-        for t in threads:
-            t.join()
+        assert len(results) == num_tasks
+        assert service.get_stats()["cache_size"] == num_tasks
 
-        assert len(results) == num_threads
-        assert service.get_stats()["size"] == num_threads
-
-    def test_concurrent_get_operations(self, reset_cache_service, sample_pr_diff):
-        """Test concurrent get operations are thread-safe."""
+    @pytest.mark.anyio
+    async def test_concurrent_get_operations(self, reset_cache_service, sample_pr_diff):
+        """Test concurrent get operations are thread-safe using anyio."""
         service = CacheService()
         cache_key = service.get_cache_key("owner", "repo", 123)
-        service.set(cache_key, "abc123", sample_pr_diff)
+        await service.set(cache_key, "abc123", sample_pr_diff)
 
-        num_threads = 10
+        num_tasks = 10
         results = []
 
-        def get_value():
-            result = service.get(cache_key, "abc123")
+        async def get_value():
+            result = await service.get(cache_key, "abc123")
             results.append(result is not None)
 
-        threads = [threading.Thread(target=get_value) for _ in range(num_threads)]
+        async with anyio.create_task_group() as tg:
+            for _ in range(num_tasks):
+                tg.start_soon(get_value)
 
-        for t in threads:
-            t.start()
-        for t in threads:
-            t.join()
-
-        # All threads should get cache hits
+        # All tasks should get cache hits
         assert all(results)
 
-    def test_statistics_thread_safe(self, reset_cache_service, sample_pr_diff):
-        """Test statistics are thread-safe."""
+    @pytest.mark.anyio
+    async def test_statistics_thread_safe(self, reset_cache_service, sample_pr_diff):
+        """Test statistics are thread-safe using anyio."""
         service = CacheService()
         cache_key = service.get_cache_key("owner", "repo", 123)
-        service.set(cache_key, "abc123", sample_pr_diff)
+        await service.set(cache_key, "abc123", sample_pr_diff)
 
-        num_threads = 10
-        operations_per_thread = 10
+        num_tasks = 10
+        operations_per_task = 10
 
-        def mixed_ops():
-            for _ in range(operations_per_thread):
-                service.get(cache_key, "abc123")  # Will be a hit
-                service.get(cache_key, "wrong_sha")  # Will be a miss (SHA mismatch)
+        async def mixed_ops():
+            for _ in range(operations_per_task):
+                await service.get(cache_key, "abc123")  # Will be a hit
+                await service.get(
+                    cache_key, "wrong_sha"
+                )  # Will be a miss (SHA mismatch)
 
-        threads = [threading.Thread(target=mixed_ops) for _ in range(num_threads)]
+        async with anyio.create_task_group() as tg:
+            for _ in range(num_tasks):
+                tg.start_soon(mixed_ops)
 
-        for t in threads:
-            t.start()
-        for t in threads:
-            t.join()
-
-        # Should have consistent counts (each thread does 10 hits + 10 misses)
+        # Should have consistent counts (each task does 10 hits + 10 misses)
         stats = service.get_stats()
-        expected_total = num_threads * operations_per_thread * 2
+        expected_total = num_tasks * operations_per_task * 2
         assert stats["cache_hits"] + stats["cache_misses"] == expected_total
 
 
 class TestCacheServiceGetInternalKey:
     """Test suite for _get_internal_key method."""
 
-    def test_internal_key_no_hashing(self, reset_cache_service):
+    @pytest.mark.anyio
+    async def test_internal_key_no_hashing(self, reset_cache_service):
         """Test internal key without hashing."""
         with patch.object(CacheService, "__init__", lambda self: None):
             service = CacheService()
             service._use_hashed_keys = False
 
-        internal_key, hash_display = service._get_internal_key("test_key")
+        internal_key, hash_display = await service._get_internal_key("test_key")
 
         assert internal_key == "test_key"
         assert hash_display == ""
 
-    def test_internal_key_with_hashing(self, reset_cache_service):
+    @pytest.mark.anyio
+    async def test_internal_key_with_hashing(self, reset_cache_service):
         """Test internal key with hashing."""
         with patch.object(CacheService, "__init__", lambda self: None):
             service = CacheService()
@@ -422,12 +456,13 @@ class TestCacheServiceGetInternalKey:
             service._hash_algorithm = "md5"
             service._store_key_mapping = False
 
-        internal_key, hash_display = service._get_internal_key("test_key")
+        internal_key, hash_display = await service._get_internal_key("test_key")
 
         assert len(internal_key) == 32  # MD5 hash
         assert hash_display == f"{internal_key[:8]}..."
 
-    def test_internal_key_stores_mapping(self, reset_cache_service):
+    @pytest.mark.anyio
+    async def test_internal_key_stores_mapping(self, reset_cache_service):
         """Test that internal key stores mapping when requested."""
         with patch.object(CacheService, "__init__", lambda self: None):
             service = CacheService()
@@ -435,9 +470,9 @@ class TestCacheServiceGetInternalKey:
             service._hash_algorithm = "md5"
             service._store_key_mapping = True
             service._key_mapping = {}
-            service._lock = threading.RLock()
+            service._lock = anyio.Lock()
 
-        internal_key, hash_display = service._get_internal_key(
+        internal_key, hash_display = await service._get_internal_key(
             "test_key", store_mapping=True
         )
 
@@ -447,26 +482,28 @@ class TestCacheServiceGetInternalKey:
 class TestCacheServiceGetOriginalKey:
     """Test suite for _get_original_key method."""
 
-    def test_get_original_key_no_hashing(self, reset_cache_service):
+    @pytest.mark.anyio
+    async def test_get_original_key_no_hashing(self, reset_cache_service):
         """Test getting original key without hashing."""
         with patch.object(CacheService, "__init__", lambda self: None):
             service = CacheService()
             service._use_hashed_keys = False
 
-        original = service._get_original_key("test_key")
+        original = await service._get_original_key("test_key")
 
         assert original == "test_key"
 
-    def test_get_original_key_with_mapping(self, reset_cache_service):
+    @pytest.mark.anyio
+    async def test_get_original_key_with_mapping(self, reset_cache_service):
         """Test getting original key from mapping."""
         with patch.object(CacheService, "__init__", lambda self: None):
             service = CacheService()
             service._use_hashed_keys = True
             service._store_key_mapping = True
             service._key_mapping = {"hashed_key": "original_key"}
-            service._lock = threading.RLock()
+            service._lock = anyio.Lock()
 
-        original = service._get_original_key("hashed_key")
+        original = await service._get_original_key("hashed_key")
 
         assert original == "original_key"
 
@@ -483,7 +520,7 @@ class TestCacheServiceSingleton:
 
     def test_get_cache_service_creates_once(self, reset_cache_service):
         """Test that singleton is created only once."""
-        import prdiffer.infrastructure.cache_service as cache_module
+        import prdiffer.infrastructure.cache.service as cache_module
 
         service1 = get_cache_service()
         service2 = get_cache_service()

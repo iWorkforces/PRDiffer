@@ -4,7 +4,6 @@ This module provides business logic for approving GitHub pull requests
 with compliments, following Clean Architecture principles.
 """
 
-from typing import Optional
 from prdiffer.domain.repositories.pr_diff_repository import PRDiffRepositoryInterface
 from prdiffer.domain.services.logger import LoggerServiceInterface
 from prdiffer.domain.exceptions import ValidationError, InvalidURLError
@@ -26,7 +25,7 @@ class ApprovePRUseCase:
     def __init__(
         self,
         pr_diff_repository: PRDiffRepositoryInterface,
-        logger: Optional[LoggerServiceInterface] = None,
+        logger: LoggerServiceInterface | None = None,
     ):
         """Initialize use case with dependencies.
 
