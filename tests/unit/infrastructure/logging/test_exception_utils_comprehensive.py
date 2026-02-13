@@ -1,7 +1,5 @@
 """Comprehensive tests for ExceptionSanitizer."""
 
-import pytest
-import traceback
 
 from prdiffer.infrastructure.logging.exception_utils import (
     ExceptionSanitizer,

@@ -2,7 +2,6 @@
 
 import time
 import pytest
-from unittest.mock import Mock
 from prdiffer.infrastructure.github.etag_adapter import ETagRequestAdapter
 
 

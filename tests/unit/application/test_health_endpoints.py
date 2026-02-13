@@ -1,7 +1,7 @@
 """Comprehensive tests for health_endpoints.py."""
 
 import pytest
-from unittest.mock import Mock, AsyncMock, patch
+from unittest.mock import Mock, AsyncMock
 
 from prdiffer.application.health_endpoints import HealthEndpoints
 

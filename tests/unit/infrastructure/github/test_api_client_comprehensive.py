@@ -2,7 +2,7 @@
 
 import time
 import pytest
-from unittest.mock import MagicMock, patch, Mock
+from unittest.mock import MagicMock, patch
 from collections import OrderedDict
 from github import GithubException
 

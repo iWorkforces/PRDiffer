@@ -4,7 +4,7 @@ Tests cover file filtering, processing, content loading, and patch generation.
 """
 
 import pytest
-from unittest.mock import Mock, AsyncMock, patch, MagicMock
+from unittest.mock import Mock
 import time
 
 from prdiffer.infrastructure.github.file_processor import (

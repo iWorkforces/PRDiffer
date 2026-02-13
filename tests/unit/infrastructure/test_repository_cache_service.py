@@ -5,13 +5,12 @@ Tests cover caching, retrieval, expiration, eviction, and statistics.
 
 import pytest
 import time
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 
 from prdiffer.infrastructure.repository_cache_service import (
     RepositoryCacheService,
     CacheEntry,
     get_repository_cache_service,
-    _repository_cache_service,
 )
 
 

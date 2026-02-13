@@ -5,7 +5,7 @@ diff retrieval, PR approval, and error handling.
 """
 
 import pytest
-from unittest.mock import Mock, AsyncMock, patch, MagicMock
+from unittest.mock import Mock, AsyncMock, patch
 from github.GithubException import (
     GithubException,
     UnknownObjectException,
@@ -19,7 +19,6 @@ from prdiffer.infrastructure.github_repository import (
 )
 from prdiffer.domain.exceptions import PRDifferException
 from prdiffer.domain.entities.pr_diff import PRDiff
-from prdiffer.domain.entities.file_diff_response import FileDiffResponse, FileStats
 from prdiffer.domain.entities.file_patch import EDIT_TYPE
 
 

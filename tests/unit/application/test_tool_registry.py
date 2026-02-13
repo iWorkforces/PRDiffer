@@ -2,8 +2,6 @@
 
 import pytest
 from unittest.mock import MagicMock, AsyncMock, patch
-import hashlib
-import json
 
 from prdiffer.application.tool_registry import ToolRegistry
 from prdiffer.domain.entities.pr_diff import PRDiff
@@ -17,7 +15,6 @@ from prdiffer.domain.exceptions import (
     GitHubAPIError,
     InputSanitizationError,
 )
-from prdiffer.domain.services.logger import LogLevel
 
 
 @pytest.fixture

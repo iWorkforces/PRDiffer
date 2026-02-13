@@ -2,16 +2,13 @@
 
 import pytest
 import time
-from unittest.mock import Mock, patch, MagicMock
-import anyio
+from unittest.mock import Mock, patch
 
 from prdiffer.infrastructure.utils.retry_handler import (
     UnifiedRetryHandler,
     OperationContext,
-    RETRY_EXCEPTIONS,
     get_retry_handler,
     get_advanced_retry_handler,
-    BaseUnifiedRetryHandler,
 )
 from prdiffer.infrastructure.utils.circuit_breaker import CircuitState
 from prdiffer.infrastructure.utils.rate_limit_parser import RateLimitInfo

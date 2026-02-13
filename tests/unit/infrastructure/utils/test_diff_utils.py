@@ -303,7 +303,8 @@ class TestDecodeIfBytes:
     def test_bytes_all_fallbacks_fail(self):
         """Test empty string when all encodings fail."""
         diff_utils = DiffUtils()
-        invalid_bytes = b"\xff\xfe\xfd"
+        # Invalid UTF-8 sequence that may fail on some encodings
+        _ = b"\xff\xfe\xfd"  # invalid_bytes not used in this test setup
         with patch.object(
             type(diff_utils),
             "decode_if_bytes",

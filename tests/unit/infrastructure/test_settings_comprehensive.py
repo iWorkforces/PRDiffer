@@ -29,7 +29,7 @@ class TestSettingsServiceInit:
     def test_init_default_files(self):
         """Test initialization with default settings files."""
         with patch("prdiffer.infrastructure.settings.Dynaconf") as MockDynaconf:
-            service = SettingsService()
+            _ = SettingsService()  # service created for side effect
 
             MockDynaconf.assert_called_once()
             call_kwargs = MockDynaconf.call_args[1]
@@ -39,7 +39,9 @@ class TestSettingsServiceInit:
         """Test initialization with custom settings files."""
         with patch("prdiffer.infrastructure.settings.Dynaconf") as MockDynaconf:
             custom_files = ["custom.toml"]
-            service = SettingsService(settings_files=custom_files)
+            _ = SettingsService(
+                settings_files=custom_files
+            )  # service created for side effect
 
             call_kwargs = MockDynaconf.call_args[1]
             assert call_kwargs["settings_files"] == custom_files
@@ -390,7 +392,6 @@ class TestThreadSafety:
 
     def test_cache_lock_exists(self, settings_service):
         """Test that cache lock exists and is RLock."""
-        import _thread
 
         assert hasattr(settings_service, "_cache_lock")
         assert type(settings_service._cache_lock).__name__ == "RLock"

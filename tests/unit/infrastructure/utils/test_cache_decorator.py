@@ -2,8 +2,6 @@
 
 import pytest
 import time
-from collections import OrderedDict
-from unittest.mock import Mock, patch
 
 from prdiffer.infrastructure.utils.cache_decorator import (
     CachingMixin,
@@ -435,7 +433,7 @@ class TestCachedMethodWithComplexArgs:
 
         obj = TestClass()
         result1 = obj.process([1, 2, 3])
-        result2 = obj.process([1, 2, 3])
+        _ = obj.process([1, 2, 3])  # Second call should use cache
 
         assert result1 == 6
         assert obj.call_count == 1

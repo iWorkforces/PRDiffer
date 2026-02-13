@@ -1,8 +1,6 @@
 """Comprehensive tests for injection_detector.py."""
 
-import pytest
-import re
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 
 from prdiffer.infrastructure.security.injection_detector import (
     SecurityPatterns,

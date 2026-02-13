@@ -1,7 +1,7 @@
 """Tests for ServiceFactory."""
 
 import pytest
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 from prdiffer.infrastructure.service_factory import (
     ServiceFactory,
