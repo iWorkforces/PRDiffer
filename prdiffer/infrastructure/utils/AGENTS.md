@@ -20,7 +20,7 @@ import anyio
 T = TypeVar('T')
 
 class UnifiedRetryHandler:
-    '''848-line handler with 12+ responsibilities (PRIORITY 1 refactoring needed)'''
+    '''Context-aware retry with circuit breaker integration (see retry/ package)'''
     
     def retry_sync(
         self,
@@ -111,14 +111,14 @@ class AsyncParallelExecutor:
 
 ## Known Issues
 
-- **retry_handler.py (848 lines)** violates SRP with 12+ responsibilities
-- **PRIORITY 1 refactoring needed**: Split into focused classes
+- **github_repository.py (836 lines)** - Largest file, uses composition with extracted components
+- **retry/ package refactored** - Previously 848-line monolith, now split into focused modules
 
 ## Files
 
-- `retry_handler.py`: Unified retry logic (848 lines, needs refactoring)
-- `circuit_breaker.py`: Circuit breaker state machine
-- `cache_decorator.py`: Caching decorators with commit-based invalidation
+- `retry/`: Retry package (base.py, handler.py, models.py, factories.py)
+- `circuit_breaker/`: Circuit breaker package (core.py, registry.py)
+- `../cache/`: Caching package (service.py, store.py, repository/, decorators/)
 - `diff_utils.py`: Diff processing utilities
 - `diff_limits.py`: Diff size limits and validation
 - `pattern_matcher.py`: Pattern matching utilities

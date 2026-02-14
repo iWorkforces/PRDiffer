@@ -1,12 +1,12 @@
 # PROJECT KNOWLEDGE BASE
 
-**Generated:** 2026-02-13T04:19:00Z
-**Commit:** 6c14fd0
+**Generated:** 2026-02-14T12:05:00Z
+**Commit:** fe588c4
 **Branch:** upstream
 **Version:** 0.5.0
 
 ## OVERVIEW
-Python 3.14+ MCP server for GitHub PR diff analysis with Clean Architecture (Domain → Application → Infrastructure). FastMCP framework, Pydantic v2, anyio async. 661 files, 52K+ lines Python, 43 files >500 lines, 26 AGENTS.md files.
+Python 3.14+ MCP server for GitHub PR diff analysis with Clean Architecture (Domain → Application → Infrastructure). FastMCP framework, Pydantic v2, anyio async. 378 files, 52K+ lines Python, 38 files >500 lines, 33 AGENTS.md files.
 
 ## STRUCTURE
 ```
@@ -34,7 +34,7 @@ PRDifferMCP/
 | **Caching** | `prdiffer/infrastructure/cache_service.py`, `prdiffer/infrastructure/utils/cache_decorator.py` | Commit-based invalidation, LRU eviction, TTL support |
 | **Security** | `prdiffer/infrastructure/security/input_validator.py` | 571-line input validation with injection detection (command, path traversal, SQL) |
 | **Async patterns** | `prdiffer/infrastructure/async_parallel_executor.py` | 505-line anyio-based parallel execution |
-| **Large file refactoring** | `prdiffer/infrastructure/utils/retry_handler.py` (848 lines) | PRIORITY1: SRP violation with 12+ responsibilities |
+| **Large file refactoring** | `prdiffer/infrastructure/utils/retry/` (split into base.py 408, handler.py 136 lines) | Previously 848 lines, now refactored |
 
 ## CODE MAP
 | Symbol | Type | Location | Refs | Role |
@@ -44,8 +44,8 @@ PRDifferMCP/
 | VCSDiffRepositoryInterface | Interface | `prdiffer/domain/interfaces/vcs_provider.py` | - | VCS provider contract |
 | VCSProviderRegistry | Registry | `prdiffer/domain/vcs_provider_registry.py` | - | Provider auto-detection from URL |
 | ServiceContainer | DI | `prdiffer/infrastructure/di_container.py` | - | Singleton/transient services |
-| UnifiedRetryHandler | Service | `prdiffer/infrastructure/utils/retry_handler.py` | - | 848-line retry handler with circuit breaker |
-| CircuitBreaker | Service | `prdiffer/infrastructure/utils/circuit_breaker.py` | - | Fault tolerance with state machine |
+| UnifiedRetryHandler | Service | `prdiffer/infrastructure/utils/retry/handler.py` | - | Retry handler with context-aware config, circuit breaker |
+| CircuitBreaker | Service | `prdiffer/infrastructure/utils/circuit_breaker/core.py` | - | Fault tolerance with state machine (224 lines) |
 | AsyncParallelExecutor | Service | `prdiffer/infrastructure/async_parallel_executor.py` | - | anyio-based parallel execution |
 | PluginManager | Plugin | `prdiffer/application/plugin_manager.py` | - | MCP tool plugin discovery |
 | FastMCPServer | Application | `prdiffer/application/mcp_server.py` | - | 870-line MCP server orchestrator |
@@ -193,7 +193,7 @@ PRDifferMCP/
 - **Dual factory pattern**: Domain-level factories (`domain/factories/`) define interfaces, infrastructure implements them.
 - **VCS provider registry**: Auto-detection from URL patterns via `supports_repository()` method.
 - **Plugin system**: MCPToolPlugin interface with PluginManager discovery and execution.
-- **Layer-specific AGENTS.md**: Each layer has own AGENTS.md documenting conventions (26 files total).
+- **Layer-specific AGENTS.md**: Each layer has own AGENTS.md documenting conventions (33 files total).
 
 ## COMMANDS
 ```bash
@@ -244,7 +244,7 @@ python scripts/analyze_dependencies.py --path prdiffer
 - **Retry logic**: 404/403/500 with smart retry, circuit breaker, exponential backoff.
 - **File filtering**: Pattern-based ignores, extension allowlist, max_files_allowed limit.
 - **Test markers for filtering**: `-m unit`, `-m integration`, `-m slow`, `-m security`.
-- **Complex files**: 43 files >500 lines, most in infrastructure (retry_handler.py: 848 lines).
+- **Complex files**: 38 files >500 lines, most in infrastructure (github_repository.py: 836 lines).
 - **Thread safety**: RLock for sync, anyio.Lock for async, double-check locking patterns.
 - **Maximum directory depth**: 3 levels (prdiffer/{layer}/{package}/{module}.py), actual max depth: 15.
 - **No CI/CD infrastructure**: Manual quality gates only; no GitHub Actions workflows exist.
