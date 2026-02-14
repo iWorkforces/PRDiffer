@@ -309,26 +309,6 @@ class AuthenticationMiddleware(AuthenticationProtocol):
                     self._record_failure(client_identifier)
                     self._logger.warning("Authentication failed: Invalid API key")
                     return False, None
-                provided_hash = self._hash_api_key(api_key)
-                if (
-                    self._admin_api_key_hash
-                    and provided_hash == self._admin_api_key_hash
-                ):
-                    self._record_success(client_identifier)
-                    self._logger.debug("Admin authentication successful")
-                    return True, "admin"
-                if provided_hash in self._hashed_api_keys:
-                    client_id = f"api_key_{provided_hash[:16]}"
-                    self._record_success(client_identifier)
-                    self._logger.debug(
-                        "API key authentication successful",
-                        extra={"client_id": client_id},
-                    )
-                    return True, client_id
-                else:
-                    self._record_failure(client_identifier)
-                    self._logger.warning("Authentication failed: Invalid API key")
-                    return False, None
 
         # Hash the provided API key for comparison
         provided_hash = self._hash_api_key(api_key)

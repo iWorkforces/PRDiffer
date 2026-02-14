@@ -462,37 +462,6 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
                 f"GitHub API error while approving PR #{pr_number}"
             ) from e
 
-            if "403" in str(e).lower() or "forbidden" in str(e).lower():
-                self._logger.error(
-                    f"Permission denied for PR #{pr_number} - insufficient permissions",
-                    extra=sanitized,
-                    pr_number=pr_number,
-                )
-                raise RuntimeError(
-                    f"Insufficient permissions to approve PR #{pr_number} - "
-                    "ensure token has 'repo' scope and write access"
-                ) from e
-
-            if "429" in str(e).lower() or "rate limit" in str(e).lower():
-                self._logger.warning(
-                    f"GitHub API rate limit exceeded while approving PR #{pr_number}",
-                    extra=sanitized,
-                    pr_number=pr_number,
-                )
-                raise RuntimeError(
-                    "GitHub API rate limit exceeded - please retry later"
-                ) from e
-
-            # Generic GitHub API error
-            self._logger.error(
-                f"GitHub API error while approving PR #{pr_number}",
-                extra=sanitized,
-                pr_number=pr_number,
-            )
-            raise RuntimeError(
-                f"GitHub API error while approving PR #{pr_number}"
-            ) from e
-
     async def update_pr_description(self, pr_url: str, description: str) -> str:
         """Update a GitHub PR description/body.
 
