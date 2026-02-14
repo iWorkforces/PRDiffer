@@ -90,3 +90,27 @@ class PRDiffRepositoryInterface(ABC):
             GithubException: If PR approval fails (404, 403, rate limit, etc.)
         """
         pass
+
+    @abstractmethod
+    async def update_pr_description(self, pr_url: str, description: str) -> str:
+        """Update a GitHub PR description/body.
+
+        This method:
+        1. Parses PR URL to extract owner, repo, and PR number
+        2. Validates PR exists and is accessible
+        3. Calls pr.edit(body=description) to update the description
+        4. Returns success message or raises exceptions loudly on failures
+
+        Args:
+            pr_url: The full GitHub PR URL (e.g., https://github.com/owner/repo/pull/123)
+            description: The new description text to set on the PR
+
+        Returns:
+            str: Success message indicating PR description was updated
+
+        Raises:
+            InvalidURLError: If PR URL format is invalid
+            RuntimeError: If GitHub objects failed to initialize
+            GithubException: If PR update fails (404, 403, rate limit, etc.)
+        """
+        pass
