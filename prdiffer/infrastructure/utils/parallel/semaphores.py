@@ -42,7 +42,7 @@ class SemaphoreManager:
         """Enter async context manager."""
         return await self.get_semaphore()
 
-    async def __aexit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
+    async def __aexit__(self, _exc_type: Any, _exc_val: Any, _exc_tb: Any) -> None:
         """Exit async context manager."""
         pass
 
@@ -63,6 +63,6 @@ class LockManager:
         """Enter async context manager."""
         return await self.get_lock()
 
-    async def __aexit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
+    async def __aexit__(self, _exc_type: Any, _exc_val: Any, _exc_tb: Any) -> None:
         """Exit async context manager."""
         pass
