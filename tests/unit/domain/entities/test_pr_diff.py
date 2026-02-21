@@ -14,12 +14,12 @@ from prdiffer.domain.entities.file_patch import EDIT_TYPE
 from prdiffer.domain.entities.pr_diff import PRDiff
 
 
-def _file_response(path: str = "test.ts") -> FileDiffResponse:
+def _file_response(path: str = 'test.ts') -> FileDiffResponse:
     return FileDiffResponse(
         path=path,
         status=EDIT_TYPE.ADDED,
         stats=FileStats(additions=10, deletions=5),
-        diff="diff",
+        diff='diff',
     )
 
 
@@ -36,23 +36,23 @@ class TestPRDiffCreation:
         """Test creating PRDiff with files array structure."""
         files = (
             FileDiffResponse(
-                path="src/file1.ts",
+                path='src/file1.ts',
                 status=EDIT_TYPE.ADDED,
                 stats=FileStats(additions=100, deletions=0),
-                diff="@@ -0,0 +1,100 @@\n+new content\n",
+                diff='@@ -0,0 +1,100 @@\n+new content\n',
             ),
             FileDiffResponse(
-                path="src/file2.ts",
+                path='src/file2.ts',
                 status=EDIT_TYPE.MODIFIED,
                 stats=FileStats(additions=50, deletions=25),
-                diff="@@ -1,3 +1,8 @@\n-old\n+new\n",
+                diff='@@ -1,3 +1,8 @@\n-old\n+new\n',
             ),
         )
         pr_diff = PRDiff(files=files)
 
         assert len(pr_diff.files) == 2
-        assert pr_diff.files[0].path == "src/file1.ts"
-        assert pr_diff.files[1].path == "src/file2.ts"
+        assert pr_diff.files[0].path == 'src/file1.ts'
+        assert pr_diff.files[1].path == 'src/file2.ts'
 
 
 class TestPRDiffProperties:
@@ -63,10 +63,10 @@ class TestPRDiffProperties:
         pr_diff = PRDiff(
             files=(
                 FileDiffResponse(
-                    path="test.py",
+                    path='test.py',
                     status=EDIT_TYPE.MODIFIED,
                     stats=FileStats(additions=1, deletions=1),
-                    diff="diff",
+                    diff='diff',
                 ),
             )
         )
@@ -87,28 +87,28 @@ class TestPRDiffEdgeCases:
         """Test PRDiff with various edit status values."""
         files = (
             FileDiffResponse(
-                path="added.py",
+                path='added.py',
                 status=EDIT_TYPE.ADDED,
                 stats=FileStats(additions=10, deletions=0),
-                diff="diff",
+                diff='diff',
             ),
             FileDiffResponse(
-                path="modified.py",
+                path='modified.py',
                 status=EDIT_TYPE.MODIFIED,
                 stats=FileStats(additions=5, deletions=3),
-                diff="diff",
+                diff='diff',
             ),
             FileDiffResponse(
-                path="deleted.py",
+                path='deleted.py',
                 status=EDIT_TYPE.DELETED,
                 stats=FileStats(additions=0, deletions=8),
-                diff="diff",
+                diff='diff',
             ),
             FileDiffResponse(
-                path="renamed.py",
+                path='renamed.py',
                 status=EDIT_TYPE.RENAMED,
                 stats=FileStats(additions=0, deletions=0),
-                diff="diff",
+                diff='diff',
             ),
         )
         pr_diff = PRDiff(files=files)
@@ -127,28 +127,28 @@ class TestPRDiffSerialization:
         pr_diff = PRDiff(
             files=(
                 FileDiffResponse(
-                    path="test.ts",
+                    path='test.ts',
                     status=EDIT_TYPE.MODIFIED,
                     stats=FileStats(additions=10, deletions=5),
-                    diff="@@ -1,1 +1,1 @@\n-old\n+new",
+                    diff='@@ -1,1 +1,1 @@\n-old\n+new',
                 ),
             )
         )
 
         data = asdict(pr_diff)
 
-        assert "files" in data
-        assert len(data["files"]) == 1
-        assert data["files"][0]["path"] == "test.ts"
+        assert 'files' in data
+        assert len(data['files']) == 1
+        assert data['files'][0]['path'] == 'test.ts'
 
     def test_json_serialization(self):
         pr_diff = PRDiff(
             files=(
                 FileDiffResponse(
-                    path="test.py",
+                    path='test.py',
                     status=EDIT_TYPE.ADDED,
                     stats=FileStats(additions=100, deletions=0),
-                    diff="@@ -0,0 +1,100 @@\n+content",
+                    diff='@@ -0,0 +1,100 @@\n+content',
                 ),
             )
         )
@@ -161,39 +161,39 @@ class TestPRDiffSerialization:
 
     def test_construct_from_dict_data(self):
         data = {
-            "files": [
+            'files': [
                 {
-                    "path": "src/component.ts",
-                    "status": "deleted",
-                    "stats": {"additions": 0, "deletions": 50},
-                    "diff": "@@ -1,50 +1,0 @@\n-removed lines",
+                    'path': 'src/component.ts',
+                    'status': 'deleted',
+                    'stats': {'additions': 0, 'deletions': 50},
+                    'diff': '@@ -1,50 +1,0 @@\n-removed lines',
                 }
             ]
         }
 
         files = tuple(
             FileDiffResponse(
-                path=file_data["path"],
-                status=EDIT_TYPE(file_data["status"]),
-                stats=FileStats(**file_data["stats"]),
-                diff=file_data["diff"],
+                path=file_data['path'],
+                status=EDIT_TYPE(file_data['status']),
+                stats=FileStats(**file_data['stats']),
+                diff=file_data['diff'],
             )
-            for file_data in data["files"]
+            for file_data in data['files']
         )
         pr_diff = PRDiff(files=files)
 
         assert len(pr_diff.files) == 1
-        assert pr_diff.files[0].path == "src/component.ts"
+        assert pr_diff.files[0].path == 'src/component.ts'
 
     def test_round_trip_serialization(self):
         """Test serialization and deserialization round trip."""
         original = PRDiff(
             files=(
                 FileDiffResponse(
-                    path="test.ts",
+                    path='test.ts',
                     status=EDIT_TYPE.ADDED,
                     stats=FileStats(additions=75, deletions=10),
-                    diff="test diff",
+                    diff='test diff',
                 ),
             )
         )
@@ -204,12 +204,12 @@ class TestPRDiffSerialization:
         restored = PRDiff(
             files=tuple(
                 FileDiffResponse(
-                    path=file_data["path"],
-                    status=EDIT_TYPE(file_data["status"]),
-                    stats=FileStats(**file_data["stats"]),
-                    diff=file_data["diff"],
+                    path=file_data['path'],
+                    status=EDIT_TYPE(file_data['status']),
+                    stats=FileStats(**file_data['stats']),
+                    diff=file_data['diff'],
                 )
-                for file_data in payload["files"]
+                for file_data in payload['files']
             )
         )
 
@@ -225,14 +225,14 @@ class TestPRDiffImmutability:
         pr_diff = PRDiff(files=(_file_response(),))
 
         with pytest.raises(FrozenInstanceError):
-            setattr(pr_diff, "files", ())
+            setattr(pr_diff, 'files', ())
 
     def test_replace_creates_new_instance(self):
         """Test dataclasses.replace creates updated copy."""
         original = PRDiff(files=(_file_response(),))
-        updated_files = (_file_response(path="modified.ts"),)
+        updated_files = (_file_response(path='modified.ts'),)
 
         copy = replace(original, files=updated_files)
 
-        assert original.files[0].path == "test.ts"
-        assert copy.files[0].path == "modified.ts"
+        assert original.files[0].path == 'test.ts'
+        assert copy.files[0].path == 'modified.ts'

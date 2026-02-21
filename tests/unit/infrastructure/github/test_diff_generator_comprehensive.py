@@ -14,7 +14,7 @@ from prdiffer.domain.entities.file_patch import FilePatchInfo, EDIT_TYPE
 def mock_diff_utils():
     """Create mock diff utils."""
     mock = MagicMock()
-    mock.extend_patch.return_value = "extended patch content"
+    mock.extend_patch.return_value = 'extended patch content'
     return mock
 
 
@@ -31,10 +31,10 @@ def mock_parallel_executor():
 def sample_file_patch():
     """Create sample FilePatchInfo."""
     return FilePatchInfo(
-        filename="src/test.py",
-        base_file="old content\nline1\nline2\n",
-        head_file="new content\nline1\nline2 modified\nline3\n",
-        patch="@@ -1,3 +1,4 @@\n-old content\n+new content\n line1\n line2\n+line3\n",
+        filename='src/test.py',
+        base_file='old content\nline1\nline2\n',
+        head_file='new content\nline1\nline2 modified\nline3\n',
+        patch='@@ -1,3 +1,4 @@\n-old content\n+new content\n line1\n line2\n+line3\n',
         edit_type=EDIT_TYPE.MODIFIED,
         num_plus_lines=2,
         num_minus_lines=1,
@@ -47,10 +47,10 @@ def sample_file_patches(sample_file_patch):
     return [
         sample_file_patch,
         FilePatchInfo(
-            filename="src/new_file.py",
-            base_file="",
-            head_file="new file content\n",
-            patch="@@ -0,0 +1 @@\n+new file content\n",
+            filename='src/new_file.py',
+            base_file='',
+            head_file='new file content\n',
+            patch='@@ -0,0 +1 @@\n+new file content\n',
             edit_type=EDIT_TYPE.ADDED,
             num_plus_lines=1,
             num_minus_lines=0,
@@ -121,9 +121,7 @@ class TestGenerateExtendedDiff:
 
         assert result == []
 
-    def test_sequential_processing_below_threshold(
-        self, mock_diff_utils, sample_file_patch
-    ):
+    def test_sequential_processing_below_threshold(self, mock_diff_utils, sample_file_patch):
         """Test sequential processing when below threshold."""
         generator = DiffGenerator(diff_utils=mock_diff_utils)
         result = generator.generate_extended_diff([sample_file_patch])
@@ -131,9 +129,7 @@ class TestGenerateExtendedDiff:
         assert len(result) == 1
         mock_diff_utils.extend_patch.assert_called_once()
 
-    def test_sequential_processing_parallel_disabled(
-        self, mock_diff_utils, mock_parallel_executor, sample_file_patches
-    ):
+    def test_sequential_processing_parallel_disabled(self, mock_diff_utils, mock_parallel_executor, sample_file_patches):
         """Test sequential processing when parallel is disabled."""
         generator = DiffGenerator(
             diff_utils=mock_diff_utils,
@@ -149,10 +145,10 @@ class TestGenerateExtendedDiff:
         """Test parallel processing when enabled and above threshold."""
         files = [
             FilePatchInfo(
-                filename=f"file{i}.py",
-                base_file="old",
-                head_file="new",
-                patch=f"patch{i}",
+                filename=f'file{i}.py',
+                base_file='old',
+                head_file='new',
+                patch=f'patch{i}',
                 edit_type=EDIT_TYPE.MODIFIED,
                 num_plus_lines=1,
                 num_minus_lines=1,
@@ -161,11 +157,11 @@ class TestGenerateExtendedDiff:
         ]
 
         mock_parallel_executor.execute_batch.return_value = [
-            (0, "diff0"),
-            (1, "diff1"),
-            (2, "diff2"),
-            (3, "diff3"),
-            (4, "diff4"),
+            (0, 'diff0'),
+            (1, 'diff1'),
+            (2, 'diff2'),
+            (3, 'diff3'),
+            (4, 'diff4'),
         ]
 
         generator = DiffGenerator(
@@ -182,10 +178,10 @@ class TestGenerateExtendedDiff:
     def test_file_without_patch_skipped(self, mock_diff_utils):
         """Test that files without patches are skipped."""
         file_no_patch = FilePatchInfo(
-            filename="empty.py",
-            base_file="",
-            head_file="",
-            patch="",
+            filename='empty.py',
+            base_file='',
+            head_file='',
+            patch='',
             edit_type=EDIT_TYPE.MODIFIED,
             num_plus_lines=0,
             num_minus_lines=0,
@@ -199,12 +195,10 @@ class TestGenerateExtendedDiff:
     def test_with_line_numbers(self, mock_diff_utils, sample_file_patch):
         """Test generation with line numbers."""
         generator = DiffGenerator(diff_utils=mock_diff_utils)
-        result = generator.generate_extended_diff(
-            [sample_file_patch], add_line_numbers_to_hunks=True
-        )
+        result = generator.generate_extended_diff([sample_file_patch], add_line_numbers_to_hunks=True)
 
         assert len(result) == 1
-        assert "Full file path:" in result[0]
+        assert 'Full file path:' in result[0]
 
 
 class TestHunkParsing:
@@ -214,60 +208,60 @@ class TestHunkParsing:
         """Test parsing standard hunk format."""
         generator = DiffGenerator(diff_utils=mock_diff_utils)
         patch_lines = [
-            "@@ -1,3 +1,4 @@",
-            "-old line",
-            "+new line",
-            " context line",
+            '@@ -1,3 +1,4 @@',
+            '-old line',
+            '+new line',
+            ' context line',
         ]
 
         hunks = generator._parse_hunks_from_patch(patch_lines)
 
         assert len(hunks) == 1
-        assert hunks[0]["start1"] == 1
-        assert hunks[0]["start2"] == 1
-        assert len(hunks[0]["old_lines"]) == 2
-        assert len(hunks[0]["new_lines"]) == 2
+        assert hunks[0]['start1'] == 1
+        assert hunks[0]['start2'] == 1
+        assert len(hunks[0]['old_lines']) == 2
+        assert len(hunks[0]['new_lines']) == 2
 
     def test_parse_hunks_new_file(self, mock_diff_utils):
         """Test parsing hunk for new file (start1=0)."""
         generator = DiffGenerator(diff_utils=mock_diff_utils)
         patch_lines = [
-            "@@ -0,0 +1,5 @@",
-            "+line1",
-            "+line2",
-            "+line3",
+            '@@ -0,0 +1,5 @@',
+            '+line1',
+            '+line2',
+            '+line3',
         ]
 
         hunks = generator._parse_hunks_from_patch(patch_lines)
 
         assert len(hunks) == 1
-        assert hunks[0]["start1"] == 0
-        assert hunks[0]["start2"] == 1
+        assert hunks[0]['start1'] == 0
+        assert hunks[0]['start2'] == 1
 
     def test_parse_hunks_deleted_file(self, mock_diff_utils):
         """Test parsing hunk for deleted file."""
         generator = DiffGenerator(diff_utils=mock_diff_utils)
         patch_lines = [
-            "@@ -1,3 +0,0 @@",
-            "-line1",
-            "-line2",
-            "-line3",
+            '@@ -1,3 +0,0 @@',
+            '-line1',
+            '-line2',
+            '-line3',
         ]
 
         hunks = generator._parse_hunks_from_patch(patch_lines)
 
         assert len(hunks) == 1
-        assert hunks[0]["start1"] == 1
-        assert hunks[0]["start2"] == 0
+        assert hunks[0]['start1'] == 1
+        assert hunks[0]['start2'] == 0
 
     def test_parse_multiple_hunks(self, mock_diff_utils):
         """Test parsing multiple hunks in one patch."""
         generator = DiffGenerator(diff_utils=mock_diff_utils)
         patch_lines = [
-            "@@ -1,3 +1,3 @@",
-            " context",
-            "@@ -10,5 +10,5 @@",
-            " more context",
+            '@@ -1,3 +1,3 @@',
+            ' context',
+            '@@ -10,5 +10,5 @@',
+            ' more context',
         ]
 
         hunks = generator._parse_hunks_from_patch(patch_lines)
@@ -278,17 +272,17 @@ class TestHunkParsing:
         """Test that 'no newline at end of file' markers are skipped."""
         generator = DiffGenerator(diff_utils=mock_diff_utils)
         patch_lines = [
-            "@@ -1,2 +1,2 @@",
-            "-old line",
-            "\\ No newline at end of file",
-            "+new line",
+            '@@ -1,2 +1,2 @@',
+            '-old line',
+            '\\ No newline at end of file',
+            '+new line',
         ]
 
         hunks = generator._parse_hunks_from_patch(patch_lines)
 
         assert len(hunks) == 1
-        assert "\\ No newline" not in str(hunks[0]["old_lines"])
-        assert "\\ No newline" not in str(hunks[0]["new_lines"])
+        assert '\\ No newline' not in str(hunks[0]['old_lines'])
+        assert '\\ No newline' not in str(hunks[0]['new_lines'])
 
     def test_empty_patch(self, mock_diff_utils):
         """Test parsing empty patch."""
@@ -306,7 +300,7 @@ class TestExtractHunkHeaders:
         generator = DiffGenerator(diff_utils=mock_diff_utils)
         import re
 
-        match = re.match(generator.RE_HUNK_HEADER, "@@ -1,3 +1,5 @@ function")
+        match = re.match(generator.RE_HUNK_HEADER, '@@ -1,3 +1,5 @@ function')
 
         section, size1, size2, start1, start2 = generator._extract_hunk_headers(match)
 
@@ -314,14 +308,14 @@ class TestExtractHunkHeaders:
         assert size1 == 3
         assert start2 == 1
         assert size2 == 5
-        assert section == "function"
+        assert section == 'function'
 
     def test_header_without_sizes(self, mock_diff_utils):
         """Test header without explicit sizes (default to 1)."""
         generator = DiffGenerator(diff_utils=mock_diff_utils)
         import re
 
-        match = re.match(generator.RE_HUNK_HEADER, "@@ -1 +1 @@")
+        match = re.match(generator.RE_HUNK_HEADER, '@@ -1 +1 @@')
 
         section, size1, size2, start1, start2 = generator._extract_hunk_headers(match)
 
@@ -335,7 +329,7 @@ class TestExtractHunkHeaders:
         generator = DiffGenerator(diff_utils=mock_diff_utils)
         import re
 
-        match = re.match(generator.RE_HUNK_HEADER, "@@ -0,0 +1,10 @@")
+        match = re.match(generator.RE_HUNK_HEADER, '@@ -0,0 +1,10 @@')
 
         section, size1, size2, start1, start2 = generator._extract_hunk_headers(match)
 
@@ -349,7 +343,7 @@ class TestExtractHunkHeaders:
         generator = DiffGenerator(diff_utils=mock_diff_utils)
         import re
 
-        match = re.match(generator.RE_HUNK_HEADER, "@@ -1,5 +0,0 @@")
+        match = re.match(generator.RE_HUNK_HEADER, '@@ -1,5 +0,0 @@')
 
         section, size1, size2, start1, start2 = generator._extract_hunk_headers(match)
 
@@ -366,66 +360,66 @@ class TestFormatHunkWithLineNumbers:
         """Test formatting a standard hunk with changes."""
         generator = DiffGenerator(diff_utils=mock_diff_utils)
         hunk = {
-            "header": "@@ -1,3 +1,3 @@",
-            "new_lines": ["+added", " context"],
-            "old_lines": ["-removed", " context"],
-            "start1": 1,
-            "start2": 1,
+            'header': '@@ -1,3 +1,3 @@',
+            'new_lines': ['+added', ' context'],
+            'old_lines': ['-removed', ' context'],
+            'start1': 1,
+            'start2': 1,
         }
 
         result = generator._format_hunk_with_line_numbers(hunk)
 
-        assert "@@" in result
-        assert "__new hunk__" in result
-        assert "__old hunk__" in result
+        assert '@@' in result
+        assert '__new hunk__' in result
+        assert '__old hunk__' in result
 
     def test_format_deletion_only_hunk(self, mock_diff_utils):
         """Test formatting a deletion-only hunk."""
         generator = DiffGenerator(diff_utils=mock_diff_utils)
         hunk = {
-            "header": "@@ -1,1 +0,0 @@",
-            "new_lines": [],
-            "old_lines": ["-removed line"],
-            "start1": 1,
-            "start2": 0,
+            'header': '@@ -1,1 +0,0 @@',
+            'new_lines': [],
+            'old_lines': ['-removed line'],
+            'start1': 1,
+            'start2': 0,
         }
 
         result = generator._format_hunk_with_line_numbers(hunk)
 
-        assert "@@" in result
-        assert "__old hunk__" in result
+        assert '@@' in result
+        assert '__old hunk__' in result
 
     def test_format_no_changes_hunk(self, mock_diff_utils):
         """Test formatting a hunk with no actual changes."""
         generator = DiffGenerator(diff_utils=mock_diff_utils)
         hunk = {
-            "header": "@@ -1,3 +1,3 @@",
-            "new_lines": [" context1", " context2"],
-            "old_lines": [" context1", " context2"],
-            "start1": 1,
-            "start2": 1,
+            'header': '@@ -1,3 +1,3 @@',
+            'new_lines': [' context1', ' context2'],
+            'old_lines': [' context1', ' context2'],
+            'start1': 1,
+            'start2': 1,
         }
 
         result = generator._format_hunk_with_line_numbers(hunk)
 
-        assert result == ""
+        assert result == ''
 
     def test_format_new_file_hunk(self, mock_diff_utils):
         """Test formatting a new file hunk."""
         generator = DiffGenerator(diff_utils=mock_diff_utils)
         hunk = {
-            "header": "@@ -0,0 +1,5 @@",
-            "new_lines": ["+line1", "+line2", "+line3"],
-            "old_lines": [],
-            "start1": 0,
-            "start2": 1,
+            'header': '@@ -0,0 +1,5 @@',
+            'new_lines': ['+line1', '+line2', '+line3'],
+            'old_lines': [],
+            'start1': 0,
+            'start2': 1,
         }
 
         result = generator._format_hunk_with_line_numbers(hunk)
 
-        assert "@@" in result
-        assert "__new hunk__" in result
-        assert "__old hunk__" not in result
+        assert '@@' in result
+        assert '__new hunk__' in result
+        assert '__old hunk__' not in result
 
 
 class TestGenerateFileHeader:
@@ -437,10 +431,10 @@ class TestGenerateFileHeader:
 
         result = generator._generate_file_header(sample_file_patch, is_first_file=True)
 
-        assert result.startswith("\n")
-        assert "Full file path:" in result
+        assert result.startswith('\n')
+        assert 'Full file path:' in result
         assert sample_file_patch.filename in result
-        assert "---" not in result
+        assert '---' not in result
 
     def test_subsequent_file_header(self, mock_diff_utils, sample_file_patch):
         """Test header for subsequent files (with separator)."""
@@ -448,7 +442,7 @@ class TestGenerateFileHeader:
 
         result = generator._generate_file_header(sample_file_patch, is_first_file=False)
 
-        assert "---" in result
+        assert '---' in result
         assert sample_file_patch.filename in result
 
     def test_none_file(self, mock_diff_utils):
@@ -457,7 +451,7 @@ class TestGenerateFileHeader:
 
         result = generator._generate_file_header(None, is_first_file=True)
 
-        assert result == ""
+        assert result == ''
 
 
 class TestAddLineToHunk:
@@ -466,52 +460,52 @@ class TestAddLineToHunk:
     def test_add_added_line(self, mock_diff_utils):
         """Test adding a line that starts with +."""
         generator = DiffGenerator(diff_utils=mock_diff_utils)
-        hunk = {"new_lines": [], "old_lines": []}
+        hunk = {'new_lines': [], 'old_lines': []}
 
-        generator._add_line_to_hunk(hunk, "+new line", 0, ["+new line"])
+        generator._add_line_to_hunk(hunk, '+new line', 0, ['+new line'])
 
-        assert "+new line" in hunk["new_lines"]
-        assert "+new line" not in hunk["old_lines"]
+        assert '+new line' in hunk['new_lines']
+        assert '+new line' not in hunk['old_lines']
 
     def test_add_removed_line(self, mock_diff_utils):
         """Test adding a line that starts with -."""
         generator = DiffGenerator(diff_utils=mock_diff_utils)
-        hunk = {"new_lines": [], "old_lines": []}
+        hunk = {'new_lines': [], 'old_lines': []}
 
-        generator._add_line_to_hunk(hunk, "-old line", 0, ["-old line"])
+        generator._add_line_to_hunk(hunk, '-old line', 0, ['-old line'])
 
-        assert "-old line" in hunk["old_lines"]
-        assert "-old line" not in hunk["new_lines"]
+        assert '-old line' in hunk['old_lines']
+        assert '-old line' not in hunk['new_lines']
 
     def test_add_context_line(self, mock_diff_utils):
         """Test adding a context line."""
         generator = DiffGenerator(diff_utils=mock_diff_utils)
-        hunk = {"new_lines": [], "old_lines": []}
+        hunk = {'new_lines': [], 'old_lines': []}
 
-        generator._add_line_to_hunk(hunk, " context", 0, [" context"])
+        generator._add_line_to_hunk(hunk, ' context', 0, [' context'])
 
-        assert " context" in hunk["new_lines"]
-        assert " context" in hunk["old_lines"]
+        assert ' context' in hunk['new_lines']
+        assert ' context' in hunk['old_lines']
 
     def test_skip_empty_before_hunk_header(self, mock_diff_utils):
         """Test that empty lines before hunk headers are skipped."""
         generator = DiffGenerator(diff_utils=mock_diff_utils)
-        hunk = {"new_lines": [], "old_lines": []}
+        hunk = {'new_lines': [], 'old_lines': []}
 
-        generator._add_line_to_hunk(hunk, "", 0, ["", "@@ -1,3 +1,3 @@"])
+        generator._add_line_to_hunk(hunk, '', 0, ['', '@@ -1,3 +1,3 @@'])
 
-        assert hunk["new_lines"] == [""]
-        assert hunk["old_lines"] == [""]
+        assert hunk['new_lines'] == ['']
+        assert hunk['old_lines'] == ['']
 
     def test_skip_empty_at_end(self, mock_diff_utils):
         """Test that empty lines at end are skipped."""
         generator = DiffGenerator(diff_utils=mock_diff_utils)
-        hunk = {"new_lines": [], "old_lines": []}
+        hunk = {'new_lines': [], 'old_lines': []}
 
-        generator._add_line_to_hunk(hunk, "", 0, [""])
+        generator._add_line_to_hunk(hunk, '', 0, [''])
 
-        assert hunk["new_lines"] == [""]
-        assert hunk["old_lines"] == [""]
+        assert hunk['new_lines'] == ['']
+        assert hunk['old_lines'] == ['']
 
 
 class TestProcessSingleFileForDiff:
@@ -526,7 +520,7 @@ class TestProcessSingleFileForDiff:
 
         assert result is not None
         assert result[0] == 0
-        assert "Full file path:" in result[1]
+        assert 'Full file path:' in result[1]
 
     def test_process_file_with_line_numbers(self, mock_diff_utils, sample_file_patch):
         """Test file processing with line numbers."""
@@ -536,16 +530,16 @@ class TestProcessSingleFileForDiff:
         result = generator._process_single_file_for_diff(indexed_data)
 
         assert result is not None
-        assert "Full file path:" in result[1]
+        assert 'Full file path:' in result[1]
 
     def test_process_file_no_patch(self, mock_diff_utils):
         """Test processing file with no patch."""
         generator = DiffGenerator(diff_utils=mock_diff_utils)
         file_no_patch = FilePatchInfo(
-            filename="empty.py",
-            base_file="",
-            head_file="",
-            patch="",
+            filename='empty.py',
+            base_file='',
+            head_file='',
+            patch='',
             edit_type=EDIT_TYPE.MODIFIED,
             num_plus_lines=0,
             num_minus_lines=0,
@@ -568,7 +562,7 @@ class TestProcessSingleFileForDiff:
 
     def test_process_file_exception(self, mock_diff_utils, sample_file_patch):
         """Test exception handling during file processing."""
-        mock_diff_utils.extend_patch.side_effect = Exception("Test error")
+        mock_diff_utils.extend_patch.side_effect = Exception('Test error')
         generator = DiffGenerator(diff_utils=mock_diff_utils)
         indexed_data = (0, sample_file_patch, False, 1)
 
@@ -591,13 +585,11 @@ class TestGenerateExtendedDiffParallel:
 
         assert len(result) == 2
 
-    def test_parallel_processing_success(
-        self, mock_diff_utils, mock_parallel_executor, sample_file_patches
-    ):
+    def test_parallel_processing_success(self, mock_diff_utils, mock_parallel_executor, sample_file_patches):
         """Test successful parallel processing."""
         mock_parallel_executor.execute_batch.return_value = [
-            (0, "diff_content_0"),
-            (1, "diff_content_1"),
+            (0, 'diff_content_0'),
+            (1, 'diff_content_1'),
         ]
 
         generator = DiffGenerator(
@@ -609,16 +601,14 @@ class TestGenerateExtendedDiffParallel:
 
         assert len(result) == 2
 
-    def test_parallel_processing_with_none_results(
-        self, mock_diff_utils, mock_parallel_executor
-    ):
+    def test_parallel_processing_with_none_results(self, mock_diff_utils, mock_parallel_executor):
         """Test parallel processing with some None results."""
         files = [
             FilePatchInfo(
-                filename=f"file{i}.py",
-                base_file="old",
-                head_file="new",
-                patch=f"patch{i}",
+                filename=f'file{i}.py',
+                base_file='old',
+                head_file='new',
+                patch=f'patch{i}',
                 edit_type=EDIT_TYPE.MODIFIED,
                 num_plus_lines=1,
                 num_minus_lines=1,
@@ -627,9 +617,9 @@ class TestGenerateExtendedDiffParallel:
         ]
 
         mock_parallel_executor.execute_batch.return_value = [
-            (0, "diff0"),
+            (0, 'diff0'),
             None,
-            (2, "diff2"),
+            (2, 'diff2'),
         ]
 
         generator = DiffGenerator(
@@ -640,8 +630,8 @@ class TestGenerateExtendedDiffParallel:
         result = generator._generate_extended_diff_parallel(files, False)
 
         assert len(result) == 2
-        assert result[0] == "diff0"
-        assert result[1] == "diff2"
+        assert result[0] == 'diff0'
+        assert result[1] == 'diff2'
 
 
 class TestGetDiffGenerator:
@@ -654,9 +644,7 @@ class TestGetDiffGenerator:
         assert generator._diff_utils is mock_diff_utils
         assert generator._parallel_threshold == 3
 
-    def test_get_diff_generator_custom_params(
-        self, mock_diff_utils, mock_parallel_executor
-    ):
+    def test_get_diff_generator_custom_params(self, mock_diff_utils, mock_parallel_executor):
         """Test factory with custom parameters."""
         generator = get_diff_generator(
             diff_utils=mock_diff_utils,
@@ -682,7 +670,7 @@ class TestDecoupleAndConvertToHunksWithLineNumbers:
             is_first_file=True,
         )
 
-        assert "Full file path:" in result
+        assert 'Full file path:' in result
         assert sample_file_patch.filename in result
 
     def test_subsequent_file(self, mock_diff_utils, sample_file_patch):
@@ -695,22 +683,20 @@ class TestDecoupleAndConvertToHunksWithLineNumbers:
             is_first_file=False,
         )
 
-        assert "---" in result
+        assert '---' in result
 
 
 class TestSequentialVsParallel:
     """Tests comparing sequential vs parallel processing."""
 
-    def test_below_threshold_always_sequential(
-        self, mock_diff_utils, mock_parallel_executor
-    ):
+    def test_below_threshold_always_sequential(self, mock_diff_utils, mock_parallel_executor):
         """Test that files below threshold always use sequential."""
         files = [
             FilePatchInfo(
-                filename="file.py",
-                base_file="old",
-                head_file="new",
-                patch="patch",
+                filename='file.py',
+                base_file='old',
+                head_file='new',
+                patch='patch',
                 edit_type=EDIT_TYPE.MODIFIED,
                 num_plus_lines=1,
                 num_minus_lines=1,
@@ -732,10 +718,10 @@ class TestSequentialVsParallel:
         """Test that files at threshold use parallel processing."""
         files = [
             FilePatchInfo(
-                filename=f"file{i}.py",
-                base_file="old",
-                head_file="new",
-                patch=f"patch{i}",
+                filename=f'file{i}.py',
+                base_file='old',
+                head_file='new',
+                patch=f'patch{i}',
                 edit_type=EDIT_TYPE.MODIFIED,
                 num_plus_lines=1,
                 num_minus_lines=1,
@@ -743,9 +729,7 @@ class TestSequentialVsParallel:
             for i in range(3)
         ]
 
-        mock_parallel_executor.execute_batch.return_value = [
-            (i, f"diff{i}") for i in range(3)
-        ]
+        mock_parallel_executor.execute_batch.return_value = [(i, f'diff{i}') for i in range(3)]
 
         generator = DiffGenerator(
             diff_utils=mock_diff_utils,

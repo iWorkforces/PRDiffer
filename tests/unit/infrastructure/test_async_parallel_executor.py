@@ -58,9 +58,9 @@ class TestAsyncParallelExecutorInitialization:
 
         stats = executor.get_stats()
 
-        assert stats["max_concurrent"] == 15
-        assert stats["timeout"] == 60.0
-        assert stats["error_strategy"] == "collect"
+        assert stats['max_concurrent'] == 15
+        assert stats['timeout'] == 60.0
+        assert stats['error_strategy'] == 'collect'
 
 
 @pytest.mark.unit
@@ -81,7 +81,7 @@ class TestBatchResult:
     def test_result_with_successful_items(self):
         """Test BatchResult with successful items."""
         result = BatchResult()
-        result.successful.extend(["result1", "result2", "result3"])
+        result.successful.extend(['result1', 'result2', 'result3'])
 
         assert result.total == 3
         assert result.success_count == 3
@@ -92,8 +92,8 @@ class TestBatchResult:
     def test_result_with_failed_items(self):
         """Test BatchResult with failed items."""
         result = BatchResult()
-        result.successful.append("result1")
-        result.failed.append(("item2", ValueError("Error")))
+        result.successful.append('result1')
+        result.failed.append(('item2', ValueError('Error')))
 
         assert result.total == 2
         assert result.success_count == 1
@@ -105,9 +105,9 @@ class TestBatchResult:
     def test_result_with_mixed_items(self):
         """Test BatchResult with both successful and failed items."""
         result = BatchResult()
-        result.successful.extend(["r1", "r2", "r3"])
-        result.failed.append(("item4", RuntimeError("fail")))
-        result.failed.append(("item5", TypeError("wrong")))
+        result.successful.extend(['r1', 'r2', 'r3'])
+        result.failed.append(('item4', RuntimeError('fail')))
+        result.failed.append(('item5', TypeError('wrong')))
 
         assert result.total == 5
         assert result.success_count == 3
@@ -161,18 +161,18 @@ class TestExecuteBatch:
         """Test execute_batch with IGNORE error strategy."""
         executor = AsyncParallelExecutor(error_strategy=ErrorStrategy.IGNORE)
 
-        call_count = {"value": 0}
+        call_count = {'value': 0}
 
         async def fake_func(item):
-            call_count["value"] += 1
+            call_count['value'] += 1
             if item == 3:
-                raise ValueError("Invalid item")
+                raise ValueError('Invalid item')
             return item * 2
 
         result = await executor.execute_batch(fake_func, [1, 2, 3, 4, 5])
 
         # All 5 items should be processed
-        assert call_count["value"] == 5
+        assert call_count['value'] == 5
         # Only successful results returned
         assert set(result) == {2, 4, 8, 10}
 
@@ -183,7 +183,7 @@ class TestExecuteBatch:
 
         async def fake_func(item):
             if item == 3:
-                raise ValueError("Invalid item")
+                raise ValueError('Invalid item')
             return item * 2
 
         # anyio raises ExceptionGroup for unhandled errors in task group
@@ -197,7 +197,7 @@ class TestExecuteBatch:
 
         async def fake_func(item):
             if item == 3:
-                raise ValueError("Invalid item")
+                raise ValueError('Invalid item')
             return item * 2
 
         result = await executor.execute_batch(fake_func, [1, 2, 3, 4, 5])
@@ -231,11 +231,9 @@ class TestExecuteBatchWithContext:
         executor = AsyncParallelExecutor()
 
         async def fake_func(item, context):
-            return f"{item}-{context.get('suffix', '')}"
+            return f'{item}-{context.get("suffix", "")}'
 
-        result = await executor.execute_batch_with_context(
-            fake_func, [], {"suffix": "test"}
-        )
+        result = await executor.execute_batch_with_context(fake_func, [], {'suffix': 'test'})
 
         assert result == []
 
@@ -245,30 +243,26 @@ class TestExecuteBatchWithContext:
         executor = AsyncParallelExecutor()
 
         async def fake_func(item, context):
-            return f"{item}-{context['suffix']}"
+            return f'{item}-{context["suffix"]}'
 
-        result = await executor.execute_batch_with_context(
-            fake_func, [1, 2, 3], {"suffix": "test"}
-        )
+        result = await executor.execute_batch_with_context(fake_func, [1, 2, 3], {'suffix': 'test'})
 
-        assert set(result) == {"1-test", "2-test", "3-test"}
+        assert set(result) == {'1-test', '2-test', '3-test'}
 
     @pytest.mark.asyncio
     async def test_execute_batch_with_context_mutable_state(self):
         """Test execute_batch_with_context with mutable context state."""
         executor = AsyncParallelExecutor()
-        context = {"counter": 0}
+        context = {'counter': 0}
 
         async def fake_func(item, context):
-            context["counter"] += 1
-            return f"{item}-{context['counter']}"
+            context['counter'] += 1
+            return f'{item}-{context["counter"]}'
 
-        result = await executor.execute_batch_with_context(
-            fake_func, [1, 2, 3], context
-        )
+        result = await executor.execute_batch_with_context(fake_func, [1, 2, 3], context)
 
         # Check context was modified
-        assert context["counter"] == 3
+        assert context['counter'] == 3
         # Check results
         assert len(result) == 3
 
@@ -283,8 +277,8 @@ class TestExecuteMappedBatch:
         executor = AsyncParallelExecutor()
 
         func_map = {
-            "type1": AsyncMock(return_value="result1"),
-            "type2": AsyncMock(return_value="result2"),
+            'type1': AsyncMock(return_value='result1'),
+            'type2': AsyncMock(return_value='result2'),
         }
 
         result = await executor.execute_mapped_batch(func_map, [])
@@ -297,16 +291,16 @@ class TestExecuteMappedBatch:
         executor = AsyncParallelExecutor()
 
         async def func1(item):
-            return f"func1-{item}"
+            return f'func1-{item}'
 
         async def func2(item):
-            return f"func2-{item}"
+            return f'func2-{item}'
 
-        func_map = {"a": func1, "b": func2}
+        func_map = {'a': func1, 'b': func2}
 
-        result = await executor.execute_mapped_batch(func_map, ["a", "b", "a"])
+        result = await executor.execute_mapped_batch(func_map, ['a', 'b', 'a'])
 
-        assert set(result) == {"func1-a", "func2-b"}
+        assert set(result) == {'func1-a', 'func2-b'}
 
     @pytest.mark.asyncio
     async def test_execute_mapped_batch_with_default_func(self):
@@ -314,29 +308,25 @@ class TestExecuteMappedBatch:
         executor = AsyncParallelExecutor()
 
         async def special_func(item):
-            return f"special-{item}"
+            return f'special-{item}'
 
         async def default_func(item):
-            return f"default-{item}"
+            return f'default-{item}'
 
-        func_map = {"special": special_func}
+        func_map = {'special': special_func}
 
-        result = await executor.execute_mapped_batch(
-            func_map, ["special", "other"], default_func=default_func
-        )
+        result = await executor.execute_mapped_batch(func_map, ['special', 'other'], default_func=default_func)
 
-        assert set(result) == {"special-special", "default-other"}
+        assert set(result) == {'special-special', 'default-other'}
 
     @pytest.mark.asyncio
     async def test_execute_mapped_batch_no_matching_function(self):
         """Test execute_mapped_batch with no matching function."""
         executor = AsyncParallelExecutor()
 
-        func_map = {"type1": AsyncMock(return_value="result1")}
+        func_map = {'type1': AsyncMock(return_value='result1')}
 
-        result = await executor.execute_mapped_batch(
-            func_map, ["type2"], default_func=None
-        )
+        result = await executor.execute_mapped_batch(func_map, ['type2'], default_func=None)
 
         # No function for type2, so empty result
         assert result == []
@@ -378,9 +368,7 @@ class TestExecuteWithProgress:
         def progress_callback(completed, total):
             progress_calls.append((completed, total))
 
-        result = await executor.execute_with_progress(
-            fake_func, [1, 2, 3, 4, 5], progress_callback
-        )
+        result = await executor.execute_with_progress(fake_func, [1, 2, 3, 4, 5], progress_callback)
 
         # Check results
         assert set(result) == {2, 4, 6, 8, 10}
@@ -411,16 +399,14 @@ class TestExecuteWithProgress:
 
         async def fake_func(item):
             if item == 2:
-                raise ValueError("Error")
+                raise ValueError('Error')
             return item * 2
 
         # Note: callback must be sync, not async (implementation doesn't await it)
         def progress_callback(completed, total):
             progress_calls.append((completed, total))
 
-        _ = await executor.execute_with_progress(
-            fake_func, [1, 2, 3, 4, 5], progress_callback
-        )
+        _ = await executor.execute_with_progress(fake_func, [1, 2, 3, 4, 5], progress_callback)
 
         # Progress should still be reported for all items
         assert len(progress_calls) == 5
@@ -470,9 +456,9 @@ class TestExecuteBatchDetailed:
 
         async def fake_func(item):
             if item == 2:
-                raise ValueError("Error on 2")
+                raise ValueError('Error on 2')
             if item == 4:
-                raise RuntimeError("Error on 4")
+                raise RuntimeError('Error on 4')
             return item * 2
 
         result = await executor.execute_batch_detailed(fake_func, [1, 2, 3, 4, 5])
@@ -511,22 +497,22 @@ class TestConcurrencyControl:
         """Test that max_concurrent limits concurrent execution."""
         executor = AsyncParallelExecutor(max_concurrent=2)
 
-        active_count = {"value": 0}
-        max_active = {"value": 0}
+        active_count = {'value': 0}
+        max_active = {'value': 0}
 
         async def fake_func(item):
-            active_count["value"] += 1
-            max_active["value"] = max(max_active["value"], active_count["value"])
+            active_count['value'] += 1
+            max_active['value'] = max(max_active['value'], active_count['value'])
 
             await asyncio.sleep(0.05)  # Simulate work
 
-            active_count["value"] -= 1
+            active_count['value'] -= 1
             return item
 
         await executor.execute_batch(fake_func, [1, 2, 3, 4, 5])
 
         # Max concurrent should not exceed 2
-        assert max_active["value"] <= 2
+        assert max_active['value'] <= 2
 
     @pytest.mark.asyncio
     async def test_semaphore_reuse(self):
@@ -556,9 +542,7 @@ class TestTimeoutHandling:
     @pytest.mark.asyncio
     async def test_timeout_with_raise_strategy(self):
         """Test timeout with RAISE error strategy raises TimeoutError."""
-        executor = AsyncParallelExecutor(
-            timeout=0.1, error_strategy=ErrorStrategy.RAISE
-        )
+        executor = AsyncParallelExecutor(timeout=0.1, error_strategy=ErrorStrategy.RAISE)
 
         async def slow_func(item):
             await asyncio.sleep(0.5)
@@ -571,9 +555,7 @@ class TestTimeoutHandling:
     @pytest.mark.asyncio
     async def test_timeout_with_ignore_strategy(self):
         """Test timeout with IGNORE error strategy doesn't raise."""
-        executor = AsyncParallelExecutor(
-            timeout=0.1, error_strategy=ErrorStrategy.IGNORE
-        )
+        executor = AsyncParallelExecutor(timeout=0.1, error_strategy=ErrorStrategy.IGNORE)
 
         async def slow_func(item):
             await asyncio.sleep(0.5)
@@ -628,7 +610,7 @@ class TestErrorHandlingStrategies:
         async def fake_func(item):
             processed.append(item)
             if item == 3:
-                raise ValueError("Error")
+                raise ValueError('Error')
             return item * 2
 
         result = await executor.execute_batch(fake_func, [1, 2, 3, 4, 5])
@@ -648,7 +630,7 @@ class TestErrorHandlingStrategies:
         async def fake_func(item):
             processed.append(item)
             if item == 3:
-                raise ValueError("Error")
+                raise ValueError('Error')
             return item * 2
 
         # anyio raises ExceptionGroup for unhandled errors in task group
@@ -666,7 +648,7 @@ class TestErrorHandlingStrategies:
 
         async def fake_func(item):
             if item == 3:
-                raise ValueError("Error")
+                raise ValueError('Error')
             return item * 2
 
         result = await executor.execute_batch(fake_func, [1, 2, 3, 4, 5])
@@ -686,7 +668,7 @@ class TestErrorHandlingStrategies:
         async def fake_func(item):
             processed.append(item)
             if item == 3:
-                raise ValueError("Error")
+                raise ValueError('Error')
             return item * 2
 
         result = await executor.execute_batch(fake_func, [1, 2, 3, 4, 5])
@@ -734,7 +716,7 @@ class TestEdgeCases:
         executor = AsyncParallelExecutor(error_strategy=ErrorStrategy.IGNORE)
 
         async def fake_func(item):
-            raise ValueError("Error")
+            raise ValueError('Error')
 
         result = await executor.execute_batch(fake_func, [1])
 

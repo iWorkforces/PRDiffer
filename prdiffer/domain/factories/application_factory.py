@@ -25,15 +25,11 @@ class ApplicationFactoryInterface(ABC):
     """Abstract factory for creating application-layer components (rate limiting, metrics, auth, health)."""
 
     @abstractmethod
-    def create_rate_limiter(
-        self, logger: LoggerServiceInterface
-    ) -> RateLimiterProtocol:
+    def create_rate_limiter(self, logger: LoggerServiceInterface) -> RateLimiterProtocol:
         pass
 
     @abstractmethod
-    def create_metrics_tracker(
-        self, logger: LoggerServiceInterface
-    ) -> MetricsTrackerProtocol:
+    def create_metrics_tracker(self, logger: LoggerServiceInterface) -> MetricsTrackerProtocol:
         pass
 
     @abstractmethod
@@ -68,7 +64,5 @@ class ApplicationFactoryInterface(ABC):
         pass
 
     @abstractmethod
-    def create_authentication(
-        self, logger: LoggerServiceInterface
-    ) -> AuthenticationProtocol:
+    def create_authentication(self, logger: LoggerServiceInterface) -> AuthenticationProtocol:
         pass

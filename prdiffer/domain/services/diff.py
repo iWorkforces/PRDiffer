@@ -36,9 +36,7 @@ class DiffServiceInterface(ABC):
         pass
 
     @abstractmethod
-    def extend_patch(
-        self, original_file_str: str, patch_str: str, new_file_str: str = ""
-    ) -> str:
+    def extend_patch(self, original_file_str: str, patch_str: str, new_file_str: str = '') -> str:
         """Extend a patch to show full file context.
 
         Args:

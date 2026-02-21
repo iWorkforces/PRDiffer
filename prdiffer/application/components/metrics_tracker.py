@@ -33,9 +33,7 @@ class MetricsTracker(MetricsTrackerProtocol):
         # Operation-specific metrics
         self._operation_metrics: dict[str, dict[str, Any]] = {}
 
-    def track_request(
-        self, operation: str, success: bool, execution_time: float
-    ) -> None:
+    def track_request(self, operation: str, success: bool, execution_time: float) -> None:
         """Track a request for metrics collection.
 
         Args:
@@ -54,34 +52,30 @@ class MetricsTracker(MetricsTrackerProtocol):
             # Track operation-specific metrics
             if operation not in self._operation_metrics:
                 self._operation_metrics[operation] = {
-                    "total_requests": 0,
-                    "successful_requests": 0,
-                    "failed_requests": 0,
-                    "total_execution_time": 0.0,
-                    "min_execution_time": float("inf"),
-                    "max_execution_time": 0.0,
+                    'total_requests': 0,
+                    'successful_requests': 0,
+                    'failed_requests': 0,
+                    'total_execution_time': 0.0,
+                    'min_execution_time': float('inf'),
+                    'max_execution_time': 0.0,
                 }
 
             op_metrics = self._operation_metrics[operation]
-            op_metrics["total_requests"] += 1
+            op_metrics['total_requests'] += 1
 
             if success:
-                op_metrics["successful_requests"] += 1
+                op_metrics['successful_requests'] += 1
             else:
-                op_metrics["failed_requests"] += 1
+                op_metrics['failed_requests'] += 1
 
-            op_metrics["total_execution_time"] += execution_time
-            op_metrics["min_execution_time"] = min(
-                op_metrics["min_execution_time"], execution_time
-            )
-            op_metrics["max_execution_time"] = max(
-                op_metrics["max_execution_time"], execution_time
-            )
+            op_metrics['total_execution_time'] += execution_time
+            op_metrics['min_execution_time'] = min(op_metrics['min_execution_time'], execution_time)
+            op_metrics['max_execution_time'] = max(op_metrics['max_execution_time'], execution_time)
 
             total_requests = self._total_requests
 
         self._logger.debug(
-            f"Request tracked - operation: {operation}, success: {success}, execution_time: {execution_time:.3f}s, total_requests: {total_requests}"
+            f'Request tracked - operation: {operation}, success: {success}, execution_time: {execution_time:.3f}s, total_requests: {total_requests}'
         )
 
     def generate_request_id(self) -> str:
@@ -93,7 +87,7 @@ class MetricsTracker(MetricsTrackerProtocol):
         with self._lock:
             self._request_counter += 1
             counter = self._request_counter
-        return f"REQ-{int(time.time() * 1000)}-{counter}"
+        return f'REQ-{int(time.time() * 1000)}-{counter}'
 
     def get_metrics_summary(self) -> dict[str, Any]:
         """Get a summary of collected metrics.
@@ -120,39 +114,31 @@ class MetricsTracker(MetricsTrackerProtocol):
         # Process operation-specific metrics (now safe to iterate outside the lock)
         for operation, op_metrics in operation_metrics_copy.items():
             avg_execution_time = 0.0
-            if op_metrics["total_requests"] > 0:
-                avg_execution_time = (
-                    op_metrics["total_execution_time"] / op_metrics["total_requests"]
-                )
+            if op_metrics['total_requests'] > 0:
+                avg_execution_time = op_metrics['total_execution_time'] / op_metrics['total_requests']
 
             success_rate = 0.0
-            if op_metrics["total_requests"] > 0:
-                success_rate = (
-                    op_metrics["successful_requests"] / op_metrics["total_requests"]
-                ) * 100
+            if op_metrics['total_requests'] > 0:
+                success_rate = (op_metrics['successful_requests'] / op_metrics['total_requests']) * 100
 
             operations_data[operation] = {
-                "total_requests": op_metrics["total_requests"],
-                "successful_requests": op_metrics["successful_requests"],
-                "failed_requests": op_metrics["failed_requests"],
-                "success_rate": round(success_rate, 2),
-                "avg_execution_time": round(avg_execution_time, 3),
-                "min_execution_time": round(op_metrics["min_execution_time"], 3)
-                if op_metrics["min_execution_time"] != float("inf")
-                else 0.0,
-                "max_execution_time": round(op_metrics["max_execution_time"], 3),
+                'total_requests': op_metrics['total_requests'],
+                'successful_requests': op_metrics['successful_requests'],
+                'failed_requests': op_metrics['failed_requests'],
+                'success_rate': round(success_rate, 2),
+                'avg_execution_time': round(avg_execution_time, 3),
+                'min_execution_time': round(op_metrics['min_execution_time'], 3) if op_metrics['min_execution_time'] != float('inf') else 0.0,
+                'max_execution_time': round(op_metrics['max_execution_time'], 3),
             }
 
         metrics: dict[str, Any] = {
-            "uptime_seconds": uptime_seconds,
-            "uptime_human": self._format_uptime(uptime_seconds),
-            "total_requests": total_requests,
-            "successful_requests": successful_requests,
-            "failed_requests": failed_requests,
-            "success_rate": self._calculate_success_rate_safe(
-                successful_requests, total_requests
-            ),
-            "operations": operations_data,
+            'uptime_seconds': uptime_seconds,
+            'uptime_human': self._format_uptime(uptime_seconds),
+            'total_requests': total_requests,
+            'successful_requests': successful_requests,
+            'failed_requests': failed_requests,
+            'success_rate': self._calculate_success_rate_safe(successful_requests, total_requests),
+            'operations': operations_data,
         }
 
         return metrics
@@ -172,13 +158,13 @@ class MetricsTracker(MetricsTrackerProtocol):
         secs = seconds % 60
 
         if days > 0:
-            return f"{int(days)}d {int(hours)}h {int(minutes)}m {int(secs)}s"
+            return f'{int(days)}d {int(hours)}h {int(minutes)}m {int(secs)}s'
         elif hours > 0:
-            return f"{int(hours)}h {int(minutes)}m {int(secs)}s"
+            return f'{int(hours)}h {int(minutes)}m {int(secs)}s'
         elif minutes > 0:
-            return f"{int(minutes)}m {int(secs)}s"
+            return f'{int(minutes)}m {int(secs)}s'
         else:
-            return f"{int(secs)}s"
+            return f'{int(secs)}s'
 
     def _calculate_success_rate(self) -> float:
         """Calculate success rate percentage.
@@ -191,9 +177,7 @@ class MetricsTracker(MetricsTrackerProtocol):
                 return 0.0
             return round((self._successful_requests / self._total_requests) * 100, 2)
 
-    def _calculate_success_rate_safe(
-        self, successful_requests: int, total_requests: int
-    ) -> float:
+    def _calculate_success_rate_safe(self, successful_requests: int, total_requests: int) -> float:
         """Calculate success rate percentage from provided values.
 
         Args:
@@ -216,4 +200,4 @@ class MetricsTracker(MetricsTrackerProtocol):
             self._operation_metrics.clear()
             self._start_time = time.time()
 
-        self._logger.info("Metrics reset to zero")
+        self._logger.info('Metrics reset to zero')

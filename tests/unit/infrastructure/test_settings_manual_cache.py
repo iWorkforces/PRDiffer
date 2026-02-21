@@ -179,12 +179,12 @@ class TestThreadSafety:
 
     def test_no_race_condition_in_cache_initialization(self):
         service = SettingsService()
-        call_count = {"get_github_settings": 0}
+        call_count = {'get_github_settings': 0}
         original_get = service.get
 
         def tracked_get(key, default=None):
-            if key.startswith("github."):
-                call_count["get_github_settings"] += 1
+            if key.startswith('github.'):
+                call_count['get_github_settings'] += 1
                 time.sleep(0.001)
             return original_get(key, default)
 
@@ -211,29 +211,29 @@ class TestSettingsValues:
         settings = service.get_github_settings()
 
         expected_keys = {
-            "rate_limit",
-            "timeout",
-            "max_retries",
-            "retry_delay",
-            "retry_on_404",
-            "retry_on_403",
-            "retry_on_500",
-            "retry_log_level",
-            "permanent_failure_log_level",
-            "circuit_breaker_enabled",
-            "circuit_breaker_failure_threshold",
-            "circuit_breaker_timeout",
-            "adaptive_retry_enabled",
-            "max_adaptive_delay",
-            "api_health_tracking",
-            "context_aware_retry",
-            "ignore_patterns",
-            "valid_extensions",
-            "diff_parallel_enabled",
-            "diff_parallel_threshold",
-            "diff_max_workers",
-            "diff_worker_timeout",
-            "max_concurrent",
+            'rate_limit',
+            'timeout',
+            'max_retries',
+            'retry_delay',
+            'retry_on_404',
+            'retry_on_403',
+            'retry_on_500',
+            'retry_log_level',
+            'permanent_failure_log_level',
+            'circuit_breaker_enabled',
+            'circuit_breaker_failure_threshold',
+            'circuit_breaker_timeout',
+            'adaptive_retry_enabled',
+            'max_adaptive_delay',
+            'api_health_tracking',
+            'context_aware_retry',
+            'ignore_patterns',
+            'valid_extensions',
+            'diff_parallel_enabled',
+            'diff_parallel_threshold',
+            'diff_max_workers',
+            'diff_worker_timeout',
+            'max_concurrent',
         }
 
         assert set(settings.keys()) == expected_keys
@@ -242,14 +242,14 @@ class TestSettingsValues:
         service = SettingsService()
         settings = service.get_github_settings()
 
-        assert isinstance(settings["ignore_patterns"], tuple)
-        assert isinstance(settings["valid_extensions"], tuple)
+        assert isinstance(settings['ignore_patterns'], tuple)
+        assert isinstance(settings['valid_extensions'], tuple)
 
     def test_get_cache_settings_returns_expected_keys(self):
         service = SettingsService()
         settings = service.get_cache_settings()
 
-        expected_keys = {"ttl", "max_size", "enabled"}
+        expected_keys = {'ttl', 'max_size', 'enabled'}
         assert set(settings.keys()) == expected_keys
 
     def test_get_app_settings_returns_expected_keys(self):
@@ -257,12 +257,12 @@ class TestSettingsValues:
         settings = service.get_app_settings()
 
         expected_keys = {
-            "debug",
-            "log_level",
-            "max_files_allowed",
-            "incremental_mode",
-            "logging_enabled",
-            "log_format",
+            'debug',
+            'log_level',
+            'max_files_allowed',
+            'incremental_mode',
+            'logging_enabled',
+            'log_format',
         }
         assert set(settings.keys()) == expected_keys
 
@@ -271,18 +271,18 @@ class TestSettingsValues:
         config = service.get_github_config()
 
         assert isinstance(config, GitHubConfig)
-        assert hasattr(config, "rate_limit")
-        assert hasattr(config, "timeout")
-        assert hasattr(config, "max_retries")
+        assert hasattr(config, 'rate_limit')
+        assert hasattr(config, 'timeout')
+        assert hasattr(config, 'max_retries')
 
 
 class TestNoLruCacheImport:
     def test_no_lru_cache_decorator_in_code(self):
         with open(
-            "/Volumes/Data/GitHub/cc/PRDifferMCP/prdiffer/infrastructure/settings.py",
-            "r",
+            '/Volumes/Data/GitHub/cc/PRDifferMCP/prdiffer/infrastructure/settings.py',
+            'r',
         ) as f:
             content = f.read()
 
-        assert "@lru_cache" not in content
-        assert "from functools import lru_cache" not in content
+        assert '@lru_cache' not in content
+        assert 'from functools import lru_cache' not in content

@@ -29,9 +29,7 @@ class RepositoryCacheServiceInterface(ABC):
         pass
 
     @abstractmethod
-    def retrieve(
-        self, repo_owner: str, repo_name: str, pr_number: int
-    ) -> PRDiffRepositoryInterface | None:
+    def retrieve(self, repo_owner: str, repo_name: str, pr_number: int) -> PRDiffRepositoryInterface | None:
         """Retrieve a cached repository instance.
 
         Args:

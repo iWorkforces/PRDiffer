@@ -26,35 +26,33 @@ def parse_github_pr_url(pr_url: str) -> tuple[str, str, int]:
         InvalidPRNumberError: If PR number is not a valid integer
     """
     if pr_url is None or not pr_url:
-        raise InvalidURLError("PR URL cannot be None or empty")
+        raise InvalidURLError('PR URL cannot be None or empty')
 
     pr_url = pr_url.strip()
 
     if not pr_url:
-        raise InvalidURLError("PR URL cannot be empty or whitespace-only")
+        raise InvalidURLError('PR URL cannot be empty or whitespace-only')
 
     # Check URL length (prevent DoS)
     if len(pr_url) > 2000:
-        raise InvalidURLError("URL too long (max 2000 characters)")
+        raise InvalidURLError('URL too long (max 2000 characters)')
 
     # Must start with https://github.com/
-    if not pr_url.startswith("https://github.com/"):
+    if not pr_url.startswith('https://github.com/'):
         raise InvalidURLError(
-            "URL must start with https://github.com/",
-            details={"url": pr_url[:100]},
+            'URL must start with https://github.com/',
+            details={'url': pr_url[:100]},
         )
 
     # Parse URL - supports both 'pull/' and 'pulls/'
-    pattern = re.compile(
-        r"^https://github\.com/([a-zA-Z0-9_-]+)/([a-zA-Z0-9._-]+)/pulls?/(\d+)/?$"
-    )
+    pattern = re.compile(r'^https://github\.com/([a-zA-Z0-9_-]+)/([a-zA-Z0-9._-]+)/pulls?/(\d+)/?$')
 
     match = pattern.match(pr_url)
 
     if not match:
         raise InvalidURLError(
-            "Invalid GitHub PR URL format. Expected: https://github.com/owner/repo/pull/123 or https://github.com/owner/repo/pulls/123",
-            details={"url": pr_url[:100]},
+            'Invalid GitHub PR URL format. Expected: https://github.com/owner/repo/pull/123 or https://github.com/owner/repo/pulls/123',
+            details={'url': pr_url[:100]},
         )
 
     owner, repo_name, pr_number_str = match.groups()
@@ -67,13 +65,13 @@ def parse_github_pr_url(pr_url: str) -> tuple[str, str, int]:
     try:
         pr_number = int(pr_number_str)
     except ValueError:
-        raise InvalidPRNumberError(f"Invalid PR number: {pr_number_str}")
+        raise InvalidPRNumberError(f'Invalid PR number: {pr_number_str}')
 
     if pr_number <= 0:
-        raise InvalidPRNumberError("PR number must be positive")
+        raise InvalidPRNumberError('PR number must be positive')
 
     if pr_number > 1000000:
-        raise InvalidPRNumberError("PR number too large (max 1000000)")
+        raise InvalidPRNumberError('PR number too large (max 1000000)')
 
     return owner, repo_name, pr_number
 
@@ -88,16 +86,16 @@ def _validate_owner(owner: str) -> None:
         InvalidURLError: If owner is invalid
     """
     if not owner:
-        raise InvalidURLError("Owner cannot be empty")
+        raise InvalidURLError('Owner cannot be empty')
 
     if len(owner) > 39:  # GitHub's max username length
-        raise InvalidURLError("Owner name too long (max 39 characters)")
+        raise InvalidURLError('Owner name too long (max 39 characters)')
 
     # GitHub usernames: alphanumeric, hyphens, underscores
-    if not re.match(r"^[a-zA-Z0-9_-]+$", owner):
+    if not re.match(r'^[a-zA-Z0-9_-]+$', owner):
         raise InvalidURLError(
-            "Owner contains invalid characters (allowed: a-z, A-Z, 0-9, -, _)",
-            details={"owner": owner},
+            'Owner contains invalid characters (allowed: a-z, A-Z, 0-9, -, _)',
+            details={'owner': owner},
         )
 
 
@@ -111,16 +109,16 @@ def _validate_repo_name(repo: str) -> None:
         InvalidURLError: If repo name is invalid
     """
     if not repo:
-        raise InvalidURLError("Repository name cannot be empty")
+        raise InvalidURLError('Repository name cannot be empty')
 
     if len(repo) > 100:  # GitHub's max repo name length
-        raise InvalidURLError("Repository name too long (max 100 characters)")
+        raise InvalidURLError('Repository name too long (max 100 characters)')
 
     # GitHub repo names: alphanumeric, periods, hyphens, underscores
-    if not re.match(r"^[a-zA-Z0-9._-]+$", repo):
+    if not re.match(r'^[a-zA-Z0-9._-]+$', repo):
         raise InvalidURLError(
-            "Repository name contains invalid characters",
-            details={"repo": repo},
+            'Repository name contains invalid characters',
+            details={'repo': repo},
         )
 
 

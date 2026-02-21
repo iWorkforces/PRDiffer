@@ -30,8 +30,8 @@ class TestCircuitBreakerInitialization:
         assert breaker.timeout == 60.0
         assert breaker.state == CircuitState.CLOSED
         assert breaker.failure_count == 0
-        assert breaker.get_stats()["last_failure_time"] is None
-        assert breaker.get_stats()["successful_calls"] == 0
+        assert breaker.get_stats()['last_failure_time'] is None
+        assert breaker.get_stats()['successful_calls'] == 0
 
     def test_initialization_with_custom_values(self):
         """Test circuit breaker initialization with custom values."""
@@ -231,7 +231,7 @@ class TestCircuitBreakerAsyncMethods:
         await breaker.record_success_async()
 
         assert breaker.state == CircuitState.CLOSED
-        assert breaker.get_stats()["successful_calls"] == 0  # Reset on close
+        assert breaker.get_stats()['successful_calls'] == 0  # Reset on close
 
     @pytest.mark.asyncio
     async def test_record_failure_async(self):
@@ -264,12 +264,12 @@ class TestCircuitBreakerStatistics:
 
         stats = breaker.get_stats()
 
-        assert stats["state"] == CircuitState.CLOSED.value
-        assert stats["failure_count"] == 2
-        assert stats["failure_threshold"] == 5
-        assert stats["timeout"] == 120.0
-        assert stats["successful_calls"] == 0
-        assert stats["last_failure_time"] is not None
+        assert stats['state'] == CircuitState.CLOSED.value
+        assert stats['failure_count'] == 2
+        assert stats['failure_threshold'] == 5
+        assert stats['timeout'] == 120.0
+        assert stats['successful_calls'] == 0
+        assert stats['last_failure_time'] is not None
 
     def test_get_stats_after_opening(self):
         """Test get_stats reflects OPEN state."""
@@ -281,8 +281,8 @@ class TestCircuitBreakerStatistics:
 
         stats = breaker.get_stats()
 
-        assert stats["state"] == CircuitState.OPEN.value
-        assert stats["failure_count"] == 2
+        assert stats['state'] == CircuitState.OPEN.value
+        assert stats['failure_count'] == 2
 
 
 @pytest.mark.unit
@@ -292,12 +292,12 @@ class TestCircuitBreakerException:
     def test_exception_creation(self):
         """Test CircuitBreakerOpenException can be created."""
         exc = CircuitBreakerOpenException()
-        assert exc.message == "Circuit breaker is open"
+        assert exc.message == 'Circuit breaker is open'
 
     def test_exception_with_custom_message(self):
         """Test CircuitBreakerOpenException with custom message."""
-        exc = CircuitBreakerOpenException("Custom message")
-        assert exc.message == "Custom message"
+        exc = CircuitBreakerOpenException('Custom message')
+        assert exc.message == 'Custom message'
 
 
 @pytest.mark.unit
@@ -366,22 +366,22 @@ class TestCircuitBreakerEdgeCases:
 
         # Get initial stats
         initial_stats = breaker.get_stats()
-        assert initial_stats["failure_count"] == 0
+        assert initial_stats['failure_count'] == 0
 
         # Record failure
         breaker.record_failure()
         stats_after_one = breaker.get_stats()
-        assert stats_after_one["failure_count"] == 1
+        assert stats_after_one['failure_count'] == 1
 
         # Record another failure
         breaker.record_failure()
         stats_after_two = breaker.get_stats()
-        assert stats_after_two["failure_count"] == 2
+        assert stats_after_two['failure_count'] == 2
 
         # Record success should reset count
         breaker.record_success()
         stats_after_success = breaker.get_stats()
-        assert stats_after_success["failure_count"] == 0
+        assert stats_after_success['failure_count'] == 0
 
 
 @pytest.mark.unit
@@ -478,18 +478,18 @@ class TestCircuitBreakerFactoryFunctions:
         """Test getting a circuit breaker from the global registry."""
         registry = get_global_circuit_breaker_registry()
 
-        breaker = registry.get_breaker("custom_endpoint")
+        breaker = registry.get_breaker('custom_endpoint')
 
         assert breaker is not None
         # Verify it's the same breaker from registry
-        assert breaker is registry.get_breaker("custom_endpoint")
+        assert breaker is registry.get_breaker('custom_endpoint')
 
     def test_registry_returns_same_breaker_for_same_endpoint(self):
         """Test that registry returns the same breaker for the same endpoint."""
         registry = get_global_circuit_breaker_registry()
 
-        breaker1 = registry.get_breaker("endpoint1")
-        breaker2 = registry.get_breaker("endpoint1")
+        breaker1 = registry.get_breaker('endpoint1')
+        breaker2 = registry.get_breaker('endpoint1')
 
         assert breaker1 is breaker2
 
@@ -516,36 +516,34 @@ class TestGlobalCircuitBreakerRegistry:
 
     def test_registry_initialization(self):
         """Test registry initializes with correct defaults."""
-        registry = get_global_circuit_breaker_registry(
-            default_failure_threshold=10, default_timeout=30.0
-        )
+        registry = get_global_circuit_breaker_registry(default_failure_threshold=10, default_timeout=30.0)
 
         stats = registry.get_all_stats()
-        assert "global" in stats
+        assert 'global' in stats
         # Global breaker uses default_failure_threshold * 2
-        assert stats["global"]["failure_threshold"] == 10 * 2
-        assert stats["global"]["timeout"] == 30.0
+        assert stats['global']['failure_threshold'] == 10 * 2
+        assert stats['global']['timeout'] == 30.0
 
     def test_get_breaker_creates_new_breaker(self):
         """Test get_breaker creates new breaker for endpoint."""
         registry = get_global_circuit_breaker_registry()
 
-        breaker1 = registry.get_breaker("github_api")
-        breaker2 = registry.get_breaker("github_api")
+        breaker1 = registry.get_breaker('github_api')
+        breaker2 = registry.get_breaker('github_api')
 
         # Should return same instance for same endpoint
         assert breaker1 is breaker2
 
         # Different endpoint should return different instance
-        breaker3 = registry.get_breaker("repo_content")
+        breaker3 = registry.get_breaker('repo_content')
         assert breaker1 is not breaker3
 
     def test_get_breaker_persists_across_calls(self):
         """Test that get_breaker returns same instance across calls."""
         registry = get_global_circuit_breaker_registry()
 
-        breaker1 = registry.get_breaker("endpoint1")
-        breaker2 = registry.get_breaker("endpoint1")
+        breaker1 = registry.get_breaker('endpoint1')
+        breaker2 = registry.get_breaker('endpoint1')
 
         assert breaker1 is breaker2
 
@@ -554,14 +552,14 @@ class TestGlobalCircuitBreakerRegistry:
         registry = get_global_circuit_breaker_registry(default_failure_threshold=2)
 
         # Both global and endpoint should allow execution initially
-        assert registry.can_execute("github_api") is True
+        assert registry.can_execute('github_api') is True
 
         # Open global breaker (needs 4 failures since threshold is 2*2=4)
         for _ in range(4):
             registry.global_breaker.record_failure()
 
         # Should now be blocked
-        assert registry.can_execute("github_api") is False
+        assert registry.can_execute('github_api') is False
 
     def test_can_execute_without_endpoint(self):
         """Test can_execute with no endpoint checks only global breaker."""
@@ -582,14 +580,14 @@ class TestGlobalCircuitBreakerRegistry:
         registry = get_global_circuit_breaker_registry()
 
         # Create some state
-        registry.get_breaker("endpoint1").record_failure()
-        registry.get_breaker("endpoint2").record_failure()
+        registry.get_breaker('endpoint1').record_failure()
+        registry.get_breaker('endpoint2').record_failure()
 
         stats = registry.get_all_stats()
 
-        assert "global" in stats
-        assert "endpoint1" in stats
-        assert "endpoint2" in stats
+        assert 'global' in stats
+        assert 'endpoint1' in stats
+        assert 'endpoint2' in stats
 
     def test_get_open_breakers(self):
         """Test get_open_breakers returns list of open endpoints."""
@@ -602,13 +600,13 @@ class TestGlobalCircuitBreakerRegistry:
         assert open_breakers == []
 
         # Open an endpoint breaker
-        endpoint_breaker = registry.get_breaker("test_endpoint")
+        endpoint_breaker = registry.get_breaker('test_endpoint')
         endpoint_breaker.record_failure()
         endpoint_breaker.record_failure()
 
         # Check it's in open list
         open_breakers = registry.get_open_breakers()
-        assert "test_endpoint" in open_breakers
+        assert 'test_endpoint' in open_breakers
 
     def test_reset_all(self):
         """Test reset_all closes all circuit breakers."""
@@ -617,10 +615,10 @@ class TestGlobalCircuitBreakerRegistry:
         )
 
         # Open some breakers
-        registry.get_breaker("endpoint1").record_failure()
-        registry.get_breaker("endpoint1").record_failure()
-        registry.get_breaker("endpoint2").record_failure()
-        registry.get_breaker("endpoint2").record_failure()
+        registry.get_breaker('endpoint1').record_failure()
+        registry.get_breaker('endpoint1').record_failure()
+        registry.get_breaker('endpoint2').record_failure()
+        registry.get_breaker('endpoint2').record_failure()
 
         assert registry.get_open_breakers() != []
 
@@ -633,45 +631,45 @@ class TestGlobalCircuitBreakerRegistry:
 
         # All failure counts should be reset
         stats = registry.get_all_stats()
-        assert stats["endpoint1"]["failure_count"] == 0
-        assert stats["endpoint2"]["failure_count"] == 0
+        assert stats['endpoint1']['failure_count'] == 0
+        assert stats['endpoint2']['failure_count'] == 0
 
     def test_clear_endpoint(self):
         """Test clear_endpoint removes endpoint breaker."""
         registry = get_global_circuit_breaker_registry()
 
         # Create a breaker for an endpoint
-        registry.get_breaker("temp_endpoint")
+        registry.get_breaker('temp_endpoint')
 
         # Clear it
-        registry.clear_endpoint("temp_endpoint")
+        registry.clear_endpoint('temp_endpoint')
 
         # Should no longer exist
         # Get a new breaker to verify
-        new_breaker = registry.get_breaker("temp_endpoint")
+        new_breaker = registry.get_breaker('temp_endpoint')
         assert new_breaker is not None  # Creates new instance
 
     def test_record_success_propagates_to_all_breakers(self):
         """Test record_success updates both global and endpoint breakers."""
         registry = get_global_circuit_breaker_registry()
 
-        _ = registry.get_breaker("test_endpoint")
+        _ = registry.get_breaker('test_endpoint')
 
         # Record success propagates to global
-        registry.record_success("test_endpoint")
+        registry.record_success('test_endpoint')
         assert registry.global_breaker.failure_count == 0
 
         # Record success without endpoint affects only global
         registry.record_success()
-        assert registry.global_breaker.get_stats()["successful_calls"] >= 0
+        assert registry.global_breaker.get_stats()['successful_calls'] >= 0
 
     def test_record_failure_propagates_to_all_breakers(self):
         """Test record_failure updates both global and endpoint breakers."""
         registry = get_global_circuit_breaker_registry(default_failure_threshold=5)
 
-        endpoint_breaker = registry.get_breaker("test_endpoint")
+        endpoint_breaker = registry.get_breaker('test_endpoint')
 
         # Record failure propagates to both
-        registry.record_failure("test_endpoint")
+        registry.record_failure('test_endpoint')
         assert registry.global_breaker.failure_count == 1
         assert endpoint_breaker.failure_count == 1

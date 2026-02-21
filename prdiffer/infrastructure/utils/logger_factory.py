@@ -66,9 +66,7 @@ class LazyLoggerMixin:
                 logger.info("Doing work")
     """
 
-    def _init_lazy_logger(
-        self, logger: logging.Logger | None, logger_name: str
-    ) -> None:
+    def _init_lazy_logger(self, logger: logging.Logger | None, logger_name: str) -> None:
         """Initialize lazy logger state.
 
         This should be called in __init__() of classes using this mixin.
@@ -118,7 +116,7 @@ def get_null_logger(name: str | None = None) -> logging.Logger:
         >>> logger.debug("This will not be logged")
         >>> logger.info("This will not be logged either")
     """
-    logger = logging.getLogger(name or "null_logger")
+    logger = logging.getLogger(name or 'null_logger')
     logger.setLevel(logging.CRITICAL + 1)  # Set above all standard levels
     logger.propagate = False  # Don't propagate to root logger
     return logger

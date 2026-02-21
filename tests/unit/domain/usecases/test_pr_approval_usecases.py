@@ -35,13 +35,11 @@ class TestApprovePRUseCase:
         """Create use case with mocked dependencies."""
         return ApprovePRUseCase(pr_diff_repository=mock_repository, logger=mock_logger)
 
-    def test_execute_calls_repository_with_correct_params(
-        self, use_case, mock_repository
-    ):
+    def test_execute_calls_repository_with_correct_params(self, use_case, mock_repository):
         """Test execution delegates to repository with correct parameters."""
         # Arrange
-        pr_url = "https://github.com/owner/repo/pull/123"
-        compliment = "Great work on this PR!"
+        pr_url = 'https://github.com/owner/repo/pull/123'
+        compliment = 'Great work on this PR!'
 
         # Act
         import asyncio
@@ -59,11 +57,11 @@ class TestApprovePRUseCase:
     def test_execute_with_empty_pr_url_raises_error(self, use_case):
         """Test execution raises error when PR URL is empty."""
         # Arrange
-        pr_url = ""
-        compliment = "Nice PR!"
+        pr_url = ''
+        compliment = 'Nice PR!'
 
         # Act & Assert
-        with pytest.raises(InvalidURLError, match="PR URL cannot be empty"):
+        with pytest.raises(InvalidURLError, match='PR URL cannot be empty'):
             import asyncio
 
             asyncio.run(use_case.execute(pr_url=pr_url, compliment=compliment))
@@ -72,7 +70,7 @@ class TestApprovePRUseCase:
         """Test execution raises error when PR URL is None."""
         # Arrange
         pr_url = None
-        compliment = "Nice PR!"
+        compliment = 'Nice PR!'
 
         # Act & Assert
         with pytest.raises(TypeError):
@@ -83,11 +81,11 @@ class TestApprovePRUseCase:
     def test_execute_with_empty_compliment_raises_error(self, use_case):
         """Test execution raises error when compliment is empty."""
         # Arrange
-        pr_url = "https://github.com/owner/repo/pull/123"
-        compliment = ""
+        pr_url = 'https://github.com/owner/repo/pull/123'
+        compliment = ''
 
         # Act & Assert
-        with pytest.raises(ValidationError, match="Compliment cannot be empty"):
+        with pytest.raises(ValidationError, match='Compliment cannot be empty'):
             import asyncio
 
             asyncio.run(use_case.execute(pr_url=pr_url, compliment=compliment))
@@ -96,7 +94,7 @@ class TestApprovePRUseCase:
         """Test execution raises error when PR URL is not a string."""
         # Arrange
         pr_url = 12345
-        compliment = "Nice PR!"
+        compliment = 'Nice PR!'
 
         # Act & Assert - code tries to slice int, raises TypeError before validation
         with pytest.raises(TypeError):
@@ -107,11 +105,11 @@ class TestApprovePRUseCase:
     def test_execute_with_invalid_compliment_type_raises_error(self, use_case):
         """Test execution raises error when compliment is not a string."""
         # Arrange
-        pr_url = "https://github.com/owner/repo/pull/123"
+        pr_url = 'https://github.com/owner/repo/pull/123'
         compliment = 12345
 
         # Act & Assert
-        with pytest.raises(ValidationError, match="must be a string"):
+        with pytest.raises(ValidationError, match='must be a string'):
             import asyncio
 
             asyncio.run(use_case.execute(pr_url=pr_url, compliment=compliment))
@@ -119,8 +117,8 @@ class TestApprovePRUseCase:
     def test_execute_logs_on_start(self, use_case, mock_logger):
         """Test execution logs on start."""
         # Arrange
-        pr_url = "https://github.com/owner/repo/pull/123"
-        compliment = "Great work!"
+        pr_url = 'https://github.com/owner/repo/pull/123'
+        compliment = 'Great work!'
 
         # Act
         import asyncio
@@ -134,9 +132,9 @@ class TestApprovePRUseCase:
     def test_execute_returns_repository_result(self, use_case, mock_repository):
         """Test execution returns result from repository."""
         # Arrange
-        pr_url = "https://github.com/owner/repo/pull/123"
-        compliment = "Excellent PR!"
-        expected_result = "Successfully approved PR #123 in owner/repo"
+        pr_url = 'https://github.com/owner/repo/pull/123'
+        compliment = 'Excellent PR!'
+        expected_result = 'Successfully approved PR #123 in owner/repo'
         mock_repository.approve_pr_with_comment.return_value = expected_result
 
         # Act
@@ -150,12 +148,12 @@ class TestApprovePRUseCase:
     def test_execute_propagates_repository_error(self, use_case, mock_repository):
         """Test execution propagates repository errors."""
         # Arrange
-        pr_url = "https://github.com/owner/repo/pull/123"
-        compliment = "Nice PR!"
-        mock_repository.approve_pr_with_comment.side_effect = RuntimeError("API error")
+        pr_url = 'https://github.com/owner/repo/pull/123'
+        compliment = 'Nice PR!'
+        mock_repository.approve_pr_with_comment.side_effect = RuntimeError('API error')
 
         # Act & Assert
-        with pytest.raises(RuntimeError, match="API error"):
+        with pytest.raises(RuntimeError, match='API error'):
             import asyncio
 
             asyncio.run(use_case.execute(pr_url=pr_url, compliment=compliment))

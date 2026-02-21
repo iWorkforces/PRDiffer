@@ -52,30 +52,26 @@ class UpdatePRDescriptionUseCase:
         """
         if self._logger:
             self._logger.info(
-                "Executing update PR description use case",
+                'Executing update PR description use case',
                 pr_url=pr_url[:100],
             )
 
         # Validate inputs
         if not pr_url:
-            raise InvalidURLError(
-                "PR URL cannot be empty", error_code=E1001_INVALID_URL
-            )
+            raise InvalidURLError('PR URL cannot be empty', error_code=E1001_INVALID_URL)
 
         if not isinstance(pr_url, str):
             raise ValidationError(
-                f"PR URL must be a string, got {type(pr_url).__name__}",
+                f'PR URL must be a string, got {type(pr_url).__name__}',
                 error_code=E1009_INVALID_FORMAT,
             )
 
         if not pr_description:
-            raise ValidationError(
-                "PR description cannot be empty", error_code=E1001_INVALID_URL
-            )
+            raise ValidationError('PR description cannot be empty', error_code=E1001_INVALID_URL)
 
         if not isinstance(pr_description, str):
             raise ValidationError(
-                f"PR description must be a string, got {type(pr_description).__name__}",
+                f'PR description must be a string, got {type(pr_description).__name__}',
                 error_code=E1009_INVALID_FORMAT,
             )
 
@@ -88,7 +84,7 @@ class UpdatePRDescriptionUseCase:
 
         if self._logger:
             self._logger.info(
-                "PR description update use case completed successfully",
+                'PR description update use case completed successfully',
                 result=result[:100],
             )
 

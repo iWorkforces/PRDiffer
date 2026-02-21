@@ -15,9 +15,7 @@ if TYPE_CHECKING:
     from prdiffer.infrastructure.utils.api_health_tracker import APIHealthTracker
 
 
-def calculate_basic_backoff(
-    attempt: int, base_delay: float, is_rate_limit: bool = False
-) -> float:
+def calculate_basic_backoff(attempt: int, base_delay: float, is_rate_limit: bool = False) -> float:
     """Calculate basic backoff delay with exponential growth and jitter.
 
     Args:
@@ -44,7 +42,7 @@ def calculate_adaptive_delay(
     base_delay: float,
     backoff_multiplier: float,
     error: Exception | None = None,
-    health_tracker: "APIHealthTracker | None" = None,
+    health_tracker: 'APIHealthTracker | None' = None,
     max_delay: float = 30.0,
 ) -> float:
     """Calculate adaptive retry delay based on API health and error type.
@@ -69,9 +67,7 @@ def calculate_adaptive_delay(
 
     # Adaptive delay based on API health if tracker available
     if health_tracker:
-        adaptive_delay = health_tracker.get_recommended_delay(
-            delay_with_jitter, max_delay
-        )
+        adaptive_delay = health_tracker.get_recommended_delay(delay_with_jitter, max_delay)
         return float(adaptive_delay)
 
     # Rate limit errors get longer delays
@@ -81,9 +77,7 @@ def calculate_adaptive_delay(
     return delay_with_jitter
 
 
-def calculate_secondary_rate_limit_backoff(
-    attempt: int, base_backoff: float = 60.0
-) -> float:
+def calculate_secondary_rate_limit_backoff(attempt: int, base_backoff: float = 60.0) -> float:
     """Calculate backoff for secondary rate limit errors.
 
     Args:
@@ -108,7 +102,7 @@ def calculate_retry_delay(
     use_adaptive: bool = False,
     secondary_backoff: float = 60.0,
     reset_buffer: float = 1.0,
-    health_tracker: "APIHealthTracker | None" = None,
+    health_tracker: 'APIHealthTracker | None' = None,
     max_adaptive_delay: float = 30.0,
 ) -> float:
     """Calculate retry delay based on error type and configuration.
@@ -142,9 +136,7 @@ def calculate_retry_delay(
 
     # Secondary rate limit errors get special backoff
     if is_secondary_rate_limit:
-        secondary_delay = calculate_secondary_rate_limit_backoff(
-            attempt, secondary_backoff
-        )
+        secondary_delay = calculate_secondary_rate_limit_backoff(attempt, secondary_backoff)
         if header_delay is not None:
             return max(secondary_delay, header_delay)
         return secondary_delay

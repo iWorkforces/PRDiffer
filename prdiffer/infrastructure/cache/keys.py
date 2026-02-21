@@ -11,7 +11,7 @@ class CacheKeyManager:
     def __init__(
         self,
         use_hashed_keys: bool = True,
-        hash_algorithm: str = "md5",
+        hash_algorithm: str = 'md5',
         store_key_mapping: bool = True,
     ):
         """Initialize the cache key manager.
@@ -46,7 +46,7 @@ class CacheKeyManager:
         Returns:
             Cache key in format "owner/repo/pr/number"
         """
-        return f"{repo_owner}/{repo_name}/pr/{pr_number}"
+        return f'{repo_owner}/{repo_name}/pr/{pr_number}'
 
     def hash_key(self, key: str) -> str:
         """Hash a cache key using the configured algorithm.
@@ -60,15 +60,15 @@ class CacheKeyManager:
         Raises:
             ValidationError: If hash algorithm is unsupported
         """
-        if self._hash_algorithm == "md5":
-            return hashlib.md5(key.encode("utf-8")).hexdigest()
-        elif self._hash_algorithm == "sha256":
-            return hashlib.sha256(key.encode("utf-8")).hexdigest()
-        elif self._hash_algorithm == "sha256_short":
-            return hashlib.sha256(key.encode("utf-8")).hexdigest()[:16]
+        if self._hash_algorithm == 'md5':
+            return hashlib.md5(key.encode('utf-8')).hexdigest()
+        elif self._hash_algorithm == 'sha256':
+            return hashlib.sha256(key.encode('utf-8')).hexdigest()
+        elif self._hash_algorithm == 'sha256_short':
+            return hashlib.sha256(key.encode('utf-8')).hexdigest()[:16]
         else:
             raise ValidationError(
-                f"Unsupported hash algorithm: {self._hash_algorithm}",
+                f'Unsupported hash algorithm: {self._hash_algorithm}',
                 error_code=E1010_INVALID_CONFIGURATION,
             )
 
@@ -82,7 +82,7 @@ class CacheKeyManager:
             Tuple of (internal_key, hash_display)
         """
         if not self._use_hashed_keys:
-            return original_key, ""
+            return original_key, ''
 
         hashed = self.hash_key(original_key)
-        return hashed, f"{hashed[:8]}..."
+        return hashed, f'{hashed[:8]}...'

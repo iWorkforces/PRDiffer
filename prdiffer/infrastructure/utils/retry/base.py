@@ -41,8 +41,8 @@ class BaseUnifiedRetryHandler(LazyLoggerMixin, RetryServiceInterface):
         retry_on_404: bool = False,
         retry_on_403: bool = True,
         retry_on_500: bool = True,
-        retry_log_level: str = "DEBUG",
-        permanent_failure_log_level: str = "INFO",
+        retry_log_level: str = 'DEBUG',
+        permanent_failure_log_level: str = 'INFO',
         use_advanced_features: bool = False,
         circuit_breaker_enabled: bool = False,
         circuit_breaker_failure_threshold: int = 5,
@@ -108,24 +108,24 @@ class BaseUnifiedRetryHandler(LazyLoggerMixin, RetryServiceInterface):
         if self.context_aware_retry:
             self._context_configs = {
                 OperationContext.REPOSITORY_ACCESS: {
-                    "max_retries": max_retries,
-                    "retry_delay": retry_delay * 2,
-                    "backoff_multiplier": 2.0,
+                    'max_retries': max_retries,
+                    'retry_delay': retry_delay * 2,
+                    'backoff_multiplier': 2.0,
                 },
                 OperationContext.FILE_CONTENT: {
-                    "max_retries": max_retries - 1,
-                    "retry_delay": retry_delay,
-                    "backoff_multiplier": 1.5,
+                    'max_retries': max_retries - 1,
+                    'retry_delay': retry_delay,
+                    'backoff_multiplier': 1.5,
                 },
                 OperationContext.PULL_REQUEST: {
-                    "max_retries": max_retries + 1,
-                    "retry_delay": retry_delay,
-                    "backoff_multiplier": 2.0,
+                    'max_retries': max_retries + 1,
+                    'retry_delay': retry_delay,
+                    'backoff_multiplier': 2.0,
                 },
                 OperationContext.BATCH_OPERATION: {
-                    "max_retries": max_retries - 1,
-                    "retry_delay": retry_delay * 0.5,
-                    "backoff_multiplier": 1.5,
+                    'max_retries': max_retries - 1,
+                    'retry_delay': retry_delay * 0.5,
+                    'backoff_multiplier': 1.5,
                 },
             }
 
@@ -152,14 +152,12 @@ class BaseUnifiedRetryHandler(LazyLoggerMixin, RetryServiceInterface):
                     CircuitBreakerOpenException,
                 )
 
-                raise CircuitBreakerOpenException(
-                    f"Circuit breaker is open. State: {self._circuit_breaker.state.value}"
-                )
+                raise CircuitBreakerOpenException(f'Circuit breaker is open. State: {self._circuit_breaker.state.value}')
 
         config = self._get_context_config(context)
-        max_retries = config["max_retries"]
-        base_delay = config["retry_delay"]
-        backoff_multiplier = config.get("backoff_multiplier", 2.0)
+        max_retries = config['max_retries']
+        base_delay = config['retry_delay']
+        backoff_multiplier = config.get('backoff_multiplier', 2.0)
 
         last_exception = None
         start_time = time.time() if self._health_tracker else None
@@ -226,14 +224,12 @@ class BaseUnifiedRetryHandler(LazyLoggerMixin, RetryServiceInterface):
             return self._context_configs[context]
 
         return {
-            "max_retries": self.max_retries,
-            "retry_delay": self.retry_delay,
-            "backoff_multiplier": 2.0,
+            'max_retries': self.max_retries,
+            'retry_delay': self.retry_delay,
+            'backoff_multiplier': 2.0,
         }
 
-    def _should_retry_error(
-        self, error: Exception, context: OperationContext | None = None
-    ) -> bool:
+    def _should_retry_error(self, error: Exception, context: OperationContext | None = None) -> bool:
         error_str = str(error).lower()
 
         decision = classify_error_for_retry(
@@ -247,11 +243,11 @@ class BaseUnifiedRetryHandler(LazyLoggerMixin, RetryServiceInterface):
             return False
 
         if context and self.context_aware_retry:
-            if context == OperationContext.FILE_CONTENT and "404" in error_str:
+            if context == OperationContext.FILE_CONTENT and '404' in error_str:
                 return False
-            elif context == OperationContext.REPOSITORY_ACCESS and "401" in error_str:
+            elif context == OperationContext.REPOSITORY_ACCESS and '401' in error_str:
                 return False
-            elif context == OperationContext.BATCH_OPERATION and "timeout" in error_str:
+            elif context == OperationContext.BATCH_OPERATION and 'timeout' in error_str:
                 return True
 
         return True
@@ -310,13 +306,11 @@ class BaseUnifiedRetryHandler(LazyLoggerMixin, RetryServiceInterface):
         is_secondary_rate_limit: bool = False,
     ):
         is_rate_limit = self._is_rate_limit_error(error)
-        context_str = (
-            f" [{context.value}]" if context and self.context_aware_retry else ""
-        )
+        context_str = f' [{context.value}]' if context and self.context_aware_retry else ''
 
         if is_rate_limit:
-            label = "Secondary rate limit" if is_secondary_rate_limit else "Rate limit"
-            message = "%s hit%s, retrying in %.2fs (attempt %d)" % (
+            label = 'Secondary rate limit' if is_secondary_rate_limit else 'Rate limit'
+            message = '%s hit%s, retrying in %.2fs (attempt %d)' % (
                 label,
                 context_str,
                 delay,
@@ -325,8 +319,8 @@ class BaseUnifiedRetryHandler(LazyLoggerMixin, RetryServiceInterface):
         else:
             error_msg = str(error)
             if len(error_msg) > 100:
-                error_msg = error_msg[:97] + "..."
-            message = "API error%s, retrying in %.2fs (attempt %d): %s" % (
+                error_msg = error_msg[:97] + '...'
+            message = 'API error%s, retrying in %.2fs (attempt %d): %s' % (
                 context_str,
                 delay,
                 attempt + 1,
@@ -338,71 +332,62 @@ class BaseUnifiedRetryHandler(LazyLoggerMixin, RetryServiceInterface):
         if rate_limit_info:
             self._log_rate_limit_headers(rate_limit_info, is_secondary_rate_limit)
 
-    def _log_rate_limit_headers(
-        self, rate_limit_info: RateLimitInfo, is_secondary_rate_limit: bool
-    ):
-        level = "WARNING" if is_secondary_rate_limit else "INFO"
-        message = (
-            "Rate limit headers: remaining=%s limit=%s reset=%s retry_after=%s"
-            % (
-                rate_limit_info.remaining,
-                rate_limit_info.limit,
-                rate_limit_info.reset_at,
-                rate_limit_info.retry_after,
-            )
+    def _log_rate_limit_headers(self, rate_limit_info: RateLimitInfo, is_secondary_rate_limit: bool):
+        level = 'WARNING' if is_secondary_rate_limit else 'INFO'
+        message = 'Rate limit headers: remaining=%s limit=%s reset=%s retry_after=%s' % (
+            rate_limit_info.remaining,
+            rate_limit_info.limit,
+            rate_limit_info.reset_at,
+            rate_limit_info.retry_after,
         )
         self._log_at_level(message, level)
 
-        if is_rate_limit_remaining_below_threshold(
-            rate_limit_info, self.rate_limit_remaining_threshold
-        ):
-            threshold_message = "Rate limit remaining below threshold: %d <= %d" % (
+        if is_rate_limit_remaining_below_threshold(rate_limit_info, self.rate_limit_remaining_threshold):
+            threshold_message = 'Rate limit remaining below threshold: %d <= %d' % (
                 rate_limit_info.remaining,
                 self.rate_limit_remaining_threshold,
             )
-            self._log_at_level(threshold_message, "WARNING")
+            self._log_at_level(threshold_message, 'WARNING')
 
-    def _log_permanent_failure(
-        self, error: Exception, should_retry: bool, is_last_attempt: bool
-    ):
+    def _log_permanent_failure(self, error: Exception, should_retry: bool, is_last_attempt: bool):
         if not should_retry:
             error_msg = str(error)
             if len(error_msg) > 150:
-                error_msg = error_msg[:147] + "..."
-            message = f"Permanent failure (no retry configured): {error_msg}"
+                error_msg = error_msg[:147] + '...'
+            message = f'Permanent failure (no retry configured): {error_msg}'
             self._log_at_level(message, self.permanent_failure_log_level)
         elif is_last_attempt:
-            message = f"All retry attempts exhausted: {str(error)[:100]}..."
-            self._log_at_level(message, "ERROR")
+            message = f'All retry attempts exhausted: {str(error)[:100]}...'
+            self._log_at_level(message, 'ERROR')
 
     def _log_at_level(self, message: str, level: str):
         logger = self._get_logger()
         level = level.upper()
-        if level == "DEBUG":
+        if level == 'DEBUG':
             logger.debug(message)
-        elif level == "INFO":
+        elif level == 'INFO':
             logger.info(message)
-        elif level == "WARNING":
+        elif level == 'WARNING':
             logger.warning(message)
-        elif level == "ERROR":
+        elif level == 'ERROR':
             logger.error(message)
-        elif level == "CRITICAL":
+        elif level == 'CRITICAL':
             logger.critical(message)
         else:
             logger.info(message)
 
     def get_stats(self) -> dict[str, Any]:
         stats: dict[str, Any] = {
-            "circuit_breaker_enabled": self.circuit_breaker_enabled,
-            "adaptive_retry_enabled": self.adaptive_retry_enabled,
-            "api_health_tracking": self.api_health_tracking,
-            "context_aware_retry": self.context_aware_retry,
+            'circuit_breaker_enabled': self.circuit_breaker_enabled,
+            'adaptive_retry_enabled': self.adaptive_retry_enabled,
+            'api_health_tracking': self.api_health_tracking,
+            'context_aware_retry': self.context_aware_retry,
         }
 
         if self._circuit_breaker:
-            stats["circuit_breaker"] = self._circuit_breaker.get_stats()
+            stats['circuit_breaker'] = self._circuit_breaker.get_stats()
 
         if self._health_tracker:
-            stats["api_health"] = self._health_tracker.get_stats()
+            stats['api_health'] = self._health_tracker.get_stats()
 
         return stats

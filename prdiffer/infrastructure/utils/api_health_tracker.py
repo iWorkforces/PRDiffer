@@ -47,9 +47,7 @@ class APIHealthTracker:
         self._last_health_check = 0.0
         self._cached_health_score: float | None = None
 
-    def record_call(
-        self, duration: float, success: bool, error_type: str | None = None
-    ):
+    def record_call(self, duration: float, success: bool, error_type: str | None = None):
         """Record an API call for health tracking.
 
         Args:
@@ -77,10 +75,7 @@ class APIHealthTracker:
         current_time = time.time()
 
         # Use cached score if recent
-        if (
-            self._cached_health_score is not None
-            and current_time - self._last_health_check < 10.0
-        ):  # Cache for 10 seconds
+        if self._cached_health_score is not None and current_time - self._last_health_check < 10.0:  # Cache for 10 seconds
             return self._cached_health_score
 
         # Calculate fresh health score
@@ -90,12 +85,8 @@ class APIHealthTracker:
             # No recent calls, assume healthy
             self._cached_health_score = 1.0
         else:
-            success_rate = sum(1 for call in recent_calls if call.success) / len(
-                recent_calls
-            )
-            avg_duration = sum(call.duration for call in recent_calls) / len(
-                recent_calls
-            )
+            success_rate = sum(1 for call in recent_calls if call.success) / len(recent_calls)
+            avg_duration = sum(call.duration for call in recent_calls) / len(recent_calls)
 
             # Health score based on success rate and response time
             # Success rate contributes 70%, response time contributes 30%
@@ -105,16 +96,12 @@ class APIHealthTracker:
             # Assume 1 second is good, 5+ seconds is bad
             time_component = max(0, 1 - (avg_duration - 1) / 4) * 0.3
 
-            self._cached_health_score = max(
-                0.0, min(1.0, success_component + time_component)
-            )
+            self._cached_health_score = max(0.0, min(1.0, success_component + time_component))
 
         self._last_health_check = current_time
         return self._cached_health_score
 
-    def get_recommended_delay(
-        self, base_delay: float, max_delay: float = 30.0
-    ) -> float:
+    def get_recommended_delay(self, base_delay: float, max_delay: float = 30.0) -> float:
         """Get recommended retry delay based on API health.
 
         Args:
@@ -172,30 +159,27 @@ class APIHealthTracker:
 
         if not recent_calls:
             return {
-                "health_score": 1.0,
-                "total_calls": 0,
-                "success_rate": 1.0,
-                "avg_duration": 0.0,
-                "error_patterns": {},
+                'health_score': 1.0,
+                'total_calls': 0,
+                'success_rate': 1.0,
+                'avg_duration': 0.0,
+                'error_patterns': {},
             }
 
         successful_calls = [call for call in recent_calls if call.success]
 
         return {
-            "health_score": self.get_health_score(),
-            "total_calls": len(recent_calls),
-            "success_rate": len(successful_calls) / len(recent_calls),
-            "avg_duration": sum(call.duration for call in recent_calls)
-            / len(recent_calls),
-            "error_patterns": self.get_error_pattern(),
-            "window_size": self.window_size,
-            "time_window": self.time_window,
+            'health_score': self.get_health_score(),
+            'total_calls': len(recent_calls),
+            'success_rate': len(successful_calls) / len(recent_calls),
+            'avg_duration': sum(call.duration for call in recent_calls) / len(recent_calls),
+            'error_patterns': self.get_error_pattern(),
+            'window_size': self.window_size,
+            'time_window': self.time_window,
         }
 
 
-def get_api_health_tracker(
-    window_size: int = 100, time_window: float = 300.0
-) -> APIHealthTracker:
+def get_api_health_tracker(window_size: int = 100, time_window: float = 300.0) -> APIHealthTracker:
     """Get a configured API health tracker instance.
 
     Args:

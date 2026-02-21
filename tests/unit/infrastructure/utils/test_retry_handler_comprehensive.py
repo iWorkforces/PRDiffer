@@ -27,9 +27,9 @@ class TestCircuitBreakerIntegration:
         handler._circuit_breaker._state = CircuitState.OPEN
 
         with pytest.raises(Exception) as exc_info:
-            handler.execute_with_retry(lambda: "success")
+            handler.execute_with_retry(lambda: 'success')
 
-        assert "Circuit breaker is open" in str(exc_info.value)
+        assert 'Circuit breaker is open' in str(exc_info.value)
 
     def test_circuit_breaker_records_success(self):
         """Test circuit breaker records success on successful call."""
@@ -37,8 +37,8 @@ class TestCircuitBreakerIntegration:
             max_retries=3,
             circuit_breaker_enabled=True,
         )
-        result = handler.execute_with_retry(lambda: "success")
-        assert result == "success"
+        result = handler.execute_with_retry(lambda: 'success')
+        assert result == 'success'
         assert handler._circuit_breaker._failure_count == 0
 
 
@@ -54,12 +54,12 @@ class TestHealthTracking:
         )
         handler._health_tracker = mock_tracker
 
-        result = handler.execute_with_retry(lambda: "success")
+        result = handler.execute_with_retry(lambda: 'success')
 
-        assert result == "success"
+        assert result == 'success'
         mock_tracker.record_call.assert_called()
         call_args = mock_tracker.record_call.call_args
-        assert call_args[1]["success"] is True
+        assert call_args[1]['success'] is True
 
     def test_health_tracker_records_failure(self):
         """Test health tracker records failed operations."""
@@ -75,8 +75,8 @@ class TestHealthTracking:
         def failing_func():
             call_count[0] += 1
             if call_count[0] < 2:
-                raise ConnectionError("connection failed")
-            return "success"
+                raise ConnectionError('connection failed')
+            return 'success'
 
         with pytest.raises(ConnectionError):
             handler.execute_with_retry(failing_func)
@@ -99,12 +99,10 @@ class TestContextAwareRetry:
 
         def failing_func():
             call_count[0] += 1
-            raise Exception("404 Not Found")
+            raise Exception('404 Not Found')
 
         with pytest.raises(Exception):
-            handler.execute_with_retry(
-                failing_func, context=OperationContext.FILE_CONTENT
-            )
+            handler.execute_with_retry(failing_func, context=OperationContext.FILE_CONTENT)
 
         assert call_count[0] == 1
 
@@ -120,12 +118,10 @@ class TestContextAwareRetry:
 
         def failing_func():
             call_count[0] += 1
-            raise Exception("401 Unauthorized")
+            raise Exception('401 Unauthorized')
 
         with pytest.raises(Exception):
-            handler.execute_with_retry(
-                failing_func, context=OperationContext.REPOSITORY_ACCESS
-            )
+            handler.execute_with_retry(failing_func, context=OperationContext.REPOSITORY_ACCESS)
 
         assert call_count[0] == 1
 
@@ -138,8 +134,8 @@ class TestContextAwareRetry:
 
         config = handler._get_context_config(OperationContext.FILE_CONTENT)
 
-        assert "max_retries" in config
-        assert "retry_delay" in config
+        assert 'max_retries' in config
+        assert 'retry_delay' in config
 
 
 class TestLogging:
@@ -147,80 +143,76 @@ class TestLogging:
 
     def test_log_at_debug_level(self):
         """Test logging at DEBUG level."""
-        handler = UnifiedRetryHandler(retry_log_level="DEBUG")
-        with patch.object(handler, "_get_logger") as mock_get_logger:
+        handler = UnifiedRetryHandler(retry_log_level='DEBUG')
+        with patch.object(handler, '_get_logger') as mock_get_logger:
             mock_logger = Mock()
             mock_get_logger.return_value = mock_logger
-            handler._log_at_level("test message", "DEBUG")
-            mock_logger.debug.assert_called_once_with("test message")
+            handler._log_at_level('test message', 'DEBUG')
+            mock_logger.debug.assert_called_once_with('test message')
 
     def test_log_at_info_level(self):
         """Test logging at INFO level."""
         handler = UnifiedRetryHandler()
-        with patch.object(handler, "_get_logger") as mock_get_logger:
+        with patch.object(handler, '_get_logger') as mock_get_logger:
             mock_logger = Mock()
             mock_get_logger.return_value = mock_logger
-            handler._log_at_level("test message", "INFO")
-            mock_logger.info.assert_called_once_with("test message")
+            handler._log_at_level('test message', 'INFO')
+            mock_logger.info.assert_called_once_with('test message')
 
     def test_log_at_warning_level(self):
         """Test logging at WARNING level."""
         handler = UnifiedRetryHandler()
-        with patch.object(handler, "_get_logger") as mock_get_logger:
+        with patch.object(handler, '_get_logger') as mock_get_logger:
             mock_logger = Mock()
             mock_get_logger.return_value = mock_logger
-            handler._log_at_level("test message", "WARNING")
-            mock_logger.warning.assert_called_once_with("test message")
+            handler._log_at_level('test message', 'WARNING')
+            mock_logger.warning.assert_called_once_with('test message')
 
     def test_log_at_error_level(self):
         """Test logging at ERROR level."""
         handler = UnifiedRetryHandler()
-        with patch.object(handler, "_get_logger") as mock_get_logger:
+        with patch.object(handler, '_get_logger') as mock_get_logger:
             mock_logger = Mock()
             mock_get_logger.return_value = mock_logger
-            handler._log_at_level("test message", "ERROR")
-            mock_logger.error.assert_called_once_with("test message")
+            handler._log_at_level('test message', 'ERROR')
+            mock_logger.error.assert_called_once_with('test message')
 
     def test_log_at_critical_level(self):
         """Test logging at CRITICAL level."""
         handler = UnifiedRetryHandler()
-        with patch.object(handler, "_get_logger") as mock_get_logger:
+        with patch.object(handler, '_get_logger') as mock_get_logger:
             mock_logger = Mock()
             mock_get_logger.return_value = mock_logger
-            handler._log_at_level("test message", "CRITICAL")
-            mock_logger.critical.assert_called_once_with("test message")
+            handler._log_at_level('test message', 'CRITICAL')
+            mock_logger.critical.assert_called_once_with('test message')
 
     def test_log_at_unknown_level_falls_back_to_info(self):
         """Test that unknown log levels fall back to INFO."""
         handler = UnifiedRetryHandler()
-        with patch.object(handler, "_get_logger") as mock_get_logger:
+        with patch.object(handler, '_get_logger') as mock_get_logger:
             mock_logger = Mock()
             mock_get_logger.return_value = mock_logger
-            handler._log_at_level("test message", "UNKNOWN")
-            mock_logger.info.assert_called_once_with("test message")
+            handler._log_at_level('test message', 'UNKNOWN')
+            mock_logger.info.assert_called_once_with('test message')
 
     def test_log_permanent_failure(self):
         """Test logging of permanent failure."""
         handler = UnifiedRetryHandler()
-        with patch.object(handler, "_get_logger") as mock_get_logger:
+        with patch.object(handler, '_get_logger') as mock_get_logger:
             mock_logger = Mock()
             mock_get_logger.return_value = mock_logger
-            error = Exception("test error")
-            handler._log_permanent_failure(
-                error, should_retry=False, is_last_attempt=True
-            )
+            error = Exception('test error')
+            handler._log_permanent_failure(error, should_retry=False, is_last_attempt=True)
             mock_logger.info.assert_called()
 
     def test_log_permanent_failure_custom_level(self):
         """Test permanent failure logging with custom level."""
-        handler = UnifiedRetryHandler(permanent_failure_log_level="WARNING")
-        with patch.object(handler, "_get_logger") as mock_get_logger:
+        handler = UnifiedRetryHandler(permanent_failure_log_level='WARNING')
+        with patch.object(handler, '_get_logger') as mock_get_logger:
             mock_logger = Mock()
             mock_get_logger.return_value = mock_logger
-            error = Exception("test error")
-            handler._log_permanent_failure(
-                error, should_retry=False, is_last_attempt=True
-            )
+            error = Exception('test error')
+            handler._log_permanent_failure(error, should_retry=False, is_last_attempt=True)
             mock_logger.warning.assert_called()
 
 
@@ -233,10 +225,10 @@ class TestGetStats:
 
         stats = handler.get_stats()
 
-        assert stats["circuit_breaker_enabled"] is False
-        assert stats["adaptive_retry_enabled"] is False
-        assert stats["api_health_tracking"] is False
-        assert stats["context_aware_retry"] is False
+        assert stats['circuit_breaker_enabled'] is False
+        assert stats['adaptive_retry_enabled'] is False
+        assert stats['api_health_tracking'] is False
+        assert stats['context_aware_retry'] is False
 
     def test_get_stats_with_circuit_breaker(self):
         """Test stats with circuit breaker enabled."""
@@ -246,21 +238,21 @@ class TestGetStats:
 
         stats = handler.get_stats()
 
-        assert stats["circuit_breaker_enabled"] is True
-        assert "circuit_breaker" in stats
+        assert stats['circuit_breaker_enabled'] is True
+        assert 'circuit_breaker' in stats
 
     def test_get_stats_with_health_tracker(self):
         """Test stats with health tracking enabled."""
         mock_tracker = Mock()
-        mock_tracker.get_stats.return_value = {"healthy": True}
+        mock_tracker.get_stats.return_value = {'healthy': True}
 
         handler = UnifiedRetryHandler(api_health_tracking=True)
         handler._health_tracker = mock_tracker
 
         stats = handler.get_stats()
 
-        assert stats["api_health_tracking"] is True
-        assert "api_health" in stats
+        assert stats['api_health_tracking'] is True
+        assert 'api_health' in stats
 
 
 class TestFactoryFunctions:
@@ -287,12 +279,12 @@ class TestLastExceptionFallback:
     def test_last_exception_raised_on_unexpected_state(self):
         """Test that last exception is raised if loop exits unexpectedly."""
         handler = UnifiedRetryHandler(max_retries=1)
-        error = ConnectionError("connection error")
+        error = ConnectionError('connection error')
 
         with pytest.raises(ConnectionError) as exc_info:
             handler.execute_with_retry(lambda: (_ for _ in ()).throw(error))
 
-        assert str(exc_info.value) == "connection error"
+        assert str(exc_info.value) == 'connection error'
 
 
 class TestRecordFailure:
@@ -303,7 +295,7 @@ class TestRecordFailure:
         handler = UnifiedRetryHandler(circuit_breaker_enabled=True)
         initial_failures = handler._circuit_breaker._failure_count
 
-        handler._record_failure(Exception("test"))
+        handler._record_failure(Exception('test'))
 
         assert handler._circuit_breaker._failure_count == initial_failures + 1
 
@@ -313,11 +305,11 @@ class TestRecordFailure:
         handler = UnifiedRetryHandler(api_health_tracking=True)
         handler._health_tracker = mock_tracker
 
-        handler._record_failure(Exception("test"))
+        handler._record_failure(Exception('test'))
 
         mock_tracker.record_call.assert_called()
         call_args = mock_tracker.record_call.call_args
-        assert call_args[1]["success"] is False
+        assert call_args[1]['success'] is False
 
 
 class TestRecordSuccess:
@@ -356,12 +348,12 @@ class TestAsyncRetryHandler:
         handler._circuit_breaker._state = CircuitState.OPEN
 
         async def async_func():
-            return "success"
+            return 'success'
 
         with pytest.raises(Exception) as exc_info:
             await handler.execute_with_retry_async(async_func)
 
-        assert "Circuit breaker is open" in str(exc_info.value)
+        assert 'Circuit breaker is open' in str(exc_info.value)
 
     @pytest.mark.anyio
     async def test_async_health_tracker_records_success(self):
@@ -371,11 +363,11 @@ class TestAsyncRetryHandler:
         handler._health_tracker = mock_tracker
 
         async def async_func():
-            return "success"
+            return 'success'
 
         result = await handler.execute_with_retry_async(async_func)
 
-        assert result == "success"
+        assert result == 'success'
         mock_tracker.record_call.assert_called()
 
     @pytest.mark.anyio
@@ -384,12 +376,12 @@ class TestAsyncRetryHandler:
         handler = UnifiedRetryHandler(max_retries=1)
 
         async def failing_func():
-            raise ConnectionError("async connection error")
+            raise ConnectionError('async connection error')
 
         with pytest.raises(ConnectionError) as exc_info:
             await handler.execute_with_retry_async(failing_func)
 
-        assert "async connection error" in str(exc_info.value)
+        assert 'async connection error' in str(exc_info.value)
 
     @pytest.mark.anyio
     async def test_async_uses_anyio_sleep(self):
@@ -401,15 +393,13 @@ class TestAsyncRetryHandler:
         async def transient_failure():
             call_count[0] += 1
             if call_count[0] < 2:
-                raise ConnectionError("connection error")
-            return "success"
+                raise ConnectionError('connection error')
+            return 'success'
 
-        with patch(
-            "prdiffer.infrastructure.utils.retry.handler.anyio.sleep"
-        ) as mock_sleep:
+        with patch('prdiffer.infrastructure.utils.retry.handler.anyio.sleep') as mock_sleep:
             mock_sleep.return_value = None
             result = await handler.execute_with_retry_async(transient_failure)
-            assert result == "success"
+            assert result == 'success'
             mock_sleep.assert_called()
 
 
@@ -420,7 +410,7 @@ class TestShouldRetryError:
         """Test that _should_retry_error uses error classifier."""
         handler = UnifiedRetryHandler(retry_on_403=True)
 
-        error = Exception("403 rate limit exceeded")
+        error = Exception('403 rate limit exceeded')
         should_retry = handler._should_retry_error(error)
 
         assert should_retry is True
@@ -429,7 +419,7 @@ class TestShouldRetryError:
         """Test that non-retryable errors are not retried."""
         handler = UnifiedRetryHandler(retry_on_404=False)
 
-        error = Exception("404 not found")
+        error = Exception('404 not found')
         should_retry = handler._should_retry_error(error)
 
         assert should_retry is False
@@ -450,7 +440,7 @@ class TestCalculateRetryDelay:
         )
         delay = handler._calculate_retry_delay(
             attempt=0,
-            error=Exception("test"),
+            error=Exception('test'),
             base_delay=1.0,
             backoff_multiplier=2.0,
             use_adaptive=False,
@@ -479,7 +469,7 @@ class TestCalculateRetryDelay:
         )
         delay = handler._calculate_retry_delay(
             attempt=0,
-            error=Exception("test"),
+            error=Exception('test'),
             base_delay=1.0,
             backoff_multiplier=2.0,
             use_adaptive=True,
@@ -496,7 +486,7 @@ class TestLogRetryAttempt:
     def test_log_retry_attempt_basic(self):
         """Test basic retry attempt logging."""
         handler = UnifiedRetryHandler()
-        with patch.object(handler, "_get_logger") as mock_get_logger:
+        with patch.object(handler, '_get_logger') as mock_get_logger:
             mock_logger = Mock()
             mock_get_logger.return_value = mock_logger
 
@@ -509,7 +499,7 @@ class TestLogRetryAttempt:
             handler._log_retry_attempt(
                 attempt=0,
                 delay=1.0,
-                error=Exception("test error"),
+                error=Exception('test error'),
                 context=OperationContext.FILE_CONTENT,
                 rate_limit_info=rate_limit_info,
                 is_secondary_rate_limit=False,

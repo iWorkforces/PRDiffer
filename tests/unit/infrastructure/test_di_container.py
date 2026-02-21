@@ -63,10 +63,10 @@ class TestServiceContainerInitialization:
         container = ServiceContainer(logger)
 
         assert container is not None
-        assert hasattr(container, "_logger")
-        assert hasattr(container, "_singleton_instances")
-        assert hasattr(container, "_transient_factories")
-        assert hasattr(container, "_lock")
+        assert hasattr(container, '_logger')
+        assert hasattr(container, '_singleton_instances')
+        assert hasattr(container, '_transient_factories')
+        assert hasattr(container, '_lock')
 
     def test_container_initialization_with_logger(self):
         """Test that logger is stored correctly."""
@@ -115,11 +115,9 @@ class TestServiceContainerRegisterSingleton:
         container.register_singleton(MockService, lambda: MockService())
 
         with pytest.raises(DependencyAlreadyRegisteredError) as exc_info:
-            container.register_singleton(
-                MockService, lambda: MockService(), force=False
-            )
+            container.register_singleton(MockService, lambda: MockService(), force=False)
 
-        assert "MockService" in str(exc_info.value)
+        assert 'MockService' in str(exc_info.value)
 
     def test_register_singleton_duplicate_with_force(self):
         """Test that registering duplicate with force overwrites."""
@@ -132,9 +130,7 @@ class TestServiceContainerRegisterSingleton:
         container.register_singleton(MockService, lambda: None, instance=instance1)
         assert container.get(MockService) is instance1
 
-        container.register_singleton(
-            MockService, lambda: None, instance=instance2, force=True
-        )
+        container.register_singleton(MockService, lambda: None, instance=instance2, force=True)
         assert container.get(MockService) is instance2
 
     def test_register_singleton_multiple(self):
@@ -232,8 +228,8 @@ class TestServiceContainerGet:
         with pytest.raises(ConfigurationError) as exc_info:
             container.get(MockService)
 
-        assert "MockService" in str(exc_info.value)
-        assert "not registered" in str(exc_info.value)
+        assert 'MockService' in str(exc_info.value)
+        assert 'not registered' in str(exc_info.value)
 
     def test_get_singleton_vs_transient(self):
         """Test that singleton takes precedence over transient."""
@@ -241,9 +237,7 @@ class TestServiceContainerGet:
         container = ServiceContainer(logger)
 
         singleton_instance = MockService()
-        container.register_singleton(
-            MockService, lambda: None, instance=singleton_instance
-        )
+        container.register_singleton(MockService, lambda: None, instance=singleton_instance)
         container.register_transient(MockService, lambda: AnotherMockService())
 
         retrieved = container.get(MockService)
@@ -459,17 +453,17 @@ class TestDependencyAlreadyRegisteredError:
 
     def test_error_initialization(self):
         """Test DependencyAlreadyRegisteredError initialization."""
-        error = DependencyAlreadyRegisteredError("MyService")
+        error = DependencyAlreadyRegisteredError('MyService')
 
-        assert error.name == "MyService"
-        assert "already registered" in str(error)
+        assert error.name == 'MyService'
+        assert 'already registered' in str(error)
 
     def test_error_message_format(self):
         """Test that error message is properly formatted."""
-        error = DependencyAlreadyRegisteredError("TestService")
+        error = DependencyAlreadyRegisteredError('TestService')
 
-        assert "TestService" in str(error)
-        assert "already registered" in str(error)
+        assert 'TestService' in str(error)
+        assert 'already registered' in str(error)
 
 
 class TestGetContainerGlobal:
@@ -502,7 +496,7 @@ class TestGetContainerGlobal:
         with pytest.raises(ConfigurationError) as exc_info:
             get_container()
 
-        assert "not initialized" in str(exc_info.value)
+        assert 'not initialized' in str(exc_info.value)
 
 
 class TestRegisterSingletonServiceGlobal:
@@ -548,7 +542,7 @@ class TestServiceContainerThreadSafety:
         logger = MockLogger()
         container = ServiceContainer(logger)
 
-        assert hasattr(container, "_lock")
+        assert hasattr(container, '_lock')
         assert container._lock is not None
 
     def test_clear_all_uses_lock(self):
@@ -623,9 +617,7 @@ class TestServiceContainerEdgeCases:
         container.register_singleton(MockService, lambda: None, instance=instance1)
         assert container.get(MockService) is instance1
 
-        container.register_singleton(
-            MockService, lambda: None, instance=instance2, force=True
-        )
+        container.register_singleton(MockService, lambda: None, instance=instance2, force=True)
         assert container.get(MockService) is instance2
 
     def test_clear_all_preserves_lock(self):

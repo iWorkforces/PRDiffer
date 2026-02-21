@@ -16,7 +16,7 @@ class CacheEntry:
     initialized: bool
 
 
-def with_lock(lock_attr: str = "_lock"):
+def with_lock(lock_attr: str = '_lock'):
     """Decorator for automatic lock management."""
 
     def decorator(func: Callable) -> Callable:

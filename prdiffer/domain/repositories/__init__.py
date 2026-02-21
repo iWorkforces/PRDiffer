@@ -2,4 +2,4 @@
 
 from .pr_diff_repository import PRDiffRepositoryInterface
 
-__all__ = ["PRDiffRepositoryInterface"]
+__all__ = ['PRDiffRepositoryInterface']

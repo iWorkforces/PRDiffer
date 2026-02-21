@@ -32,7 +32,7 @@ class TestGitHubAPIClient:
     def test_initialize_client_with_token(self):
         """Test client initialization with GitHub token."""
         client = GitHubAPIClient()
-        token = "test_token_123"
+        token = 'test_token_123'
         client.initialize_client(github_token=token, timeout=60)
 
         assert client._github_client is not None
@@ -51,15 +51,15 @@ class TestGitHubAPIClient:
         client = GitHubAPIClient()
         # Don't call initialize_client()
 
-        with pytest.raises(PRDifferException, match="GitHub client not initialized"):
-            client.get_repository("owner/repo")
+        with pytest.raises(PRDifferException, match='GitHub client not initialized'):
+            client.get_repository('owner/repo')
 
     def test_cache_entry_valid(self):
         """Test cache entry validation logic."""
         client = GitHubAPIClient()
 
         # Test with non-existent cache entry
-        assert not client._is_cache_entry_valid(("file.py", "main"))
+        assert not client._is_cache_entry_valid(('file.py', 'main'))
         # Note: We can't test the _is_cache_entry_valid method directly as it's not exposed
 
     def test_cache_set_and_get(self):
@@ -67,15 +67,15 @@ class TestGitHubAPIClient:
         client = GitHubAPIClient()
         client.initialize_client()
 
-        cache_key = ("path/to/file.py", "main")
-        content = "file content here"
+        cache_key = ('path/to/file.py', 'main')
+        content = 'file content here'
 
         # Set cache entry
         client._cache_set(cache_key, content)
 
         # Verify cache was set
         assert cache_key in client._file_content_cache
-        assert client._file_content_cache[cache_key]["content"] == content
+        assert client._file_content_cache[cache_key]['content'] == content
 
     def test_cache_eviction_oldest_entries(self):
         """Test LRU eviction when cache exceeds max size."""
@@ -85,8 +85,8 @@ class TestGitHubAPIClient:
 
         # Add 5 entries to cache (should trigger eviction after 3)
         for i in range(5):
-            cache_key = (f"file{i}.py", "main")
-            client._cache_set(cache_key, f"content{i}")
+            cache_key = (f'file{i}.py', 'main')
+            client._cache_set(cache_key, f'content{i}')
 
         # Should only have 3 entries after eviction
         assert len(client._file_content_cache) <= 3
@@ -100,11 +100,11 @@ class TestGitHubAPIClientErrorHandling:
         client = GitHubAPIClient()
         client.initialize_client()
 
-        with patch.object(client._retry_handler, "execute_with_retry") as mock_retry:
+        with patch.object(client._retry_handler, 'execute_with_retry') as mock_retry:
             # Simulate GitHub exception
-            mock_retry.side_effect = GithubException("Repository not found")
+            mock_retry.side_effect = GithubException('Repository not found')
 
-            result = client.get_repository("owner/repo")
+            result = client.get_repository('owner/repo')
 
             # Should return None on error
             assert result is None
@@ -116,9 +116,9 @@ class TestGitHubAPIClientErrorHandling:
 
         mock_repo = Mock(spec=Repository)
 
-        with patch.object(client._retry_handler, "execute_with_retry") as mock_retry:
+        with patch.object(client._retry_handler, 'execute_with_retry') as mock_retry:
             # Simulate GitHub exception
-            mock_retry.side_effect = GithubException("PR not found")
+            mock_retry.side_effect = GithubException('PR not found')
 
             result = client.get_pull_request(mock_repo, 123)
 
@@ -126,5 +126,5 @@ class TestGitHubAPIClientErrorHandling:
             assert result is None
 
 
-if __name__ == "__main__":
-    pytest.main([__file__, "-v"])
+if __name__ == '__main__':
+    pytest.main([__file__, '-v'])

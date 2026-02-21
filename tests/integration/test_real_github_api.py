@@ -13,27 +13,27 @@ from prdiffer.application.components.authentication import AuthenticationMiddlew
 
 # Skip entire module if no GitHub token is available
 pytestmark = pytest.mark.skipif(
-    not os.getenv("GITHUB_TOKEN"),
-    reason="GITHUB_TOKEN not configured - skipping real API integration tests",
+    not os.getenv('GITHUB_TOKEN'),
+    reason='GITHUB_TOKEN not configured - skipping real API integration tests',
 )
 
 
 @pytest.fixture
 def github_token():
     """Get GitHub token from environment."""
-    return os.getenv("GITHUB_TOKEN")
+    return os.getenv('GITHUB_TOKEN')
 
 
 @pytest.fixture
 def test_repo_owner():
     """Test repository owner."""
-    return "anthropics"
+    return 'anthropics'
 
 
 @pytest.fixture
 def test_repo_name():
     """Test repository name."""
-    return "claude-code"
+    return 'claude-code'
 
 
 @pytest.fixture
@@ -50,7 +50,7 @@ class TestRealGitHubAPI:
     def test_repository_access(self, github_token, test_repo_owner, test_repo_name):
         """Test accessing a real GitHub repository."""
         if not github_token:
-            pytest.skip("GITHUB_TOKEN not configured")
+            pytest.skip('GITHUB_TOKEN not configured')
 
         repo = GitHubPRDiffRepository(
             repo_owner=test_repo_owner,
@@ -67,12 +67,10 @@ class TestRealGitHubAPI:
         assert commit_sha is not None
         assert len(commit_sha) == 40  # SHA-1 hash length
 
-    def test_pr_diff_retrieval(
-        self, github_token, test_repo_owner, test_repo_name, test_pr_number
-    ):
+    def test_pr_diff_retrieval(self, github_token, test_repo_owner, test_repo_name, test_pr_number):
         """Test retrieving PR diff from real GitHub repository."""
         if not github_token:
-            pytest.skip("GITHUB_TOKEN not configured")
+            pytest.skip('GITHUB_TOKEN not configured')
 
         repo = GitHubPRDiffRepository(
             repo_owner=test_repo_owner,
@@ -88,14 +86,12 @@ class TestRealGitHubAPI:
         assert pr_diff is not None
         assert pr_diff.pr_number == test_pr_number
         # PRDiff should have diff_content or be empty if no files changed
-        assert hasattr(pr_diff, "diff_content")
+        assert hasattr(pr_diff, 'diff_content')
 
-    def test_caching_behavior(
-        self, github_token, test_repo_owner, test_repo_name, test_pr_number
-    ):
+    def test_caching_behavior(self, github_token, test_repo_owner, test_repo_name, test_pr_number):
         """Test that caching works with real API calls."""
         if not github_token:
-            pytest.skip("GITHUB_TOKEN not configured")
+            pytest.skip('GITHUB_TOKEN not configured')
 
         repo = GitHubPRDiffRepository(
             repo_owner=test_repo_owner,
@@ -122,11 +118,11 @@ class TestRealAuthentication:
 
     def test_valid_token_accepted(self):
         """Test that a valid GitHub token is accepted."""
-        if not os.getenv("GITHUB_TOKEN"):
-            pytest.skip("GITHUB_TOKEN not configured")
+        if not os.getenv('GITHUB_TOKEN'):
+            pytest.skip('GITHUB_TOKEN not configured')
 
         auth = AuthenticationMiddleware()
-        token = os.getenv("GITHUB_TOKEN")
+        token = os.getenv('GITHUB_TOKEN')
 
         is_authenticated, client_id = auth.authenticate(token)
 
@@ -137,7 +133,7 @@ class TestRealAuthentication:
         """Test that an invalid token is rejected when auth is enabled."""
         auth = AuthenticationMiddleware()
 
-        is_authenticated, client_id = auth.authenticate("invalid_token_12345")
+        is_authenticated, client_id = auth.authenticate('invalid_token_12345')
 
         # When authentication is disabled, all tokens are accepted
         # When enabled, invalid tokens should be rejected
@@ -168,16 +164,14 @@ class TestRealAuthentication:
 class TestRealInputValidation:
     """Integration tests for input validation with real data."""
 
-    def test_valid_github_pr_url(
-        self, github_token, test_repo_owner, test_repo_name, test_pr_number
-    ):
+    def test_valid_github_pr_url(self, github_token, test_repo_owner, test_repo_name, test_pr_number):
         """Test validation of a real GitHub PR URL."""
         if not github_token:
-            pytest.skip("GITHUB_TOKEN not configured")
+            pytest.skip('GITHUB_TOKEN not configured')
 
         from prdiffer.infrastructure.security.input_validator import InputValidator
 
-        url = f"https://github.com/{test_repo_owner}/{test_repo_name}/pull/{test_pr_number}"
+        url = f'https://github.com/{test_repo_owner}/{test_repo_name}/pull/{test_pr_number}'
         owner, repo, pr_number = InputValidator().validate_github_url(url)
 
         assert owner == test_repo_owner
@@ -190,7 +184,7 @@ class TestRealInputValidation:
         from prdiffer.domain.exceptions import SuspiciousOperationError
 
         # URL with command injection attempt
-        suspicious_url = "https://github.com/owner/repo/pull/123; rm -rf /"
+        suspicious_url = 'https://github.com/owner/repo/pull/123; rm -rf /'
 
         with pytest.raises(SuspiciousOperationError):
             InputValidator().validate_github_url(suspicious_url)
@@ -210,28 +204,22 @@ class TestTokenExpiration:
         import time
 
         # Header
-        header = (
-            base64.urlsafe_b64encode(b'{"alg":"HS256","typ":"JWT"}')
-            .rstrip(b"=")
-            .decode()
-        )
+        header = base64.urlsafe_b64encode(b'{"alg":"HS256","typ":"JWT"}').rstrip(b'=').decode()
 
         # Payload with future expiration
         future_exp = int(time.time()) + 3600  # 1 hour from now
-        payload = {"sub": "user123", "exp": future_exp}
-        payload_b64 = (
-            base64.urlsafe_b64encode(json.dumps(payload).encode()).rstrip(b"=").decode()
-        )
+        payload = {'sub': 'user123', 'exp': future_exp}
+        payload_b64 = base64.urlsafe_b64encode(json.dumps(payload).encode()).rstrip(b'=').decode()
 
         # Signature (fake)
-        signature = base64.urlsafe_b64encode(b"signature").rstrip(b"=").decode()
+        signature = base64.urlsafe_b64encode(b'signature').rstrip(b'=').decode()
 
-        token = f"{header}.{payload_b64}.{signature}"
+        token = f'{header}.{payload_b64}.{signature}'
 
         # Parse should succeed
         parsed = auth.parse_jwt_payload(token)
         assert parsed is not None
-        assert parsed["exp"] == future_exp
+        assert parsed['exp'] == future_exp
 
     def test_expired_token_detection(self):
         """Test detection of expired tokens."""
@@ -242,21 +230,15 @@ class TestTokenExpiration:
         import json
         import time
 
-        header = (
-            base64.urlsafe_b64encode(b'{"alg":"HS256","typ":"JWT"}')
-            .rstrip(b"=")
-            .decode()
-        )
+        header = base64.urlsafe_b64encode(b'{"alg":"HS256","typ":"JWT"}').rstrip(b'=').decode()
 
         # Payload with past expiration (1 hour ago)
         past_exp = int(time.time()) - 3600
-        payload = {"sub": "user123", "exp": past_exp}
-        payload_b64 = (
-            base64.urlsafe_b64encode(json.dumps(payload).encode()).rstrip(b"=").decode()
-        )
+        payload = {'sub': 'user123', 'exp': past_exp}
+        payload_b64 = base64.urlsafe_b64encode(json.dumps(payload).encode()).rstrip(b'=').decode()
 
-        signature = base64.urlsafe_b64encode(b"signature").rstrip(b"=").decode()
-        token = f"{header}.{payload_b64}.{signature}"
+        signature = base64.urlsafe_b64encode(b'signature').rstrip(b'=').decode()
+        token = f'{header}.{payload_b64}.{signature}'
 
         is_expired, error_message = auth.is_token_expired(token)
 
@@ -268,7 +250,7 @@ class TestTokenExpiration:
         auth = AuthenticationMiddleware()
 
         # A simple token that doesn't look like a JWT
-        simple_token = "my_simple_api_key_12345"
+        simple_token = 'my_simple_api_key_12345'
 
         is_expired, error_message = auth.is_token_expired(simple_token)
 

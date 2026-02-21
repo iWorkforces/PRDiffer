@@ -48,7 +48,7 @@ class GitHubConfigInterface(Protocol):
             dict: Dictionary representation of configuration
         """
 
-    def with_overrides(self, **kwargs) -> "GitHubConfigInterface":
+    def with_overrides(self, **kwargs) -> 'GitHubConfigInterface':
         """Create new config with overridden values.
 
         Args:

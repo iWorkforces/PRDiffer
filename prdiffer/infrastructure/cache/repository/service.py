@@ -25,9 +25,7 @@ class RepositoryCacheService(RepositoryCacheServiceInterface):
         self._lock = RLock()
         self._logger = get_logger()
 
-    def _get_cache_key(
-        self, repo_owner: str, repo_name: str, pr_number: int
-    ) -> tuple[str, str, int]:
+    def _get_cache_key(self, repo_owner: str, repo_name: str, pr_number: int) -> tuple[str, str, int]:
         """Generate a cache key from repository details."""
         return (repo_owner.lower(), repo_name.lower(), pr_number)
 
@@ -44,7 +42,7 @@ class RepositoryCacheService(RepositoryCacheServiceInterface):
         for key in expired_keys:
             del self._cache[key]
             self._logger.debug(
-                "Removed expired repository from cache",
+                'Removed expired repository from cache',
                 repo_owner=key[0],
                 repo_name=key[1],
                 pr_number=key[2],
@@ -58,14 +56,12 @@ class RepositoryCacheService(RepositoryCacheServiceInterface):
 
         entries_list = list(self._cache.items())
         excess_count = len(entries_list) - self._max_size
-        entries_to_remove = sorted(entries_list, key=lambda x: x[1].timestamp)[
-            :excess_count
-        ]
+        entries_to_remove = sorted(entries_list, key=lambda x: x[1].timestamp)[:excess_count]
 
         for key, _ in entries_to_remove:
             del self._cache[key]
             self._logger.debug(
-                "Evicted repository from cache due to size limit",
+                'Evicted repository from cache due to size limit',
                 repo_owner=key[0],
                 repo_name=key[1],
                 pr_number=key[2],
@@ -81,9 +77,7 @@ class RepositoryCacheService(RepositoryCacheServiceInterface):
 
         return True
 
-    def _get_valid_entry(
-        self, cache_key: tuple[str, str, int], extend_ttl: bool = False
-    ) -> CacheEntry | None:
+    def _get_valid_entry(self, cache_key: tuple[str, str, int], extend_ttl: bool = False) -> CacheEntry | None:
         """Retrieve and validate a cache entry."""
         if cache_key not in self._cache:
             return None
@@ -94,7 +88,7 @@ class RepositoryCacheService(RepositoryCacheServiceInterface):
         if not self._is_entry_valid(entry, current_time):
             del self._cache[cache_key]
             self._logger.debug(
-                "Repository cache entry invalid or expired",
+                'Repository cache entry invalid or expired',
                 repo_owner=cache_key[0],
                 repo_name=cache_key[1],
                 pr_number=cache_key[2],
@@ -109,9 +103,7 @@ class RepositoryCacheService(RepositoryCacheServiceInterface):
     @with_lock()
     def insert(self, repository: GitHubPRDiffRepository) -> bool:
         """Insert a repository instance into the cache."""
-        cache_key = self._get_cache_key(
-            repository.repo_owner, repository.repo_name, repository.pr_number
-        )
+        cache_key = self._get_cache_key(repository.repo_owner, repository.repo_name, repository.pr_number)
 
         self._clean_expired_entries()
         self._evict_if_needed()
@@ -123,7 +115,7 @@ class RepositoryCacheService(RepositoryCacheServiceInterface):
         )
 
         self._logger.debug(
-            "Repository cached successfully",
+            'Repository cached successfully',
             repo_owner=repository.repo_owner,
             repo_name=repository.repo_name,
             pr_number=repository.pr_number,
@@ -131,9 +123,7 @@ class RepositoryCacheService(RepositoryCacheServiceInterface):
         return True
 
     @with_lock()
-    def retrieve(
-        self, repo_owner: str, repo_name: str, pr_number: int
-    ) -> GitHubPRDiffRepository | None:
+    def retrieve(self, repo_owner: str, repo_name: str, pr_number: int) -> GitHubPRDiffRepository | None:
         """Retrieve a cached repository instance."""
         cache_key = self._get_cache_key(repo_owner, repo_name, pr_number)
 
@@ -141,7 +131,7 @@ class RepositoryCacheService(RepositoryCacheServiceInterface):
         if entry is None:
             if cache_key not in self._cache:
                 self._logger.debug(
-                    "Repository not found in cache",
+                    'Repository not found in cache',
                     repo_owner=repo_owner,
                     repo_name=repo_name,
                     pr_number=pr_number,
@@ -149,7 +139,7 @@ class RepositoryCacheService(RepositoryCacheServiceInterface):
             return None
 
         self._logger.debug(
-            "Repository retrieved from cache",
+            'Repository retrieved from cache',
             repo_owner=repo_owner,
             repo_name=repo_name,
             pr_number=pr_number,
@@ -172,7 +162,7 @@ class RepositoryCacheService(RepositoryCacheServiceInterface):
         if cache_key in self._cache:
             del self._cache[cache_key]
             self._logger.debug(
-                "Repository removed from cache",
+                'Repository removed from cache',
                 repo_owner=repo_owner,
                 repo_name=repo_name,
                 pr_number=pr_number,
@@ -185,7 +175,7 @@ class RepositoryCacheService(RepositoryCacheServiceInterface):
         """Clear all entries from the cache."""
         cache_size = len(self._cache)
         self._cache.clear()
-        self._logger.info(f"Cleared repository cache ({cache_size} entries)")
+        self._logger.info(f'Cleared repository cache ({cache_size} entries)')
 
     @with_lock()
     def size(self) -> int:
@@ -206,34 +196,34 @@ class RepositoryCacheService(RepositoryCacheServiceInterface):
                 expired_count += 1
 
         return {
-            "total_entries": len(self._cache),
-            "initialized_entries": initialized_count,
-            "expired_entries": expired_count,
-            "max_size": self._max_size,
-            "ttl_seconds": self._ttl_seconds,
+            'total_entries': len(self._cache),
+            'initialized_entries': initialized_count,
+            'expired_entries': expired_count,
+            'max_size': self._max_size,
+            'ttl_seconds': self._ttl_seconds,
         }
 
     @with_lock()
     def invalidate(self, cache_key: str) -> bool:
         """Invalidate a cache entry by key."""
-        parts = cache_key.split("/")
+        parts = cache_key.split('/')
         if len(parts) == 2:
             repo_owner, repo_name = parts
             return self.remove(repo_owner, repo_name, 0)
-        elif len(parts) == 4 and parts[2] == "pr":
+        elif len(parts) == 4 and parts[2] == 'pr':
             repo_owner, repo_name, _, pr_number_str = parts
             try:
                 pr_number = int(pr_number_str)
                 return self.remove(repo_owner, repo_name, pr_number)
             except ValueError:
                 self._logger.warning(
-                    "Invalid PR number in cache key",
+                    'Invalid PR number in cache key',
                     cache_key=cache_key,
                 )
                 return False
         else:
             self._logger.warning(
-                "Invalid cache key format",
+                'Invalid cache key format',
                 cache_key=cache_key,
             )
             return False

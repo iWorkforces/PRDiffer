@@ -47,21 +47,14 @@ class DummyAPIService(GitHubAPIServiceInterface):
     def get_repository(self, repo_full_name: str) -> DomainRepository | None:
         return None
 
-    def get_pull_request(
-        self, repo_full_name: str, pr_number: int
-    ) -> DomainPullRequest | None:
+    def get_pull_request(self, repo_full_name: str, pr_number: int) -> DomainPullRequest | None:
         return None
 
     def get_file_content(self, repo_full_name: str, file_path: str, branch: str) -> str:
-        return self._content_map.get((file_path, branch), "")
+        return self._content_map.get((file_path, branch), '')
 
-    def get_files_content_batch(
-        self, repo_full_name: str, file_paths: list[str], branch: str
-    ):
-        return {
-            path: self.get_file_content(repo_full_name, path, branch)
-            for path in file_paths
-        }
+    def get_files_content_batch(self, repo_full_name: str, file_paths: list[str], branch: str):
+        return {path: self.get_file_content(repo_full_name, path, branch) for path in file_paths}
 
     def get_files_content_batch_parallel(
         self,
@@ -73,22 +66,20 @@ class DummyAPIService(GitHubAPIServiceInterface):
         return self.get_files_content_batch(repo_full_name, file_paths, branch)
 
 
-def build_fake_files(
-    diff_utils: DiffUtils, count: int, lines: int
-) -> tuple[list[FakeFile], list[FilePatchInfo], dict]:
-    base_content = "\n".join(["line"] * lines) + "\n"
-    head_content = base_content + "extra\n"
+def build_fake_files(diff_utils: DiffUtils, count: int, lines: int) -> tuple[list[FakeFile], list[FilePatchInfo], dict]:
+    base_content = '\n'.join(['line'] * lines) + '\n'
+    head_content = base_content + 'extra\n'
     patch = diff_utils.build_full_file_patch(base_content, head_content)
 
     files = []
     patch_infos = []
     content_map = {}
     for i in range(count):
-        filename = f"file_{i}.py"
+        filename = f'file_{i}.py'
         files.append(
             FakeFile(
                 filename=filename,
-                status="modified",
+                status='modified',
                 patch=None,
                 additions=1,
                 deletions=0,
@@ -105,18 +96,14 @@ def build_fake_files(
                 num_minus_lines=0,
             )
         )
-        content_map[(filename, "base")] = base_content
-        content_map[(filename, "head")] = head_content
+        content_map[(filename, 'base')] = base_content
+        content_map[(filename, 'head')] = head_content
 
     return files, patch_infos, content_map
 
 
-def benchmark_diff_generation(
-    diff_utils: DiffUtils, patch_infos: list[FilePatchInfo]
-) -> float:
-    generator = DiffGenerator(
-        diff_utils=diff_utils, parallel_executor=None, parallel_enabled=False
-    )
+def benchmark_diff_generation(diff_utils: DiffUtils, patch_infos: list[FilePatchInfo]) -> float:
+    generator = DiffGenerator(diff_utils=diff_utils, parallel_executor=None, parallel_enabled=False)
     start = time.perf_counter()
     generator.generate_extended_diff(patch_infos)
     return time.perf_counter() - start
@@ -140,29 +127,25 @@ def benchmark_file_processing(
     processor.process_files_to_patches(
         cast(list[File], files),
         repository=cast(PyGithubRepository, object()),
-        head_sha="head",
-        base_sha="base",
+        head_sha='head',
+        base_sha='base',
     )
     return time.perf_counter() - start
 
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--files", type=int, default=25)
-    parser.add_argument("--lines", type=int, default=200)
-    parser.add_argument("--parallel-threshold", type=int, default=10)
-    parser.add_argument("--parallel-workers", type=int, default=4)
+    parser.add_argument('--files', type=int, default=25)
+    parser.add_argument('--lines', type=int, default=200)
+    parser.add_argument('--parallel-threshold', type=int, default=10)
+    parser.add_argument('--parallel-workers', type=int, default=4)
     args = parser.parse_args()
 
     diff_utils = DiffUtils()
-    files, patch_infos, content_map = build_fake_files(
-        diff_utils, args.files, args.lines
-    )
+    files, patch_infos, content_map = build_fake_files(diff_utils, args.files, args.lines)
 
     diff_time = benchmark_diff_generation(diff_utils, patch_infos)
-    seq_time = benchmark_file_processing(
-        diff_utils, files, content_map, parallel_threshold=0, max_workers=1
-    )
+    seq_time = benchmark_file_processing(diff_utils, files, content_map, parallel_threshold=0, max_workers=1)
     par_time = benchmark_file_processing(
         diff_utils,
         files,
@@ -171,10 +154,10 @@ def main() -> None:
         max_workers=args.parallel_workers,
     )
 
-    print(f"Diff generation: {diff_time:.3f}s for {args.files} files")
-    print(f"File processing (sequential): {seq_time:.3f}s")
-    print(f"File processing (parallel): {par_time:.3f}s")
+    print(f'Diff generation: {diff_time:.3f}s for {args.files} files')
+    print(f'File processing (sequential): {seq_time:.3f}s')
+    print(f'File processing (parallel): {par_time:.3f}s')
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()

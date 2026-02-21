@@ -35,23 +35,19 @@ class TestHealthEndpoints:
     @pytest.mark.anyio
     async def test_get_health_status_success(self, health_endpoints):
         """Test _get_health_status returns all component statuses."""
-        health_endpoints._health_monitor.check_health.return_value = {
-            "status": "healthy"
-        }
-        health_endpoints._authentication.get_status.return_value = {"enabled": True}
-        health_endpoints._cache_service.get_stats.return_value = {"size": 100}
-        health_endpoints._repository_cache_service.stats.return_value = {"entries": 50}
-        health_endpoints._request_coalescing.get_stats = AsyncMock(
-            return_value={"active": 5}
-        )
+        health_endpoints._health_monitor.check_health.return_value = {'status': 'healthy'}
+        health_endpoints._authentication.get_status.return_value = {'enabled': True}
+        health_endpoints._cache_service.get_stats.return_value = {'size': 100}
+        health_endpoints._repository_cache_service.stats.return_value = {'entries': 50}
+        health_endpoints._request_coalescing.get_stats = AsyncMock(return_value={'active': 5})
 
         status = await health_endpoints._get_health_status()
 
-        assert status["status"] == "healthy"
-        assert "authentication" in status
-        assert "cache" in status
-        assert "repository_cache" in status
-        assert "request_coalescing" in status
+        assert status['status'] == 'healthy'
+        assert 'authentication' in status
+        assert 'cache' in status
+        assert 'repository_cache' in status
+        assert 'request_coalescing' in status
 
     def test_get_health_handler_returns_callable(self, health_endpoints):
         """Test get_health_handler returns a callable."""
@@ -62,10 +58,8 @@ class TestHealthEndpoints:
     @pytest.mark.anyio
     async def test_health_handler_success(self, health_endpoints):
         """Test health handler returns health status."""
-        health_endpoints._health_monitor.check_health.return_value = {
-            "status": "healthy"
-        }
-        health_endpoints._authentication.get_status.return_value = {"enabled": True}
+        health_endpoints._health_monitor.check_health.return_value = {'status': 'healthy'}
+        health_endpoints._authentication.get_status.return_value = {'enabled': True}
         health_endpoints._cache_service.get_stats.return_value = {}
         health_endpoints._repository_cache_service.stats.return_value = {}
         health_endpoints._request_coalescing.get_stats = AsyncMock(return_value={})
@@ -73,44 +67,40 @@ class TestHealthEndpoints:
         handler = health_endpoints.get_health_handler()
         result = await handler()
 
-        assert result["status"] == "healthy"
+        assert result['status'] == 'healthy'
 
     @pytest.mark.anyio
     async def test_health_handler_runtime_error(self, health_endpoints):
         """Test health handler handles RuntimeError."""
-        health_endpoints._health_monitor.check_health.side_effect = RuntimeError(
-            "test error"
-        )
+        health_endpoints._health_monitor.check_health.side_effect = RuntimeError('test error')
 
         handler = health_endpoints.get_health_handler()
         result = await handler()
 
-        assert result["status"] == "unhealthy"
-        assert "error" in result
+        assert result['status'] == 'unhealthy'
+        assert 'error' in result
         health_endpoints._logger.error.assert_called()
 
     @pytest.mark.anyio
     async def test_health_handler_key_error(self, health_endpoints):
         """Test health handler handles KeyError."""
-        health_endpoints._health_monitor.check_health.side_effect = KeyError("test key")
+        health_endpoints._health_monitor.check_health.side_effect = KeyError('test key')
 
         handler = health_endpoints.get_health_handler()
         result = await handler()
 
-        assert result["status"] == "unhealthy"
+        assert result['status'] == 'unhealthy'
         health_endpoints._logger.error.assert_called()
 
     @pytest.mark.anyio
     async def test_health_handler_attribute_error(self, health_endpoints):
         """Test health handler handles AttributeError."""
-        health_endpoints._health_monitor.check_health.side_effect = AttributeError(
-            "test attr"
-        )
+        health_endpoints._health_monitor.check_health.side_effect = AttributeError('test attr')
 
         handler = health_endpoints.get_health_handler()
         result = await handler()
 
-        assert result["status"] == "unhealthy"
+        assert result['status'] == 'unhealthy'
         health_endpoints._logger.error.assert_called()
 
     def test_get_metrics_handler_returns_callable(self, health_endpoints):
@@ -123,8 +113,8 @@ class TestHealthEndpoints:
     async def test_metrics_handler_success(self, health_endpoints):
         """Test metrics handler returns metrics."""
         health_endpoints._metrics_tracker.get_metrics_summary.return_value = {
-            "requests": 100,
-            "errors": 5,
+            'requests': 100,
+            'errors': 5,
         }
 
         handler = health_endpoints.get_metrics_handler()
@@ -136,9 +126,7 @@ class TestHealthEndpoints:
     @pytest.mark.anyio
     async def test_metrics_handler_runtime_error(self, health_endpoints):
         """Test metrics handler handles RuntimeError."""
-        health_endpoints._metrics_tracker.get_metrics_summary.side_effect = (
-            RuntimeError("test")
-        )
+        health_endpoints._metrics_tracker.get_metrics_summary.side_effect = RuntimeError('test')
 
         handler = health_endpoints.get_metrics_handler()
         mock_request = Mock()
@@ -150,9 +138,7 @@ class TestHealthEndpoints:
     @pytest.mark.anyio
     async def test_metrics_handler_key_error(self, health_endpoints):
         """Test metrics handler handles KeyError."""
-        health_endpoints._metrics_tracker.get_metrics_summary.side_effect = KeyError(
-            "test"
-        )
+        health_endpoints._metrics_tracker.get_metrics_summary.side_effect = KeyError('test')
 
         handler = health_endpoints.get_metrics_handler()
         mock_request = Mock()
@@ -163,9 +149,7 @@ class TestHealthEndpoints:
     @pytest.mark.anyio
     async def test_metrics_handler_attribute_error(self, health_endpoints):
         """Test metrics handler handles AttributeError."""
-        health_endpoints._metrics_tracker.get_metrics_summary.side_effect = (
-            AttributeError("test")
-        )
+        health_endpoints._metrics_tracker.get_metrics_summary.side_effect = AttributeError('test')
 
         handler = health_endpoints.get_metrics_handler()
         mock_request = Mock()
@@ -201,102 +185,102 @@ class TestCreateSafeErrorMessage:
 
     def test_github_exception(self, health_endpoints):
         """Test safe message for GithubException."""
-        error = self._make_error("GithubException")
+        error = self._make_error('GithubException')
         message = health_endpoints._create_safe_error_message(error)
-        assert message == "GitHub API error occurred"
+        assert message == 'GitHub API error occurred'
 
     def test_rate_limit_exception(self, health_endpoints):
         """Test safe message for RateLimitExceededException."""
-        error = self._make_error("RateLimitExceededException")
+        error = self._make_error('RateLimitExceededException')
         message = health_endpoints._create_safe_error_message(error)
-        assert "rate limit" in message.lower()
+        assert 'rate limit' in message.lower()
 
     def test_unknown_object_exception(self, health_endpoints):
         """Test safe message for UnknownObjectException."""
-        error = self._make_error("UnknownObjectException")
+        error = self._make_error('UnknownObjectException')
         message = health_endpoints._create_safe_error_message(error)
-        assert "not found" in message.lower()
+        assert 'not found' in message.lower()
 
     def test_bad_credentials_exception(self, health_endpoints):
         """Test safe message for BadCredentialsException."""
-        error = self._make_error("BadCredentialsException")
+        error = self._make_error('BadCredentialsException')
         message = health_endpoints._create_safe_error_message(error)
-        assert "authentication" in message.lower()
+        assert 'authentication' in message.lower()
 
     def test_two_factor_exception(self, health_endpoints):
         """Test safe message for TwoFactorException."""
-        error = self._make_error("TwoFactorException")
+        error = self._make_error('TwoFactorException')
         message = health_endpoints._create_safe_error_message(error)
-        assert "two-factor" in message.lower()
+        assert 'two-factor' in message.lower()
 
     def test_invalid_url_error(self, health_endpoints):
         """Test safe message for InvalidURLError."""
-        error = self._make_error("InvalidURLError")
+        error = self._make_error('InvalidURLError')
         message = health_endpoints._create_safe_error_message(error)
-        assert "url" in message.lower()
+        assert 'url' in message.lower()
 
     def test_invalid_repository_error(self, health_endpoints):
         """Test safe message for InvalidRepositoryError."""
-        error = self._make_error("InvalidRepositoryError")
+        error = self._make_error('InvalidRepositoryError')
         message = health_endpoints._create_safe_error_message(error)
-        assert "repository" in message.lower()
+        assert 'repository' in message.lower()
 
     def test_invalid_pr_number_error(self, health_endpoints):
         """Test safe message for InvalidPRNumberError."""
-        error = self._make_error("InvalidPRNumberError")
+        error = self._make_error('InvalidPRNumberError')
         message = health_endpoints._create_safe_error_message(error)
-        assert "pull request" in message.lower()
+        assert 'pull request' in message.lower()
 
     def test_input_sanitization_error(self, health_endpoints):
         """Test safe message for InputSanitizationError."""
-        error = self._make_error("InputSanitizationError")
+        error = self._make_error('InputSanitizationError')
         message = health_endpoints._create_safe_error_message(error)
-        assert "input" in message.lower()
+        assert 'input' in message.lower()
 
     def test_suspicious_operation_error(self, health_endpoints):
         """Test safe message for SuspiciousOperationError."""
-        error = self._make_error("SuspiciousOperationError")
+        error = self._make_error('SuspiciousOperationError')
         message = health_endpoints._create_safe_error_message(error)
-        assert "suspicious" in message.lower()
+        assert 'suspicious' in message.lower()
 
     def test_connection_error(self, health_endpoints):
         """Test safe message for ConnectionError."""
         error = ConnectionError()
         message = health_endpoints._create_safe_error_message(error)
-        assert "connection" in message.lower()
+        assert 'connection' in message.lower()
 
     def test_timeout_error(self, health_endpoints):
         """Test safe message for TimeoutError."""
         error = TimeoutError()
         message = health_endpoints._create_safe_error_message(error)
-        assert "timed out" in message.lower()
+        assert 'timed out' in message.lower()
 
     def test_value_error(self, health_endpoints):
         """Test safe message for ValueError."""
         error = ValueError()
         message = health_endpoints._create_safe_error_message(error)
-        assert "value" in message.lower()
+        assert 'value' in message.lower()
 
     def test_type_error(self, health_endpoints):
         """Test safe message for TypeError."""
         error = TypeError()
         message = health_endpoints._create_safe_error_message(error)
-        assert "type" in message.lower()
+        assert 'type' in message.lower()
 
     def test_key_error(self, health_endpoints):
         """Test safe message for KeyError."""
         error = KeyError()
         message = health_endpoints._create_safe_error_message(error)
-        assert "field" in message.lower()
+        assert 'field' in message.lower()
 
     def test_attribute_error(self, health_endpoints):
         """Test safe message for AttributeError."""
         error = AttributeError()
         message = health_endpoints._create_safe_error_message(error)
-        assert "configuration" in message.lower()
+        assert 'configuration' in message.lower()
 
     def test_unknown_error_type(self, health_endpoints):
         """Test safe message for unknown error type."""
-        error = Exception("unknown error")
+        error = Exception('unknown error')
         message = health_endpoints._create_safe_error_message(error)
-        assert message == "Request processing failed"
+        assert message == 'Request processing failed'

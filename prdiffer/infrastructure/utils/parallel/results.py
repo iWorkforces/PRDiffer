@@ -4,17 +4,17 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import TypeVar, Generic, Any
 
-T = TypeVar("T")
-R = TypeVar("R")
+T = TypeVar('T')
+R = TypeVar('R')
 
 
 class ErrorStrategy(str, Enum):
     """Error handling strategy for parallel execution."""
 
-    IGNORE = "ignore"  # Log errors, return only successful results
-    RAISE = "raise"  # Raise first exception encountered
-    COLLECT = "collect"  # Return both successful results and errors
-    CONTINUE = "continue"  # Continue processing, return detailed batch results
+    IGNORE = 'ignore'  # Log errors, return only successful results
+    RAISE = 'raise'  # Raise first exception encountered
+    COLLECT = 'collect'  # Return both successful results and errors
+    CONTINUE = 'continue'  # Continue processing, return detailed batch results
 
 
 @dataclass

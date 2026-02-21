@@ -22,8 +22,8 @@ class TestRequestCoalescingServiceInitialization:
         service = RequestCoalescingService()
 
         assert service is not None
-        assert hasattr(service, "_pending_requests")
-        assert hasattr(service, "_lock")
+        assert hasattr(service, '_pending_requests')
+        assert hasattr(service, '_lock')
         assert service._max_waiters == DEFAULT_MAX_WAITERS
 
     def test_initialization_with_custom_max_waiters(self):
@@ -52,11 +52,11 @@ class TestRequestCoalescingServiceCoalesceSingleRequest:
 
         async def mock_fetch():
             fetch_called.append(True)
-            return "result"
+            return 'result'
 
-        result = await service.coalesce("key1", mock_fetch)
+        result = await service.coalesce('key1', mock_fetch)
 
-        assert result == "result"
+        assert result == 'result'
         assert len(fetch_called) == 1
         assert len(service._pending_requests) == 0
 
@@ -65,12 +65,12 @@ class TestRequestCoalescingServiceCoalesceSingleRequest:
         """Test that coalesce returns the result from fetch function."""
         service = RequestCoalescingService()
 
-        expected_result = {"data": "test"}
+        expected_result = {'data': 'test'}
 
         async def mock_fetch():
             return expected_result
 
-        result = await service.coalesce("key1", mock_fetch)
+        result = await service.coalesce('key1', mock_fetch)
 
         assert result == expected_result
 
@@ -80,11 +80,11 @@ class TestRequestCoalescingServiceCoalesceSingleRequest:
         service = RequestCoalescingService()
 
         async def mock_fetch():
-            return "done"
+            return 'done'
 
-        await service.coalesce("key1", mock_fetch)
+        await service.coalesce('key1', mock_fetch)
 
-        assert "key1" not in service._pending_requests
+        assert 'key1' not in service._pending_requests
 
 
 class TestRequestCoalescingServiceCoalesceConcurrentRequests:
@@ -100,19 +100,19 @@ class TestRequestCoalescingServiceCoalesceConcurrentRequests:
         async def mock_fetch():
             fetch_count.append(1)
             await anyio.sleep(0.1)
-            return "shared_result"
+            return 'shared_result'
 
         results = [None, None]
         async with anyio.create_task_group() as tg:
             for i in range(2):
 
                 async def capture_result(idx=i):
-                    results[idx] = await service.coalesce("key1", mock_fetch)
+                    results[idx] = await service.coalesce('key1', mock_fetch)
 
                 tg.start_soon(capture_result)
 
         assert len(fetch_count) == 1
-        assert results == ["shared_result", "shared_result"]
+        assert results == ['shared_result', 'shared_result']
 
     @pytest.mark.asyncio
     async def test_coalesce_three_concurrent_requests(self):
@@ -124,54 +124,54 @@ class TestRequestCoalescingServiceCoalesceConcurrentRequests:
         async def mock_fetch():
             fetch_count.append(1)
             await anyio.sleep(0.1)
-            return "shared_result"
+            return 'shared_result'
 
         results = [None, None, None]
         async with anyio.create_task_group() as tg:
             for i in range(3):
 
                 async def capture_result(idx=i):
-                    results[idx] = await service.coalesce("key1", mock_fetch)
+                    results[idx] = await service.coalesce('key1', mock_fetch)
 
                 tg.start_soon(capture_result)
 
         assert len(fetch_count) == 1
-        assert all(r == "shared_result" for r in results)
+        assert all(r == 'shared_result' for r in results)
 
     @pytest.mark.asyncio
     async def test_coalesce_different_keys_execute_separately(self):
         """Test that different keys execute separately."""
         service = RequestCoalescingService()
 
-        fetch_count = {"key1": 0, "key2": 0}
+        fetch_count = {'key1': 0, 'key2': 0}
 
         async def mock_fetch_key1():
-            fetch_count["key1"] += 1
+            fetch_count['key1'] += 1
             await anyio.sleep(0.05)
-            return "result_key1"
+            return 'result_key1'
 
         async def mock_fetch_key2():
-            fetch_count["key2"] += 1
+            fetch_count['key2'] += 1
             await anyio.sleep(0.05)
-            return "result_key2"
+            return 'result_key2'
 
         results = [None, None]
         async with anyio.create_task_group() as tg:
 
             async def capture_key1():
-                results[0] = await service.coalesce("key1", mock_fetch_key1)
+                results[0] = await service.coalesce('key1', mock_fetch_key1)
 
             async def capture_key2():
-                results[1] = await service.coalesce("key2", mock_fetch_key2)
+                results[1] = await service.coalesce('key2', mock_fetch_key2)
 
             tg.start_soon(capture_key1)
             tg.start_soon(capture_key2)
 
         # Each key should trigger its own fetch
-        assert fetch_count["key1"] == 1
-        assert fetch_count["key2"] == 1
-        assert results[0] == "result_key1"
-        assert results[1] == "result_key2"
+        assert fetch_count['key1'] == 1
+        assert fetch_count['key2'] == 1
+        assert results[0] == 'result_key1'
+        assert results[1] == 'result_key2'
 
     @pytest.mark.asyncio
     async def test_coalesce_waits_in_flight_request(self):
@@ -180,9 +180,9 @@ class TestRequestCoalescingServiceCoalesceConcurrentRequests:
         execution_order = []
 
         async def mock_fetch():
-            execution_order.append("fetch")
+            execution_order.append('fetch')
             await anyio.sleep(0.1)
-            return "result"
+            return 'result'
 
         async def delayed_request(key):
             await anyio.sleep(0.01)
@@ -192,16 +192,16 @@ class TestRequestCoalescingServiceCoalesceConcurrentRequests:
         async with anyio.create_task_group() as tg:
 
             async def capture_key1():
-                results[0] = await delayed_request("key1")
+                results[0] = await delayed_request('key1')
 
             async def capture_key2():
-                results[1] = await delayed_request("key2")
+                results[1] = await delayed_request('key2')
 
             tg.start_soon(capture_key1)
             tg.start_soon(capture_key2)
 
         assert len(execution_order) == 2
-        assert results == ["result", "result"]
+        assert results == ['result', 'result']
 
 
 class TestRequestCoalescingServiceCoalesceExceptionHandling:
@@ -213,14 +213,14 @@ class TestRequestCoalescingServiceCoalesceExceptionHandling:
         service = RequestCoalescingService()
 
         async def mock_fetch():
-            raise ValueError("Test error")
+            raise ValueError('Test error')
 
         exceptions_caught = []
         async with anyio.create_task_group() as tg:
 
             async def capture_exception():
                 try:
-                    await service.coalesce("key1", mock_fetch)
+                    await service.coalesce('key1', mock_fetch)
                 except ValueError as e:
                     exceptions_caught.append(e)
 
@@ -228,7 +228,7 @@ class TestRequestCoalescingServiceCoalesceExceptionHandling:
             tg.start_soon(capture_exception)
 
         assert len(exceptions_caught) == 2
-        assert all("Test error" in str(e) for e in exceptions_caught)
+        assert all('Test error' in str(e) for e in exceptions_caught)
 
     @pytest.mark.asyncio
     async def test_coalesce_exception_propagates_to_all_waiters(self):
@@ -236,13 +236,13 @@ class TestRequestCoalescingServiceCoalesceExceptionHandling:
         service = RequestCoalescingService(max_waiters=10)
 
         async def mock_fetch():
-            raise RuntimeError("Simulated failure")
+            raise RuntimeError('Simulated failure')
 
         exceptions_caught = []
 
         async def wait_for_error():
             try:
-                await service.coalesce("key1", mock_fetch)
+                await service.coalesce('key1', mock_fetch)
             except RuntimeError as e:
                 exceptions_caught.append(str(e))
 
@@ -258,12 +258,12 @@ class TestRequestCoalescingServiceCoalesceExceptionHandling:
         service = RequestCoalescingService()
 
         async def mock_fetch():
-            raise ValueError("Test error")
+            raise ValueError('Test error')
 
         with pytest.raises(ValueError):
-            await service.coalesce("key1", mock_fetch)
+            await service.coalesce('key1', mock_fetch)
 
-        assert "key1" not in service._pending_requests
+        assert 'key1' not in service._pending_requests
 
 
 class TestRequestCoalescingServiceCoalesceTimeout:
@@ -276,10 +276,10 @@ class TestRequestCoalescingServiceCoalesceTimeout:
 
         async def mock_fetch():
             await anyio.sleep(0.2)
-            return "result"
+            return 'result'
 
         with pytest.raises(TimeoutError):
-            await service.coalesce("key1", mock_fetch, timeout=0.05)
+            await service.coalesce('key1', mock_fetch, timeout=0.05)
 
     @pytest.mark.asyncio
     async def test_coalesce_timeout_with_default_timeout(self):
@@ -288,11 +288,11 @@ class TestRequestCoalescingServiceCoalesceTimeout:
 
         async def mock_fetch():
             await anyio.sleep(0.01)
-            return "result"
+            return 'result'
 
-        result = await service.coalesce("key1", mock_fetch)
+        result = await service.coalesce('key1', mock_fetch)
 
-        assert result == "result"
+        assert result == 'result'
 
     @pytest.mark.asyncio
     async def test_coalesce_timeout_propagates_to_waiters(self):
@@ -307,7 +307,7 @@ class TestRequestCoalescingServiceCoalesceTimeout:
 
             async def capture_timeout():
                 try:
-                    await service.coalesce("key1", mock_fetch, timeout=0.1)
+                    await service.coalesce('key1', mock_fetch, timeout=0.1)
                 except TimeoutError:
                     exceptions_caught.append(True)
 
@@ -330,7 +330,7 @@ class TestRequestCoalescingServiceMaxWaiters:
         async def mock_fetch():
             fetch_count.append(1)
             await anyio.sleep(0.05)
-            return "result"
+            return 'result'
 
         async def make_request(key):
             return await service.coalesce(key, mock_fetch)
@@ -342,13 +342,13 @@ class TestRequestCoalescingServiceMaxWaiters:
             for i in range(4):
 
                 async def capture_result(idx=i):
-                    results[idx] = await make_request("key1")
+                    results[idx] = await make_request('key1')
 
                 tg.start_soon(capture_result)
 
         # At least 2 fetches should have been made (due to max_waiters limit)
         assert len(fetch_count) >= 2
-        assert all(r == "result" for r in results)
+        assert all(r == 'result' for r in results)
 
     @pytest.mark.asyncio
     async def test_coalesce_exceeds_limit_executes_new_request(self):
@@ -360,14 +360,14 @@ class TestRequestCoalescingServiceMaxWaiters:
         async def mock_fetch():
             fetch_count.append(1)
             await anyio.sleep(0.05)
-            return f"result_{len(fetch_count)}"
+            return f'result_{len(fetch_count)}'
 
         results = [None] * 5
         async with anyio.create_task_group() as tg:
             for i in range(5):
 
                 async def capture_result(idx=i):
-                    results[idx] = await service.coalesce("key1", mock_fetch)
+                    results[idx] = await service.coalesce('key1', mock_fetch)
 
                 tg.start_soon(capture_result)
 
@@ -387,11 +387,11 @@ class TestRequestCoalescingServiceClear:
 
         async def mock_fetch():
             await anyio.sleep(0.01)
-            return "result"
+            return 'result'
 
         # Complete the requests first
-        await service.coalesce("key1", mock_fetch)
-        await service.coalesce("key2", mock_fetch)
+        await service.coalesce('key1', mock_fetch)
+        await service.coalesce('key2', mock_fetch)
 
         # Clear should work on async method
         await service.clear()
@@ -418,16 +418,16 @@ class TestRequestCoalescingServiceGetStats:
         service = RequestCoalescingService()
 
         async def mock_fetch():
-            return "result"
+            return 'result'
 
-        await service.coalesce("key1", mock_fetch)
+        await service.coalesce('key1', mock_fetch)
 
         stats = await service.get_stats()
 
         assert isinstance(stats, dict)
-        assert "pending_count" in stats
-        assert "pending_keys" in stats
-        assert "total_waiters" in stats
+        assert 'pending_count' in stats
+        assert 'pending_keys' in stats
+        assert 'total_waiters' in stats
 
     @pytest.mark.asyncio
     async def test_get_stats_correct_counts_after_completion(self):
@@ -435,17 +435,17 @@ class TestRequestCoalescingServiceGetStats:
         service = RequestCoalescingService()
 
         async def mock_fetch():
-            return "result"
+            return 'result'
 
         # Complete requests - they will be removed from pending after completion
-        await service.coalesce("key1", mock_fetch)
-        await service.coalesce("key2", mock_fetch)
+        await service.coalesce('key1', mock_fetch)
+        await service.coalesce('key2', mock_fetch)
 
         stats = await service.get_stats()
 
         # After completion, pending should be 0
-        assert stats["pending_count"] == 0
-        assert stats["total_waiters"] == 0
+        assert stats['pending_count'] == 0
+        assert stats['total_waiters'] == 0
 
     @pytest.mark.asyncio
     async def test_get_stats_with_concurrent_requests(self):
@@ -455,13 +455,13 @@ class TestRequestCoalescingServiceGetStats:
         async def mock_fetch():
             # Sleep to ensure we can capture stats while request is in-flight
             await anyio.sleep(0.2)
-            return "result"
+            return 'result'
 
         stats_during = None
         results = [None] * 3
 
         async def capture_result(idx):
-            results[idx] = await service.coalesce("key1", mock_fetch)
+            results[idx] = await service.coalesce('key1', mock_fetch)
 
         async def capture_stats():
             nonlocal stats_during
@@ -476,8 +476,8 @@ class TestRequestCoalescingServiceGetStats:
 
         # During execution, we should have 1 pending key with 3 waiters
         assert stats_during is not None
-        assert stats_during["pending_count"] == 1
-        assert stats_during["total_waiters"] == 3
+        assert stats_during['pending_count'] == 1
+        assert stats_during['total_waiters'] == 3
 
 
 class TestCoalescedRequest:
@@ -485,9 +485,9 @@ class TestCoalescedRequest:
 
     def test_coalesced_request_initialization(self):
         """Test that CoalescedRequest can be initialized."""
-        request = CoalescedRequest(key="test_key")
+        request = CoalescedRequest(key='test_key')
 
-        assert request.key == "test_key"
+        assert request.key == 'test_key'
         assert request.event.is_set() is False
         assert request.result is None
         assert request.exception is None
@@ -495,7 +495,7 @@ class TestCoalescedRequest:
 
     def test_coalesced_request_with_event(self):
         """Test that event can be set."""
-        request = CoalescedRequest(key="test_key")
+        request = CoalescedRequest(key='test_key')
 
         request.event.set()
 
@@ -503,24 +503,24 @@ class TestCoalescedRequest:
 
     def test_coalesced_request_with_result(self):
         """Test that result can be set."""
-        request = CoalescedRequest(key="test_key")
+        request = CoalescedRequest(key='test_key')
 
-        request.result = "test_result"
+        request.result = 'test_result'
 
-        assert request.result == "test_result"
+        assert request.result == 'test_result'
 
     def test_coalesced_request_with_exception(self):
         """Test that exception can be set."""
-        request = CoalescedRequest(key="test_key")
+        request = CoalescedRequest(key='test_key')
 
-        request.exception = ValueError("Test error")
+        request.exception = ValueError('Test error')
 
         assert request.exception is not None
         assert isinstance(request.exception, ValueError)
 
     def test_coalesced_request_with_multiple_waiters(self):
         """Test that request count increments."""
-        request = CoalescedRequest(key="test_key")
+        request = CoalescedRequest(key='test_key')
 
         assert request.request_count == 1
 
@@ -540,12 +540,12 @@ class TestRequestCoalescingServiceEdgeCases:
         service = RequestCoalescingService()
 
         async def mock_fetch():
-            return "result"
+            return 'result'
 
-        key_with_special = "owner/repo/pull/123?param=value#fragment"
+        key_with_special = 'owner/repo/pull/123?param=value#fragment'
         result = await service.coalesce(key_with_special, mock_fetch)
 
-        assert result == "result"
+        assert result == 'result'
 
     @pytest.mark.asyncio
     async def test_coalesce_empty_key(self):
@@ -553,11 +553,11 @@ class TestRequestCoalescingServiceEdgeCases:
         service = RequestCoalescingService()
 
         async def mock_fetch():
-            return "result"
+            return 'result'
 
-        result = await service.coalesce("", mock_fetch)
+        result = await service.coalesce('', mock_fetch)
 
-        assert result == "result"
+        assert result == 'result'
 
     @pytest.mark.asyncio
     async def test_multiple_sequential_requests(self):
@@ -569,16 +569,16 @@ class TestRequestCoalescingServiceEdgeCases:
         async def mock_fetch():
             fetch_count.append(1)
             await anyio.sleep(0.05)
-            return f"result_{len(fetch_count)}"
+            return f'result_{len(fetch_count)}'
 
-        result1 = await service.coalesce("key1", mock_fetch)
+        result1 = await service.coalesce('key1', mock_fetch)
         await anyio.sleep(0.1)
-        result2 = await service.coalesce("key1", mock_fetch)
+        result2 = await service.coalesce('key1', mock_fetch)
 
         # Should have called fetch twice (sequential requests don't coalesce)
         assert len(fetch_count) == 2
-        assert result1 == "result_1"
-        assert result2 == "result_2"
+        assert result1 == 'result_1'
+        assert result2 == 'result_2'
         assert len(service._pending_requests) == 0
 
     @pytest.mark.asyncio
@@ -588,11 +588,11 @@ class TestRequestCoalescingServiceEdgeCases:
 
         async def mock_fetch():
             await anyio.sleep(0.05)
-            return "result"
+            return 'result'
 
         async with anyio.create_task_group() as tg:
-            tg.start_soon(service.coalesce, "key1", mock_fetch)
-            tg.start_soon(service.coalesce, "key1", mock_fetch)
+            tg.start_soon(service.coalesce, 'key1', mock_fetch)
+            tg.start_soon(service.coalesce, 'key1', mock_fetch)
 
         assert len(service._pending_requests) == 0
 
@@ -603,21 +603,21 @@ class TestRequestCoalescingServiceEdgeCases:
 
         async def slow_fetch():
             await anyio.sleep(0.2)
-            return "result"
+            return 'result'
 
         timeout_occurred = False
 
         async def wait_for_first():
             nonlocal timeout_occurred
             try:
-                return await service.coalesce("key1", slow_fetch, timeout=0.05)
+                return await service.coalesce('key1', slow_fetch, timeout=0.05)
             except TimeoutError:
                 timeout_occurred = True
 
         async def wait_for_others():
             await anyio.sleep(0.01)
             try:
-                return await service.coalesce("key1", slow_fetch, timeout=0.05)
+                return await service.coalesce('key1', slow_fetch, timeout=0.05)
             except TimeoutError:
                 pass
 

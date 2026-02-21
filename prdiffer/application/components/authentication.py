@@ -80,12 +80,12 @@ class AuthenticationMiddleware(AuthenticationProtocol):
         self._input_validator = input_validator or InputValidator()
 
         # Load configuration from environment
-        self._auth_enabled = os.getenv("MCP_AUTH_ENABLED", "false").lower() in (
-            "true",
-            "1",
-            "yes",
+        self._auth_enabled = os.getenv('MCP_AUTH_ENABLED', 'false').lower() in (
+            'true',
+            '1',
+            'yes',
         )
-        self._api_keys_env = os.getenv("MCP_API_KEYS", "")
+        self._api_keys_env = os.getenv('MCP_API_KEYS', '')
 
         # Brute-force protection settings
         self._max_failures_per_minute = max_failures_per_minute
@@ -97,39 +97,35 @@ class AuthenticationMiddleware(AuthenticationProtocol):
 
         # Thread-safe failure tracking
         self._lock = RLock()
-        self._auth_failures: dict[str, AuthFailureRecord] = defaultdict(
-            AuthFailureRecord
-        )
+        self._auth_failures: dict[str, AuthFailureRecord] = defaultdict(AuthFailureRecord)
         self._locked_clients: dict[str, float] = {}  # client_id -> unlock_time
 
         # Parse API keys from environment and store ONLY hashes (no raw keys)
         self._hashed_api_keys: set[str] = set()
         self._api_key_count: int = 0
         if self._api_keys_env:
-            raw_keys = [
-                key.strip() for key in self._api_keys_env.split(",") if key.strip()
-            ]
+            raw_keys = [key.strip() for key in self._api_keys_env.split(',') if key.strip()]
             self._api_key_count = len(raw_keys)
             for key in raw_keys:
                 self._hashed_api_keys.add(self._hash_api_key(key))
 
         # Admin API key (if provided)
         self._admin_api_key_hash: str | None = None
-        admin_key = os.getenv("MCP_ADMIN_API_KEY", "")
+        admin_key = os.getenv('MCP_ADMIN_API_KEY', '')
         if admin_key:
             self._admin_api_key_hash = self._hash_api_key(admin_key)
 
         # Default client ID for unauthenticated requests
-        self._default_client_id = "anonymous"
+        self._default_client_id = 'anonymous'
 
         self._logger.info(
-            "Authentication middleware initialized",
+            'Authentication middleware initialized',
             extra={
-                "enabled": self._auth_enabled,
-                "api_keys_configured": self._api_key_count,
-                "admin_configured": self._admin_api_key_hash is not None,
-                "max_failures_per_minute": self._max_failures_per_minute,
-                "lockout_duration": self._lockout_duration,
+                'enabled': self._auth_enabled,
+                'api_keys_configured': self._api_key_count,
+                'admin_configured': self._admin_api_key_hash is not None,
+                'max_failures_per_minute': self._max_failures_per_minute,
+                'lockout_duration': self._lockout_duration,
             },
         )
 
@@ -145,7 +141,7 @@ class AuthenticationMiddleware(AuthenticationProtocol):
         Returns:
             Hex-encoded SHA-256 hash of the API key
         """
-        return hashlib.sha256(api_key.encode("utf-8")).hexdigest()
+        return hashlib.sha256(api_key.encode('utf-8')).hexdigest()
 
     def _is_locked_out(self, client_identifier: str) -> bool:
         """Check if a client is currently locked out.
@@ -202,8 +198,8 @@ class AuthenticationMiddleware(AuthenticationProtocol):
             Client identifier string
         """
         if api_key:
-            return f"key_{self._hash_api_key(api_key)[:16]}"
-        return "anonymous"
+            return f'key_{self._hash_api_key(api_key)[:16]}'
+        return 'anonymous'
 
     def _looks_like_jwt_token(self, token: str) -> bool:
         """Check if a token looks like a JWT token.
@@ -222,16 +218,16 @@ class AuthenticationMiddleware(AuthenticationProtocol):
         Returns:
             True if token appears to be a JWT token
         """
-        if "." in token:
+        if '.' in token:
             return True
 
         if len(token) > 40:
             return True
 
         # Check for Bearer prefix (after cleaning)
-        if token.startswith("Bearer "):
-            clean_token = token.replace("Bearer ", "")
-            if clean_token.startswith("Bearer "):
+        if token.startswith('Bearer '):
+            clean_token = token.replace('Bearer ', '')
+            if clean_token.startswith('Bearer '):
                 return True
 
         return False
@@ -259,11 +255,9 @@ class AuthenticationMiddleware(AuthenticationProtocol):
 
         # Check if client is locked out
         if self._is_locked_out(client_identifier):
-            self._logger.warning(
-                f"Authentication blocked: Client locked out: {client_identifier[:20]}..."
-            )
+            self._logger.warning(f'Authentication blocked: Client locked out: {client_identifier[:20]}...')
             raise AuthenticationError(
-                "Too many authentication failures. Please try again later.",
+                'Too many authentication failures. Please try again later.',
                 error_code=E2002_AUTH_FAILED,
             )
 
@@ -271,7 +265,7 @@ class AuthenticationMiddleware(AuthenticationProtocol):
         if not api_key:
             self._record_failure(client_identifier)
             self._logger.warning(
-                "Authentication failed: No API key provided",
+                'Authentication failed: No API key provided',
             )
             return False, None
 
@@ -285,29 +279,24 @@ class AuthenticationMiddleware(AuthenticationProtocol):
                 # API key: validate format and check against configured keys
                 if not self.validate_api_key_format(api_key):
                     self._record_failure(client_identifier)
-                    self._logger.warning(
-                        "Authentication failed: Invalid API key format"
-                    )
+                    self._logger.warning('Authentication failed: Invalid API key format')
                     return False, None
                 provided_hash = self._hash_api_key(api_key)
-                if (
-                    self._admin_api_key_hash
-                    and provided_hash == self._admin_api_key_hash
-                ):
+                if self._admin_api_key_hash and provided_hash == self._admin_api_key_hash:
                     self._record_success(client_identifier)
-                    self._logger.debug("Admin authentication successful")
-                    return True, "admin"
+                    self._logger.debug('Admin authentication successful')
+                    return True, 'admin'
                 if provided_hash in self._hashed_api_keys:
-                    client_id = f"api_key_{provided_hash[:16]}"
+                    client_id = f'api_key_{provided_hash[:16]}'
                     self._record_success(client_identifier)
                     self._logger.debug(
-                        "API key authentication successful",
-                        extra={"client_id": client_id},
+                        'API key authentication successful',
+                        extra={'client_id': client_id},
                     )
                     return True, client_id
                 else:
                     self._record_failure(client_identifier)
-                    self._logger.warning("Authentication failed: Invalid API key")
+                    self._logger.warning('Authentication failed: Invalid API key')
                     return False, None
 
         # Hash the provided API key for comparison
@@ -317,36 +306,30 @@ class AuthenticationMiddleware(AuthenticationProtocol):
         if self._admin_api_key_hash and provided_hash == self._admin_api_key_hash:
             self._record_success(client_identifier)
             self._logger.debug(
-                "Admin authentication successful",
+                'Admin authentication successful',
             )
-            return True, "admin"
+            return True, 'admin'
 
         # Check regular API keys
         if provided_hash in self._hashed_api_keys:
             # Use a truncated hash as client ID for rate limiting
-            client_id = f"api_key_{provided_hash[:16]}"
+            client_id = f'api_key_{provided_hash[:16]}'
             self._record_success(client_identifier)
             self._logger.debug(
-                "API key authentication successful",
-                extra={"client_id": client_id},
+                'API key authentication successful',
+                extra={'client_id': client_id},
             )
             return True, client_id
 
         # Authentication failed - record the failure
         self._record_failure(client_identifier)
         self._logger.warning(
-            "Authentication failed: Invalid API key",
-            extra={
-                "failures": self._auth_failures.get(
-                    client_identifier, AuthFailureRecord()
-                ).count
-            },
+            'Authentication failed: Invalid API key',
+            extra={'failures': self._auth_failures.get(client_identifier, AuthFailureRecord()).count},
         )
         return False, None
 
-    def extract_client_identifier(
-        self, headers: dict[str, str]
-    ) -> tuple[str | None, str | None]:
+    def extract_client_identifier(self, headers: dict[str, str]) -> tuple[str | None, str | None]:
         """Extract client identifier from request headers.
 
         This method extracts API keys from various header sources:
@@ -365,25 +348,20 @@ class AuthenticationMiddleware(AuthenticationProtocol):
             - client_id: The client identifier for rate limiting (IP or API key hash)
         """
         # Try X-API-Key header first
-        api_key = headers.get("x-api-key") or headers.get("X-API-Key")
+        api_key = headers.get('x-api-key') or headers.get('X-API-Key')
 
         # Try Authorization header with Bearer token
         if not api_key:
-            auth_header = headers.get("authorization") or headers.get("Authorization")
-            if auth_header and auth_header.startswith("Bearer "):
+            auth_header = headers.get('authorization') or headers.get('Authorization')
+            if auth_header and auth_header.startswith('Bearer '):
                 api_key = auth_header[7:]  # Remove "Bearer " prefix
 
         # Extract IP address for fallback
-        client_ip = (
-            headers.get("x-forwarded-for")
-            or headers.get("X-Forwarded-For")
-            or headers.get("x-real-ip")
-            or headers.get("X-Real-IP")
-        )
+        client_ip = headers.get('x-forwarded-for') or headers.get('X-Forwarded-For') or headers.get('x-real-ip') or headers.get('X-Real-IP')
 
         # If X-Forwarded-For contains multiple IPs, take the first one
-        if client_ip and "," in client_ip:
-            client_ip = client_ip.split(",")[0].strip()
+        if client_ip and ',' in client_ip:
+            client_ip = client_ip.split(',')[0].strip()
 
         # Determine client ID based on what we have
         if api_key:
@@ -456,17 +434,17 @@ class AuthenticationMiddleware(AuthenticationProtocol):
             True if the API key was added successfully
         """
         if not self.validate_api_key_format(api_key):
-            self._logger.warning("Failed to add API key: Invalid format")
+            self._logger.warning('Failed to add API key: Invalid format')
             return False
 
         api_key_hash = self._hash_api_key(api_key)
         if api_key_hash in self._hashed_api_keys:
-            self._logger.warning("API key already exists")
+            self._logger.warning('API key already exists')
             return False
 
         self._hashed_api_keys.add(api_key_hash)
         self._api_key_count += 1
-        self._logger.info("API key added successfully")
+        self._logger.info('API key added successfully')
         return True
 
     def remove_api_key(self, api_key: str) -> bool:
@@ -482,7 +460,7 @@ class AuthenticationMiddleware(AuthenticationProtocol):
         if api_key_hash in self._hashed_api_keys:
             self._hashed_api_keys.remove(api_key_hash)
             self._api_key_count -= 1
-            self._logger.info("API key removed successfully")
+            self._logger.info('API key removed successfully')
             return True
         return False
 
@@ -501,10 +479,10 @@ class AuthenticationMiddleware(AuthenticationProtocol):
             Dictionary containing authentication status
         """
         return {
-            "authentication_enabled": self._auth_enabled,
-            "api_keys_configured": self._api_key_count,
-            "admin_api_key_configured": self._admin_api_key_hash is not None,
-            "default_client_id": self._default_client_id,
+            'authentication_enabled': self._auth_enabled,
+            'api_keys_configured': self._api_key_count,
+            'admin_api_key_configured': self._admin_api_key_hash is not None,
+            'default_client_id': self._default_client_id,
         }
 
     @staticmethod
@@ -525,7 +503,7 @@ class AuthenticationMiddleware(AuthenticationProtocol):
             The decoded payload dictionary, or None if parsing fails
         """
         try:
-            parts = token.split(".")
+            parts = token.split('.')
             if len(parts) != 3:
                 return None
 
@@ -535,7 +513,7 @@ class AuthenticationMiddleware(AuthenticationProtocol):
             # Add padding if necessary
             padding = 4 - (len(payload_b64) % 4)
             if padding != 4:
-                payload_b64 += "=" * padding
+                payload_b64 += '=' * padding
 
             payload_json = base64.urlsafe_b64decode(payload_b64)
             return json.loads(payload_json)
@@ -572,7 +550,7 @@ class AuthenticationMiddleware(AuthenticationProtocol):
             - error_message: None if valid, or error description if invalid
         """
         if algorithms is None:
-            algorithms = ["HS256"]
+            algorithms = ['HS256']
 
         try:
             # Verify signature and decode token
@@ -583,33 +561,31 @@ class AuthenticationMiddleware(AuthenticationProtocol):
                 audience=audience,
                 issuer=issuer,
                 options={
-                    "verify_signature": True,  # Always verify signature
-                    "verify_exp": True,  # Verify expiration
-                    "verify_nbf": True,  # Verify not-before
-                    "verify_aud": audience is not None,
-                    "verify_iss": issuer is not None,
+                    'verify_signature': True,  # Always verify signature
+                    'verify_exp': True,  # Verify expiration
+                    'verify_nbf': True,  # Verify not-before
+                    'verify_aud': audience is not None,
+                    'verify_iss': issuer is not None,
                 },
             )
             return True, payload, None
 
         except ExpiredSignatureError:
-            return False, None, "Token has expired"
+            return False, None, 'Token has expired'
         except jwt.InvalidSignatureError:
-            return False, None, "Invalid token signature"
+            return False, None, 'Invalid token signature'
         except jwt.InvalidAudienceError:
-            return False, None, "Invalid token audience"
+            return False, None, 'Invalid token audience'
         except jwt.InvalidIssuerError:
-            return False, None, "Invalid token issuer"
+            return False, None, 'Invalid token issuer'
         except jwt.InvalidAlgorithmError:
-            return False, None, "Invalid token algorithm"
+            return False, None, 'Invalid token algorithm'
         except InvalidTokenError as e:
-            return False, None, f"Invalid token: {str(e)}"
+            return False, None, f'Invalid token: {str(e)}'
         except Exception as e:
-            return False, None, f"Token verification failed: {str(e)}"
+            return False, None, f'Token verification failed: {str(e)}'
 
-    def is_token_expired(
-        self, token: str, leeway_seconds: int = 60
-    ) -> tuple[bool, str | None]:
+    def is_token_expired(self, token: str, leeway_seconds: int = 60) -> tuple[bool, str | None]:
         """Check if a token is expired.
 
         Supports JWT tokens with 'exp' claim and GitHub fine-grained tokens
@@ -628,7 +604,7 @@ class AuthenticationMiddleware(AuthenticationProtocol):
         payload = self.parse_jwt_payload(token)
 
         if payload:
-            exp_claim = payload.get("exp")
+            exp_claim = payload.get('exp')
             if exp_claim:
                 current_time = time.time()
                 expiration_time = exp_claim + leeway_seconds
@@ -638,7 +614,7 @@ class AuthenticationMiddleware(AuthenticationProtocol):
                     time_remaining = expiration_time - current_time
                     if time_remaining < 0:
                         expired_for = abs(int(time_remaining))
-                        return True, f"Token expired {expired_for} seconds ago"
+                        return True, f'Token expired {expired_for} seconds ago'
 
                 return False, None
 

@@ -27,7 +27,7 @@ class DiffProcessingConfig:
     chunk_size: int = DEFAULT_DIFF_CHUNK_SIZE
     max_diff_size: int = DEFAULT_MAX_DIFF_SIZE
 
-    def validate(self) -> "DiffProcessingConfig":
+    def validate(self) -> 'DiffProcessingConfig':
         """Validate configuration and return a corrected version if needed.
 
         Returns:
@@ -47,7 +47,7 @@ class DiffUtils(LazyLoggerMixin, DiffServiceInterface):
     patches with full context, and handling content encoding issues.
     """
 
-    RE_HUNK_HEADER = re.compile(r"^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@[ ]?(.*)")
+    RE_HUNK_HEADER = re.compile(r'^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@[ ]?(.*)')
 
     def __init__(self, logger=None, config: DiffProcessingConfig | None = None):
         """Initialize the diff utility.
@@ -77,27 +77,27 @@ class DiffUtils(LazyLoggerMixin, DiffServiceInterface):
         new_count = len(new_lines)
         start1 = 0 if orig_count == 0 else 1
         start2 = 0 if new_count == 0 else 1
-        header = f"@@ -{start1},{orig_count} +{start2},{new_count} @@"
+        header = f'@@ -{start1},{orig_count} +{start2},{new_count} @@'
         body_lines = []
         sm = difflib.SequenceMatcher(None, orig_lines, new_lines)
         for tag, i1, i2, j1, j2 in sm.get_opcodes():
-            if tag == "equal":
+            if tag == 'equal':
                 for k in range(i1, i2):
-                    body_lines.append(" " + orig_lines[k])
-            elif tag == "delete":
+                    body_lines.append(' ' + orig_lines[k])
+            elif tag == 'delete':
                 for k in range(i1, i2):
-                    body_lines.append("-" + orig_lines[k])
-            elif tag == "insert":
+                    body_lines.append('-' + orig_lines[k])
+            elif tag == 'insert':
                 for k in range(j1, j2):
-                    body_lines.append("+" + new_lines[k])
-            elif tag == "replace":
+                    body_lines.append('+' + new_lines[k])
+            elif tag == 'replace':
                 for k in range(i1, i2):
-                    body_lines.append("-" + orig_lines[k])
+                    body_lines.append('-' + orig_lines[k])
                 for k in range(j1, j2):
-                    body_lines.append("+" + new_lines[k])
+                    body_lines.append('+' + new_lines[k])
 
         # keep a leading blank line to match previous formatting between hunks
-        return "\n".join(["", header] + body_lines)
+        return '\n'.join(['', header] + body_lines)
 
     def build_full_file_patch_chunked(
         self,
@@ -122,11 +122,7 @@ class DiffUtils(LazyLoggerMixin, DiffServiceInterface):
         """
         # Use config values if not specified
         chunk_size = chunk_size if chunk_size is not None else self._config.chunk_size
-        large_file_threshold = (
-            large_file_threshold
-            if large_file_threshold is not None
-            else self._config.large_file_threshold
-        )
+        large_file_threshold = large_file_threshold if large_file_threshold is not None else self._config.large_file_threshold
         max_diff_size = self._config.max_diff_size
 
         orig_lines = original_file_str.splitlines()
@@ -135,16 +131,14 @@ class DiffUtils(LazyLoggerMixin, DiffServiceInterface):
         # Check if file is too large
         max_lines = max(len(orig_lines), len(new_lines))
         if max_lines > max_diff_size:
-            return "[LARGE FILE - DIFF TRUNCATED: File exceeds maximum diff size]"
+            return '[LARGE FILE - DIFF TRUNCATED: File exceeds maximum diff size]'
 
         # Use standard processing for small files
         if max_lines <= large_file_threshold:
             return self.build_full_file_patch(original_file_str, new_file_str)
 
         # Chunked processing for large files
-        self._get_logger().info(
-            f"Using chunked diff processing for large file ({max_lines} lines)"
-        )
+        self._get_logger().info(f'Using chunked diff processing for large file ({max_lines} lines)')
 
         hunks = []
         chunk_index = 0
@@ -158,15 +152,13 @@ class DiffUtils(LazyLoggerMixin, DiffServiceInterface):
             new_chunk = new_lines[start_line:end_line]
 
             # Generate hunk for this chunk
-            hunk = self._build_chunk_hunk(
-                orig_chunk, new_chunk, start_line + 1, start_line + 1
-            )
+            hunk = self._build_chunk_hunk(orig_chunk, new_chunk, start_line + 1, start_line + 1)
             if hunk:
                 hunks.append(hunk)
 
             chunk_index += 1
 
-        return "\n".join(hunks) if hunks else ""
+        return '\n'.join(hunks) if hunks else ''
 
     def _build_chunk_hunk(
         self,
@@ -187,35 +179,35 @@ class DiffUtils(LazyLoggerMixin, DiffServiceInterface):
             str: Unified diff hunk for this chunk
         """
         if not orig_lines and not new_lines:
-            return ""
+            return ''
 
         orig_count = len(orig_lines)
         new_count = len(new_lines)
 
-        header = f"@@ -{orig_start},{orig_count} +{new_start},{new_count} @@"
+        header = f'@@ -{orig_start},{orig_count} +{new_start},{new_count} @@'
         body_lines = []
 
         sm = difflib.SequenceMatcher(None, orig_lines, new_lines)
         for tag, i1, i2, j1, j2 in sm.get_opcodes():
-            if tag == "equal":
+            if tag == 'equal':
                 for k in range(i1, i2):
-                    body_lines.append(" " + orig_lines[k])
-            elif tag == "delete":
+                    body_lines.append(' ' + orig_lines[k])
+            elif tag == 'delete':
                 for k in range(i1, i2):
-                    body_lines.append("-" + orig_lines[k])
-            elif tag == "insert":
+                    body_lines.append('-' + orig_lines[k])
+            elif tag == 'insert':
                 for k in range(j1, j2):
-                    body_lines.append("+" + new_lines[k])
-            elif tag == "replace":
+                    body_lines.append('+' + new_lines[k])
+            elif tag == 'replace':
                 for k in range(i1, i2):
-                    body_lines.append("-" + orig_lines[k])
+                    body_lines.append('-' + orig_lines[k])
                 for k in range(j1, j2):
-                    body_lines.append("+" + new_lines[k])
+                    body_lines.append('+' + new_lines[k])
 
         # Only return hunk if there are actual changes
-        if any(line.startswith("+") or line.startswith("-") for line in body_lines):
-            return "\n".join(["", header] + body_lines)
-        return ""
+        if any(line.startswith('+') or line.startswith('-') for line in body_lines):
+            return '\n'.join(['', header] + body_lines)
+        return ''
 
     def decode_if_bytes(self, content: str | bytes | bytearray) -> str:
         """Decode bytes content to string with fallback encoding support.
@@ -231,20 +223,18 @@ class DiffUtils(LazyLoggerMixin, DiffServiceInterface):
         """
         if isinstance(content, (bytes, bytearray)):
             try:
-                return content.decode("utf-8")
+                return content.decode('utf-8')
             except UnicodeDecodeError:
-                encodings_to_try = ["iso-8859-1", "latin-1", "ascii", "utf-16"]
+                encodings_to_try = ['iso-8859-1', 'latin-1', 'ascii', 'utf-16']
                 for encoding in encodings_to_try:
                     try:
                         return content.decode(encoding)
                     except UnicodeDecodeError:
                         continue
-                return ""
+                return ''
         return content
 
-    def extend_patch(
-        self, original_file_str: str, patch_str: str, new_file_str: str = ""
-    ) -> str:
+    def extend_patch(self, original_file_str: str, patch_str: str, new_file_str: str = '') -> str:
         """Extend a patch to show full file context instead of just changed lines.
 
         Args:
@@ -260,32 +250,24 @@ class DiffUtils(LazyLoggerMixin, DiffServiceInterface):
         new_file_str = self.decode_if_bytes(new_file_str)
 
         # Allow full-file context even for new files (original can be empty)
-        original_file_str = original_file_str or ""
-        new_file_str = new_file_str or ""
+        original_file_str = original_file_str or ''
+        new_file_str = new_file_str or ''
 
         # Pre-check for binary content before attempting diff generation
-        if self._is_binary_content(original_file_str) or self._is_binary_content(
-            new_file_str
-        ):
-            self._get_logger().debug("Skipping diff for binary file content")
-            return "[BINARY FILE - DIFF NOT AVAILABLE]"
+        if self._is_binary_content(original_file_str) or self._is_binary_content(new_file_str):
+            self._get_logger().debug('Skipping diff for binary file content')
+            return '[BINARY FILE - DIFF NOT AVAILABLE]'
 
         try:
             # Use chunked processing for large files to avoid O(N²) complexity
-            max_lines = max(
-                len(original_file_str.splitlines()), len(new_file_str.splitlines())
-            )
+            max_lines = max(len(original_file_str.splitlines()), len(new_file_str.splitlines()))
             if max_lines > self._config.large_file_threshold:
-                extended_patch_str = self.build_full_file_patch_chunked(
-                    original_file_str, new_file_str
-                )
+                extended_patch_str = self.build_full_file_patch_chunked(original_file_str, new_file_str)
             else:
                 # Build a single full-file unified-diff hunk
-                extended_patch_str = self.build_full_file_patch(
-                    original_file_str, new_file_str
-                )
+                extended_patch_str = self.build_full_file_patch(original_file_str, new_file_str)
         except Exception as e:
-            self._get_logger().warning(f"Failed to extend patch: {e}")
+            self._get_logger().warning(f'Failed to extend patch: {e}')
             return patch_str
 
         return extended_patch_str
@@ -303,13 +285,13 @@ class DiffUtils(LazyLoggerMixin, DiffServiceInterface):
             return False
 
         # Check for null bytes (common in binary files)
-        if "\x00" in content:
+        if '\x00' in content:
             return True
 
         # Check for high ratio of non-printable characters
         # Sample first 8KB for efficiency
         sample = content[:8192]
-        non_printable = sum(1 for c in sample if ord(c) < 32 and c not in "\n\r\t")
+        non_printable = sum(1 for c in sample if ord(c) < 32 and c not in '\n\r\t')
 
         # If more than 30% non-printable, likely binary
         if len(sample) > 0 and non_printable / len(sample) > 0.3:
@@ -318,9 +300,7 @@ class DiffUtils(LazyLoggerMixin, DiffServiceInterface):
         return False
 
 
-def get_diff_utils(
-    logger=None, config: DiffProcessingConfig | None = None
-) -> DiffUtils:
+def get_diff_utils(logger=None, config: DiffProcessingConfig | None = None) -> DiffUtils:
     """Get a diff utils instance.
 
     Args:

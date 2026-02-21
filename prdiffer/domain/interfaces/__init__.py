@@ -16,11 +16,11 @@ from prdiffer.domain.interfaces.protocols import (
 from prdiffer.domain.interfaces.vcs_provider import VCSDiffRepositoryInterface
 
 __all__ = [
-    "RateLimiterProtocol",
-    "MetricsTrackerProtocol",
-    "PROperationHandlerProtocol",
-    "HealthMonitorProtocol",
-    "ServerConfigurationProtocol",
-    "AuthenticationProtocol",
-    "VCSDiffRepositoryInterface",
+    'RateLimiterProtocol',
+    'MetricsTrackerProtocol',
+    'PROperationHandlerProtocol',
+    'HealthMonitorProtocol',
+    'ServerConfigurationProtocol',
+    'AuthenticationProtocol',
+    'VCSDiffRepositoryInterface',
 ]

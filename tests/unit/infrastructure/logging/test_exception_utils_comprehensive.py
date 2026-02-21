@@ -30,32 +30,30 @@ class TestSanitizeExceptionMessage:
 
     def test_sanitize_simple_message(self):
         """Test sanitizing a simple message."""
-        exception = Exception("Simple error message")
+        exception = Exception('Simple error message')
 
         result = ExceptionSanitizer.sanitize_exception_message(exception)
 
-        assert result == "Simple error message"
+        assert result == 'Simple error message'
 
     def test_sanitize_empty_exception(self):
         """Test sanitizing empty exception."""
         result = ExceptionSanitizer.sanitize_exception_message(None)
 
-        assert result == ""
+        assert result == ''
 
     def test_sanitize_github_token(self):
         """Test sanitizing GitHub token."""
-        exception = Exception(
-            "Error with token ghp_1234567890123456789012345678901234567890"
-        )
+        exception = Exception('Error with token ghp_1234567890123456789012345678901234567890')
 
         result = ExceptionSanitizer.sanitize_exception_message(exception)
 
-        assert "ghp_1234567890" not in result
-        assert "ghp_" in result or "*" in result
+        assert 'ghp_1234567890' not in result
+        assert 'ghp_' in result or '*' in result
 
         result = ExceptionSanitizer.sanitize_exception_message(exception)
 
-        assert "abcdefghijklmnopqrstuvwxyz1234567890" not in result
+        assert 'abcdefghijklmnopqrstuvwxyz1234567890' not in result
 
     def test_sanitize_password(self):
         """Test sanitizing password."""
@@ -63,54 +61,50 @@ class TestSanitizeExceptionMessage:
 
         result = ExceptionSanitizer.sanitize_exception_message(exception)
 
-        assert "mysecretpassword123" not in result
+        assert 'mysecretpassword123' not in result
 
     def test_sanitize_email(self):
         """Test sanitizing email."""
-        exception = Exception("Error for user testuser@example.com")
+        exception = Exception('Error for user testuser@example.com')
 
         result = ExceptionSanitizer.sanitize_exception_message(exception)
 
-        assert "testuser" not in result or "***" in result
+        assert 'testuser' not in result or '***' in result
 
     def test_sanitize_ip_address(self):
         """Test sanitizing IP address."""
-        exception = Exception("Connection from 192.168.1.100")
+        exception = Exception('Connection from 192.168.1.100')
 
         result = ExceptionSanitizer.sanitize_exception_message(exception)
 
-        assert "192.168.1.100" not in result
+        assert '192.168.1.100' not in result
 
     def test_sanitize_api_key_in_url(self):
         """Test sanitizing API key in URL."""
-        exception = Exception(
-            "Request to https://api.example.com?api_key=secretkey12345678"
-        )
+        exception = Exception('Request to https://api.example.com?api_key=secretkey12345678')
 
         result = ExceptionSanitizer.sanitize_exception_message(exception)
 
-        assert "secretkey12345678" not in result
+        assert 'secretkey12345678' not in result
 
     def test_truncate_long_message(self):
         """Test truncating long message."""
-        long_message = "A" * 1000
+        long_message = 'A' * 1000
         exception = Exception(long_message)
 
-        result = ExceptionSanitizer.sanitize_exception_message(
-            exception, max_length=100
-        )
+        result = ExceptionSanitizer.sanitize_exception_message(exception, max_length=100)
 
         assert len(result) <= 103  # max_length + "..."
-        assert result.endswith("...")
+        assert result.endswith('...')
 
     def test_custom_max_length(self):
         """Test custom max length."""
-        exception = Exception("A" * 200)
+        exception = Exception('A' * 200)
 
         result = ExceptionSanitizer.sanitize_exception_message(exception, max_length=50)
 
         assert len(result) <= 53
-        assert result.endswith("...")
+        assert result.endswith('...')
 
 
 class TestSanitizeTraceback:
@@ -120,28 +114,26 @@ class TestSanitizeTraceback:
         """Test sanitizing None traceback."""
         result = ExceptionSanitizer.sanitize_traceback(exc_value=None)
 
-        assert result == ""
+        assert result == ''
 
     def test_sanitize_traceback_simple(self):
         """Test sanitizing simple traceback."""
         try:
-            raise ValueError("Test error")
+            raise ValueError('Test error')
         except ValueError as e:
             result = ExceptionSanitizer.sanitize_traceback(exc_value=e)
 
-            assert "ValueError" in result
-            assert "Test error" in result
+            assert 'ValueError' in result
+            assert 'Test error' in result
 
     def test_sanitize_traceback_with_token(self):
         """Test sanitizing traceback with token."""
         try:
-            raise ValueError(
-                "Error with token ghp_1234567890123456789012345678901234567890"
-            )
+            raise ValueError('Error with token ghp_1234567890123456789012345678901234567890')
         except ValueError as e:
             result = ExceptionSanitizer.sanitize_traceback(exc_value=e)
 
-            assert "ghp_1234567890123456789012345678901234567890" not in result
+            assert 'ghp_1234567890123456789012345678901234567890' not in result
 
 
 class TestSanitizeExceptionForLogging:
@@ -149,46 +141,40 @@ class TestSanitizeExceptionForLogging:
 
     def test_sanitize_exception_basic(self):
         """Test basic exception sanitization."""
-        exception = ValueError("Test error")
+        exception = ValueError('Test error')
 
         result = ExceptionSanitizer.sanitize_exception_for_logging(exception)
 
-        assert result["type"] == "ValueError"
-        assert result["module"] == "builtins"
-        assert result["message"] == "Test error"
+        assert result['type'] == 'ValueError'
+        assert result['module'] == 'builtins'
+        assert result['message'] == 'Test error'
 
     def test_sanitize_exception_with_traceback(self):
         """Test exception sanitization with traceback."""
         try:
-            raise RuntimeError("Test runtime error")
+            raise RuntimeError('Test runtime error')
         except RuntimeError as e:
-            result = ExceptionSanitizer.sanitize_exception_for_logging(
-                e, include_traceback=True
-            )
+            result = ExceptionSanitizer.sanitize_exception_for_logging(e, include_traceback=True)
 
-            assert result["type"] == "RuntimeError"
-            assert "traceback" in result
+            assert result['type'] == 'RuntimeError'
+            assert 'traceback' in result
 
     def test_sanitize_exception_without_traceback(self):
         """Test exception sanitization without traceback."""
-        exception = TypeError("Test type error")
+        exception = TypeError('Test type error')
 
-        result = ExceptionSanitizer.sanitize_exception_for_logging(
-            exception, include_traceback=False
-        )
+        result = ExceptionSanitizer.sanitize_exception_for_logging(exception, include_traceback=False)
 
-        assert "traceback" not in result
+        assert 'traceback' not in result
 
     def test_sanitize_exception_custom_max_length(self):
         """Test exception sanitization with custom max length."""
-        long_message = "A" * 2000
+        long_message = 'A' * 2000
         exception = ValueError(long_message)
 
-        result = ExceptionSanitizer.sanitize_exception_for_logging(
-            exception, max_length=100
-        )
+        result = ExceptionSanitizer.sanitize_exception_for_logging(exception, max_length=100)
 
-        assert len(result["message"]) <= 103
+        assert len(result['message']) <= 103
 
 
 class TestRedactAuthHeader:
@@ -196,72 +182,72 @@ class TestRedactAuthHeader:
 
     def test_redact_bearer_token(self):
         """Test redacting Bearer token."""
-        header = "Bearer abcdefghijklmnopqrstuvwxyz1234567890"
+        header = 'Bearer abcdefghijklmnopqrstuvwxyz1234567890'
 
         result = ExceptionSanitizer.redact_auth_header(header)
 
-        assert "abcdefghijklmnopqrstuvwxyz1234567890" not in result
-        assert "Bearer" in result
+        assert 'abcdefghijklmnopqrstuvwxyz1234567890' not in result
+        assert 'Bearer' in result
 
     def test_redact_bearer_token_short(self):
         """Test redacting short Bearer token."""
-        header = "Bearer short"
+        header = 'Bearer short'
 
         result = ExceptionSanitizer.redact_auth_header(header)
 
-        assert result == "Bearer ****"
+        assert result == 'Bearer ****'
 
     def test_redact_basic_auth(self):
         """Test redacting Basic auth."""
-        header = "Basic dXNlcjpwYXNzd29yZA=="
+        header = 'Basic dXNlcjpwYXNzd29yZA=='
 
         result = ExceptionSanitizer.redact_auth_header(header)
 
-        assert result == "Basic ****"
+        assert result == 'Basic ****'
 
     def test_redact_token_prefix(self):
         """Test redacting Token prefix."""
-        header = "Token abcdefghijklmnopqrstuvwxyz"
+        header = 'Token abcdefghijklmnopqrstuvwxyz'
 
         result = ExceptionSanitizer.redact_auth_header(header)
 
-        assert "abcdefghijklmnopqrstuvwxyz" not in result
+        assert 'abcdefghijklmnopqrstuvwxyz' not in result
 
     def test_redact_apikey_prefix(self):
         """Test redacting ApiKey prefix."""
-        header = "apikey mysecretkey12345678"
+        header = 'apikey mysecretkey12345678'
 
         result = ExceptionSanitizer.redact_auth_header(header)
 
-        assert "mysecretkey12345678" not in result
+        assert 'mysecretkey12345678' not in result
 
     def test_redact_empty_header(self):
         """Test redacting empty header."""
-        result = ExceptionSanitizer.redact_auth_header("")
+        result = ExceptionSanitizer.redact_auth_header('')
 
-        assert result == ""
+        assert result == ''
 
     def test_redact_none_header(self):
         """Test redacting None header."""
         result = ExceptionSanitizer.redact_auth_header(None)
 
-        assert result == ""
+        assert result == ''
 
     def test_redact_unknown_format_long(self):
         """Test redacting unknown format long header."""
-        header = "UnknownAuth abcdefghijklmnopqrstuvwxyz1234567890"
+        header = 'UnknownAuth abcdefghijklmnopqrstuvwxyz1234567890'
 
         result = ExceptionSanitizer.redact_auth_header(header)
 
-        assert "abcdefghijklmnopqrstuvwxyz1234567890" not in result
+        assert 'abcdefghijklmnopqrstuvwxyz1234567890' not in result
 
     def test_redact_unknown_format_short(self):
         """Test redacting unknown format short header."""
-        header = "Short"
+        header = 'Short'
 
         result = ExceptionSanitizer.redact_auth_header(header)
 
-        assert result == "****"
+        assert result == '****'
 
 
 class TestConvenienceFunctions:
@@ -269,37 +255,37 @@ class TestConvenienceFunctions:
 
     def test_sanitize_exception_message_func(self):
         """Test sanitize_exception_message function."""
-        exception = ValueError("Test error")
+        exception = ValueError('Test error')
 
         result = sanitize_exception_message(exception)
 
-        assert result == "Test error"
+        assert result == 'Test error'
 
     def test_sanitize_traceback_func(self):
         """Test sanitize_traceback function."""
         try:
-            raise ValueError("Test error")
+            raise ValueError('Test error')
         except ValueError as e:
             result = sanitize_traceback(exc_value=e)
 
-            assert "ValueError" in result
+            assert 'ValueError' in result
 
     def test_sanitize_exception_for_logging_func(self):
         """Test sanitize_exception_for_logging function."""
-        exception = RuntimeError("Test error")
+        exception = RuntimeError('Test error')
 
         result = sanitize_exception_for_logging(exception)
 
-        assert result["type"] == "RuntimeError"
-        assert result["message"] == "Test error"
+        assert result['type'] == 'RuntimeError'
+        assert result['message'] == 'Test error'
 
     def test_redact_auth_header_func(self):
         """Test redact_auth_header function."""
-        header = "Bearer abcdefghijklmnopqrstuvwxyz1234567890"
+        header = 'Bearer abcdefghijklmnopqrstuvwxyz1234567890'
 
         result = redact_auth_header(header)
 
-        assert "abcdefghijklmnopqrstuvwxyz1234567890" not in result
+        assert 'abcdefghijklmnopqrstuvwxyz1234567890' not in result
 
 
 class TestSanitizeString:
@@ -309,13 +295,13 @@ class TestSanitizeString:
         """Test sanitizing non-string value."""
         result = ExceptionSanitizer._sanitize_string(12345)
 
-        assert result == "12345"
+        assert result == '12345'
 
     def test_sanitize_string_no_changes(self):
         """Test sanitizing string without sensitive data."""
-        result = ExceptionSanitizer._sanitize_string("Normal log message")
+        result = ExceptionSanitizer._sanitize_string('Normal log message')
 
-        assert result == "Normal log message"
+        assert result == 'Normal log message'
 
 
 class TestEdgeCases:
@@ -325,38 +311,36 @@ class TestEdgeCases:
         """Test sanitizing exception with nested cause."""
         try:
             try:
-                raise ValueError(
-                    "Inner error with token ghp_inner12345678901234567890123456789012"
-                )
+                raise ValueError('Inner error with token ghp_inner12345678901234567890123456789012')
             except ValueError as inner:
-                raise RuntimeError("Outer error") from inner
+                raise RuntimeError('Outer error') from inner
         except RuntimeError as e:
             result = sanitize_exception_for_logging(e)
 
-            assert result["type"] == "RuntimeError"
+            assert result['type'] == 'RuntimeError'
 
     def test_sanitize_unicode_message(self):
         """Test sanitizing unicode message."""
-        exception = ValueError("エラーメッセージ with 日本語")
+        exception = ValueError('エラーメッセージ with 日本語')
 
         result = sanitize_exception_message(exception)
 
-        assert "エラーメッセージ" in result
+        assert 'エラーメッセージ' in result
 
     def test_sanitize_multiline_message(self):
         """Test sanitizing multiline message."""
-        exception = ValueError("Line 1\nLine 2\nLine 3")
+        exception = ValueError('Line 1\nLine 2\nLine 3')
 
         result = sanitize_exception_message(exception)
 
-        assert "Line 1" in result
-        assert "Line 2" in result
+        assert 'Line 1' in result
+        assert 'Line 2' in result
 
     def test_sanitize_message_with_newlines(self):
         """Test message with newlines is handled."""
-        message = "Error:\n  - Item 1\n  - Item 2"
+        message = 'Error:\n  - Item 1\n  - Item 2'
         exception = Exception(message)
 
         result = sanitize_exception_message(exception)
 
-        assert "Error:" in result
+        assert 'Error:' in result

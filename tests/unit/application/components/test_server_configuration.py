@@ -49,7 +49,7 @@ class TestServerConfigurationInitialization:
         config = ServerConfiguration(None, logger)
 
         assert config is not None
-        assert hasattr(config, "_settings_service")
+        assert hasattr(config, '_settings_service')
 
 
 class TestServerConfigurationGetMcpInstructions:
@@ -72,7 +72,7 @@ class TestServerConfigurationGetMcpInstructions:
         config = ServerConfiguration(None, logger)
         instructions = config.get_mcp_instructions()
 
-        assert "get_pr_diff" in instructions or "pr_diff" in instructions
+        assert 'get_pr_diff' in instructions or 'pr_diff' in instructions
 
 
 class TestValidationResult:
@@ -82,13 +82,13 @@ class TestValidationResult:
         """Test that ValidationResult has correct properties."""
         result = ValidationResult(
             valid=True,
-            warnings=["warning1", "warning2"],
-            errors=["error1"],
+            warnings=['warning1', 'warning2'],
+            errors=['error1'],
         )
 
-        assert result["valid"] is True
-        assert result["warnings"] == ["warning1", "warning2"]
-        assert result["errors"] == ["error1"]
+        assert result['valid'] is True
+        assert result['warnings'] == ['warning1', 'warning2']
+        assert result['errors'] == ['error1']
 
 
 class MockSettingsService(SettingsServiceInterface):
@@ -100,7 +100,7 @@ class MockSettingsService(SettingsServiceInterface):
 
     def get(self, key: str, default: Any = None) -> Any:
         """Get a configuration value."""
-        keys = key.split(".")
+        keys = key.split('.')
         value = self._settings
         for k in keys:
             if isinstance(value, dict) and k in value:
@@ -132,7 +132,7 @@ class TestSetupLogging:
 
     def test_setup_logging_with_debug_level(self):
         """Test setup_logging with DEBUG log level."""
-        settings = MockSettingsService({"app": {"log_level": "debug"}})
+        settings = MockSettingsService({'app': {'log_level': 'debug'}})
         logger = Mock(spec=LoggerServiceInterface)
         config = ServerConfiguration(settings, logger)
 
@@ -144,7 +144,7 @@ class TestSetupLogging:
 
     def test_setup_logging_with_info_level(self):
         """Test setup_logging with INFO log level."""
-        settings = MockSettingsService({"app": {"log_level": "INFO"}})
+        settings = MockSettingsService({'app': {'log_level': 'INFO'}})
         logger = MockLogger()
         config = ServerConfiguration(settings, logger)
 
@@ -155,7 +155,7 @@ class TestSetupLogging:
 
     def test_setup_logging_with_warning_level(self):
         """Test setup_logging with WARNING log level."""
-        settings = MockSettingsService({"app": {"log_level": "warning"}})
+        settings = MockSettingsService({'app': {'log_level': 'warning'}})
         logger = MockLogger()
         config = ServerConfiguration(settings, logger)
 
@@ -166,7 +166,7 @@ class TestSetupLogging:
 
     def test_setup_logging_with_error_level(self):
         """Test setup_logging with ERROR log level."""
-        settings = MockSettingsService({"app": {"log_level": "ERROR"}})
+        settings = MockSettingsService({'app': {'log_level': 'ERROR'}})
         logger = MockLogger()
         config = ServerConfiguration(settings, logger)
 
@@ -177,7 +177,7 @@ class TestSetupLogging:
 
     def test_setup_logging_with_critical_level(self):
         """Test setup_logging with CRITICAL log level."""
-        settings = MockSettingsService({"app": {"log_level": "critical"}})
+        settings = MockSettingsService({'app': {'log_level': 'critical'}})
         logger = MockLogger()
         config = ServerConfiguration(settings, logger)
 
@@ -199,7 +199,7 @@ class TestSetupLogging:
 
     def test_setup_logging_with_invalid_level(self):
         """Test setup_logging with invalid log level (should not crash)."""
-        settings = MockSettingsService({"app": {"log_level": "INVALID"}})
+        settings = MockSettingsService({'app': {'log_level': 'INVALID'}})
         logger = Mock(spec=LoggerServiceInterface)
         config = ServerConfiguration(settings, logger)
 
@@ -211,7 +211,7 @@ class TestSetupLogging:
     def test_setup_logging_handles_exception(self):
         """Test setup_logging handles exceptions gracefully."""
         settings = Mock(spec=SettingsServiceInterface)
-        settings.get.side_effect = Exception("Settings service error")
+        settings.get.side_effect = Exception('Settings service error')
         logger = Mock(spec=LoggerServiceInterface)
         config = ServerConfiguration(settings, logger)
 
@@ -229,14 +229,14 @@ class TestGetServerInfo:
         """Test get_server_info returns all expected fields."""
         settings = MockSettingsService(
             {
-                "mcp": {
-                    "transport": "http",
-                    "port": 9102,
-                    "host": "0.0.0.0",
-                    "path": "/mcp",
+                'mcp': {
+                    'transport': 'http',
+                    'port': 9102,
+                    'host': '0.0.0.0',
+                    'path': '/mcp',
                 },
-                "env": "production",
-                "debug": False,
+                'env': 'production',
+                'debug': False,
             }
         )
         logger = MockLogger()
@@ -244,19 +244,19 @@ class TestGetServerInfo:
 
         info = config.get_server_info()
 
-        assert info["name"] == "prdiffer"
-        assert "version" in info
-        assert info["description"] == "GitHub PR Diff Fetcher MCP Server"
-        assert info["transport"] == "http"
-        assert info["port"] == 9102
-        assert info["host"] == "0.0.0.0"
-        assert info["path"] == "/mcp"
-        assert info["environment"] == "production"
-        assert info["debug_mode"] is False
-        assert "features" in info
-        assert isinstance(info["features"], dict)
-        assert info["features"]["caching"] is True
-        assert info["features"]["rate_limiting"] is True
+        assert info['name'] == 'prdiffer'
+        assert 'version' in info
+        assert info['description'] == 'GitHub PR Diff Fetcher MCP Server'
+        assert info['transport'] == 'http'
+        assert info['port'] == 9102
+        assert info['host'] == '0.0.0.0'
+        assert info['path'] == '/mcp'
+        assert info['environment'] == 'production'
+        assert info['debug_mode'] is False
+        assert 'features' in info
+        assert isinstance(info['features'], dict)
+        assert info['features']['caching'] is True
+        assert info['features']['rate_limiting'] is True
 
     def test_get_server_info_with_default_values(self):
         """Test get_server_info returns default values when not configured."""
@@ -266,24 +266,24 @@ class TestGetServerInfo:
 
         info = config.get_server_info()
 
-        assert info["transport"] == "http"
-        assert info["port"] == 9102
-        assert info["host"] == "127.0.0.1"
-        assert info["path"] == "/mcp"
+        assert info['transport'] == 'http'
+        assert info['port'] == 9102
+        assert info['host'] == '127.0.0.1'
+        assert info['path'] == '/mcp'
 
     def test_get_server_info_handles_exception(self):
         """Test get_server_info handles exceptions gracefully."""
         settings = Mock(spec=SettingsServiceInterface)
-        settings.get.side_effect = Exception("Settings service error")
+        settings.get.side_effect = Exception('Settings service error')
         logger = Mock(spec=LoggerServiceInterface)
         config = ServerConfiguration(settings, logger)
 
         info = config.get_server_info()
 
-        assert info["name"] == "prdiffer"
-        assert info["version"] == "unknown"
-        assert info["description"] == "GitHub PR Diff Fetcher MCP Server"
-        assert "error" in info
+        assert info['name'] == 'prdiffer'
+        assert info['version'] == 'unknown'
+        assert info['description'] == 'GitHub PR Diff Fetcher MCP Server'
+        assert 'error' in info
         logger.error.assert_called_once()
 
 
@@ -293,166 +293,166 @@ class TestValidateConfiguration:
 
     def test_validate_configuration_with_valid_http_transport(self):
         """Test validate_configuration with valid http transport."""
-        settings = MockSettingsService({"mcp": {"transport": "http", "port": 9102}})
+        settings = MockSettingsService({'mcp': {'transport': 'http', 'port': 9102}})
         logger = MockLogger()
         config = ServerConfiguration(settings, logger)
 
         result = config.validate_configuration()
 
-        assert result["valid"] is True
-        assert len(result["errors"]) == 0
+        assert result['valid'] is True
+        assert len(result['errors']) == 0
 
     def test_validate_configuration_with_valid_sse_transport(self):
         """Test validate_configuration with valid sse transport."""
-        settings = MockSettingsService({"mcp": {"transport": "sse", "port": 8080}})
+        settings = MockSettingsService({'mcp': {'transport': 'sse', 'port': 8080}})
         logger = MockLogger()
         config = ServerConfiguration(settings, logger)
 
         result = config.validate_configuration()
 
-        assert result["valid"] is True
-        assert len(result["errors"]) == 0
+        assert result['valid'] is True
+        assert len(result['errors']) == 0
 
     def test_validate_configuration_with_valid_stdio_transport(self):
         """Test validate_configuration with valid stdio transport."""
-        settings = MockSettingsService({"mcp": {"transport": "stdio"}})
+        settings = MockSettingsService({'mcp': {'transport': 'stdio'}})
         logger = MockLogger()
         config = ServerConfiguration(settings, logger)
 
         result = config.validate_configuration()
 
-        assert result["valid"] is True
-        assert len(result["errors"]) == 0
+        assert result['valid'] is True
+        assert len(result['errors']) == 0
 
     def test_validate_configuration_with_unknown_transport(self):
         """Test validate_configuration with unknown transport."""
-        settings = MockSettingsService({"mcp": {"transport": "unknown"}})
+        settings = MockSettingsService({'mcp': {'transport': 'unknown'}})
         logger = MockLogger()
         config = ServerConfiguration(settings, logger)
 
         result = config.validate_configuration()
 
-        assert result["valid"] is True
-        assert len(result["warnings"]) == 1
-        assert "Unknown transport 'unknown'" in result["warnings"][0]
+        assert result['valid'] is True
+        assert len(result['warnings']) == 1
+        assert "Unknown transport 'unknown'" in result['warnings'][0]
 
     def test_validate_configuration_with_valid_port(self):
         """Test validate_configuration with valid port."""
-        settings = MockSettingsService({"mcp": {"transport": "http", "port": 8080}})
+        settings = MockSettingsService({'mcp': {'transport': 'http', 'port': 8080}})
         logger = MockLogger()
         config = ServerConfiguration(settings, logger)
 
         result = config.validate_configuration()
 
-        assert result["valid"] is True
-        assert len(result["errors"]) == 0
+        assert result['valid'] is True
+        assert len(result['errors']) == 0
 
     def test_validate_configuration_with_minimum_port(self):
         """Test validate_configuration with minimum port (1)."""
-        settings = MockSettingsService({"mcp": {"transport": "http", "port": 1}})
+        settings = MockSettingsService({'mcp': {'transport': 'http', 'port': 1}})
         logger = MockLogger()
         config = ServerConfiguration(settings, logger)
 
         result = config.validate_configuration()
 
-        assert result["valid"] is True
-        assert len(result["errors"]) == 0
+        assert result['valid'] is True
+        assert len(result['errors']) == 0
 
     def test_validate_configuration_with_maximum_port(self):
         """Test validate_configuration with maximum port (65535)."""
-        settings = MockSettingsService({"mcp": {"transport": "http", "port": 65535}})
+        settings = MockSettingsService({'mcp': {'transport': 'http', 'port': 65535}})
         logger = MockLogger()
         config = ServerConfiguration(settings, logger)
 
         result = config.validate_configuration()
 
-        assert result["valid"] is True
-        assert len(result["errors"]) == 0
+        assert result['valid'] is True
+        assert len(result['errors']) == 0
 
     def test_validate_configuration_with_zero_port(self):
         """Test validate_configuration with port 0 (invalid)."""
-        settings = MockSettingsService({"mcp": {"transport": "http", "port": 0}})
+        settings = MockSettingsService({'mcp': {'transport': 'http', 'port': 0}})
         logger = MockLogger()
         config = ServerConfiguration(settings, logger)
 
         result = config.validate_configuration()
 
-        assert result["valid"] is False
-        assert len(result["errors"]) == 1
-        assert "Invalid port '0'" in result["errors"][0]
+        assert result['valid'] is False
+        assert len(result['errors']) == 1
+        assert "Invalid port '0'" in result['errors'][0]
 
     def test_validate_configuration_with_negative_port(self):
         """Test validate_configuration with negative port (invalid)."""
-        settings = MockSettingsService({"mcp": {"transport": "http", "port": -1}})
+        settings = MockSettingsService({'mcp': {'transport': 'http', 'port': -1}})
         logger = MockLogger()
         config = ServerConfiguration(settings, logger)
 
         result = config.validate_configuration()
 
-        assert result["valid"] is False
-        assert len(result["errors"]) == 1
+        assert result['valid'] is False
+        assert len(result['errors']) == 1
 
     def test_validate_configuration_with_too_large_port(self):
         """Test validate_configuration with port > 65535 (invalid)."""
-        settings = MockSettingsService({"mcp": {"transport": "http", "port": 65536}})
+        settings = MockSettingsService({'mcp': {'transport': 'http', 'port': 65536}})
         logger = MockLogger()
         config = ServerConfiguration(settings, logger)
 
         result = config.validate_configuration()
 
-        assert result["valid"] is False
-        assert len(result["errors"]) == 1
+        assert result['valid'] is False
+        assert len(result['errors']) == 1
 
     def test_validate_configuration_with_string_port(self):
         """Test validate_configuration with string port (invalid)."""
-        settings = MockSettingsService({"mcp": {"transport": "http", "port": "9102"}})
+        settings = MockSettingsService({'mcp': {'transport': 'http', 'port': '9102'}})
         logger = MockLogger()
         config = ServerConfiguration(settings, logger)
 
         result = config.validate_configuration()
 
-        assert result["valid"] is False
-        assert len(result["errors"]) == 1
+        assert result['valid'] is False
+        assert len(result['errors']) == 1
 
     def test_validate_configuration_stdio_ignores_port(self):
         """Test validate_configuration with stdio transport ignores port validation."""
-        settings = MockSettingsService({"mcp": {"transport": "stdio", "port": 99999}})
+        settings = MockSettingsService({'mcp': {'transport': 'stdio', 'port': 99999}})
         logger = MockLogger()
         config = ServerConfiguration(settings, logger)
 
         result = config.validate_configuration()
 
-        assert result["valid"] is True
-        assert len(result["errors"]) == 0
+        assert result['valid'] is True
+        assert len(result['errors']) == 0
 
     def test_validate_configuration_no_github_token_warning(self):
         """Test validate_configuration warns when no GITHUB_TOKEN is set."""
         import os
 
         # Ensure GITHUB_TOKEN is not set
-        if "GITHUB_TOKEN" in os.environ:
-            del os.environ["GITHUB_TOKEN"]
+        if 'GITHUB_TOKEN' in os.environ:
+            del os.environ['GITHUB_TOKEN']
 
-        settings = MockSettingsService({"mcp": {"transport": "http", "port": 9102}})
+        settings = MockSettingsService({'mcp': {'transport': 'http', 'port': 9102}})
         logger = MockLogger()
         config = ServerConfiguration(settings, logger)
 
         result = config.validate_configuration()
 
-        assert result["valid"] is True
-        assert len(result["warnings"]) == 1
-        assert "No GITHUB_TOKEN environment variable set" in result["warnings"][0]
+        assert result['valid'] is True
+        assert len(result['warnings']) == 1
+        assert 'No GITHUB_TOKEN environment variable set' in result['warnings'][0]
 
     def test_validate_configuration_handles_exception(self):
         """Test validate_configuration handles exceptions gracefully."""
         settings = Mock(spec=SettingsServiceInterface)
-        settings.get.side_effect = Exception("Settings service error")
+        settings.get.side_effect = Exception('Settings service error')
         logger = Mock(spec=LoggerServiceInterface)
         config = ServerConfiguration(settings, logger)
 
         result = config.validate_configuration()
 
-        assert result["valid"] is False
-        assert len(result["errors"]) == 1
-        assert "Configuration validation failed" in result["errors"][0]
+        assert result['valid'] is False
+        assert len(result['errors']) == 1
+        assert 'Configuration validation failed' in result['errors'][0]
         logger.error.assert_called_once()

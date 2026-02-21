@@ -44,9 +44,7 @@ class RateLimiterProtocol(Protocol):
 class MetricsTrackerProtocol(Protocol):
     """Protocol for tracking metrics and request statistics."""
 
-    def track_request(
-        self, operation: str, success: bool, execution_time: float
-    ) -> None:
+    def track_request(self, operation: str, success: bool, execution_time: float) -> None:
         """Track a request for metrics collection.
 
         Args:
@@ -148,9 +146,7 @@ class AuthenticationProtocol(Protocol):
         """
         ...
 
-    def extract_client_identifier(
-        self, headers: dict[str, str]
-    ) -> tuple[str | None, str | None]:
+    def extract_client_identifier(self, headers: dict[str, str]) -> tuple[str | None, str | None]:
         """Extract client identifier from request headers.
 
         Extracts API keys from X-API-Key or Authorization (Bearer) headers.

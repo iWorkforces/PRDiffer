@@ -20,10 +20,10 @@ from prdiffer.infrastructure.utils.circuit_breaker.registry import (
 
 __all__ = [
     # Core
-    "CircuitState",
-    "CircuitBreaker",
-    "CircuitBreakerOpenException",
+    'CircuitState',
+    'CircuitBreaker',
+    'CircuitBreakerOpenException',
     # Registry
-    "GlobalCircuitBreakerRegistry",
-    "get_global_circuit_breaker_registry",
+    'GlobalCircuitBreakerRegistry',
+    'get_global_circuit_breaker_registry',
 ]

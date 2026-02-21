@@ -22,7 +22,7 @@ from prdiffer.domain.errors import E5001_INTERNAL_ERROR
 from typing import cast
 
 
-T = TypeVar("T")
+T = TypeVar('T')
 
 
 class UnifiedRetryHandler(BaseUnifiedRetryHandler):
@@ -64,14 +64,12 @@ class UnifiedRetryHandler(BaseUnifiedRetryHandler):
                     CircuitBreakerOpenException,
                 )
 
-                raise CircuitBreakerOpenException(
-                    f"Circuit breaker is open. State: {self._circuit_breaker.state.value}"
-                )
+                raise CircuitBreakerOpenException(f'Circuit breaker is open. State: {self._circuit_breaker.state.value}')
 
         config = self._get_context_config(context)
-        max_retries = config["max_retries"]
-        base_delay = config["retry_delay"]
-        backoff_multiplier = config.get("backoff_multiplier", 2.0)
+        max_retries = config['max_retries']
+        base_delay = config['retry_delay']
+        backoff_multiplier = config.get('backoff_multiplier', 2.0)
 
         last_exception: Exception | None = None
         start_time = time.time() if self._health_tracker else None
@@ -128,7 +126,7 @@ class UnifiedRetryHandler(BaseUnifiedRetryHandler):
             raise last_exception
 
         raise PRDifferException(
-            "Unexpected state: no result and no exception",
+            'Unexpected state: no result and no exception',
             error_code=E5001_INTERNAL_ERROR,
         )
 

@@ -34,7 +34,7 @@ class TestFileStatsCreation:
 
         data = asdict(stats)
 
-        assert data == {"additions": 50, "deletions": 10}
+        assert data == {'additions': 50, 'deletions': 10}
 
 
 class TestFileDiffResponseCreation:
@@ -43,35 +43,35 @@ class TestFileDiffResponseCreation:
     def test_file_diff_response_creation_minimal(self):
         """Test creating FileDiffResponse with minimal required fields."""
         file_data = {
-            "path": "src/test.ts",
-            "status": "added",
-            "stats": {"additions": 50, "deletions": 10},
-            "diff": "@@ -0,0 +1,50 @@\n+new code\n",
+            'path': 'src/test.ts',
+            'status': 'added',
+            'stats': {'additions': 50, 'deletions': 10},
+            'diff': '@@ -0,0 +1,50 @@\n+new code\n',
         }
 
         response = FileDiffResponse(
-            path=file_data["path"],
-            status=EDIT_TYPE(file_data["status"]),
-            stats=FileStats(**file_data["stats"]),
-            diff=file_data["diff"],
+            path=file_data['path'],
+            status=EDIT_TYPE(file_data['status']),
+            stats=FileStats(**file_data['stats']),
+            diff=file_data['diff'],
         )
 
-        assert response.path == "src/test.ts"
+        assert response.path == 'src/test.ts'
         assert response.status == EDIT_TYPE.ADDED
         assert response.stats.additions == 50
         assert response.stats.deletions == 10
-        assert response.diff == "@@ -0,0 +1,50 @@\n+new code\n"
+        assert response.diff == '@@ -0,0 +1,50 @@\n+new code\n'
 
     def test_file_diff_response_creation_with_enum(self):
         """Test creating FileDiffResponse with EDIT_TYPE enum."""
         response = FileDiffResponse(
-            path="src/service.py",
+            path='src/service.py',
             status=EDIT_TYPE.MODIFIED,
             stats=FileStats(additions=25, deletions=15),
-            diff="@@ -1,3 +1,8 @@\n-old\n+new\n",
+            diff='@@ -1,3 +1,8 @@\n-old\n+new\n',
         )
 
-        assert response.path == "src/service.py"
+        assert response.path == 'src/service.py'
         assert response.status == EDIT_TYPE.MODIFIED
         assert response.stats.additions == 25
         assert response.stats.deletions == 15
@@ -88,10 +88,10 @@ class TestFileDiffResponseCreation:
 
         for edit_type in edit_types:
             response = FileDiffResponse(
-                path="test.txt",
+                path='test.txt',
                 status=edit_type,
                 stats=FileStats(additions=0, deletions=0),
-                diff="",
+                diff='',
             )
             assert response.status == edit_type
 
@@ -101,51 +101,51 @@ class TestFileDiffResponseSerialization:
 
     def test_asdict(self):
         response = FileDiffResponse(
-            path="src/file.ts",
+            path='src/file.ts',
             status=EDIT_TYPE.MODIFIED,
             stats=FileStats(additions=10, deletions=5),
-            diff="@@ -1,1 +1,1 @@\n-old\n+new",
+            diff='@@ -1,1 +1,1 @@\n-old\n+new',
         )
 
         data = asdict(response)
 
-        assert data["path"] == "src/file.ts"
-        assert data["status"] == EDIT_TYPE.MODIFIED
-        assert data["stats"] == {"additions": 10, "deletions": 5}
-        assert data["diff"] == "@@ -1,1 +1,1 @@\n-old\n+new"
+        assert data['path'] == 'src/file.ts'
+        assert data['status'] == EDIT_TYPE.MODIFIED
+        assert data['stats'] == {'additions': 10, 'deletions': 5}
+        assert data['diff'] == '@@ -1,1 +1,1 @@\n-old\n+new'
 
     def test_json_serialization(self):
         response = FileDiffResponse(
-            path="test.py",
+            path='test.py',
             status=EDIT_TYPE.ADDED,
             stats=FileStats(additions=100, deletions=0),
-            diff="@@ -0,0 +1,100 @@\n+content",
+            diff='@@ -0,0 +1,100 @@\n+content',
         )
 
         json_string = json.dumps(asdict(response))
         payload = json.loads(json_string)
 
-        assert payload["path"] == "test.py"
-        assert payload["status"] == "added"
-        assert payload["stats"]["additions"] == 100
-        assert payload["stats"]["deletions"] == 0
+        assert payload['path'] == 'test.py'
+        assert payload['status'] == 'added'
+        assert payload['stats']['additions'] == 100
+        assert payload['stats']['deletions'] == 0
 
     def test_construct_from_dict_data(self):
         data = {
-            "path": "src/component.ts",
-            "status": "deleted",
-            "stats": {"additions": 0, "deletions": 50},
-            "diff": "@@ -1,50 +1,0 @@\n-removed lines",
+            'path': 'src/component.ts',
+            'status': 'deleted',
+            'stats': {'additions': 0, 'deletions': 50},
+            'diff': '@@ -1,50 +1,0 @@\n-removed lines',
         }
 
         response = FileDiffResponse(
-            path=data["path"],
-            status=EDIT_TYPE(data["status"]),
-            stats=FileStats(**data["stats"]),
-            diff=data["diff"],
+            path=data['path'],
+            status=EDIT_TYPE(data['status']),
+            stats=FileStats(**data['stats']),
+            diff=data['diff'],
         )
 
-        assert response.path == "src/component.ts"
+        assert response.path == 'src/component.ts'
         assert response.status == EDIT_TYPE.DELETED
         assert response.stats.additions == 0
         assert response.stats.deletions == 50
@@ -153,10 +153,10 @@ class TestFileDiffResponseSerialization:
     def test_round_trip_serialization(self):
         """Test serialization and deserialization round trip."""
         original = FileDiffResponse(
-            path="test.ts",
+            path='test.ts',
             status=EDIT_TYPE.ADDED,
             stats=FileStats(additions=75, deletions=10),
-            diff="test diff",
+            diff='test diff',
         )
 
         # Serialize
@@ -165,10 +165,10 @@ class TestFileDiffResponseSerialization:
         # Deserialize
         payload = json.loads(json_data)
         restored = FileDiffResponse(
-            path=payload["path"],
-            status=EDIT_TYPE(payload["status"]),
-            stats=FileStats(**payload["stats"]),
-            diff=payload["diff"],
+            path=payload['path'],
+            status=EDIT_TYPE(payload['status']),
+            stats=FileStats(**payload['stats']),
+            diff=payload['diff'],
         )
 
         # Verify equality
@@ -185,21 +185,21 @@ class TestFileDiffResponseEdgeCases:
     def test_empty_diff(self):
         """Test FileDiffResponse with empty diff."""
         response = FileDiffResponse(
-            path="empty.txt",
+            path='empty.txt',
             status=EDIT_TYPE.ADDED,
             stats=FileStats(additions=0, deletions=0),
-            diff="",
+            diff='',
         )
 
-        assert response.diff == ""
+        assert response.diff == ''
 
     def test_large_stats(self):
         """Test FileDiffResponse with large stats values."""
         response = FileDiffResponse(
-            path="large.py",
+            path='large.py',
             status=EDIT_TYPE.MODIFIED,
             stats=FileStats(additions=10000, deletions=5000),
-            diff="diff content",
+            diff='diff content',
         )
 
         assert response.stats.additions == 10000
@@ -208,10 +208,10 @@ class TestFileDiffResponseEdgeCases:
     def test_special_characters_in_path(self):
         """Test FileDiffResponse with special characters in path."""
         response = FileDiffResponse(
-            path="path/with spaces/and-dashes/file.ts",
+            path='path/with spaces/and-dashes/file.ts',
             status=EDIT_TYPE.MODIFIED,
             stats=FileStats(additions=1, deletions=1),
-            diff="diff",
+            diff='diff',
         )
 
-        assert response.path == "path/with spaces/and-dashes/file.ts"
+        assert response.path == 'path/with spaces/and-dashes/file.ts'

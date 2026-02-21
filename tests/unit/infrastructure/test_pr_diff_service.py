@@ -28,7 +28,7 @@ class DummyHead:
 
 class DummyPullRequest:
     def __init__(self):
-        self.head = DummyHead("dummy-sha")
+        self.head = DummyHead('dummy-sha')
 
 
 @pytest.mark.asyncio
@@ -42,8 +42,8 @@ async def test_get_pr_diff_with_truncation(monkeypatch):
 
     diff_files = [
         FilePatchInfo(
-            filename="auth/config.py",
-            patch="+ # TODO: add validation",
+            filename='auth/config.py',
+            patch='+ # TODO: add validation',
             edit_type=EDIT_TYPE.MODIFIED,
             num_plus_lines=10,
             num_minus_lines=2,
@@ -52,15 +52,15 @@ async def test_get_pr_diff_with_truncation(monkeypatch):
 
     monkeypatch.setattr(
         service,
-        "_generate_diff_content",
+        '_generate_diff_content',
         lambda *_: diff_files,
     )
 
     service._diff_truncate_enabled = True
     service._diff_max_total_chars = 10
-    service._diff_truncation_notice = "[TRUNC]"
+    service._diff_truncation_notice = '[TRUNC]'
 
-    result = await service.get_pr_diff("owner", "repo", 1)
+    result = await service.get_pr_diff('owner', 'repo', 1)
 
     assert result is not None
     # PRDiff now uses frozen dataclass with tuple fields
@@ -76,5 +76,5 @@ async def test_get_latest_commit_sha_uses_head_sha():
         logger=None,
     )
 
-    sha = await service.get_latest_commit_sha("owner", "repo", 1)
-    assert sha == "dummy-sha"
+    sha = await service.get_latest_commit_sha('owner', 'repo', 1)
+    assert sha == 'dummy-sha'

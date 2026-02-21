@@ -40,8 +40,8 @@ OPERATIONAL_EXCEPTIONS: tuple[type[BaseException], ...] = (
     UnicodeTranslateError,  # Unicode translate errors
 )
 
-T = TypeVar("T")
-R = TypeVar("R")
+T = TypeVar('T')
+R = TypeVar('R')
 
 
 class AsyncParallelExecutor:
@@ -120,7 +120,7 @@ class AsyncParallelExecutor:
                     if self.error_strategy == ErrorStrategy.RAISE:
                         raise
                     errors.append((item, cast(Exception, e)))
-                    self._logger.error(f"Error processing item {item}: {e}")
+                    self._logger.error(f'Error processing item {item}: {e}')
 
         try:
             if self.timeout:
@@ -133,14 +133,12 @@ class AsyncParallelExecutor:
                     for item in items:
                         tg.start_soon(process_item, item)
         except TimeoutError:
-            self._logger.warning(f"Batch execution timed out after {self.timeout}s")
+            self._logger.warning(f'Batch execution timed out after {self.timeout}s')
             if self.error_strategy == ErrorStrategy.RAISE:
                 raise
 
         if errors:
-            self._logger.warning(
-                f"Failed to process {len(errors)} items out of {len(items)}"
-            )
+            self._logger.warning(f'Failed to process {len(errors)} items out of {len(items)}')
 
         return results
 
@@ -177,7 +175,7 @@ class AsyncParallelExecutor:
                     if self.error_strategy == ErrorStrategy.RAISE:
                         raise
                     errors.append((item, cast(Exception, e)))
-                    self._logger.error(f"Error processing item {item}: {e}")
+                    self._logger.error(f'Error processing item {item}: {e}')
 
         try:
             if self.timeout:
@@ -190,14 +188,12 @@ class AsyncParallelExecutor:
                     for item in items:
                         tg.start_soon(process_item, item)
         except TimeoutError:
-            self._logger.warning(f"Batch execution timed out after {self.timeout}s")
+            self._logger.warning(f'Batch execution timed out after {self.timeout}s')
             if self.error_strategy == ErrorStrategy.RAISE:
                 raise
 
         if errors:
-            self._logger.warning(
-                f"Failed to process {len(errors)} items out of {len(items)}"
-            )
+            self._logger.warning(f'Failed to process {len(errors)} items out of {len(items)}')
 
         return results
 
@@ -227,7 +223,7 @@ class AsyncParallelExecutor:
         async def process_item(item: Any) -> None:
             # Determine which function to use
             func: Callable[[Any], Awaitable[R]] | None = None
-            if hasattr(item, "__class__"):
+            if hasattr(item, '__class__'):
                 func = func_map.get(type(item))
             if func is None:
                 func = func_map.get(item)
@@ -235,7 +231,7 @@ class AsyncParallelExecutor:
                 func = default_func
 
             if func is None:
-                self._logger.warning(f"No function found for item: {item}")
+                self._logger.warning(f'No function found for item: {item}')
                 return
 
             async with semaphore:
@@ -247,7 +243,7 @@ class AsyncParallelExecutor:
                     if self.error_strategy == ErrorStrategy.RAISE:
                         raise
                     errors.append((item, cast(Exception, e)))
-                    self._logger.error(f"Error processing item {item}: {e}")
+                    self._logger.error(f'Error processing item {item}: {e}')
 
         try:
             if self.timeout:
@@ -260,14 +256,12 @@ class AsyncParallelExecutor:
                     for item in items:
                         tg.start_soon(process_item, item)
         except TimeoutError:
-            self._logger.warning(f"Batch execution timed out after {self.timeout}s")
+            self._logger.warning(f'Batch execution timed out after {self.timeout}s')
             if self.error_strategy == ErrorStrategy.RAISE:
                 raise
 
         if errors:
-            self._logger.warning(
-                f"Failed to process {len(errors)} items out of {len(items)}"
-            )
+            self._logger.warning(f'Failed to process {len(errors)} items out of {len(items)}')
 
         return results
 
@@ -308,7 +302,7 @@ class AsyncParallelExecutor:
                     if self.error_strategy == ErrorStrategy.RAISE:
                         raise
                     errors.append((item, cast(Exception, e)))
-                    self._logger.error(f"Error processing item {item}: {e}")
+                    self._logger.error(f'Error processing item {item}: {e}')
                 finally:
                     async with lock:
                         completed += 1
@@ -326,14 +320,12 @@ class AsyncParallelExecutor:
                     for item in items:
                         tg.start_soon(process_item, item)
         except TimeoutError:
-            self._logger.warning(f"Batch execution timed out after {self.timeout}s")
+            self._logger.warning(f'Batch execution timed out after {self.timeout}s')
             if self.error_strategy == ErrorStrategy.RAISE:
                 raise
 
         if errors:
-            self._logger.warning(
-                f"Failed to process {len(errors)} items out of {len(items)}"
-            )
+            self._logger.warning(f'Failed to process {len(errors)} items out of {len(items)}')
 
         return results
 
@@ -368,7 +360,7 @@ class AsyncParallelExecutor:
                         result.successful.append(r)
                 except OPERATIONAL_EXCEPTIONS as e:
                     result.failed.append((item, cast(Exception, e)))
-                    self._logger.error(f"Error processing item {item}: {e}")
+                    self._logger.error(f'Error processing item {item}: {e}')
 
         try:
             if self.timeout:
@@ -381,7 +373,7 @@ class AsyncParallelExecutor:
                     for item in items:
                         tg.start_soon(process_item, item)
         except TimeoutError:
-            self._logger.warning(f"Batch execution timed out after {self.timeout}s")
+            self._logger.warning(f'Batch execution timed out after {self.timeout}s')
 
         return result
 
@@ -392,9 +384,9 @@ class AsyncParallelExecutor:
             Dictionary containing executor statistics
         """
         return {
-            "max_concurrent": self.max_concurrent,
-            "timeout": self.timeout,
-            "error_strategy": self.error_strategy.value,
+            'max_concurrent': self.max_concurrent,
+            'timeout': self.timeout,
+            'error_strategy': self.error_strategy.value,
         }
 
 

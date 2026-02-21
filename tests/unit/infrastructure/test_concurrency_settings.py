@@ -17,7 +17,7 @@ class TestConcurrencySettings:
         settings_service = SettingsService()
 
         # Default value from settings.toml
-        default_max_concurrent = settings_service.get("github.max_concurrent", 4)
+        default_max_concurrent = settings_service.get('github.max_concurrent', 4)
 
         # Create client with default settings
         client = GitHubAPIClient(
@@ -46,9 +46,7 @@ class TestConcurrencySettings:
         settings_service = SettingsService()
 
         # Get default value from settings
-        default_max_workers = settings_service.get(
-            "file_processing.concurrent_downloads", 3
-        )
+        default_max_workers = settings_service.get('file_processing.concurrent_downloads', 3)
 
         # Create minimal dependencies for testing
         class MockGithubAPIService:
@@ -101,18 +99,12 @@ class TestConcurrencySettings:
         settings_service = SettingsService()
 
         # Check GitHub API client default
-        github_max_concurrent = settings_service.get("github.max_concurrent", 4)
-        assert 1 <= github_max_concurrent <= 20, (
-            "GitHub max_concurrent should be between 1 and 20"
-        )
+        github_max_concurrent = settings_service.get('github.max_concurrent', 4)
+        assert 1 <= github_max_concurrent <= 20, 'GitHub max_concurrent should be between 1 and 20'
 
         # Check FileProcessor default
-        file_max_workers = settings_service.get(
-            "file_processing.concurrent_downloads", 3
-        )
-        assert 1 <= file_max_workers <= 20, (
-            "File max_workers should be between 1 and 20"
-        )
+        file_max_workers = settings_service.get('file_processing.concurrent_downloads', 3)
+        assert 1 <= file_max_workers <= 20, 'File max_workers should be between 1 and 20'
 
     def test_async_parallel_executor_configurable(self):
         """Verify that AsyncParallelExecutor can be configured with different concurrency values."""

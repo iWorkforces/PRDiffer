@@ -36,10 +36,10 @@ def get_error_headers(error: Exception) -> dict[str, str] | None:
     Returns:
         Optional[dict[str, str]]: Headers dictionary or None if not available
     """
-    headers = getattr(error, "headers", None)
+    headers = getattr(error, 'headers', None)
     if headers is None:
-        response = getattr(error, "response", None)
-        headers = getattr(response, "headers", None) if response is not None else None
+        response = getattr(error, 'response', None)
+        headers = getattr(response, 'headers', None) if response is not None else None
 
     if not headers:
         return None
@@ -84,7 +84,7 @@ def parse_retry_after(headers: dict[str, str]) -> float | None:
     """
     retry_after_value = None
     for key, value in headers.items():
-        if key.lower() == "retry-after":
+        if key.lower() == 'retry-after':
             retry_after_value = value
             break
 
@@ -119,9 +119,9 @@ def extract_rate_limit_info(error: Exception) -> RateLimitInfo | None:
     if not headers:
         return None
 
-    remaining = parse_int_header(headers, "X-RateLimit-Remaining")
-    limit = parse_int_header(headers, "X-RateLimit-Limit")
-    reset_at = parse_int_header(headers, "X-RateLimit-Reset")
+    remaining = parse_int_header(headers, 'X-RateLimit-Remaining')
+    limit = parse_int_header(headers, 'X-RateLimit-Limit')
+    reset_at = parse_int_header(headers, 'X-RateLimit-Reset')
     retry_after = parse_retry_after(headers)
 
     if remaining is None and limit is None and reset_at is None and retry_after is None:

@@ -7,9 +7,9 @@ from enum import StrEnum
 class PRState(StrEnum):
     """Pull request state enumeration."""
 
-    OPEN = "open"
-    CLOSED = "closed"
-    MERGED = "merged"
+    OPEN = 'open'
+    CLOSED = 'closed'
+    MERGED = 'merged'
 
 
 @dataclass

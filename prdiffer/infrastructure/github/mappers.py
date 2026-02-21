@@ -47,7 +47,7 @@ def map_pygithub_pr_to_domain(
     # Determine PR state (OPEN, CLOSED, or MERGED)
     if gh_pr.merged:
         state = PRState.MERGED
-    elif gh_pr.state == "closed":
+    elif gh_pr.state == 'closed':
         state = PRState.CLOSED
     else:
         state = PRState.OPEN

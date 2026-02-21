@@ -36,11 +36,11 @@ class TestGitHubConfig:
         from prdiffer.domain.config import GitHubConfig
 
         data = {
-            "rate_limit": 1000,
-            "timeout": 60,
-            "max_retries": 5,
-            "ignore_patterns": ["*.lock", "node_modules/"],
-            "valid_extensions": [".py", ".js"],
+            'rate_limit': 1000,
+            'timeout': 60,
+            'max_retries': 5,
+            'ignore_patterns': ['*.lock', 'node_modules/'],
+            'valid_extensions': ['.py', '.js'],
         }
 
         config = GitHubConfig.from_dict(data)
@@ -48,8 +48,8 @@ class TestGitHubConfig:
         assert config.rate_limit == 1000
         assert config.timeout == 60
         assert config.max_retries == 5
-        assert config.ignore_patterns == ("*.lock", "node_modules/")
-        assert config.valid_extensions == (".py", ".js")
+        assert config.ignore_patterns == ('*.lock', 'node_modules/')
+        assert config.valid_extensions == ('.py', '.js')
 
     def test_to_dict(self):
         """Test converting GitHubConfig to dictionary."""
@@ -58,16 +58,16 @@ class TestGitHubConfig:
         config = GitHubConfig(
             rate_limit=2000,
             timeout=45,
-            ignore_patterns=("*.log",),
-            valid_extensions=(".py",),
+            ignore_patterns=('*.log',),
+            valid_extensions=('.py',),
         )
 
         data = config.to_dict()
 
-        assert data["rate_limit"] == 2000
-        assert data["timeout"] == 45
-        assert data["ignore_patterns"] == ["*.log"]
-        assert data["valid_extensions"] == [".py"]
+        assert data['rate_limit'] == 2000
+        assert data['timeout'] == 45
+        assert data['ignore_patterns'] == ['*.log']
+        assert data['valid_extensions'] == ['.py']
 
     def test_with_overrides(self):
         """Test creating new config with overridden values."""
@@ -88,33 +88,31 @@ class TestGitHubConfig:
 
         # Use setattr() to test immutability (frozen dataclass prevents mutation)
         with pytest.raises(AttributeError):
-            setattr(config, "rate_limit", 9999)
+            setattr(config, 'rate_limit', 9999)
 
     def test_should_ignore_file(self):
         """Test file ignore pattern matching."""
         from prdiffer.domain.config import GitHubConfig
 
-        config = GitHubConfig(ignore_patterns=("*.lock", "node_modules/", "*.log"))
+        config = GitHubConfig(ignore_patterns=('*.lock', 'node_modules/', '*.log'))
 
-        assert (
-            config.should_ignore_file("package-lock.json") is False
-        )  # *.lock != *-lock.json
-        assert config.should_ignore_file("yarn.lock") is True
-        assert config.should_ignore_file("src/node_modules/lib.js") is True
-        assert config.should_ignore_file("debug.log") is True
-        assert config.should_ignore_file("main.py") is False
+        assert config.should_ignore_file('package-lock.json') is False  # *.lock != *-lock.json
+        assert config.should_ignore_file('yarn.lock') is True
+        assert config.should_ignore_file('src/node_modules/lib.js') is True
+        assert config.should_ignore_file('debug.log') is True
+        assert config.should_ignore_file('main.py') is False
 
     def test_has_valid_extension(self):
         """Test valid extension checking."""
         from prdiffer.domain.config import GitHubConfig
 
-        config = GitHubConfig(valid_extensions=(".py", ".js", ".ts"))
+        config = GitHubConfig(valid_extensions=('.py', '.js', '.ts'))
 
-        assert config.has_valid_extension("main.py") is True
-        assert config.has_valid_extension("index.js") is True
-        assert config.has_valid_extension("app.ts") is True
-        assert config.has_valid_extension("style.css") is False
-        assert config.has_valid_extension("README") is False
+        assert config.has_valid_extension('main.py') is True
+        assert config.has_valid_extension('index.js') is True
+        assert config.has_valid_extension('app.ts') is True
+        assert config.has_valid_extension('style.css') is False
+        assert config.has_valid_extension('README') is False
 
     def test_has_valid_extension_empty(self):
         """Test valid extension with no restrictions."""
@@ -123,20 +121,20 @@ class TestGitHubConfig:
         config = GitHubConfig(valid_extensions=())
 
         # No restrictions means all files are valid
-        assert config.has_valid_extension("anything.xyz") is True
+        assert config.has_valid_extension('anything.xyz') is True
 
     def test_should_process_file(self):
         """Test combined file processing check."""
         from prdiffer.domain.config import GitHubConfig
 
         config = GitHubConfig(
-            ignore_patterns=("*.lock", "node_modules/"),
-            valid_extensions=(".py", ".js"),
+            ignore_patterns=('*.lock', 'node_modules/'),
+            valid_extensions=('.py', '.js'),
         )
 
-        assert config.should_process_file("main.py") is True
-        assert config.should_process_file("yarn.lock") is False  # Ignored
-        assert config.should_process_file("style.css") is False  # Invalid extension
+        assert config.should_process_file('main.py') is True
+        assert config.should_process_file('yarn.lock') is False  # Ignored
+        assert config.should_process_file('style.css') is False  # Invalid extension
 
     def test_helper_properties(self):
         """Test helper properties for checking enabled features."""
@@ -219,7 +217,7 @@ class TestAsyncParallelExecutor:
 
         async def maybe_fail(x: int) -> int:
             if x == 3:
-                raise ValueError("Error on 3")
+                raise ValueError('Error on 3')
             return x * 2
 
         executor = AsyncParallelExecutor(error_strategy=ErrorStrategy.IGNORE)
@@ -236,7 +234,7 @@ class TestAsyncParallelExecutor:
         )
 
         async def always_fail(x: int) -> int:
-            raise ValueError(f"Error on {x}")
+            raise ValueError(f'Error on {x}')
 
         executor = AsyncParallelExecutor(error_strategy=ErrorStrategy.RAISE)
 
@@ -251,12 +249,10 @@ class TestAsyncParallelExecutor:
         )
 
         async def multiply_by_factor(x: int, context: dict[str, int]) -> int:
-            return x * context["factor"]
+            return x * context['factor']
 
         executor = AsyncParallelExecutor()
-        results = await executor.execute_batch_with_context(
-            multiply_by_factor, [1, 2, 3], {"factor": 10}
-        )
+        results = await executor.execute_batch_with_context(multiply_by_factor, [1, 2, 3], {'factor': 10})
 
         assert sorted(results) == [10, 20, 30]
 
@@ -275,12 +271,8 @@ class TestAsyncParallelExecutor:
         async def double(x: int) -> int:
             return x * 2
 
-        executor = AsyncParallelExecutor(
-            max_concurrent=1
-        )  # Sequential for predictable progress
-        results = await executor.execute_with_progress(
-            double, [1, 2, 3], progress_callback=track_progress
-        )
+        executor = AsyncParallelExecutor(max_concurrent=1)  # Sequential for predictable progress
+        results = await executor.execute_with_progress(double, [1, 2, 3], progress_callback=track_progress)
 
         assert sorted(results) == [2, 4, 6]
         assert len(progress_calls) == 3
@@ -295,7 +287,7 @@ class TestAsyncParallelExecutor:
 
         async def maybe_fail(x: int) -> int:
             if x == 2:
-                raise ValueError("Error on 2")
+                raise ValueError('Error on 2')
             return x * 2
 
         executor = AsyncParallelExecutor()
@@ -349,9 +341,9 @@ class TestAsyncParallelExecutor:
 
         stats = executor.get_stats()
 
-        assert stats["max_concurrent"] == 10
-        assert stats["timeout"] == 30.0
-        assert stats["error_strategy"] == "collect"
+        assert stats['max_concurrent'] == 10
+        assert stats['timeout'] == 30.0
+        assert stats['error_strategy'] == 'collect'
 
 
 class TestBatchResult:
@@ -363,7 +355,7 @@ class TestBatchResult:
 
         result = BatchResult[int](
             successful=[1, 2, 3],
-            failed=[(4, ValueError("error")), (5, RuntimeError("error"))],
+            failed=[(4, ValueError('error')), (5, RuntimeError('error'))],
         )
 
         assert result.total == 5
@@ -376,7 +368,7 @@ class TestBatchResult:
         """Test BatchResult when all operations succeed."""
         from prdiffer.infrastructure.utils.parallel import BatchResult
 
-        result = BatchResult[str](successful=["a", "b", "c"], failed=[])
+        result = BatchResult[str](successful=['a', 'b', 'c'], failed=[])
 
         assert result.all_succeeded is True
         assert result.success_rate == 100.0
@@ -385,8 +377,8 @@ class TestBatchResult:
         """Test getting list of errors from BatchResult."""
         from prdiffer.infrastructure.utils.parallel import BatchResult
 
-        e1 = ValueError("error1")
-        e2 = RuntimeError("error2")
+        e1 = ValueError('error1')
+        e2 = RuntimeError('error2')
         result = BatchResult[int](
             successful=[1],
             failed=[(2, e1), (3, e2)],
@@ -439,10 +431,10 @@ class TestGlobalCircuitBreakerRegistry:
         _reset_circuit_breaker_registry()
 
         registry = get_global_circuit_breaker_registry()
-        breaker = registry.get_breaker("test_endpoint")
+        breaker = registry.get_breaker('test_endpoint')
 
         assert breaker is not None
-        assert "test_endpoint" in registry.get_all_stats()
+        assert 'test_endpoint' in registry.get_all_stats()
 
     def test_get_breaker_returns_same(self):
         """Test getting same breaker returns same instance."""
@@ -454,8 +446,8 @@ class TestGlobalCircuitBreakerRegistry:
         _reset_circuit_breaker_registry()
 
         registry = get_global_circuit_breaker_registry()
-        breaker1 = registry.get_breaker("endpoint_a")
-        breaker2 = registry.get_breaker("endpoint_a")
+        breaker1 = registry.get_breaker('endpoint_a')
+        breaker2 = registry.get_breaker('endpoint_a')
 
         assert breaker1 is breaker2
 
@@ -471,7 +463,7 @@ class TestGlobalCircuitBreakerRegistry:
         registry = get_global_circuit_breaker_registry()
 
         # Initially should allow execution
-        assert registry.can_execute("test_endpoint") is True
+        assert registry.can_execute('test_endpoint') is True
 
     def test_record_success_updates_both(self):
         """Test record_success updates both endpoint and global breakers."""
@@ -483,12 +475,12 @@ class TestGlobalCircuitBreakerRegistry:
         _reset_circuit_breaker_registry()
 
         registry = get_global_circuit_breaker_registry()
-        registry.record_success("my_endpoint")
+        registry.record_success('my_endpoint')
 
         # No errors expected
         stats = registry.get_all_stats()
-        assert "my_endpoint" in stats
-        assert "global" in stats
+        assert 'my_endpoint' in stats
+        assert 'global' in stats
 
     def test_record_failure_updates_both(self):
         """Test record_failure updates both endpoint and global breakers."""
@@ -503,11 +495,11 @@ class TestGlobalCircuitBreakerRegistry:
 
         # Record failures
         for _ in range(3):
-            registry.record_failure("failing_endpoint")
+            registry.record_failure('failing_endpoint')
 
         stats = registry.get_all_stats()
-        assert stats["failing_endpoint"]["failure_count"] == 3
-        assert stats["global"]["failure_count"] == 3
+        assert stats['failing_endpoint']['failure_count'] == 3
+        assert stats['global']['failure_count'] == 3
 
     def test_get_all_stats(self):
         """Test getting statistics for all breakers."""
@@ -519,14 +511,14 @@ class TestGlobalCircuitBreakerRegistry:
         _reset_circuit_breaker_registry()
 
         registry = get_global_circuit_breaker_registry()
-        registry.get_breaker("endpoint_1")
-        registry.get_breaker("endpoint_2")
+        registry.get_breaker('endpoint_1')
+        registry.get_breaker('endpoint_2')
 
         stats = registry.get_all_stats()
 
-        assert "global" in stats
-        assert "endpoint_1" in stats
-        assert "endpoint_2" in stats
+        assert 'global' in stats
+        assert 'endpoint_1' in stats
+        assert 'endpoint_2' in stats
 
     def test_get_open_breakers(self):
         """Test getting list of open breakers."""
@@ -543,16 +535,16 @@ class TestGlobalCircuitBreakerRegistry:
         assert registry.get_open_breakers() == []
 
         # Create a breaker with low threshold and trigger opening
-        breaker = registry.get_breaker("failing_endpoint")
+        breaker = registry.get_breaker('failing_endpoint')
         # Manually set failure threshold lower for test
         breaker.failure_threshold = 2
 
         # Trigger circuit to open
         for _ in range(3):
-            registry.record_failure("failing_endpoint")
+            registry.record_failure('failing_endpoint')
 
         open_breakers = registry.get_open_breakers()
-        assert "failing_endpoint" in open_breakers
+        assert 'failing_endpoint' in open_breakers
 
     def test_reset_all(self):
         """Test resetting all circuit breakers."""
@@ -565,19 +557,19 @@ class TestGlobalCircuitBreakerRegistry:
         _reset_circuit_breaker_registry()
 
         registry = get_global_circuit_breaker_registry()
-        breaker = registry.get_breaker("endpoint_to_reset")
+        breaker = registry.get_breaker('endpoint_to_reset')
         breaker.failure_threshold = 1  # Low threshold for test
 
         # Open a breaker
-        registry.record_failure("endpoint_to_reset")
-        registry.record_failure("endpoint_to_reset")
+        registry.record_failure('endpoint_to_reset')
+        registry.record_failure('endpoint_to_reset')
 
         # Reset all
         registry.reset_all()
 
         # Check all are closed
         stats = registry.get_all_stats()
-        assert stats["global"]["state"] == CircuitState.CLOSED.value
+        assert stats['global']['state'] == CircuitState.CLOSED.value
 
     def test_clear_endpoint(self):
         """Test removing a specific endpoint's breaker."""
@@ -589,13 +581,13 @@ class TestGlobalCircuitBreakerRegistry:
         _reset_circuit_breaker_registry()
 
         registry = get_global_circuit_breaker_registry()
-        registry.get_breaker("to_remove")
+        registry.get_breaker('to_remove')
 
-        assert "to_remove" in registry.get_all_stats()
+        assert 'to_remove' in registry.get_all_stats()
 
-        registry.clear_endpoint("to_remove")
+        registry.clear_endpoint('to_remove')
 
-        assert "to_remove" not in registry.get_all_stats()
+        assert 'to_remove' not in registry.get_all_stats()
 
 
 class TestCircuitBreakerForEndpoint:
@@ -611,10 +603,10 @@ class TestCircuitBreakerForEndpoint:
         _reset_circuit_breaker_registry()
 
         registry = get_global_circuit_breaker_registry()
-        breaker = registry.get_breaker("api_endpoint")
+        breaker = registry.get_breaker('api_endpoint')
 
         assert breaker is not None
-        assert breaker.state.value == "closed"
+        assert breaker.state.value == 'closed'
 
 
 # =============================================================================
@@ -653,9 +645,9 @@ class TestPhase4Integration:
         registry = get_global_circuit_breaker_registry()
 
         async def protected_operation(x: int) -> int:
-            endpoint = "test_api"
+            endpoint = 'test_api'
             if not registry.can_execute(endpoint):
-                raise RuntimeError("Circuit breaker open")
+                raise RuntimeError('Circuit breaker open')
             try:
                 result = x * 2
                 registry.record_success(endpoint)
@@ -669,30 +661,28 @@ class TestPhase4Integration:
 
         assert sorted(results) == [2, 4, 6, 8, 10]
         stats = registry.get_all_stats()
-        assert stats["test_api"]["failure_count"] == 0
+        assert stats['test_api']['failure_count'] == 0
 
     def test_github_config_file_filtering(self):
         """Test GitHubConfig file filtering methods."""
         from prdiffer.domain.config import GitHubConfig
 
         config = GitHubConfig(
-            ignore_patterns=("*.lock", "node_modules/", "*.min.js"),
-            valid_extensions=(".py", ".js", ".ts", ".md"),
+            ignore_patterns=('*.lock', 'node_modules/', '*.min.js'),
+            valid_extensions=('.py', '.js', '.ts', '.md'),
         )
 
         # Test various file scenarios
         test_cases = [
-            ("src/main.py", True),  # Valid Python file
-            ("lib/index.js", True),  # Valid JS file
-            ("package.lock", False),  # Ignored pattern
-            ("node_modules/lib.js", False),  # Ignored directory
-            ("bundle.min.js", False),  # Ignored minified
-            ("style.css", False),  # Invalid extension
-            ("README.md", True),  # Valid markdown
+            ('src/main.py', True),  # Valid Python file
+            ('lib/index.js', True),  # Valid JS file
+            ('package.lock', False),  # Ignored pattern
+            ('node_modules/lib.js', False),  # Ignored directory
+            ('bundle.min.js', False),  # Ignored minified
+            ('style.css', False),  # Invalid extension
+            ('README.md', True),  # Valid markdown
         ]
 
         for filename, expected in test_cases:
             result = config.should_process_file(filename)
-            assert result == expected, (
-                f"Failed for {filename}: expected {expected}, got {result}"
-            )
+            assert result == expected, f'Failed for {filename}: expected {expected}, got {result}'

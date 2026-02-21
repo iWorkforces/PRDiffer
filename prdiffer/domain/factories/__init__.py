@@ -3,4 +3,4 @@
 from .infrastructure_factory import InfrastructureFactoryInterface
 from .application_factory import ApplicationFactoryInterface
 
-__all__ = ["InfrastructureFactoryInterface", "ApplicationFactoryInterface"]
+__all__ = ['InfrastructureFactoryInterface', 'ApplicationFactoryInterface']

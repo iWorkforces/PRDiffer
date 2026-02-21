@@ -11,9 +11,9 @@ class TestPRState:
 
     def test_pr_state_enum_values(self):
         """Test that PRState enum has correct values."""
-        assert PRState.OPEN.value == "open"
-        assert PRState.CLOSED.value == "closed"
-        assert PRState.MERGED.value == "merged"
+        assert PRState.OPEN.value == 'open'
+        assert PRState.CLOSED.value == 'closed'
+        assert PRState.MERGED.value == 'merged'
 
     def test_pr_state_enum_members(self):
         """Test that PRState enum has exactly three members."""
@@ -31,9 +31,9 @@ class TestPRState:
 
     def test_pr_state_string_representation(self):
         """Test PRState string values."""
-        assert str(PRState.OPEN.value) == "open"
-        assert str(PRState.CLOSED.value) == "closed"
-        assert str(PRState.MERGED.value) == "merged"
+        assert str(PRState.OPEN.value) == 'open'
+        assert str(PRState.CLOSED.value) == 'closed'
+        assert str(PRState.MERGED.value) == 'merged'
 
 
 class TestPullRequestCreation:
@@ -43,53 +43,53 @@ class TestPullRequestCreation:
         """Test creating a PullRequest with all fields."""
         pr = PullRequest(
             number=123,
-            title="Fix bug in authentication",
+            title='Fix bug in authentication',
             state=PRState.OPEN,
-            head_sha="abc123def456",
-            base_sha="def456abc123",
-            head_ref="feature-branch",
-            base_ref="main",
-            author="johndoe",
-            body="This PR fixes the authentication bug reported in issue #456",
-            created_at="2024-01-01T10:00:00Z",
-            updated_at="2024-01-02T15:30:00Z",
+            head_sha='abc123def456',
+            base_sha='def456abc123',
+            head_ref='feature-branch',
+            base_ref='main',
+            author='johndoe',
+            body='This PR fixes the authentication bug reported in issue #456',
+            created_at='2024-01-01T10:00:00Z',
+            updated_at='2024-01-02T15:30:00Z',
             merged_at=None,
-            html_url="https://github.com/owner/repo/pull/123",
+            html_url='https://github.com/owner/repo/pull/123',
         )
 
         assert pr.number == 123
-        assert pr.title == "Fix bug in authentication"
+        assert pr.title == 'Fix bug in authentication'
         assert pr.state == PRState.OPEN
-        assert pr.head_sha == "abc123def456"
-        assert pr.base_sha == "def456abc123"
-        assert pr.head_ref == "feature-branch"
-        assert pr.base_ref == "main"
-        assert pr.author == "johndoe"
-        assert pr.body == "This PR fixes the authentication bug reported in issue #456"
-        assert pr.created_at == "2024-01-01T10:00:00Z"
-        assert pr.updated_at == "2024-01-02T15:30:00Z"
+        assert pr.head_sha == 'abc123def456'
+        assert pr.base_sha == 'def456abc123'
+        assert pr.head_ref == 'feature-branch'
+        assert pr.base_ref == 'main'
+        assert pr.author == 'johndoe'
+        assert pr.body == 'This PR fixes the authentication bug reported in issue #456'
+        assert pr.created_at == '2024-01-01T10:00:00Z'
+        assert pr.updated_at == '2024-01-02T15:30:00Z'
         assert pr.merged_at is None
-        assert pr.html_url == "https://github.com/owner/repo/pull/123"
+        assert pr.html_url == 'https://github.com/owner/repo/pull/123'
 
     def test_pull_request_creation_with_minimal_fields(self):
         """Test creating a PullRequest with only required fields."""
         pr = PullRequest(
             number=123,
-            title="Fix bug",
+            title='Fix bug',
             state=PRState.OPEN,
-            head_sha="abc123",
-            base_sha="def456",
-            head_ref="feature",
-            base_ref="main",
+            head_sha='abc123',
+            base_sha='def456',
+            head_ref='feature',
+            base_ref='main',
         )
 
         assert pr.number == 123
-        assert pr.title == "Fix bug"
+        assert pr.title == 'Fix bug'
         assert pr.state == PRState.OPEN
-        assert pr.head_sha == "abc123"
-        assert pr.base_sha == "def456"
-        assert pr.head_ref == "feature"
-        assert pr.base_ref == "main"
+        assert pr.head_sha == 'abc123'
+        assert pr.base_sha == 'def456'
+        assert pr.head_ref == 'feature'
+        assert pr.base_ref == 'main'
         assert pr.author is None
         assert pr.body is None
         assert pr.created_at is None
@@ -101,12 +101,12 @@ class TestPullRequestCreation:
         """Test creating a PullRequest with explicitly None optional fields."""
         pr = PullRequest(
             number=456,
-            title="Add feature",
+            title='Add feature',
             state=PRState.OPEN,
-            head_sha="abc",
-            base_sha="def",
-            head_ref="feat",
-            base_ref="develop",
+            head_sha='abc',
+            base_sha='def',
+            head_ref='feat',
+            base_ref='develop',
             author=None,
             body=None,
             created_at=None,
@@ -130,12 +130,12 @@ class TestPullRequestStates:
         """Test PullRequest with OPEN state."""
         pr = PullRequest(
             number=1,
-            title="PR",
+            title='PR',
             state=PRState.OPEN,
-            head_sha="a",
-            base_sha="b",
-            head_ref="h",
-            base_ref="m",
+            head_sha='a',
+            base_sha='b',
+            head_ref='h',
+            base_ref='m',
         )
 
         assert pr.state == PRState.OPEN
@@ -145,12 +145,12 @@ class TestPullRequestStates:
         """Test PullRequest with CLOSED state."""
         pr = PullRequest(
             number=2,
-            title="PR",
+            title='PR',
             state=PRState.CLOSED,
-            head_sha="a",
-            base_sha="b",
-            head_ref="h",
-            base_ref="m",
+            head_sha='a',
+            base_sha='b',
+            head_ref='h',
+            base_ref='m',
         )
 
         assert pr.state == PRState.CLOSED
@@ -159,46 +159,46 @@ class TestPullRequestStates:
         """Test PullRequest with MERGED state."""
         pr = PullRequest(
             number=3,
-            title="PR",
+            title='PR',
             state=PRState.MERGED,
-            head_sha="a",
-            base_sha="b",
-            head_ref="h",
-            base_ref="m",
-            merged_at="2024-01-03T12:00:00Z",
+            head_sha='a',
+            base_sha='b',
+            head_ref='h',
+            base_ref='m',
+            merged_at='2024-01-03T12:00:00Z',
         )
 
         assert pr.state == PRState.MERGED
-        assert pr.merged_at == "2024-01-03T12:00:00Z"
+        assert pr.merged_at == '2024-01-03T12:00:00Z'
 
     def test_pull_request_state_transitions(self):
         """Test creating PullRequests with different states."""
         open_pr = PullRequest(
             number=1,
-            title="Open PR",
+            title='Open PR',
             state=PRState.OPEN,
-            head_sha="a",
-            base_sha="b",
-            head_ref="h",
-            base_ref="m",
+            head_sha='a',
+            base_sha='b',
+            head_ref='h',
+            base_ref='m',
         )
         closed_pr = PullRequest(
             number=2,
-            title="Closed PR",
+            title='Closed PR',
             state=PRState.CLOSED,
-            head_sha="a",
-            base_sha="b",
-            head_ref="h",
-            base_ref="m",
+            head_sha='a',
+            base_sha='b',
+            head_ref='h',
+            base_ref='m',
         )
         merged_pr = PullRequest(
             number=3,
-            title="Merged PR",
+            title='Merged PR',
             state=PRState.MERGED,
-            head_sha="a",
-            base_sha="b",
-            head_ref="h",
-            base_ref="m",
+            head_sha='a',
+            base_sha='b',
+            head_ref='h',
+            base_ref='m',
         )
 
         assert open_pr.state == PRState.OPEN
@@ -213,33 +213,33 @@ class TestPullRequestEquality:
         """Test that two PullRequest instances with same values are equal."""
         pr1 = PullRequest(
             number=123,
-            title="Fix",
+            title='Fix',
             state=PRState.OPEN,
-            head_sha="a",
-            base_sha="b",
-            head_ref="h",
-            base_ref="m",
-            author="john",
-            body="Description",
-            created_at="2024-01-01T10:00:00Z",
-            updated_at="2024-01-02T15:00:00Z",
+            head_sha='a',
+            base_sha='b',
+            head_ref='h',
+            base_ref='m',
+            author='john',
+            body='Description',
+            created_at='2024-01-01T10:00:00Z',
+            updated_at='2024-01-02T15:00:00Z',
             merged_at=None,
-            html_url="https://github.com/owner/repo/pull/123",
+            html_url='https://github.com/owner/repo/pull/123',
         )
         pr2 = PullRequest(
             number=123,
-            title="Fix",
+            title='Fix',
             state=PRState.OPEN,
-            head_sha="a",
-            base_sha="b",
-            head_ref="h",
-            base_ref="m",
-            author="john",
-            body="Description",
-            created_at="2024-01-01T10:00:00Z",
-            updated_at="2024-01-02T15:00:00Z",
+            head_sha='a',
+            base_sha='b',
+            head_ref='h',
+            base_ref='m',
+            author='john',
+            body='Description',
+            created_at='2024-01-01T10:00:00Z',
+            updated_at='2024-01-02T15:00:00Z',
             merged_at=None,
-            html_url="https://github.com/owner/repo/pull/123",
+            html_url='https://github.com/owner/repo/pull/123',
         )
 
         assert pr1 == pr2
@@ -248,21 +248,21 @@ class TestPullRequestEquality:
         """Test equality with minimal required fields."""
         pr1 = PullRequest(
             number=123,
-            title="Fix",
+            title='Fix',
             state=PRState.OPEN,
-            head_sha="a",
-            base_sha="b",
-            head_ref="h",
-            base_ref="m",
+            head_sha='a',
+            base_sha='b',
+            head_ref='h',
+            base_ref='m',
         )
         pr2 = PullRequest(
             number=123,
-            title="Fix",
+            title='Fix',
             state=PRState.OPEN,
-            head_sha="a",
-            base_sha="b",
-            head_ref="h",
-            base_ref="m",
+            head_sha='a',
+            base_sha='b',
+            head_ref='h',
+            base_ref='m',
         )
 
         assert pr1 == pr2
@@ -271,21 +271,21 @@ class TestPullRequestEquality:
         """Test that PullRequest instances with different numbers are not equal."""
         pr1 = PullRequest(
             number=123,
-            title="Fix",
+            title='Fix',
             state=PRState.OPEN,
-            head_sha="a",
-            base_sha="b",
-            head_ref="h",
-            base_ref="m",
+            head_sha='a',
+            base_sha='b',
+            head_ref='h',
+            base_ref='m',
         )
         pr2 = PullRequest(
             number=456,
-            title="Fix",
+            title='Fix',
             state=PRState.OPEN,
-            head_sha="a",
-            base_sha="b",
-            head_ref="h",
-            base_ref="m",
+            head_sha='a',
+            base_sha='b',
+            head_ref='h',
+            base_ref='m',
         )
 
         assert pr1 != pr2
@@ -294,21 +294,21 @@ class TestPullRequestEquality:
         """Test that PullRequest instances with different states are not equal."""
         pr1 = PullRequest(
             number=123,
-            title="Fix",
+            title='Fix',
             state=PRState.OPEN,
-            head_sha="a",
-            base_sha="b",
-            head_ref="h",
-            base_ref="m",
+            head_sha='a',
+            base_sha='b',
+            head_ref='h',
+            base_ref='m',
         )
         pr2 = PullRequest(
             number=123,
-            title="Fix",
+            title='Fix',
             state=PRState.CLOSED,
-            head_sha="a",
-            base_sha="b",
-            head_ref="h",
-            base_ref="m",
+            head_sha='a',
+            base_sha='b',
+            head_ref='h',
+            base_ref='m',
         )
 
         assert pr1 != pr2
@@ -317,21 +317,21 @@ class TestPullRequestEquality:
         """Test that PullRequest instances with different SHAs are not equal."""
         pr1 = PullRequest(
             number=123,
-            title="Fix",
+            title='Fix',
             state=PRState.OPEN,
-            head_sha="abc123",
-            base_sha="def456",
-            head_ref="h",
-            base_ref="m",
+            head_sha='abc123',
+            base_sha='def456',
+            head_ref='h',
+            base_ref='m',
         )
         pr2 = PullRequest(
             number=123,
-            title="Fix",
+            title='Fix',
             state=PRState.OPEN,
-            head_sha="xyz789",
-            base_sha="def456",
-            head_ref="h",
-            base_ref="m",
+            head_sha='xyz789',
+            base_sha='def456',
+            head_ref='h',
+            base_ref='m',
         )
 
         assert pr1 != pr2
@@ -344,44 +344,44 @@ class TestPullRequestAttributes:
         """Test that PullRequest has all required attributes."""
         pr = PullRequest(
             number=123,
-            title="Fix",
+            title='Fix',
             state=PRState.OPEN,
-            head_sha="a",
-            base_sha="b",
-            head_ref="h",
-            base_ref="m",
+            head_sha='a',
+            base_sha='b',
+            head_ref='h',
+            base_ref='m',
         )
 
-        assert hasattr(pr, "number")
-        assert hasattr(pr, "title")
-        assert hasattr(pr, "state")
-        assert hasattr(pr, "head_sha")
-        assert hasattr(pr, "base_sha")
-        assert hasattr(pr, "head_ref")
-        assert hasattr(pr, "base_ref")
-        assert hasattr(pr, "author")
-        assert hasattr(pr, "body")
-        assert hasattr(pr, "created_at")
-        assert hasattr(pr, "updated_at")
-        assert hasattr(pr, "merged_at")
-        assert hasattr(pr, "html_url")
+        assert hasattr(pr, 'number')
+        assert hasattr(pr, 'title')
+        assert hasattr(pr, 'state')
+        assert hasattr(pr, 'head_sha')
+        assert hasattr(pr, 'base_sha')
+        assert hasattr(pr, 'head_ref')
+        assert hasattr(pr, 'base_ref')
+        assert hasattr(pr, 'author')
+        assert hasattr(pr, 'body')
+        assert hasattr(pr, 'created_at')
+        assert hasattr(pr, 'updated_at')
+        assert hasattr(pr, 'merged_at')
+        assert hasattr(pr, 'html_url')
 
     def test_pull_request_attribute_types(self):
         """Test that PullRequest attributes have correct types."""
         pr = PullRequest(
             number=123,
-            title="Fix bug",
+            title='Fix bug',
             state=PRState.OPEN,
-            head_sha="abc123",
-            base_sha="def456",
-            head_ref="feature",
-            base_ref="main",
-            author="johndoe",
-            body="Description",
-            created_at="2024-01-01T10:00:00Z",
-            updated_at="2024-01-02T15:00:00Z",
+            head_sha='abc123',
+            base_sha='def456',
+            head_ref='feature',
+            base_ref='main',
+            author='johndoe',
+            body='Description',
+            created_at='2024-01-01T10:00:00Z',
+            updated_at='2024-01-02T15:00:00Z',
             merged_at=None,
-            html_url="https://github.com/owner/repo/pull/123",
+            html_url='https://github.com/owner/repo/pull/123',
         )
 
         assert isinstance(pr.number, int)
@@ -402,12 +402,12 @@ class TestPullRequestAttributes:
         """Test that None attributes are properly None."""
         pr = PullRequest(
             number=123,
-            title="Fix",
+            title='Fix',
             state=PRState.OPEN,
-            head_sha="a",
-            base_sha="b",
-            head_ref="h",
-            base_ref="m",
+            head_sha='a',
+            base_sha='b',
+            head_ref='h',
+            base_ref='m',
         )
 
         assert pr.author is None
@@ -421,31 +421,31 @@ class TestPullRequestAttributes:
         """Test PullRequest string representation includes key fields."""
         pr = PullRequest(
             number=123,
-            title="Fix bug",
+            title='Fix bug',
             state=PRState.OPEN,
-            head_sha="a",
-            base_sha="b",
-            head_ref="h",
-            base_ref="m",
+            head_sha='a',
+            base_sha='b',
+            head_ref='h',
+            base_ref='m',
         )
 
         pr_str = str(pr)
-        assert "123" in pr_str or "Fix bug" in pr_str or "PullRequest" in pr_str
+        assert '123' in pr_str or 'Fix bug' in pr_str or 'PullRequest' in pr_str
 
     def test_pull_request_repr(self):
         """Test PullRequest repr includes class name and key attributes."""
         pr = PullRequest(
             number=123,
-            title="Fix",
+            title='Fix',
             state=PRState.OPEN,
-            head_sha="a",
-            base_sha="b",
-            head_ref="h",
-            base_ref="m",
+            head_sha='a',
+            base_sha='b',
+            head_ref='h',
+            base_ref='m',
         )
 
         pr_repr = repr(pr)
-        assert "PullRequest" in pr_repr
+        assert 'PullRequest' in pr_repr
 
 
 class TestPullRequestTimestamps:
@@ -455,46 +455,46 @@ class TestPullRequestTimestamps:
         """Test PullRequest with ISO 8601 formatted timestamps."""
         pr = PullRequest(
             number=123,
-            title="Fix",
+            title='Fix',
             state=PRState.MERGED,
-            head_sha="a",
-            base_sha="b",
-            head_ref="h",
-            base_ref="m",
-            created_at="2024-01-01T10:00:00Z",
-            updated_at="2024-01-02T15:30:00Z",
-            merged_at="2024-01-03T12:00:00Z",
+            head_sha='a',
+            base_sha='b',
+            head_ref='h',
+            base_ref='m',
+            created_at='2024-01-01T10:00:00Z',
+            updated_at='2024-01-02T15:30:00Z',
+            merged_at='2024-01-03T12:00:00Z',
         )
 
-        assert pr.created_at == "2024-01-01T10:00:00Z"
-        assert pr.updated_at == "2024-01-02T15:30:00Z"
-        assert pr.merged_at == "2024-01-03T12:00:00Z"
+        assert pr.created_at == '2024-01-01T10:00:00Z'
+        assert pr.updated_at == '2024-01-02T15:30:00Z'
+        assert pr.merged_at == '2024-01-03T12:00:00Z'
 
     def test_pull_request_merged_at_only_for_merged_prs(self):
         """Test that merged_at should typically only be set for merged PRs."""
         open_pr = PullRequest(
             number=1,
-            title="Open",
+            title='Open',
             state=PRState.OPEN,
-            head_sha="a",
-            base_sha="b",
-            head_ref="h",
-            base_ref="m",
+            head_sha='a',
+            base_sha='b',
+            head_ref='h',
+            base_ref='m',
             merged_at=None,
         )
         merged_pr = PullRequest(
             number=2,
-            title="Merged",
+            title='Merged',
             state=PRState.MERGED,
-            head_sha="a",
-            base_sha="b",
-            head_ref="h",
-            base_ref="m",
-            merged_at="2024-01-03T12:00:00Z",
+            head_sha='a',
+            base_sha='b',
+            head_ref='h',
+            base_ref='m',
+            merged_at='2024-01-03T12:00:00Z',
         )
 
         assert open_pr.merged_at is None
-        assert merged_pr.merged_at == "2024-01-03T12:00:00Z"
+        assert merged_pr.merged_at == '2024-01-03T12:00:00Z'
 
 
 class TestPullRequestBranchReferences:
@@ -504,66 +504,66 @@ class TestPullRequestBranchReferences:
         """Test PullRequest targeting different base branches."""
         pr_to_main = PullRequest(
             number=1,
-            title="To main",
+            title='To main',
             state=PRState.OPEN,
-            head_sha="a",
-            base_sha="b",
-            head_ref="feature",
-            base_ref="main",
+            head_sha='a',
+            base_sha='b',
+            head_ref='feature',
+            base_ref='main',
         )
         pr_to_develop = PullRequest(
             number=2,
-            title="To develop",
+            title='To develop',
             state=PRState.OPEN,
-            head_sha="a",
-            base_sha="b",
-            head_ref="feature",
-            base_ref="develop",
+            head_sha='a',
+            base_sha='b',
+            head_ref='feature',
+            base_ref='develop',
         )
         pr_to_release = PullRequest(
             number=3,
-            title="To release",
+            title='To release',
             state=PRState.OPEN,
-            head_sha="a",
-            base_sha="b",
-            head_ref="hotfix",
-            base_ref="release/1.0",
+            head_sha='a',
+            base_sha='b',
+            head_ref='hotfix',
+            base_ref='release/1.0',
         )
 
-        assert pr_to_main.base_ref == "main"
-        assert pr_to_develop.base_ref == "develop"
-        assert pr_to_release.base_ref == "release/1.0"
+        assert pr_to_main.base_ref == 'main'
+        assert pr_to_develop.base_ref == 'develop'
+        assert pr_to_release.base_ref == 'release/1.0'
 
     def test_pull_request_branch_naming_patterns(self):
         """Test PullRequest with various branch naming patterns."""
         pr_feature = PullRequest(
             number=1,
-            title="Feature",
+            title='Feature',
             state=PRState.OPEN,
-            head_sha="a",
-            base_sha="b",
-            head_ref="feature/new-login",
-            base_ref="develop",
+            head_sha='a',
+            base_sha='b',
+            head_ref='feature/new-login',
+            base_ref='develop',
         )
         pr_bugfix = PullRequest(
             number=2,
-            title="Bugfix",
+            title='Bugfix',
             state=PRState.OPEN,
-            head_sha="a",
-            base_sha="b",
-            head_ref="bugfix/auth-error",
-            base_ref="main",
+            head_sha='a',
+            base_sha='b',
+            head_ref='bugfix/auth-error',
+            base_ref='main',
         )
         pr_hotfix = PullRequest(
             number=3,
-            title="Hotfix",
+            title='Hotfix',
             state=PRState.OPEN,
-            head_sha="a",
-            base_sha="b",
-            head_ref="hotfix/critical-fix",
-            base_ref="main",
+            head_sha='a',
+            base_sha='b',
+            head_ref='hotfix/critical-fix',
+            base_ref='main',
         )
 
-        assert pr_feature.head_ref == "feature/new-login"
-        assert pr_bugfix.head_ref == "bugfix/auth-error"
-        assert pr_hotfix.head_ref == "hotfix/critical-fix"
+        assert pr_feature.head_ref == 'feature/new-login'
+        assert pr_bugfix.head_ref == 'bugfix/auth-error'
+        assert pr_hotfix.head_ref == 'hotfix/critical-fix'

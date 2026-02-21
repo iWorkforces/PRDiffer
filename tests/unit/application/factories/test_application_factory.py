@@ -41,8 +41,8 @@ class TestApplicationFactoryComponentCreation:
         result = factory.create_rate_limiter(mock_logger)
 
         assert result is not None
-        assert hasattr(result, "check_rate_limit")
-        assert hasattr(result, "increment_rate_limit")
+        assert hasattr(result, 'check_rate_limit')
+        assert hasattr(result, 'increment_rate_limit')
 
     def test_create_metrics_tracker(self):
         """Test that create_metrics_tracker returns MetricsTrackerProtocol instance."""
@@ -52,8 +52,8 @@ class TestApplicationFactoryComponentCreation:
         result = factory.create_metrics_tracker(mock_logger)
 
         assert result is not None
-        assert hasattr(result, "track_request")
-        assert hasattr(result, "get_metrics_summary")
+        assert hasattr(result, 'track_request')
+        assert hasattr(result, 'get_metrics_summary')
 
     def test_create_pr_operation_handler(self):
         """Test that create_pr_operation_handler returns PROperationHandlerProtocol instance."""
@@ -77,7 +77,7 @@ class TestApplicationFactoryComponentCreation:
         )
 
         assert result is not None
-        assert hasattr(result, "get_pr_diff")
+        assert hasattr(result, 'get_pr_diff')
 
     def test_create_health_monitor(self):
         """Test that create_health_monitor returns HealthMonitorProtocol instance."""
@@ -93,7 +93,7 @@ class TestApplicationFactoryComponentCreation:
         )
 
         assert result is not None
-        assert hasattr(result, "check_health")
+        assert hasattr(result, 'check_health')
 
     def test_create_server_configuration(self):
         """Test that create_server_configuration returns ServerConfigurationProtocol instance."""
@@ -107,7 +107,7 @@ class TestApplicationFactoryComponentCreation:
         )
 
         assert result is not None
-        assert hasattr(result, "get_server_info")
+        assert hasattr(result, 'get_server_info')
 
     def test_create_authentication(self):
         """Test that create_authentication returns AuthenticationProtocol instance."""
@@ -117,7 +117,7 @@ class TestApplicationFactoryComponentCreation:
         result = factory.create_authentication(mock_logger)
 
         assert result is not None
-        assert hasattr(result, "authenticate")
+        assert hasattr(result, 'authenticate')
 
 
 class TestApplicationFactorySingleton:
@@ -138,15 +138,15 @@ class TestApplicationFactorySingleton:
         factory = get_application_factory()
 
         assert isinstance(factory, ApplicationFactoryInterface)
-        assert hasattr(factory, "create_rate_limiter")
+        assert hasattr(factory, 'create_rate_limiter')
         assert callable(factory.create_rate_limiter)
-        assert hasattr(factory, "create_metrics_tracker")
+        assert hasattr(factory, 'create_metrics_tracker')
         assert callable(factory.create_metrics_tracker)
-        assert hasattr(factory, "create_pr_operation_handler")
+        assert hasattr(factory, 'create_pr_operation_handler')
         assert callable(factory.create_pr_operation_handler)
-        assert hasattr(factory, "create_health_monitor")
+        assert hasattr(factory, 'create_health_monitor')
         assert callable(factory.create_health_monitor)
-        assert hasattr(factory, "create_server_configuration")
+        assert hasattr(factory, 'create_server_configuration')
         assert callable(factory.create_server_configuration)
-        assert hasattr(factory, "create_authentication")
+        assert hasattr(factory, 'create_authentication')
         assert callable(factory.create_authentication)

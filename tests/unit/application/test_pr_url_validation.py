@@ -11,21 +11,21 @@ class TestPRUrlValidation:
     """Validate PR URL parsing through application server."""
 
     def test_parse_pr_url_supports_pull_and_pulls(self) -> None:
-        owner, repo, pr_number = parse_pr_url("https://github.com/owner/repo/pull/123")
-        assert owner == "owner"
-        assert repo == "repo"
+        owner, repo, pr_number = parse_pr_url('https://github.com/owner/repo/pull/123')
+        assert owner == 'owner'
+        assert repo == 'repo'
         assert pr_number == 123
 
-        owner, repo, pr_number = parse_pr_url("https://github.com/owner/repo/pulls/456")
-        assert owner == "owner"
-        assert repo == "repo"
+        owner, repo, pr_number = parse_pr_url('https://github.com/owner/repo/pulls/456')
+        assert owner == 'owner'
+        assert repo == 'repo'
         assert pr_number == 456
 
     @pytest.mark.parametrize(
-        "invalid_url",
+        'invalid_url',
         [
-            "https://gitlab.com/owner/repo/pull/123",
-            "https://github.com/owner/pull/123",
+            'https://gitlab.com/owner/repo/pull/123',
+            'https://github.com/owner/pull/123',
         ],
     )
     def test_parse_pr_url_invalid_format(self, invalid_url: str) -> None:
@@ -34,4 +34,4 @@ class TestPRUrlValidation:
 
     def test_parse_pr_url_non_github(self) -> None:
         with pytest.raises(InvalidURLError):
-            parse_pr_url("https://example.com/owner/repo/pull/123")
+            parse_pr_url('https://example.com/owner/repo/pull/123')

@@ -49,15 +49,11 @@ def create_mcp_server(
         cache_service = infrastructure_factory.create_cache_service()
 
     if repository_cache_service is None:
-        repository_cache_service = (
-            infrastructure_factory.create_repository_cache_service()
-        )
+        repository_cache_service = infrastructure_factory.create_repository_cache_service()
 
     rate_limiter = application_factory.create_rate_limiter(logger)
     metrics_tracker = application_factory.create_metrics_tracker(logger)
-    server_configuration = application_factory.create_server_configuration(
-        settings_service, logger
-    )
+    server_configuration = application_factory.create_server_configuration(settings_service, logger)
     authentication = application_factory.create_authentication(logger)
 
     pr_operation_handler = application_factory.create_pr_operation_handler(

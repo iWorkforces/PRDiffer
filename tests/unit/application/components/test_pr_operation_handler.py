@@ -43,7 +43,7 @@ class MockCacheService(CacheServiceInterface):
     """Mock cache service for testing."""
 
     def get_cache_key(self, repo_owner: str, repo_name: str, pr_number: int) -> str:
-        return f"{repo_owner}/{repo_name}/{pr_number}"
+        return f'{repo_owner}/{repo_name}/{pr_number}'
 
     async def get(self, cache_key: str, current_commit_sha: str):
         return None
@@ -61,7 +61,7 @@ class MockCacheService(CacheServiceInterface):
         pass
 
     def get_stats(self):
-        return {"size": 0, "keys": []}
+        return {'size': 0, 'keys': []}
 
 
 class MockRepositoryCacheService(RepositoryCacheServiceInterface):
@@ -126,22 +126,22 @@ class MockRepository(PRDiffRepositoryInterface):
         return PRDiff(
             files=(
                 FileDiffResponse(
-                    path="test.py",
+                    path='test.py',
                     status=EDIT_TYPE.MODIFIED,
                     stats=FileStats(additions=10, deletions=5),
-                    diff="mock diff content",
+                    diff='mock diff content',
                 ),
             ),
         )
 
     async def get_latest_commit_sha(self) -> str:
-        return "abc123def"
+        return 'abc123def'
 
     async def approve_pr_with_comment(self, pr_url: str, compliment: str) -> str:
-        return "Approved"
+        return 'Approved'
 
     def supports_repository(self, url: str) -> bool:
-        return "github.com" in url
+        return 'github.com' in url
 
 
 class TestPROperationHandlerInitialization:
@@ -164,10 +164,10 @@ class TestPROperationHandlerInitialization:
         )
 
         assert handler is not None
-        assert hasattr(handler, "_github_repository_class")
-        assert hasattr(handler, "_cache_service")
-        assert hasattr(handler, "_repository_cache_service")
-        assert hasattr(handler, "_logger")
+        assert hasattr(handler, '_github_repository_class')
+        assert hasattr(handler, '_cache_service')
+        assert hasattr(handler, '_repository_cache_service')
+        assert hasattr(handler, '_logger')
 
     def test_pr_operation_handler_initialization_with_input_validator(self):
         """Test that PROperationHandler can be initialized with custom input validator."""
@@ -213,14 +213,14 @@ class TestPROperationHandlerGetPrDiff:
             logger=logger,
         )
 
-        url = "https://github.com/owner/repo/pull/123"
+        url = 'https://github.com/owner/repo/pull/123'
         result = await handler.get_pr_diff(url)
 
         assert isinstance(result, dict)
-        assert "files" in result
-        assert isinstance(result["files"], list)
-        assert len(result["files"]) > 0
-        assert result["files"][0]["path"] == "test.py"
+        assert 'files' in result
+        assert isinstance(result['files'], list)
+        assert len(result['files']) > 0
+        assert result['files'][0]['path'] == 'test.py'
 
     @pytest.mark.asyncio
     async def test_get_pr_diff_empty_url_raises_value_error(self):
@@ -240,9 +240,9 @@ class TestPROperationHandlerGetPrDiff:
         )
 
         with pytest.raises(ValidationError) as exc_info:
-            await handler.get_pr_diff("")
+            await handler.get_pr_diff('')
 
-        assert "required" in str(exc_info.value)
+        assert 'required' in str(exc_info.value)
 
     @pytest.mark.asyncio
     async def test_get_pr_diff_uses_repository_cache(self):
@@ -261,7 +261,7 @@ class TestPROperationHandlerGetPrDiff:
             logger=logger,
         )
 
-        url = "https://github.com/owner/repo/pull/123"
+        url = 'https://github.com/owner/repo/pull/123'
         result = await handler.get_pr_diff(url)
 
         assert isinstance(result, dict)
@@ -295,15 +295,13 @@ class TestPROperationHandlerGetPrDiff:
                 pass
 
             async def get_pr_diff(self):
-                raise RuntimeError("Failed to fetch diff from repository")
+                raise RuntimeError('Failed to fetch diff from repository')
 
             async def get_latest_commit_sha(self):
-                return "abc123"
+                return 'abc123'
 
-            async def approve_pr_with_comment(
-                self, pr_url: str, compliment: str
-            ) -> str:
-                return "Not approved"
+            async def approve_pr_with_comment(self, pr_url: str, compliment: str) -> str:
+                return 'Not approved'
 
             def supports_repository(self, url):
                 return True
@@ -318,12 +316,12 @@ class TestPROperationHandlerGetPrDiff:
             logger=logger,
         )
 
-        url = "https://github.com/owner/repo/pull/123"
+        url = 'https://github.com/owner/repo/pull/123'
 
         with pytest.raises(GitHubAPIError) as exc_info:
             await handler.get_pr_diff(url)
 
-        assert "Failed to fetch PR diff" in str(exc_info.value)
+        assert 'Failed to fetch PR diff' in str(exc_info.value)
 
     @pytest.mark.asyncio
     async def test_get_pr_diff_validation_error_is_caught(self):
@@ -342,12 +340,12 @@ class TestPROperationHandlerGetPrDiff:
             logger=logger,
         )
 
-        invalid_url = "https://github.com/owner/repo/pull/invalid"
+        invalid_url = 'https://github.com/owner/repo/pull/invalid'
 
         with pytest.raises(ValidationError) as exc_info:
             await handler.get_pr_diff(invalid_url)
 
-        assert "Invalid request" in str(exc_info.value)
+        assert 'Invalid request' in str(exc_info.value)
 
 
 class TestPROperationHandlerErrorHandling:
@@ -366,11 +364,11 @@ class TestPROperationHandlerErrorHandling:
 
             @property
             def repo_owner(self):
-                return "owner"
+                return 'owner'
 
             @property
             def repo_name(self):
-                return "repo"
+                return 'repo'
 
             @property
             def pr_number(self):
@@ -380,15 +378,13 @@ class TestPROperationHandlerErrorHandling:
                 pass
 
             async def get_pr_diff(self):
-                raise RuntimeError("Simulated API error")
+                raise RuntimeError('Simulated API error')
 
             async def get_latest_commit_sha(self):
-                return "abc123"
+                return 'abc123'
 
-            async def approve_pr_with_comment(
-                self, pr_url: str, compliment: str
-            ) -> str:
-                return "Not approved"
+            async def approve_pr_with_comment(self, pr_url: str, compliment: str) -> str:
+                return 'Not approved'
 
             def supports_repository(self, url):
                 return True
@@ -403,12 +399,12 @@ class TestPROperationHandlerErrorHandling:
             logger=logger,
         )
 
-        url = "https://github.com/owner/repo/pull/123"
+        url = 'https://github.com/owner/repo/pull/123'
 
         with pytest.raises(GitHubAPIError) as exc_info:
             await handler.get_pr_diff(url)
 
-        assert "Failed to fetch PR diff" in str(exc_info.value)
+        assert 'Failed to fetch PR diff' in str(exc_info.value)
 
     @pytest.mark.asyncio
     async def test_get_pr_diff_logs_appropriately(self):
@@ -419,15 +415,9 @@ class TestPROperationHandlerErrorHandling:
 
         logged_messages = []
         original_info = logger.info
-        logger.info = lambda message, **kwargs: (
-            logged_messages.append(("info", message))
-            or original_info(message, **kwargs)
-        )
+        logger.info = lambda message, **kwargs: logged_messages.append(('info', message)) or original_info(message, **kwargs)
         original_debug = logger.debug
-        logger.debug = lambda message, **kwargs: (
-            logged_messages.append(("debug", message))
-            or original_debug(message, **kwargs)
-        )
+        logger.debug = lambda message, **kwargs: logged_messages.append(('debug', message)) or original_debug(message, **kwargs)
 
         def mock_github_repo_class(repo_owner, repo_name, pr_number):
             return MockRepository(repo_owner, repo_name, pr_number)
@@ -439,11 +429,11 @@ class TestPROperationHandlerErrorHandling:
             logger=logger,
         )
 
-        url = "https://github.com/owner/repo/pull/123"
+        url = 'https://github.com/owner/repo/pull/123'
         await handler.get_pr_diff(url)
 
-        assert any(level == "info" for level, msg in logged_messages)
-        assert any("Successfully fetched" in msg for level, msg in logged_messages)
+        assert any(level == 'info' for level, msg in logged_messages)
+        assert any('Successfully fetched' in msg for level, msg in logged_messages)
 
 
 class TestPROperationHandlerEdgeCases:
@@ -466,7 +456,7 @@ class TestPROperationHandlerEdgeCases:
             logger=logger,
         )
 
-        url = "https://github.com/owner/repo/pull/123"
+        url = 'https://github.com/owner/repo/pull/123'
         result = await handler.get_pr_diff(url)
 
         assert isinstance(result, dict)
@@ -488,9 +478,9 @@ class TestPROperationHandlerEdgeCases:
             logger=logger,
         )
 
-        url = "https://github.com/owner/repo/pull/123"
+        url = 'https://github.com/owner/repo/pull/123'
         result = await handler.get_pr_diff(url)
 
         assert isinstance(result, dict)
-        assert "files" in result
-        assert isinstance(result["files"], list)
+        assert 'files' in result
+        assert isinstance(result['files'], list)

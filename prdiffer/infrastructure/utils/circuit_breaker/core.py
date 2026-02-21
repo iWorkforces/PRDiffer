@@ -12,9 +12,9 @@ from prdiffer.infrastructure.logging.console_logger import get_logger
 class CircuitState(StrEnum):
     """Circuit breaker states."""
 
-    CLOSED = "closed"  # Normal operation
-    OPEN = "open"  # Circuit open, fail fast
-    HALF_OPEN = "half_open"  # Testing if service recovered
+    CLOSED = 'closed'  # Normal operation
+    OPEN = 'open'  # Circuit open, fail fast
+    HALF_OPEN = 'half_open'  # Testing if service recovered
 
 
 class CircuitBreaker:
@@ -84,10 +84,7 @@ class CircuitBreaker:
 
             if self._state == CircuitState.OPEN:
                 # Check if timeout has elapsed
-                if (
-                    self._last_failure_time
-                    and time.time() - self._last_failure_time >= self.timeout
-                ):
+                if self._last_failure_time and time.time() - self._last_failure_time >= self.timeout:
                     self._transition_to_half_open_unlocked()
                     return True
                 return False
@@ -107,10 +104,7 @@ class CircuitBreaker:
 
             if self._state == CircuitState.OPEN:
                 # Check if timeout has elapsed
-                if (
-                    self._last_failure_time
-                    and time.time() - self._last_failure_time >= self.timeout
-                ):
+                if self._last_failure_time and time.time() - self._last_failure_time >= self.timeout:
                     self._transition_to_half_open_unlocked()
                     return True
                 return False
@@ -138,7 +132,7 @@ class CircuitBreaker:
             # Reset failure count on success
             if self._failure_count > 0:
                 self._failure_count = 0
-                self._logger.debug("Circuit breaker: Reset failure count after success")
+                self._logger.debug('Circuit breaker: Reset failure count after success')
 
     def record_failure(self):
         """Record a failed operation (thread-safe)."""
@@ -170,9 +164,7 @@ class CircuitBreaker:
     def _transition_to_open_unlocked(self):
         """Transition circuit to OPEN state (must be called with lock held)."""
         self._state = CircuitState.OPEN
-        self._logger.warning(
-            f"Circuit breaker OPENED: {self._failure_count} failures reached threshold {self.failure_threshold}"
-        )
+        self._logger.warning(f'Circuit breaker OPENED: {self._failure_count} failures reached threshold {self.failure_threshold}')
 
     def _transition_to_half_open(self):
         """Transition circuit to HALF_OPEN state (thread-safe)."""
@@ -183,9 +175,7 @@ class CircuitBreaker:
         """Transition circuit to HALF_OPEN state (must be called with lock held)."""
         self._state = CircuitState.HALF_OPEN
         self._successful_calls = 0
-        self._logger.info(
-            "Circuit breaker transitioned to HALF_OPEN: Testing service recovery"
-        )
+        self._logger.info('Circuit breaker transitioned to HALF_OPEN: Testing service recovery')
 
     def _transition_to_closed(self):
         """Transition circuit to CLOSED state (thread-safe)."""
@@ -197,7 +187,7 @@ class CircuitBreaker:
         self._state = CircuitState.CLOSED
         self._failure_count = 0
         self._successful_calls = 0
-        self._logger.info("Circuit breaker CLOSED: Service recovered")
+        self._logger.info('Circuit breaker CLOSED: Service recovered')
 
     def get_stats(self) -> dict:
         """Get circuit breaker statistics (thread-safe).
@@ -207,18 +197,18 @@ class CircuitBreaker:
         """
         with self._sync_lock:
             return {
-                "state": self._state.value,
-                "failure_count": self._failure_count,
-                "failure_threshold": self.failure_threshold,
-                "timeout": self.timeout,
-                "last_failure_time": self._last_failure_time,
-                "successful_calls": self._successful_calls,
+                'state': self._state.value,
+                'failure_count': self._failure_count,
+                'failure_threshold': self.failure_threshold,
+                'timeout': self.timeout,
+                'last_failure_time': self._last_failure_time,
+                'successful_calls': self._successful_calls,
             }
 
 
 class CircuitBreakerOpenException(Exception):
     """Exception raised when circuit breaker is open."""
 
-    def __init__(self, message: str = "Circuit breaker is open"):
+    def __init__(self, message: str = 'Circuit breaker is open'):
         self.message = message
         super().__init__(self.message)
