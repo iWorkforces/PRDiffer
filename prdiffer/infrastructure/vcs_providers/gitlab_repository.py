@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 try:
     import httpx
 except ImportError:
-    logger.debug('httpx not installed; GitLab VCS provider will not be available')
+    logger.debug("httpx not installed; GitLab VCS provider will not be available")
 
 
 class GitLabVCSRepository(VCSDiffRepositoryInterface):
@@ -44,17 +44,17 @@ class GitLabVCSRepository(VCSDiffRepositoryInterface):
             gitlab_token: GitLab personal access token
         """
         self._gitlab_token = gitlab_token
-        self._headers = {'PRIVATE-TOKEN': self._gitlab_token} if self._gitlab_token else {}
+        self._headers = {"PRIVATE-TOKEN": self._gitlab_token} if self._gitlab_token else {}
 
     @property
     def provider_name(self) -> str:
         """Get provider name."""
-        return 'gitlab'
+        return "gitlab"
 
     @property
     def provider_version(self) -> str:
         """Get provider API version."""
-        return 'v4'
+        return "v4"
 
     async def initialize(self) -> None:
         """Initialize GitLab connection.
@@ -67,15 +67,15 @@ class GitLabVCSRepository(VCSDiffRepositoryInterface):
         """
         if httpx:
             try:
-                async with httpx.AsyncClient(base_url='https://gitlab.com/api/v4', headers=self._headers) as client:
-                    response = await client.get('/user')
+                async with httpx.AsyncClient(base_url="https://gitlab.com/api/v4", headers=self._headers) as client:
+                    response = await client.get("/user")
                     if response.status_code != 200:
                         raise PRDifferException(
-                            f'Failed to initialize GitLab connection: {response.status_code}',
+                            f"Failed to initialize GitLab connection: {response.status_code}",
                             error_code=E5019_CONNECTION_ERROR,
                         )
             except Exception as e:
-                raise PRDifferException(f'GitLab connection error: {e}', error_code=E5019_CONNECTION_ERROR)
+                raise PRDifferException(f"GitLab connection error: {e}", error_code=E5019_CONNECTION_ERROR)
 
     async def get_pr_diff(self, owner: str, repo: str, pr: int) -> PRDiff:
         """Get merge request diff from GitLab.
@@ -95,42 +95,42 @@ class GitLabVCSRepository(VCSDiffRepositoryInterface):
         """
         if httpx:
             try:
-                path = f'{owner}%2F{repo}'
-                async with httpx.AsyncClient(base_url='https://gitlab.com/api/v4', headers=self._headers) as client:
-                    url = f'/projects/{path}/merge_requests/{pr}'
+                path = f"{owner}%2F{repo}"
+                async with httpx.AsyncClient(base_url="https://gitlab.com/api/v4", headers=self._headers) as client:
+                    url = f"/projects/{path}/merge_requests/{pr}"
                     response = await client.get(url)
 
                     if response.status_code != 200:
                         raise PRDifferException(
-                            f'Merge request not found: {response.status_code}',
+                            f"Merge request not found: {response.status_code}",
                             error_code=E4002_PR_NOT_FOUND,
                         )
 
                     return PRDiff(files=())
             except httpx.HTTPError as e:
                 logger.error(
-                    'GitLab API HTTP error when fetching MR diff',
+                    "GitLab API HTTP error when fetching MR diff",
                     extra={
-                        'owner': owner,
-                        'repo': repo,
-                        'pr': pr,
-                        'error': str(e),
-                        'error_type': type(e).__name__,
+                        "owner": owner,
+                        "repo": repo,
+                        "pr": pr,
+                        "error": str(e),
+                        "error_type": type(e).__name__,
                     },
                 )
-                raise PRDifferException(f'GitLab API error: {e}', error_code=E5002_GITHUB_API_ERROR) from e
+                raise PRDifferException(f"GitLab API error: {e}", error_code=E5002_GITHUB_API_ERROR) from e
             except Exception as e:
                 logger.error(
-                    'Unexpected error when fetching GitLab MR diff',
+                    "Unexpected error when fetching GitLab MR diff",
                     extra={
-                        'owner': owner,
-                        'repo': repo,
-                        'pr': pr,
-                        'error': str(e),
-                        'error_type': type(e).__name__,
+                        "owner": owner,
+                        "repo": repo,
+                        "pr": pr,
+                        "error": str(e),
+                        "error_type": type(e).__name__,
                     },
                 )
-                raise PRDifferException(f'GitLab API error: {e}', error_code=E5002_GITHUB_API_ERROR) from e
+                raise PRDifferException(f"GitLab API error: {e}", error_code=E5002_GITHUB_API_ERROR) from e
         else:
             return PRDiff(files=())
 
@@ -151,51 +151,51 @@ class GitLabVCSRepository(VCSDiffRepositoryInterface):
         """
         if httpx:
             try:
-                path = f'{owner}%2F{repo}'
-                async with httpx.AsyncClient(base_url='https://gitlab.com/api/v4', headers=self._headers) as client:
-                    url = f'/projects/{path}/merge_requests/{pr}'
+                path = f"{owner}%2F{repo}"
+                async with httpx.AsyncClient(base_url="https://gitlab.com/api/v4", headers=self._headers) as client:
+                    url = f"/projects/{path}/merge_requests/{pr}"
                     response = await client.get(url)
 
                     if response.status_code != 200:
                         logger.warning(
-                            'GitLab API returned non-200 status for commit SHA',
+                            "GitLab API returned non-200 status for commit SHA",
                             extra={
-                                'owner': owner,
-                                'repo': repo,
-                                'pr': pr,
-                                'status_code': response.status_code,
+                                "owner": owner,
+                                "repo": repo,
+                                "pr": pr,
+                                "status_code": response.status_code,
                             },
                         )
-                        return 'unknown'
+                        return "unknown"
 
                     mr_data = response.json()
-                    return mr_data.get('sha', 'unknown')
+                    return mr_data.get("sha", "unknown")
             except httpx.HTTPError as e:
                 logger.error(
-                    'GitLab API HTTP error when fetching commit SHA',
+                    "GitLab API HTTP error when fetching commit SHA",
                     extra={
-                        'owner': owner,
-                        'repo': repo,
-                        'pr': pr,
-                        'error': str(e),
-                        'error_type': type(e).__name__,
+                        "owner": owner,
+                        "repo": repo,
+                        "pr": pr,
+                        "error": str(e),
+                        "error_type": type(e).__name__,
                     },
                 )
-                return 'unknown'
+                return "unknown"
             except Exception as e:
                 logger.error(
-                    'Unexpected error when fetching GitLab commit SHA',
+                    "Unexpected error when fetching GitLab commit SHA",
                     extra={
-                        'owner': owner,
-                        'repo': repo,
-                        'pr': pr,
-                        'error': str(e),
-                        'error_type': type(e).__name__,
+                        "owner": owner,
+                        "repo": repo,
+                        "pr": pr,
+                        "error": str(e),
+                        "error_type": type(e).__name__,
                     },
                 )
-                return 'unknown'
+                return "unknown"
         else:
-            return 'mock-sha-1234567890'
+            return "mock-sha-1234567890"
 
     def supports_repository(self, url: str) -> bool:
         """Check if URL belongs to GitLab.
@@ -208,5 +208,5 @@ class GitLabVCSRepository(VCSDiffRepositoryInterface):
         """
         import re
 
-        pattern = r'https://gitlab\.com/([^/]+)/([^/]+)(/-)?/(merge_requests|tree)/([a-zA-Z0-9]+)'
+        pattern = r"https://gitlab\.com/([^/]+)/([^/]+)(/-)?/(merge_requests|tree)/([a-zA-Z0-9]+)"
         return bool(re.match(pattern, url))

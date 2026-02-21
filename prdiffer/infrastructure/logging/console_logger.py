@@ -34,13 +34,13 @@ class ConsoleLogger(LoggerServiceInterface):
 
     # ANSI color codes for console output
     COLORS = {
-        LogLevel.DEBUG: '\033[36m',  # Cyan
-        LogLevel.INFO: '\033[32m',  # Green
-        LogLevel.WARNING: '\033[33m',  # Yellow
-        LogLevel.ERROR: '\033[31m',  # Red
-        LogLevel.CRITICAL: '\033[35m',  # Magenta
+        LogLevel.DEBUG: "\033[36m",  # Cyan
+        LogLevel.INFO: "\033[32m",  # Green
+        LogLevel.WARNING: "\033[33m",  # Yellow
+        LogLevel.ERROR: "\033[31m",  # Red
+        LogLevel.CRITICAL: "\033[35m",  # Magenta
     }
-    RESET = '\033[0m'
+    RESET = "\033[0m"
 
     def __init__(self):
         """Initialize the console logger with settings from configuration."""
@@ -50,23 +50,23 @@ class ConsoleLogger(LoggerServiceInterface):
     def _configure_logger(self) -> None:
         """Configure the logger based on application settings."""
         app_settings = self.settings_service.get_app_settings()
-        self.enabled = app_settings.get('logging_enabled', True)
+        self.enabled = app_settings.get("logging_enabled", True)
 
         # Map string log level to LogLevel enum
-        log_level_str = app_settings.get('log_level', 'INFO').upper()
+        log_level_str = app_settings.get("log_level", "INFO").upper()
         self.log_level = getattr(LogLevel, log_level_str, LogLevel.INFO)
 
-        transport = os.getenv('MCP_TRANSPORT') or self.settings_service.get('mcp.transport', 'stdio')
-        self._force_stderr = transport == 'stdio'
+        transport = os.getenv("MCP_TRANSPORT") or self.settings_service.get("mcp.transport", "stdio")
+        self._force_stderr = transport == "stdio"
 
         # Get log format from settings (simple, json, structured)
-        self._log_format = self.settings_service.get('logging.format', 'simple')
-        self._json_pretty = self.settings_service.get('logging.json_pretty', False)
+        self._log_format = self.settings_service.get("logging.format", "simple")
+        self._json_pretty = self.settings_service.get("logging.json_pretty", False)
 
         # Set up Python logging if needed
         logging.basicConfig(
             level=logging.INFO,
-            format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+            format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
             stream=sys.stderr if self._force_stderr else sys.stdout,
         )
 
@@ -172,7 +172,7 @@ class ConsoleLogger(LoggerServiceInterface):
         color = self.COLORS.get(level, self.RESET)
 
         # Output to console with color and timestamp
-        if self._log_format == 'json':
+        if self._log_format == "json":
             self._log_json(level, message, context, timestamp)
         else:
             self._log_text(level, message, context, timestamp, color)
@@ -196,12 +196,12 @@ class ConsoleLogger(LoggerServiceInterface):
         """
         # Format the message with context
         if context:
-            context_str = ' '.join([f'{k}={v}' for k, v in context.items()])
-            formatted_message = f'{message} [{context_str}]'
+            context_str = " ".join([f"{k}={v}" for k, v in context.items()])
+            formatted_message = f"{message} [{context_str}]"
         else:
             formatted_message = message
 
-        log_line = f'{color}{timestamp} - {level.value} - {formatted_message}{self.RESET}'
+        log_line = f"{color}{timestamp} - {level.value} - {formatted_message}{self.RESET}"
 
         # Use stderr for stdio mode or for error/critical messages
         stream = sys.stderr if self._force_stderr else sys.stdout
@@ -219,10 +219,10 @@ class ConsoleLogger(LoggerServiceInterface):
             timestamp: ISO format timestamp
         """
         log_record = {
-            'timestamp': timestamp,
-            'level': level.value,
-            'message': message,
-            'context': context,
+            "timestamp": timestamp,
+            "level": level.value,
+            "message": message,
+            "context": context,
         }
 
         # Use stderr for stdio mode or for error/critical messages

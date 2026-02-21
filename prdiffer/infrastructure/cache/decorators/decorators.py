@@ -11,7 +11,7 @@ from prdiffer.infrastructure.cache.decorators.utils import _generate_cache_key
 
 logger = logging.getLogger(__name__)
 
-F = TypeVar('F', bound=Callable[..., Any])
+F = TypeVar("F", bound=Callable[..., Any])
 
 
 class CachingMixin:
@@ -46,7 +46,7 @@ class CachingMixin:
         """
         with self._cache_lock:
             current_time = time.time()
-            expired_keys = [key for key, entry in self._method_cache.items() if current_time > entry.get('expires_at', float('inf'))]
+            expired_keys = [key for key, entry in self._method_cache.items() if current_time > entry.get("expires_at", float("inf"))]
             for key in expired_keys:
                 del self._method_cache[key]
 
@@ -82,13 +82,13 @@ class CachingMixin:
             hit_rate = self._cache_hits / total_requests if total_requests > 0 else 0
 
             return {
-                'size': len(self._method_cache),
-                'hits': self._cache_hits,
-                'misses': self._cache_misses,
-                'hit_rate': hit_rate,
-                'total_requests': total_requests,
-                'max_size': self._max_cache_size,
-                'default_ttl': self._default_ttl,
+                "size": len(self._method_cache),
+                "hits": self._cache_hits,
+                "misses": self._cache_misses,
+                "hit_rate": hit_rate,
+                "total_requests": total_requests,
+                "max_size": self._max_cache_size,
+                "default_ttl": self._default_ttl,
             }
 
 
@@ -113,14 +113,14 @@ def cached_method(ttl: int | None = None, key_prefix: str | None = None):
         def wrapper(self, *args, **kwargs):
             if not isinstance(self, CachingMixin):
                 raise TypeError(
-                    f'@cached_method can only be used on methods of classes '
-                    f'that inherit from CachingMixin. {self.__class__.__name__} '
-                    f'does not inherit from CachingMixin.'
+                    f"@cached_method can only be used on methods of classes "
+                    f"that inherit from CachingMixin. {self.__class__.__name__} "
+                    f"does not inherit from CachingMixin."
                 )
 
             method_name = method.__name__
             if key_prefix:
-                method_name = f'{key_prefix}_{method_name}'
+                method_name = f"{key_prefix}_{method_name}"
 
             cache_key = _generate_cache_key(method_name, args, kwargs)
 
@@ -131,10 +131,10 @@ def cached_method(ttl: int | None = None, key_prefix: str | None = None):
                 if cache_key in self._method_cache:
                     entry = self._method_cache[cache_key]
                     current_time = time.time()
-                    if current_time <= entry.get('expires_at', float('inf')):
+                    if current_time <= entry.get("expires_at", float("inf")):
                         self._method_cache.move_to_end(cache_key)
                         self._cache_hits += 1
-                        return entry['value']
+                        return entry["value"]
                     else:
                         del self._method_cache[cache_key]
 
@@ -147,13 +147,13 @@ def cached_method(ttl: int | None = None, key_prefix: str | None = None):
             result = method(self, *args, **kwargs)
 
             entry_ttl = ttl if ttl is not None else self._default_ttl
-            expires_at = time.time() + entry_ttl if entry_ttl > 0 else float('inf')
+            expires_at = time.time() + entry_ttl if entry_ttl > 0 else float("inf")
 
             with self._cache_lock:
                 self._method_cache[cache_key] = {
-                    'value': result,
-                    'expires_at': expires_at,
-                    'created_at': time.time(),
+                    "value": result,
+                    "expires_at": expires_at,
+                    "created_at": time.time(),
                 }
 
             self._enforce_size_limit()
@@ -164,14 +164,14 @@ def cached_method(ttl: int | None = None, key_prefix: str | None = None):
             """Clear cache entries for this specific method."""
             method_name = method.__name__
             if key_prefix:
-                method_name = f'{key_prefix}_{method_name}'
+                method_name = f"{key_prefix}_{method_name}"
 
             with self._cache_lock:
-                keys_to_remove = [key for key in list(self._method_cache.keys()) if key.startswith(f'{method_name}_')]
+                keys_to_remove = [key for key in list(self._method_cache.keys()) if key.startswith(f"{method_name}_")]
                 for key in keys_to_remove:
                     del self._method_cache[key]
 
-        setattr(wrapper, 'clear_cache', clear_method_cache)
+        setattr(wrapper, "clear_cache", clear_method_cache)
 
         return cast(F, wrapper)
 

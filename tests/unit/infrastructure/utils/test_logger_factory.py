@@ -17,7 +17,7 @@ class TestGetLogger:
 
     def test_logger_has_correct_name(self):
         """Test that logger has the correct name."""
-        test_name = 'test.module.name'
+        test_name = "test.module.name"
         logger = get_logger(test_name)
         assert logger.name == test_name
 
@@ -29,11 +29,11 @@ class TestGetLogger:
 
     def test_different_names_return_different_instances(self):
         """Test that requesting different names returns different instances."""
-        logger1 = get_logger('module.one')
-        logger2 = get_logger('module.two')
+        logger1 = get_logger("module.one")
+        logger2 = get_logger("module.two")
         assert logger1 is not logger2
-        assert logger1.name == 'module.one'
-        assert logger2.name == 'module.two'
+        assert logger1.name == "module.one"
+        assert logger2.name == "module.two"
 
     def test_with_module_name(self):
         """Test get_logger with __name__ (common usage pattern)."""
@@ -49,7 +49,7 @@ class TestGetLogger:
 
         try:
             root_logger.setLevel(logging.INFO)
-            logger = get_logger('test.inheritance')
+            logger = get_logger("test.inheritance")
             # Logger should inherit from root
             assert logger.level == logging.NOTSET or logger.level == root_logger.level
         finally:
@@ -66,11 +66,11 @@ class TestGetLogger:
         logger.setLevel(logging.DEBUG)
 
         # These should not raise exceptions
-        logger.debug('Debug message')
-        logger.info('Info message')
-        logger.warning('Warning message')
-        logger.error('Error message')
-        logger.critical('Critical message')
+        logger.debug("Debug message")
+        logger.info("Info message")
+        logger.warning("Warning message")
+        logger.error("Error message")
+        logger.critical("Critical message")
 
         # Clean up
         logger.removeHandler(handler)
@@ -83,7 +83,7 @@ class TestGetLogger:
         lock = threading.Lock()
 
         def get_logger_thread():
-            logger = get_logger('test.threading')
+            logger = get_logger("test.threading")
             with lock:
                 loggers.append(logger)
 
@@ -109,11 +109,11 @@ class TestGetNullLogger:
     def test_logger_has_correct_name_default(self):
         """Test that null logger has default name when not provided."""
         logger = get_null_logger()
-        assert logger.name == 'null_logger'
+        assert logger.name == "null_logger"
 
     def test_logger_has_custom_name(self):
         """Test that null logger uses custom name when provided."""
-        custom_name = 'custom.null.logger'
+        custom_name = "custom.null.logger"
         logger = get_null_logger(custom_name)
         assert logger.name == custom_name
 
@@ -130,7 +130,7 @@ class TestGetNullLogger:
 
     def test_null_logger_suppresses_all_messages(self):
         """Test that null logger suppresses all log levels."""
-        logger = get_null_logger('test.suppress')
+        logger = get_null_logger("test.suppress")
 
         # Create a handler to capture messages
         handler = logging.StreamHandler()
@@ -149,11 +149,11 @@ class TestGetNullLogger:
         recording_handler.setLevel(logging.DEBUG)
         logger.addHandler(recording_handler)
 
-        logger.debug('This should not be logged')
-        logger.info('This should not be logged')
-        logger.warning('This should not be logged')
-        logger.error('This should not be logged')
-        logger.critical('This should not be logged')
+        logger.debug("This should not be logged")
+        logger.info("This should not be logged")
+        logger.warning("This should not be logged")
+        logger.error("This should not be logged")
+        logger.critical("This should not be logged")
 
         # No messages should have been recorded
         assert len(messages) == 0
@@ -164,27 +164,27 @@ class TestGetNullLogger:
 
     def test_null_logger_does_not_raise_exceptions(self):
         """Test that calling log methods on null logger does not raise exceptions."""
-        logger = get_null_logger('test.noexception')
+        logger = get_null_logger("test.noexception")
 
         # These should not raise exceptions
-        logger.debug('Debug message')
-        logger.info('Info message')
-        logger.warning('Warning message')
-        logger.error('Error message')
-        logger.critical('Critical message')
-        logger.log(logging.DEBUG, 'Log message')
-        logger.exception('Exception message')  # Normally includes traceback
+        logger.debug("Debug message")
+        logger.info("Info message")
+        logger.warning("Warning message")
+        logger.error("Error message")
+        logger.critical("Critical message")
+        logger.log(logging.DEBUG, "Log message")
+        logger.exception("Exception message")  # Normally includes traceback
 
     def test_same_name_returns_same_instance(self):
         """Test that requesting same name returns same null logger instance."""
-        logger1 = get_null_logger('test.same')
-        logger2 = get_null_logger('test.same')
+        logger1 = get_null_logger("test.same")
+        logger2 = get_null_logger("test.same")
         assert logger1 is logger2
 
     def test_null_logger_separate_from_regular_logger(self):
         """Test that null logger is separate from regular logger of same name."""
-        null_logger = get_null_logger('test.separate')
-        regular_logger = get_logger('test.separate')
+        null_logger = get_null_logger("test.separate")
+        regular_logger = get_logger("test.separate")
 
         # They should be the same underlying logger object (from logging module)
         # but the null logger configuration overrides behavior
@@ -201,8 +201,8 @@ class TestIntegration:
 
     def test_get_logger_vs_null_logger_different_behavior(self):
         """Test that regular logger and null logger have different behaviors."""
-        regular_logger = get_logger('test.compare.regular')
-        null_logger = get_null_logger('test.compare.null')
+        regular_logger = get_logger("test.compare.regular")
+        null_logger = get_null_logger("test.compare.null")
 
         # Create recording handlers
         regular_messages = []
@@ -226,7 +226,7 @@ class TestIntegration:
         null_logger.addHandler(null_handler)
 
         # Log a message to both
-        test_message = 'Test message'
+        test_message = "Test message"
         regular_logger.info(test_message)
         null_logger.info(test_message)
 
@@ -243,8 +243,8 @@ class TestIntegration:
 
     def test_multiple_modules_can_use_same_logger(self):
         """Test that multiple callers can get the same logger instance."""
-        logger1 = get_logger('shared.module')
-        logger2 = get_logger('shared.module')
+        logger1 = get_logger("shared.module")
+        logger2 = get_logger("shared.module")
 
         assert logger1 is logger2
 
@@ -257,9 +257,9 @@ class TestIntegration:
         import sys
 
         # Verify that only standard library imports are used
-        module = sys.modules['prdiffer.infrastructure.utils.logger_factory']
+        module = sys.modules["prdiffer.infrastructure.utils.logger_factory"]
         module_source = module.__file__
 
         # This test verifies the module uses only logging from stdlib
         # If external deps were added, they would appear in the source
-        assert module_source.endswith('logger_factory.py')
+        assert module_source.endswith("logger_factory.py")

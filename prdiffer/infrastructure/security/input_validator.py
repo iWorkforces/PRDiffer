@@ -48,10 +48,10 @@ class InputValidator:
     """
 
     # Regex patterns for validation
-    GITHUB_URL_PATTERN: Pattern = re.compile(r'^https://github\.com/([a-zA-Z0-9_-]+)/([a-zA-Z0-9._-]+)/pull/(\d+)/?$')
-    GITHUB_REPO_PATTERN: Pattern = re.compile(r'^[a-zA-Z0-9_-]+/[a-zA-Z0-9._-]+$')
-    SAFE_USERNAME_PATTERN: Pattern = re.compile(r'^[a-zA-Z0-9_-]+$')
-    SAFE_REPO_NAME_PATTERN: Pattern = re.compile(r'^[a-zA-Z0-9._-]+$')
+    GITHUB_URL_PATTERN: Pattern = re.compile(r"^https://github\.com/([a-zA-Z0-9_-]+)/([a-zA-Z0-9._-]+)/pull/(\d+)/?$")
+    GITHUB_REPO_PATTERN: Pattern = re.compile(r"^[a-zA-Z0-9_-]+/[a-zA-Z0-9._-]+$")
+    SAFE_USERNAME_PATTERN: Pattern = re.compile(r"^[a-zA-Z0-9_-]+$")
+    SAFE_REPO_NAME_PATTERN: Pattern = re.compile(r"^[a-zA-Z0-9._-]+$")
     # Git branch/reference name validation
     # Based on Git ref naming rules:
     # - Can contain alphanumeric, hyphens, underscores, dots, and forward slashes
@@ -59,7 +59,7 @@ class InputValidator:
     # - Cannot have consecutive slashes
     # - Cannot start with dot
     # - Max length for Git refs is typically around 255 characters
-    BRANCH_NAME_PATTERN: Pattern = re.compile(r'^[a-zA-Z0-9]([a-zA-Z0-9_\-./]*[a-zA-Z0-9])?$')
+    BRANCH_NAME_PATTERN: Pattern = re.compile(r"^[a-zA-Z0-9]([a-zA-Z0-9_\-./]*[a-zA-Z0-9])?$")
 
     def __init__(self, security_patterns: SecurityPatterns | None = None):
         """Initialize the InputValidator with optional custom security patterns.
@@ -96,15 +96,15 @@ class InputValidator:
         from prdiffer.infrastructure.utils.url_parser import parse_github_pr_url
 
         if not isinstance(url, str):
-            raise InvalidURLError(f'URL must be a string, got {type(url).__name__}')
+            raise InvalidURLError(f"URL must be a string, got {type(url).__name__}")
 
         url = url.strip()
         if not url:
-            raise InvalidURLError('URL cannot be empty')
+            raise InvalidURLError("URL cannot be empty")
 
         # Check for suspicious patterns before parsing
         if self._detector.check_suspicious_patterns(url):
-            raise SuspiciousOperationError('URL contains suspicious patterns', details={'url': url[:100]})
+            raise SuspiciousOperationError("URL contains suspicious patterns", details={"url": url[:100]})
 
         # Delegate parsing and structural validation to URL parser
         return parse_github_pr_url(url)
@@ -123,21 +123,21 @@ class InputValidator:
             InvalidRepositoryError: If identifier is invalid
         """
         if not identifier:
-            raise InvalidRepositoryError('Repository identifier cannot be empty')
+            raise InvalidRepositoryError("Repository identifier cannot be empty")
 
         if len(identifier) > 200:
-            raise InvalidRepositoryError('Repository identifier too long')
+            raise InvalidRepositoryError("Repository identifier too long")
 
         match = cls.GITHUB_REPO_PATTERN.match(identifier)
         if not match:
             raise InvalidRepositoryError(
-                'Invalid repository format. Expected: owner/repo',
-                details={'identifier': identifier},
+                "Invalid repository format. Expected: owner/repo",
+                details={"identifier": identifier},
             )
 
-        parts = identifier.split('/')
+        parts = identifier.split("/")
         if len(parts) != 2:
-            raise InvalidRepositoryError('Repository must be in format: owner/repo')
+            raise InvalidRepositoryError("Repository must be in format: owner/repo")
 
         owner, repo = parts
         cls._validate_github_owner(owner)
@@ -156,15 +156,15 @@ class InputValidator:
             InvalidRepositoryError: If owner is invalid
         """
         if not owner:
-            raise InvalidRepositoryError('Owner cannot be empty')
+            raise InvalidRepositoryError("Owner cannot be empty")
 
         if len(owner) > 39:  # GitHub's max username length
-            raise InvalidRepositoryError('Owner name too long (max 39 characters)')
+            raise InvalidRepositoryError("Owner name too long (max 39 characters)")
 
         if not cls.SAFE_USERNAME_PATTERN.match(owner):
             raise InvalidRepositoryError(
-                'Owner contains invalid characters (allowed: a-z, A-Z, 0-9, -, _)',
-                details={'owner': owner},
+                "Owner contains invalid characters (allowed: a-z, A-Z, 0-9, -, _)",
+                details={"owner": owner},
             )
 
     @classmethod
@@ -178,13 +178,13 @@ class InputValidator:
             InvalidRepositoryError: If repo name is invalid
         """
         if not repo:
-            raise InvalidRepositoryError('Repository name cannot be empty')
+            raise InvalidRepositoryError("Repository name cannot be empty")
 
         if len(repo) > 100:  # GitHub's max repo name length
-            raise InvalidRepositoryError('Repository name too long (max 100 characters)')
+            raise InvalidRepositoryError("Repository name too long (max 100 characters)")
 
         if not cls.SAFE_REPO_NAME_PATTERN.match(repo):
-            raise InvalidRepositoryError('Repository name contains invalid characters', details={'repo': repo})
+            raise InvalidRepositoryError("Repository name contains invalid characters", details={"repo": repo})
 
     @classmethod
     def sanitize_string(cls, value: str, max_length: int = 1000) -> str:
@@ -217,13 +217,13 @@ class InputValidator:
             InvalidPRNumberError: If PR number is invalid
         """
         if not isinstance(pr_number, int):
-            raise InvalidPRNumberError(f'PR number must be integer, got {type(pr_number)}')
+            raise InvalidPRNumberError(f"PR number must be integer, got {type(pr_number)}")
 
         if pr_number <= 0:
-            raise InvalidPRNumberError('PR number must be positive')
+            raise InvalidPRNumberError("PR number must be positive")
 
         if pr_number > 1000000:
-            raise InvalidPRNumberError('PR number too large (max 1000000)')
+            raise InvalidPRNumberError("PR number too large (max 1000000)")
 
         return pr_number
 
@@ -254,19 +254,19 @@ class InputValidator:
             'data/backup.tar.gz'
         """
         if not isinstance(file_path, str):
-            raise InputSanitizationError('File path must be a string')
+            raise InputSanitizationError("File path must be a string")
 
         if not file_path:
-            raise InputSanitizationError('File path cannot be empty')
+            raise InputSanitizationError("File path cannot be empty")
 
         # Normalize the path to prevent bypass attempts with ./ or extra slashes
-        file_path = file_path.replace('\\', '/')  # Normalize Windows paths
-        while '//' in file_path:
-            file_path = file_path.replace('//', '/')
+        file_path = file_path.replace("\\", "/")  # Normalize Windows paths
+        while "//" in file_path:
+            file_path = file_path.replace("//", "/")
 
         # Check length limits
         if len(file_path) > 500:
-            raise InputSanitizationError('File path too long (max 500 characters)')
+            raise InputSanitizationError("File path too long (max 500 characters)")
 
         # Check for path traversal using pre-compiled pattern from detector
         from prdiffer.infrastructure.security.injection_detector import (
@@ -275,35 +275,35 @@ class InputValidator:
 
         if InjectionDetector._PATH_TRAVERSAL_COMPILED.search(file_path):
             raise SuspiciousOperationError(
-                'File path contains path traversal patterns',
-                details={'path': file_path[:100]},
+                "File path contains path traversal patterns",
+                details={"path": file_path[:100]},
             )
 
         # Ensure path doesn't start with / (absolute path)
-        if file_path.startswith('/'):
+        if file_path.startswith("/"):
             raise InputSanitizationError(
-                'Absolute paths not allowed (use relative paths)',
-                details={'path': file_path[:50]},
+                "Absolute paths not allowed (use relative paths)",
+                details={"path": file_path[:50]},
             )
 
         # Check for suspicious patterns in file extensions
         # Warn about potentially dangerous file extensions
         dangerous_extensions = [
-            '.exe',
-            '.bat',
-            '.cmd',
-            '.com',
-            '.scr',  # Executables
-            '.sh',
-            '.bash',
-            '.zsh',
-            '.ps1',
-            '.psm1',  # Scripts
-            '.dll',
-            '.so',
-            '.dylib',  # Libraries
+            ".exe",
+            ".bat",
+            ".cmd",
+            ".com",
+            ".scr",  # Executables
+            ".sh",
+            ".bash",
+            ".zsh",
+            ".ps1",
+            ".psm1",  # Scripts
+            ".dll",
+            ".so",
+            ".dylib",  # Libraries
         ]
-        file_ext = file_path.rsplit('.', 1)[-1].lower() if '.' in file_path else ''
+        file_ext = file_path.rsplit(".", 1)[-1].lower() if "." in file_path else ""
         if file_ext in dangerous_extensions:
             # Log warning but allow - could be legitimate in some contexts
             pass  # Could add logging here if needed
@@ -324,24 +324,24 @@ class InputValidator:
             InputSanitizationError: If token format is invalid
         """
         if not isinstance(token, str):
-            raise InputSanitizationError('Token must be a string')
+            raise InputSanitizationError("Token must be a string")
 
         if not token:
-            raise InputSanitizationError('Token cannot be empty')
+            raise InputSanitizationError("Token cannot be empty")
 
         if len(token) < 20:
-            raise InputSanitizationError('Token too short (minimum 20 characters)')
+            raise InputSanitizationError("Token too short (minimum 20 characters)")
 
         if len(token) > 500:
-            raise InputSanitizationError('Token too long (maximum 500 characters)')
+            raise InputSanitizationError("Token too long (maximum 500 characters)")
 
         # Check for whitespace
         if token != token.strip():
-            raise InputSanitizationError('Token contains leading/trailing whitespace')
+            raise InputSanitizationError("Token contains leading/trailing whitespace")
 
         # Token should be alphanumeric with some special chars
-        if not re.match(r'^[a-zA-Z0-9_\-\.]+$', token):
-            raise InputSanitizationError('Token contains invalid characters')
+        if not re.match(r"^[a-zA-Z0-9_\-\.]+$", token):
+            raise InputSanitizationError("Token contains invalid characters")
 
         return token
 
@@ -359,17 +359,17 @@ class InputValidator:
             InputSanitizationError: If user ID is invalid
         """
         if not isinstance(user_id, str):
-            raise InputSanitizationError('User ID must be a string')
+            raise InputSanitizationError("User ID must be a string")
 
         if not user_id:
-            raise InputSanitizationError('User ID cannot be empty')
+            raise InputSanitizationError("User ID cannot be empty")
 
         if len(user_id) > 100:
-            raise InputSanitizationError('User ID too long (max 100 characters)')
+            raise InputSanitizationError("User ID too long (max 100 characters)")
 
         # Allow alphanumeric, hyphens, underscores, @, and dots
-        if not re.match(r'^[a-zA-Z0-9_\-@\.]+$', user_id):
-            raise InputSanitizationError('User ID contains invalid characters', details={'user_id': user_id[:50]})
+        if not re.match(r"^[a-zA-Z0-9_\-@\.]+$", user_id):
+            raise InputSanitizationError("User ID contains invalid characters", details={"user_id": user_id[:50]})
 
         return user_id
 
@@ -388,46 +388,46 @@ class InputValidator:
             SuspiciousOperationError: If branch contains suspicious patterns
         """
         if not isinstance(branch, str):
-            raise InputSanitizationError('Branch name must be a string')
+            raise InputSanitizationError("Branch name must be a string")
 
         if not branch:
-            raise InputSanitizationError('Branch name cannot be empty')
+            raise InputSanitizationError("Branch name cannot be empty")
 
         if len(branch) > 255:
-            raise InputSanitizationError('Branch name too long (max 255 characters)')
+            raise InputSanitizationError("Branch name too long (max 255 characters)")
 
         # Check for suspicious patterns
         if _detector.check_suspicious_patterns(branch):
             raise SuspiciousOperationError(
-                'Branch name contains suspicious patterns',
-                details={'branch': branch[:100]},
+                "Branch name contains suspicious patterns",
+                details={"branch": branch[:100]},
             )
 
         # Validate against Git branch naming rules
         if not cls.BRANCH_NAME_PATTERN.match(branch):
             raise InputSanitizationError(
-                'Branch name contains invalid characters or format',
+                "Branch name contains invalid characters or format",
                 details={
-                    'branch': branch[:100],
-                    'allowed': 'alphanumeric, hyphens, underscores, dots, and forward slashes',
+                    "branch": branch[:100],
+                    "allowed": "alphanumeric, hyphens, underscores, dots, and forward slashes",
                 },
             )
 
         # Additional checks for branch name safety
         # Cannot start or end with slash
-        if branch.startswith('/') or branch.endswith('/'):
+        if branch.startswith("/") or branch.endswith("/"):
             raise InputSanitizationError("Branch name cannot start or end with '/'")
 
         # Cannot have consecutive slashes
-        if '//' in branch:
-            raise InputSanitizationError('Branch name cannot contain consecutive slashes')
+        if "//" in branch:
+            raise InputSanitizationError("Branch name cannot contain consecutive slashes")
 
         # Cannot start with dot (hidden file/path)
-        if branch.startswith('.'):
+        if branch.startswith("."):
             raise InputSanitizationError("Branch name cannot start with '.'")
 
         # Cannot contain ".." (parent directory reference)
-        if '..' in branch:
+        if ".." in branch:
             raise SuspiciousOperationError("Branch name cannot contain '..'")
 
         return branch

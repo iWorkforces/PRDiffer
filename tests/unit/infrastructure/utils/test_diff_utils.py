@@ -117,63 +117,63 @@ class TestBuildFullFilePatch:
     def test_identical_files(self):
         """Test diff of identical files."""
         diff_utils = DiffUtils()
-        content = 'line1\nline2\nline3'
+        content = "line1\nline2\nline3"
         result = diff_utils.build_full_file_patch(content, content)
-        assert '@@ -1,3 +1,3 @@' in result
-        assert ' line1' in result
-        assert ' line2' in result
-        assert ' line3' in result
+        assert "@@ -1,3 +1,3 @@" in result
+        assert " line1" in result
+        assert " line2" in result
+        assert " line3" in result
 
     def test_added_lines(self):
         """Test diff with added lines."""
         diff_utils = DiffUtils()
-        original = 'line1\nline2'
-        new = 'line1\nline2\nline3'
+        original = "line1\nline2"
+        new = "line1\nline2\nline3"
         result = diff_utils.build_full_file_patch(original, new)
-        assert '@@ -1,2 +1,3 @@' in result
-        assert '+line3' in result
+        assert "@@ -1,2 +1,3 @@" in result
+        assert "+line3" in result
 
     def test_removed_lines(self):
         """Test diff with removed lines."""
         diff_utils = DiffUtils()
-        original = 'line1\nline2\nline3'
-        new = 'line1\nline3'
+        original = "line1\nline2\nline3"
+        new = "line1\nline3"
         result = diff_utils.build_full_file_patch(original, new)
-        assert '@@ -1,3 +1,2 @@' in result
-        assert '-line2' in result
+        assert "@@ -1,3 +1,2 @@" in result
+        assert "-line2" in result
 
     def test_modified_lines(self):
         """Test diff with modified lines."""
         diff_utils = DiffUtils()
-        original = 'line1\nold_line\nline3'
-        new = 'line1\nnew_line\nline3'
+        original = "line1\nold_line\nline3"
+        new = "line1\nnew_line\nline3"
         result = diff_utils.build_full_file_patch(original, new)
-        assert '-old_line' in result
-        assert '+new_line' in result
+        assert "-old_line" in result
+        assert "+new_line" in result
 
     def test_empty_files(self):
         """Test diff of empty files."""
         diff_utils = DiffUtils()
-        result = diff_utils.build_full_file_patch('', '')
-        assert '@@ -0,0 +0,0 @@' in result
+        result = diff_utils.build_full_file_patch("", "")
+        assert "@@ -0,0 +0,0 @@" in result
 
     def test_new_file(self):
         """Test diff creating new file."""
         diff_utils = DiffUtils()
-        new = 'line1\nline2'
-        result = diff_utils.build_full_file_patch('', new)
-        assert '@@ -0,0 +1,2 @@' in result
-        assert '+line1' in result
-        assert '+line2' in result
+        new = "line1\nline2"
+        result = diff_utils.build_full_file_patch("", new)
+        assert "@@ -0,0 +1,2 @@" in result
+        assert "+line1" in result
+        assert "+line2" in result
 
     def test_deleted_file(self):
         """Test diff deleting entire file."""
         diff_utils = DiffUtils()
-        original = 'line1\nline2'
-        result = diff_utils.build_full_file_patch(original, '')
-        assert '@@ -1,2 +0,0 @@' in result
-        assert '-line1' in result
-        assert '-line2' in result
+        original = "line1\nline2"
+        result = diff_utils.build_full_file_patch(original, "")
+        assert "@@ -1,2 +0,0 @@" in result
+        assert "-line1" in result
+        assert "-line2" in result
 
 
 class TestBuildFullFilePatchChunked:
@@ -182,38 +182,38 @@ class TestBuildFullFilePatchChunked:
     def test_small_file_uses_standard(self):
         """Test that small files use standard processing."""
         diff_utils = DiffUtils()
-        original = 'line1\nline2'
-        new = 'line1\nline2\nline3'
+        original = "line1\nline2"
+        new = "line1\nline2\nline3"
         result = diff_utils.build_full_file_patch_chunked(original, new)
-        assert '+line3' in result
+        assert "+line3" in result
 
     def test_large_file_truncation(self):
         """Test that very large files are truncated."""
         config = DiffProcessingConfig(max_diff_size=1000)
         diff_utils = DiffUtils(config=config)
-        large_content = '\n'.join([f'line{i}' for i in range(2000)])
+        large_content = "\n".join([f"line{i}" for i in range(2000)])
         result = diff_utils.build_full_file_patch_chunked(large_content, large_content)
-        assert 'LARGE FILE - DIFF TRUNCATED' in result
+        assert "LARGE FILE - DIFF TRUNCATED" in result
 
     def test_custom_chunk_size(self):
         """Test custom chunk size parameter."""
         diff_utils = DiffUtils()
-        orig_lines = [f'line{i}' for i in range(100)]
+        orig_lines = [f"line{i}" for i in range(100)]
         new_lines = orig_lines.copy()
-        new_lines[50] = 'modified'
-        orig_content = '\n'.join(orig_lines)
-        new_content = '\n'.join(new_lines)
+        new_lines[50] = "modified"
+        orig_content = "\n".join(orig_lines)
+        new_content = "\n".join(new_lines)
         result = diff_utils.build_full_file_patch_chunked(orig_content, new_content, chunk_size=50, large_file_threshold=10)
-        assert '-line50' in result or '+modified' in result
+        assert "-line50" in result or "+modified" in result
 
     def test_custom_large_file_threshold(self):
         """Test custom large file threshold."""
         config = DiffProcessingConfig(large_file_threshold=10, chunk_size=5)
         diff_utils = DiffUtils(config=config)
-        lines = [f'line{i}' for i in range(50)]
-        content = '\n'.join(lines)
+        lines = [f"line{i}" for i in range(50)]
+        content = "\n".join(lines)
         result = diff_utils.build_full_file_patch_chunked(content, content)
-        assert result != ''
+        assert result != ""
 
     def test_uses_config_defaults(self):
         """Test that config defaults are used when params not specified."""
@@ -223,10 +223,10 @@ class TestBuildFullFilePatchChunked:
             max_diff_size=10000,
         )
         diff_utils = DiffUtils(config=config)
-        lines = [f'line{i}' for i in range(100)]
-        content = '\n'.join(lines)
+        lines = [f"line{i}" for i in range(100)]
+        content = "\n".join(lines)
         result = diff_utils.build_full_file_patch_chunked(content, content)
-        assert result != ''
+        assert result != ""
 
 
 class TestBuildChunkHunk:
@@ -236,38 +236,38 @@ class TestBuildChunkHunk:
         """Test with empty chunks."""
         diff_utils = DiffUtils()
         result = diff_utils._build_chunk_hunk([], [], 1, 1)
-        assert result == ''
+        assert result == ""
 
     def test_identical_chunks(self):
         """Test with identical chunks returns empty (no changes)."""
         diff_utils = DiffUtils()
-        lines = ['line1', 'line2']
+        lines = ["line1", "line2"]
         result = diff_utils._build_chunk_hunk(lines, lines, 1, 1)
-        assert result == ''
+        assert result == ""
 
     def test_modified_chunks(self):
         """Test with modified chunks."""
         diff_utils = DiffUtils()
-        orig = ['line1', 'old']
-        new = ['line1', 'new']
+        orig = ["line1", "old"]
+        new = ["line1", "new"]
         result = diff_utils._build_chunk_hunk(orig, new, 1, 1)
-        assert '-old' in result
-        assert '+new' in result
+        assert "-old" in result
+        assert "+new" in result
 
     def test_no_changes_returns_empty(self):
         """Test that chunks with no changes return empty string."""
         diff_utils = DiffUtils()
-        lines = ['line1', 'line2']
+        lines = ["line1", "line2"]
         result = diff_utils._build_chunk_hunk(lines, lines, 1, 1)
-        assert result == ''
+        assert result == ""
 
     def test_custom_line_numbers(self):
         """Test with custom line numbers."""
         diff_utils = DiffUtils()
-        orig = ['line1']
-        new = ['line1', 'line2']
+        orig = ["line1"]
+        new = ["line1", "line2"]
         result = diff_utils._build_chunk_hunk(orig, new, 100, 200)
-        assert '@@ -100,1 +200,2 @@' in result
+        assert "@@ -100,1 +200,2 @@" in result
 
 
 class TestDecodeIfBytes:
@@ -276,25 +276,25 @@ class TestDecodeIfBytes:
     def test_string_passthrough(self):
         """Test that strings pass through unchanged."""
         diff_utils = DiffUtils()
-        result = diff_utils.decode_if_bytes('hello')
-        assert result == 'hello'
+        result = diff_utils.decode_if_bytes("hello")
+        assert result == "hello"
 
     def test_bytes_utf8(self):
         """Test UTF-8 bytes decoding."""
         diff_utils = DiffUtils()
-        result = diff_utils.decode_if_bytes(b'hello')
-        assert result == 'hello'
+        result = diff_utils.decode_if_bytes(b"hello")
+        assert result == "hello"
 
     def test_bytearray_utf8(self):
         """Test bytearray UTF-8 decoding."""
         diff_utils = DiffUtils()
-        result = diff_utils.decode_if_bytes(bytearray(b'hello'))
-        assert result == 'hello'
+        result = diff_utils.decode_if_bytes(bytearray(b"hello"))
+        assert result == "hello"
 
     def test_bytes_latin1_fallback(self):
         """Test fallback to latin-1 encoding."""
         diff_utils = DiffUtils()
-        latin1_content = b'\xe9\xe8\xe7'
+        latin1_content = b"\xe9\xe8\xe7"
         result = diff_utils.decode_if_bytes(latin1_content)
         assert len(result) == 3
 
@@ -302,11 +302,11 @@ class TestDecodeIfBytes:
         """Test empty string when all encodings fail."""
         diff_utils = DiffUtils()
         # Invalid UTF-8 sequence that may fail on some encodings
-        _ = b'\xff\xfe\xfd'  # invalid_bytes not used in this test setup
+        _ = b"\xff\xfe\xfd"  # invalid_bytes not used in this test setup
         with patch.object(
             type(diff_utils),
-            'decode_if_bytes',
-            lambda self, content: '' if isinstance(content, (bytes, bytearray)) else content,
+            "decode_if_bytes",
+            lambda self, content: "" if isinstance(content, (bytes, bytearray)) else content,
         ):
             pass
 
@@ -317,55 +317,55 @@ class TestExtendPatch:
     def test_extend_simple_patch(self):
         """Test extending a simple patch."""
         diff_utils = DiffUtils()
-        original = 'line1\nline2\nline3'
-        new = 'line1\nmodified\nline3'
-        result = diff_utils.extend_patch(original, 'fallback', new)
-        assert '-line2' in result
-        assert '+modified' in result
+        original = "line1\nline2\nline3"
+        new = "line1\nmodified\nline3"
+        result = diff_utils.extend_patch(original, "fallback", new)
+        assert "-line2" in result
+        assert "+modified" in result
 
     def test_extend_returns_fallback_on_binary(self):
         """Test that binary content returns fallback patch."""
         diff_utils = DiffUtils()
-        original = '\x00\x01\x02'
-        new = '\x00\x01\x03'
-        result = diff_utils.extend_patch(original, 'fallback_patch', new)
-        assert 'BINARY FILE' in result
+        original = "\x00\x01\x02"
+        new = "\x00\x01\x03"
+        result = diff_utils.extend_patch(original, "fallback_patch", new)
+        assert "BINARY FILE" in result
 
     def test_extend_with_empty_original(self):
         """Test extending with empty original (new file)."""
         diff_utils = DiffUtils()
-        new = 'line1\nline2'
-        result = diff_utils.extend_patch('', 'fallback', new)
-        assert '+line1' in result
-        assert '+line2' in result
+        new = "line1\nline2"
+        result = diff_utils.extend_patch("", "fallback", new)
+        assert "+line1" in result
+        assert "+line2" in result
 
     def test_extend_with_empty_new(self):
         """Test extending with empty new (deleted file)."""
         diff_utils = DiffUtils()
-        original = 'line1\nline2'
-        result = diff_utils.extend_patch(original, 'fallback', '')
-        assert '-line1' in result
-        assert '-line2' in result
+        original = "line1\nline2"
+        result = diff_utils.extend_patch(original, "fallback", "")
+        assert "-line1" in result
+        assert "-line2" in result
 
     def test_extend_bytes_content(self):
         """Test extending with bytes content."""
         diff_utils = DiffUtils()
-        original = b'line1\nline2'
-        new = b'line1\nmodified'
-        result = diff_utils.extend_patch(original, 'fallback', new)
-        assert '-line2' in result or '+modified' in result
+        original = b"line1\nline2"
+        new = b"line1\nmodified"
+        result = diff_utils.extend_patch(original, "fallback", new)
+        assert "-line2" in result or "+modified" in result
 
     def test_extend_large_file_uses_chunked(self):
         """Test that large files use chunked processing."""
         config = DiffProcessingConfig(large_file_threshold=10)
         diff_utils = DiffUtils(config=config)
-        lines = [f'line{i}' for i in range(100)]
-        original = '\n'.join(lines)
+        lines = [f"line{i}" for i in range(100)]
+        original = "\n".join(lines)
         new_lines = lines.copy()
-        new_lines[50] = 'modified'
-        new = '\n'.join(new_lines)
-        result = diff_utils.extend_patch(original, 'fallback', new)
-        assert result != 'fallback'
+        new_lines[50] = "modified"
+        new = "\n".join(new_lines)
+        result = diff_utils.extend_patch(original, "fallback", new)
+        assert result != "fallback"
 
 
 class TestIsBinaryContent:
@@ -374,28 +374,28 @@ class TestIsBinaryContent:
     def test_empty_content(self):
         """Test empty content is not binary."""
         diff_utils = DiffUtils()
-        assert diff_utils._is_binary_content('') is False
+        assert diff_utils._is_binary_content("") is False
 
     def test_text_content(self):
         """Test text content is not binary."""
         diff_utils = DiffUtils()
-        assert diff_utils._is_binary_content('hello world') is False
+        assert diff_utils._is_binary_content("hello world") is False
 
     def test_null_bytes(self):
         """Test null bytes indicate binary."""
         diff_utils = DiffUtils()
-        assert diff_utils._is_binary_content('\x00hello') is True
+        assert diff_utils._is_binary_content("\x00hello") is True
 
     def test_high_non_printable_ratio(self):
         """Test high ratio of non-printable chars indicates binary."""
         diff_utils = DiffUtils()
-        binary_like = ''.join([chr(i) if i < 32 else ' ' for i in range(100)])
+        binary_like = "".join([chr(i) if i < 32 else " " for i in range(100)])
         assert diff_utils._is_binary_content(binary_like) is True
 
     def test_normal_text_with_newlines(self):
         """Test normal text with newlines is not binary."""
         diff_utils = DiffUtils()
-        text = 'line1\nline2\rline3\ttab'
+        text = "line1\nline2\rline3\ttab"
         assert diff_utils._is_binary_content(text) is False
 
 

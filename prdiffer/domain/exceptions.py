@@ -40,7 +40,7 @@ class PRDifferException(Exception):
     def __str__(self) -> str:
         """Return formatted string with error code."""
         if self.error_code:
-            return f'[{self.error_code.code}] {self.message}'
+            return f"[{self.error_code.code}] {self.message}"
         return self.message
 
 
@@ -404,18 +404,18 @@ def get_exception_details(exception: Exception) -> dict[str, Any]:
         Dictionary with exception details
     """
     details: dict[str, Any] = {
-        'type': type(exception).__name__,
-        'message': str(exception),
+        "type": type(exception).__name__,
+        "message": str(exception),
     }
 
     if isinstance(exception, PRDifferException):
-        details['details'] = exception.details
+        details["details"] = exception.details
 
     if isinstance(exception, GitHubAPIError):
-        details['status_code'] = exception.status_code
+        details["status_code"] = exception.status_code
 
     if isinstance(exception, RateLimitError):
-        details['retry_after'] = exception.retry_after
+        details["retry_after"] = exception.retry_after
 
     return details
 
@@ -431,24 +431,24 @@ def wrap_github_exception(exception: Exception) -> GitHubAPIError:
     """
     error_msg = str(exception).lower()
 
-    if '404' in error_msg or 'not found' in error_msg:
-        if 'repository' in error_msg:
+    if "404" in error_msg or "not found" in error_msg:
+        if "repository" in error_msg:
             return RepositoryNotFoundError(str(exception))
-        elif 'pull' in error_msg or 'pr' in error_msg:
+        elif "pull" in error_msg or "pr" in error_msg:
             return PRNotFoundError(str(exception))
         else:
             return FileNotFoundError(str(exception))
 
-    if '401' in error_msg or '403' in error_msg or 'unauthorized' in error_msg:
+    if "401" in error_msg or "403" in error_msg or "unauthorized" in error_msg:
         return GitHubAuthenticationError(str(exception))
 
-    if '429' in error_msg or 'rate limit' in error_msg:
+    if "429" in error_msg or "rate limit" in error_msg:
         return GitHubRateLimitError(
             str(exception),
             retry_after=60,  # Default retry after 60 seconds
         )
 
-    if 'timeout' in error_msg or 'connection' in error_msg:
+    if "timeout" in error_msg or "connection" in error_msg:
         return GitHubConnectionError(str(exception))
 
     # Default to generic GitHub API error

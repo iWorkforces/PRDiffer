@@ -30,10 +30,10 @@ class TestAPICall:
             timestamp=1234567890.0,
             duration=1.2,
             success=False,
-            error_type='RateLimitExceeded',
+            error_type="RateLimitExceeded",
         )
         assert call.success is False
-        assert call.error_type == 'RateLimitExceeded'
+        assert call.error_type == "RateLimitExceeded"
 
 
 class TestAPIHealthTracker:
@@ -51,28 +51,28 @@ class TestAPIHealthTracker:
     def test_initial_state(self):
         """Test tracker initial state."""
         stats = self.tracker.get_stats()
-        assert stats['health_score'] == 1.0
-        assert stats['total_calls'] == 0
-        assert stats['success_rate'] == 1.0
-        assert stats['avg_duration'] == 0.0
-        assert stats['error_patterns'] == {}
+        assert stats["health_score"] == 1.0
+        assert stats["total_calls"] == 0
+        assert stats["success_rate"] == 1.0
+        assert stats["avg_duration"] == 0.0
+        assert stats["error_patterns"] == {}
 
     def test_record_successful_call(self):
         """Test recording a successful API call."""
         self.tracker.record_call(duration=0.5, success=True)
 
         stats = self.tracker.get_stats()
-        assert stats['total_calls'] == 1
-        assert stats['success_rate'] == 1.0
+        assert stats["total_calls"] == 1
+        assert stats["success_rate"] == 1.0
 
     def test_record_failed_call(self):
         """Test recording a failed API call."""
-        self.tracker.record_call(duration=1.0, success=False, error_type='Timeout')
+        self.tracker.record_call(duration=1.0, success=False, error_type="Timeout")
 
         stats = self.tracker.get_stats()
-        assert stats['total_calls'] == 1
-        assert stats['success_rate'] == 0.0
-        assert stats['error_patterns']['Timeout'] == 1
+        assert stats["total_calls"] == 1
+        assert stats["success_rate"] == 0.0
+        assert stats["error_patterns"]["Timeout"] == 1
 
     def test_health_score_perfect(self):
         """Test health score with all successful calls."""
@@ -85,7 +85,7 @@ class TestAPIHealthTracker:
     def test_health_score_poor(self):
         """Test health score with all failed calls."""
         for _ in range(5):
-            self.tracker.record_call(duration=1.0, success=False, error_type='Error')
+            self.tracker.record_call(duration=1.0, success=False, error_type="Error")
 
         health_score = self.tracker.get_health_score()
         assert health_score < 0.5  # Should be low due to 0% success rate
@@ -111,21 +111,21 @@ class TestAPIHealthTracker:
     def test_get_recommended_delay_poor_health(self):
         """Test recommended delay with poor health."""
         for _ in range(5):
-            self.tracker.record_call(duration=1.0, success=False, error_type='Error')
+            self.tracker.record_call(duration=1.0, success=False, error_type="Error")
 
         delay = self.tracker.get_recommended_delay(base_delay=1.0, max_delay=30.0)
         assert delay > 1.0  # Should increase delay for poor health
 
     def test_get_error_pattern(self):
         """Test error pattern tracking."""
-        self.tracker.record_call(duration=1.0, success=False, error_type='Timeout')
-        self.tracker.record_call(duration=1.0, success=False, error_type='Timeout')
-        self.tracker.record_call(duration=1.0, success=False, error_type='RateLimit')
+        self.tracker.record_call(duration=1.0, success=False, error_type="Timeout")
+        self.tracker.record_call(duration=1.0, success=False, error_type="Timeout")
+        self.tracker.record_call(duration=1.0, success=False, error_type="RateLimit")
         self.tracker.record_call(duration=0.5, success=True)
 
         patterns = self.tracker.get_error_pattern()
-        assert patterns['Timeout'] == 2
-        assert patterns['RateLimit'] == 1
+        assert patterns["Timeout"] == 2
+        assert patterns["RateLimit"] == 1
 
     def test_time_window_eviction(self):
         """Test that old calls are evicted after time window."""
@@ -146,7 +146,7 @@ class TestAPIHealthTracker:
 
             stats = self.tracker.get_stats()
             # First call should be evicted, only 1 call in window
-            assert stats['total_calls'] == 1
+            assert stats["total_calls"] == 1
         finally:
             # Restore original time function
             health_module.time.time = original_time
@@ -159,7 +159,7 @@ class TestAPIHealthTracker:
 
         stats = self.tracker.get_stats()
         # Should be limited to window_size
-        assert stats['total_calls'] <= 10
+        assert stats["total_calls"] <= 10
 
     def test_caching_of_health_score(self):
         """Test that health score is cached for performance."""
@@ -209,7 +209,7 @@ class TestAPIHealthTrackerEdgeCases:
             if i < 7:
                 self.tracker.record_call(duration=0.5, success=True)
             else:
-                self.tracker.record_call(duration=1.0, success=False, error_type='Error')
+                self.tracker.record_call(duration=1.0, success=False, error_type="Error")
 
         health_score = self.tracker.get_health_score()
         # Should be between 0 and 1
@@ -243,7 +243,7 @@ class TestAPIHealthTrackerEdgeCases:
         """Test that recommended delay is capped at max_delay."""
         # Record many failures to get poor health
         for _ in range(10):
-            self.tracker.record_call(duration=1.0, success=False, error_type='Error')
+            self.tracker.record_call(duration=1.0, success=False, error_type="Error")
 
         delay = self.tracker.get_recommended_delay(base_delay=1.0, max_delay=5.0)
         assert delay <= 5.0
@@ -258,7 +258,7 @@ class TestAPIHealthTrackerEdgeCases:
         # Check that success rate is calculated correctly
         successful = sum(1 for _ in range(5) if _ % 2 == 0)
         expected_rate = successful / 5
-        assert abs(stats['success_rate'] - expected_rate) < 0.01
+        assert abs(stats["success_rate"] - expected_rate) < 0.01
 
     def test_concurrent_access(self):
         """Test thread safety with concurrent access simulation."""

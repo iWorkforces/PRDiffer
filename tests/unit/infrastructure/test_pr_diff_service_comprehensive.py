@@ -50,10 +50,10 @@ def mock_logger():
 def sample_file_patch():
     """Create sample FilePatchInfo."""
     return FilePatchInfo(
-        filename='src/test.py',
-        base_file='old content',
-        head_file='new content',
-        patch='@@ -1,2 +1,2 @@',
+        filename="src/test.py",
+        base_file="old content",
+        head_file="new content",
+        patch="@@ -1,2 +1,2 @@",
         edit_type=EDIT_TYPE.MODIFIED,
         num_plus_lines=5,
         num_minus_lines=3,
@@ -66,10 +66,10 @@ def sample_pr_diff(sample_file_patch):
     return PRDiff(
         files=(
             FileDiffResponse(
-                path='src/test.py',
+                path="src/test.py",
                 status=EDIT_TYPE.MODIFIED,
                 stats=FileStats(additions=5, deletions=3),
-                diff='test diff',
+                diff="test diff",
             ),
         )
     )
@@ -80,7 +80,7 @@ class TestGitHubPRDiffServiceInit:
 
     def test_init_with_defaults(self):
         """Test initialization with default values."""
-        with patch.dict('os.environ', {'GITHUB_TOKEN': '', 'GITHUB_TIMEOUT': '30'}):
+        with patch.dict("os.environ", {"GITHUB_TOKEN": "", "GITHUB_TIMEOUT": "30"}):
             service = GitHubPRDiffService()
 
             assert service._github_api is not None
@@ -105,8 +105,8 @@ class TestGitHubPRDiffServiceInit:
         """Test that caching mixin is initialized."""
         service = GitHubPRDiffService(github_api_client=mock_github_api)
 
-        assert hasattr(service, '_method_cache')
-        assert hasattr(service, '_cache_lock')
+        assert hasattr(service, "_method_cache")
+        assert hasattr(service, "_cache_lock")
 
 
 class TestGetPrDiff:
@@ -118,10 +118,10 @@ class TestGetPrDiff:
         mock_file_processor.process_files_to_patches_async = AsyncMock(
             return_value=[
                 FilePatchInfo(
-                    filename='test.py',
-                    base_file='',
-                    head_file='',
-                    patch='patch',
+                    filename="test.py",
+                    base_file="",
+                    head_file="",
+                    patch="patch",
                     edit_type=EDIT_TYPE.MODIFIED,
                     num_plus_lines=1,
                     num_minus_lines=1,
@@ -131,8 +131,8 @@ class TestGetPrDiff:
 
         mock_repo = MagicMock()
         mock_pr = MagicMock()
-        mock_pr.head.sha = 'abc123'
-        mock_pr.base.sha = 'def456'
+        mock_pr.head.sha = "abc123"
+        mock_pr.base.sha = "def456"
         mock_pr.get_files.return_value = []
 
         mock_github_api._get_pygithub_repository.return_value = mock_repo
@@ -144,7 +144,7 @@ class TestGetPrDiff:
             logger=mock_logger,
         )
 
-        result = await service.get_pr_diff('owner', 'repo', 1)
+        result = await service.get_pr_diff("owner", "repo", 1)
 
         assert result is not None
 
@@ -153,8 +153,8 @@ class TestGetPrDiff:
         """Test sync fallback when no file processor."""
         mock_repo = MagicMock()
         mock_pr = MagicMock()
-        mock_pr.head.sha = 'abc123'
-        mock_pr.base.sha = 'def456'
+        mock_pr.head.sha = "abc123"
+        mock_pr.base.sha = "def456"
         mock_pr.get_files.return_value = []
 
         mock_github_api._get_pygithub_repository.return_value = mock_repo
@@ -166,7 +166,7 @@ class TestGetPrDiff:
             logger=mock_logger,
         )
 
-        result = await service.get_pr_diff('owner', 'repo', 1)
+        result = await service.get_pr_diff("owner", "repo", 1)
 
         assert result is not None
 
@@ -180,7 +180,7 @@ class TestGetPrDiff:
             logger=mock_logger,
         )
 
-        result = await service.get_pr_diff('owner', 'repo', 1)
+        result = await service.get_pr_diff("owner", "repo", 1)
 
         assert result is None
 
@@ -196,21 +196,21 @@ class TestGetPrDiff:
             logger=mock_logger,
         )
 
-        result = await service.get_pr_diff('owner', 'repo', 1)
+        result = await service.get_pr_diff("owner", "repo", 1)
 
         assert result is None
 
     @pytest.mark.anyio
     async def test_get_pr_diff_exception_handling(self, mock_github_api, mock_logger):
         """Test exception handling in get_pr_diff."""
-        mock_github_api._get_pygithub_repository.side_effect = GithubException(500, 'Error', {})
+        mock_github_api._get_pygithub_repository.side_effect = GithubException(500, "Error", {})
 
         service = GitHubPRDiffService(
             github_api_client=mock_github_api,
             logger=mock_logger,
         )
 
-        result = await service.get_pr_diff('owner', 'repo', 1)
+        result = await service.get_pr_diff("owner", "repo", 1)
 
         assert result is None
 
@@ -222,8 +222,8 @@ class TestGetPrDiffSync:
         """Test successful sync diff retrieval."""
         mock_repo = MagicMock()
         mock_pr = MagicMock()
-        mock_pr.head.sha = 'abc123'
-        mock_pr.base.sha = 'def456'
+        mock_pr.head.sha = "abc123"
+        mock_pr.base.sha = "def456"
         mock_pr.get_files.return_value = []
 
         mock_github_api._get_pygithub_repository.return_value = mock_repo
@@ -234,8 +234,8 @@ class TestGetPrDiffSync:
             logger=mock_logger,
         )
 
-        with patch.object(service, '_generate_diff_content', return_value=[sample_file_patch]):
-            result = service._get_pr_diff_sync('owner', 'repo', 1)
+        with patch.object(service, "_generate_diff_content", return_value=[sample_file_patch]):
+            result = service._get_pr_diff_sync("owner", "repo", 1)
 
             assert result is not None
             assert isinstance(result, PRDiff)
@@ -249,7 +249,7 @@ class TestGetPrDiffSync:
             logger=mock_logger,
         )
 
-        result = service._get_pr_diff_sync('owner', 'repo', 1)
+        result = service._get_pr_diff_sync("owner", "repo", 1)
 
         assert result is None
 
@@ -264,20 +264,20 @@ class TestGetPrDiffSync:
             logger=mock_logger,
         )
 
-        result = service._get_pr_diff_sync('owner', 'repo', 1)
+        result = service._get_pr_diff_sync("owner", "repo", 1)
 
         assert result is None
 
     def test_get_pr_diff_sync_exception(self, mock_github_api, mock_logger):
         """Test sync with exception."""
-        mock_github_api._get_pygithub_repository.side_effect = RuntimeError('Error')
+        mock_github_api._get_pygithub_repository.side_effect = RuntimeError("Error")
 
         service = GitHubPRDiffService(
             github_api_client=mock_github_api,
             logger=mock_logger,
         )
 
-        result = service._get_pr_diff_sync('owner', 'repo', 1)
+        result = service._get_pr_diff_sync("owner", "repo", 1)
 
         assert result is None
 
@@ -290,7 +290,7 @@ class TestGetLatestCommitSha:
         """Test successful commit SHA retrieval."""
         mock_repo = MagicMock()
         mock_pr = MagicMock()
-        mock_pr.head.sha = 'abc123'
+        mock_pr.head.sha = "abc123"
 
         mock_github_api._get_pygithub_repository.return_value = mock_repo
         mock_github_api._get_pygithub_pull_request.return_value = mock_pr
@@ -300,9 +300,9 @@ class TestGetLatestCommitSha:
             logger=mock_logger,
         )
 
-        result = await service.get_latest_commit_sha('owner', 'repo', 1)
+        result = await service.get_latest_commit_sha("owner", "repo", 1)
 
-        assert result == 'abc123'
+        assert result == "abc123"
 
     @pytest.mark.anyio
     async def test_get_latest_commit_sha_repository_none(self, mock_github_api, mock_logger):
@@ -314,7 +314,7 @@ class TestGetLatestCommitSha:
             logger=mock_logger,
         )
 
-        result = await service.get_latest_commit_sha('owner', 'repo', 1)
+        result = await service.get_latest_commit_sha("owner", "repo", 1)
 
         assert result is None
 
@@ -330,7 +330,7 @@ class TestGetLatestCommitSha:
             logger=mock_logger,
         )
 
-        result = await service.get_latest_commit_sha('owner', 'repo', 1)
+        result = await service.get_latest_commit_sha("owner", "repo", 1)
 
         assert result is None
 
@@ -346,16 +346,16 @@ class TestConvertGithubFilesToFilePatchInfo:
         )
 
         mock_file = MagicMock()
-        mock_file.filename = 'test.py'
-        mock_file.status = 'modified'
-        mock_file.patch = '@@ -1,2 +1,2 @@'
+        mock_file.filename = "test.py"
+        mock_file.status = "modified"
+        mock_file.patch = "@@ -1,2 +1,2 @@"
         mock_file.additions = 5
         mock_file.deletions = 3
 
         result = service._convert_github_files_to_file_patch_info([mock_file])
 
         assert len(result) == 1
-        assert result[0].filename == 'test.py'
+        assert result[0].filename == "test.py"
         assert result[0].edit_type == EDIT_TYPE.MODIFIED
 
     def test_convert_added_file(self, mock_github_api, mock_logger):
@@ -366,9 +366,9 @@ class TestConvertGithubFilesToFilePatchInfo:
         )
 
         mock_file = MagicMock()
-        mock_file.filename = 'new.py'
-        mock_file.status = 'added'
-        mock_file.patch = '@@ -0,0 +1,5 @@'
+        mock_file.filename = "new.py"
+        mock_file.status = "added"
+        mock_file.patch = "@@ -0,0 +1,5 @@"
         mock_file.additions = 5
         mock_file.deletions = 0
 
@@ -384,9 +384,9 @@ class TestConvertGithubFilesToFilePatchInfo:
         )
 
         mock_file = MagicMock()
-        mock_file.filename = 'deleted.py'
-        mock_file.status = 'removed'
-        mock_file.patch = '@@ -1,5 +0,0 @@'
+        mock_file.filename = "deleted.py"
+        mock_file.status = "removed"
+        mock_file.patch = "@@ -1,5 +0,0 @@"
         mock_file.additions = 0
         mock_file.deletions = 5
 
@@ -402,9 +402,9 @@ class TestConvertGithubFilesToFilePatchInfo:
         )
 
         mock_file = MagicMock()
-        mock_file.filename = 'renamed.py'
-        mock_file.status = 'renamed'
-        mock_file.patch = ''
+        mock_file.filename = "renamed.py"
+        mock_file.status = "renamed"
+        mock_file.patch = ""
         mock_file.additions = 0
         mock_file.deletions = 0
 
@@ -420,9 +420,9 @@ class TestConvertGithubFilesToFilePatchInfo:
         )
 
         mock_file = MagicMock()
-        mock_file.filename = 'unknown.py'
-        mock_file.status = 'changed'
-        mock_file.patch = ''
+        mock_file.filename = "unknown.py"
+        mock_file.status = "changed"
+        mock_file.patch = ""
         mock_file.additions = 0
         mock_file.deletions = 0
 
@@ -441,7 +441,7 @@ class TestMapGithubStatusToEditType:
             logger=mock_logger,
         )
 
-        assert service._map_github_status_to_edit_type('added') == EDIT_TYPE.ADDED
+        assert service._map_github_status_to_edit_type("added") == EDIT_TYPE.ADDED
 
     def test_map_removed(self, mock_github_api, mock_logger):
         """Test mapping removed status."""
@@ -450,7 +450,7 @@ class TestMapGithubStatusToEditType:
             logger=mock_logger,
         )
 
-        assert service._map_github_status_to_edit_type('removed') == EDIT_TYPE.DELETED
+        assert service._map_github_status_to_edit_type("removed") == EDIT_TYPE.DELETED
 
     def test_map_modified(self, mock_github_api, mock_logger):
         """Test mapping modified status."""
@@ -459,7 +459,7 @@ class TestMapGithubStatusToEditType:
             logger=mock_logger,
         )
 
-        assert service._map_github_status_to_edit_type('modified') == EDIT_TYPE.MODIFIED
+        assert service._map_github_status_to_edit_type("modified") == EDIT_TYPE.MODIFIED
 
     def test_map_renamed(self, mock_github_api, mock_logger):
         """Test mapping renamed status."""
@@ -468,7 +468,7 @@ class TestMapGithubStatusToEditType:
             logger=mock_logger,
         )
 
-        assert service._map_github_status_to_edit_type('renamed') == EDIT_TYPE.RENAMED
+        assert service._map_github_status_to_edit_type("renamed") == EDIT_TYPE.RENAMED
 
     def test_map_unknown(self, mock_github_api, mock_logger):
         """Test mapping unknown status."""
@@ -477,7 +477,7 @@ class TestMapGithubStatusToEditType:
             logger=mock_logger,
         )
 
-        assert service._map_github_status_to_edit_type('other') == EDIT_TYPE.UNKNOWN
+        assert service._map_github_status_to_edit_type("other") == EDIT_TYPE.UNKNOWN
 
 
 class TestConvertFilePatchInfoToResponse:
@@ -493,7 +493,7 @@ class TestConvertFilePatchInfoToResponse:
         result = service._convert_file_patch_info_to_response(sample_file_patch)
 
         assert isinstance(result, FileDiffResponse)
-        assert result.path == 'src/test.py'
+        assert result.path == "src/test.py"
         assert result.status == EDIT_TYPE.MODIFIED
         assert result.stats.additions == 5
         assert result.stats.deletions == 3
@@ -506,19 +506,19 @@ class TestGenerateDiffContent:
         """Test diff generation with file processor."""
         mock_repo = MagicMock()
         mock_pr = MagicMock()
-        mock_pr.head.sha = 'abc123'
-        mock_pr.base.sha = 'def456'
+        mock_pr.head.sha = "abc123"
+        mock_pr.base.sha = "def456"
 
         mock_file = MagicMock()
-        mock_file.filename = 'test.py'
+        mock_file.filename = "test.py"
         mock_pr.get_files.return_value = [mock_file]
 
         mock_file_processor.process_files_to_patches.return_value = [
             FilePatchInfo(
-                filename='test.py',
-                base_file='',
-                head_file='',
-                patch='patch',
+                filename="test.py",
+                base_file="",
+                head_file="",
+                patch="patch",
                 edit_type=EDIT_TYPE.MODIFIED,
                 num_plus_lines=1,
                 num_minus_lines=1,
@@ -539,13 +539,13 @@ class TestGenerateDiffContent:
         """Test diff generation without file processor."""
         mock_repo = MagicMock()
         mock_pr = MagicMock()
-        mock_pr.head.sha = 'abc123'
-        mock_pr.base.sha = 'def456'
+        mock_pr.head.sha = "abc123"
+        mock_pr.base.sha = "def456"
 
         mock_file = MagicMock()
-        mock_file.filename = 'test.py'
-        mock_file.status = 'modified'
-        mock_file.patch = 'patch'
+        mock_file.filename = "test.py"
+        mock_file.status = "modified"
+        mock_file.patch = "patch"
         mock_file.additions = 1
         mock_file.deletions = 1
         mock_pr.get_files.return_value = [mock_file]
@@ -579,8 +579,8 @@ class TestGenerateDiffContent:
         """Test diff generation with no files."""
         mock_repo = MagicMock()
         mock_pr = MagicMock()
-        mock_pr.head.sha = 'abc123'
-        mock_pr.base.sha = 'def456'
+        mock_pr.head.sha = "abc123"
+        mock_pr.base.sha = "def456"
         mock_pr.get_files.return_value = None
 
         service = GitHubPRDiffService(
@@ -600,7 +600,7 @@ class TestGetBaseCommitSha:
         """Test getting base SHA from base attribute."""
         mock_repo = MagicMock()
         mock_pr = MagicMock()
-        mock_pr.base.sha = 'basesha'
+        mock_pr.base.sha = "basesha"
 
         service = GitHubPRDiffService(
             github_api_client=mock_github_api,
@@ -609,17 +609,17 @@ class TestGetBaseCommitSha:
 
         result = service._get_base_commit_sha(mock_repo, mock_pr)
 
-        assert result == 'basesha'
+        assert result == "basesha"
 
     def test_get_base_commit_sha_from_ref(self, mock_github_api, mock_logger):
         """Test getting base SHA from ref."""
         mock_repo = MagicMock()
         mock_pr = MagicMock()
         mock_pr.base.sha = None
-        mock_pr.base.ref = 'main'
+        mock_pr.base.ref = "main"
 
         mock_ref = MagicMock()
-        mock_ref.object.sha = 'refsha'
+        mock_ref.object.sha = "refsha"
         mock_repo.get_git_ref.return_value = mock_ref
 
         service = GitHubPRDiffService(
@@ -629,14 +629,14 @@ class TestGetBaseCommitSha:
 
         result = service._get_base_commit_sha(mock_repo, mock_pr)
 
-        assert result == 'refsha'
+        assert result == "refsha"
 
     def test_get_base_commit_sha_none(self, mock_github_api, mock_logger):
         """Test getting base SHA when not available."""
         mock_repo = MagicMock()
         mock_pr = MagicMock()
         mock_pr.base.sha = None
-        mock_pr.base.ref = 'main'
+        mock_pr.base.ref = "main"
         mock_repo.get_git_ref.return_value = None
 
         service = GitHubPRDiffService(
@@ -661,7 +661,7 @@ class TestValidateRepositoryAccess:
             logger=mock_logger,
         )
 
-        result = service.validate_repository_access('owner', 'repo')
+        result = service.validate_repository_access("owner", "repo")
 
         assert result is True
 
@@ -674,20 +674,20 @@ class TestValidateRepositoryAccess:
             logger=mock_logger,
         )
 
-        result = service.validate_repository_access('owner', 'repo')
+        result = service.validate_repository_access("owner", "repo")
 
         assert result is False
 
     def test_validate_repository_access_exception(self, mock_github_api, mock_logger):
         """Test exception during validation."""
-        mock_github_api.get_repository.side_effect = GithubException(500, 'Error', {})
+        mock_github_api.get_repository.side_effect = GithubException(500, "Error", {})
 
         service = GitHubPRDiffService(
             github_api_client=mock_github_api,
             logger=mock_logger,
         )
 
-        result = service.validate_repository_access('owner', 'repo')
+        result = service.validate_repository_access("owner", "repo")
 
         assert result is False
 

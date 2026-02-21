@@ -77,7 +77,7 @@ class PROperationHandler(PROperationHandlerProtocol):
         try:
             # Validate input
             if not pr_url:
-                raise ValidationError('PR URL parameter is required', error_code=E1001_INVALID_URL)
+                raise ValidationError("PR URL parameter is required", error_code=E1001_INVALID_URL)
 
             # Parse URL to extract repository details
             try:
@@ -89,7 +89,7 @@ class PROperationHandler(PROperationHandlerProtocol):
                 SuspiciousOperationError,
             ) as exc:
                 raise ValidationError(
-                    f'Invalid GitHub PR URL format. Expected format: https://github.com/owner/repo/pull/123, got: {pr_url}',
+                    f"Invalid GitHub PR URL format. Expected format: https://github.com/owner/repo/pull/123, got: {pr_url}",
                     error_code=E1001_INVALID_URL,
                 ) from exc
 
@@ -101,14 +101,14 @@ class PROperationHandler(PROperationHandlerProtocol):
                 # Create new repository instance
                 repository = self._github_repository_class(repo_owner, repo_name, pr_number)
                 self._logger.debug(
-                    'Created new repository instance',
+                    "Created new repository instance",
                     repo_owner=repo_owner,
                     repo_name=repo_name,
                     pr_number=pr_number,
                 )
             else:
                 self._logger.debug(
-                    'Reusing cached repository instance',
+                    "Reusing cached repository instance",
                     repo_owner=repo_owner,
                     repo_name=repo_name,
                     pr_number=pr_number,
@@ -123,31 +123,31 @@ class PROperationHandler(PROperationHandlerProtocol):
             # Handle case where repository returns None
             if pr_diff is None:
                 self._logger.error(
-                    'Repository returned None for PR diff',
+                    "Repository returned None for PR diff",
                     repo_owner=repo_owner,
                     repo_name=repo_name,
                     pr_number=pr_number,
                 )
                 raise GitHubAPIError(
-                    'Failed to get PR diff - repository returned None',
+                    "Failed to get PR diff - repository returned None",
                     error_code=E5002_GITHUB_API_ERROR,
                 )
 
             # Cache the repository after it's been used (now it should be initialized)
-            if hasattr(repository, '_initialized') and getattr(repository, '_initialized', False):
+            if hasattr(repository, "_initialized") and getattr(repository, "_initialized", False):
                 cache_success = self._repository_cache_service.insert(repository)
                 if cache_success:
                     self._logger.debug(
-                        'Cached repository instance after initialization',
+                        "Cached repository instance after initialization",
                         repo_owner=repo_owner,
                         repo_name=repo_name,
                         pr_number=pr_number,
                     )
 
             response = asdict(pr_diff)
-            response['files'] = list(response['files'])
+            response["files"] = list(response["files"])
             self._logger.info(
-                'Successfully fetched PR diff',
+                "Successfully fetched PR diff",
                 repo_owner=repo_owner,
                 repo_name=repo_name,
                 pr_number=pr_number,
@@ -157,11 +157,11 @@ class PROperationHandler(PROperationHandlerProtocol):
         except (ValueError, ValidationError) as e:
             # Validation errors - provide clear error messages
             self._logger.warning(
-                'Validation error in PR diff request',
+                "Validation error in PR diff request",
                 pr_url=pr_url,
                 error=str(e),
             )
-            raise ValidationError(f'Invalid request: {e}', error_code=E1001_INVALID_URL)
+            raise ValidationError(f"Invalid request: {e}", error_code=E1001_INVALID_URL)
 
         except ValueError, ValidationError, GitHubAPIError:
             raise
@@ -169,9 +169,9 @@ class PROperationHandler(PROperationHandlerProtocol):
         except Exception as e:
             # GitHub API or other unexpected errors
             self._logger.error(
-                'Failed to fetch PR diff',
+                "Failed to fetch PR diff",
                 pr_url=pr_url,
                 error=str(e),
             )
             # Re-raise with consistent error format
-            raise GitHubAPIError(f'Failed to fetch PR diff: {e}', error_code=E5002_GITHUB_API_ERROR)
+            raise GitHubAPIError(f"Failed to fetch PR diff: {e}", error_code=E5002_GITHUB_API_ERROR)

@@ -25,7 +25,7 @@ class TestCacheServiceInterface:
     def test_is_abstract_base_class(self):
         """Test that CacheServiceInterface is an ABC."""
         assert issubclass(CacheServiceInterface, ABC)
-        assert hasattr(CacheServiceInterface, '__abstractmethods__')
+        assert hasattr(CacheServiceInterface, "__abstractmethods__")
 
     def test_cannot_instantiate(self):
         """Test that CacheServiceInterface cannot be instantiated directly."""
@@ -37,36 +37,36 @@ class TestCacheServiceInterface:
         abstract_methods = CacheServiceInterface.__abstractmethods__
 
         required_methods = {
-            'get_cache_key',
-            'get',
-            'set',
-            'invalidate',
-            'get_etag',
-            'set_etag',
-            'get_stats',
+            "get_cache_key",
+            "get",
+            "set",
+            "invalidate",
+            "get_etag",
+            "set_etag",
+            "get_stats",
         }
 
         assert required_methods.issubset(abstract_methods)
 
     def test_get_cache_key_signature(self):
         """Test get_cache_key method signature."""
-        assert hasattr(CacheServiceInterface, 'get_cache_key')
+        assert hasattr(CacheServiceInterface, "get_cache_key")
 
     def test_get_signature(self):
         """Test get method signature."""
-        assert hasattr(CacheServiceInterface, 'get')
+        assert hasattr(CacheServiceInterface, "get")
 
     def test_set_signature(self):
         """Test set method signature."""
-        assert hasattr(CacheServiceInterface, 'set')
+        assert hasattr(CacheServiceInterface, "set")
 
     def test_invalidate_signature(self):
         """Test invalidate method signature."""
-        assert hasattr(CacheServiceInterface, 'invalidate')
+        assert hasattr(CacheServiceInterface, "invalidate")
 
     def test_get_stats_signature(self):
         """Test get_stats method signature."""
-        assert hasattr(CacheServiceInterface, 'get_stats')
+        assert hasattr(CacheServiceInterface, "get_stats")
 
 
 class TestLoggerServiceInterface:
@@ -75,7 +75,7 @@ class TestLoggerServiceInterface:
     def test_is_abstract_base_class(self):
         """Test that LoggerServiceInterface is an ABC."""
         assert issubclass(LoggerServiceInterface, ABC)
-        assert hasattr(LoggerServiceInterface, '__abstractmethods__')
+        assert hasattr(LoggerServiceInterface, "__abstractmethods__")
 
     def test_cannot_instantiate(self):
         """Test that LoggerServiceInterface cannot be instantiated directly."""
@@ -87,34 +87,34 @@ class TestLoggerServiceInterface:
         abstract_methods = LoggerServiceInterface.__abstractmethods__
 
         required_methods = {
-            'debug',
-            'info',
-            'warning',
-            'error',
-            'critical',
+            "debug",
+            "info",
+            "warning",
+            "error",
+            "critical",
         }
 
         assert required_methods.issubset(abstract_methods)
 
     def test_debug_signature(self):
         """Test debug method signature."""
-        assert hasattr(LoggerServiceInterface, 'debug')
+        assert hasattr(LoggerServiceInterface, "debug")
 
     def test_info_signature(self):
         """Test info method signature."""
-        assert hasattr(LoggerServiceInterface, 'info')
+        assert hasattr(LoggerServiceInterface, "info")
 
     def test_warning_signature(self):
         """Test warning method signature."""
-        assert hasattr(LoggerServiceInterface, 'warning')
+        assert hasattr(LoggerServiceInterface, "warning")
 
     def test_error_signature(self):
         """Test error method signature."""
-        assert hasattr(LoggerServiceInterface, 'error')
+        assert hasattr(LoggerServiceInterface, "error")
 
     def test_critical_signature(self):
         """Test critical method signature."""
-        assert hasattr(LoggerServiceInterface, 'critical')
+        assert hasattr(LoggerServiceInterface, "critical")
 
 
 class TestLogLevelEnum:
@@ -127,7 +127,7 @@ class TestLogLevelEnum:
     def test_log_level_values(self):
         """Test that LogLevel has expected values."""
         # LogLevel should have standard logging levels
-        assert hasattr(LogLevel, '__members__')
+        assert hasattr(LogLevel, "__members__")
         level_names = [name for name, _ in LogLevel.__members__.items()]
         # Verify common log levels exist
         assert len(level_names) >= 5  # At least 5 levels
@@ -139,7 +139,7 @@ class TestSettingsServiceInterface:
     def test_is_abstract_base_class(self):
         """Test that SettingsServiceInterface is an ABC."""
         assert issubclass(SettingsServiceInterface, ABC)
-        assert hasattr(SettingsServiceInterface, '__abstractmethods__')
+        assert hasattr(SettingsServiceInterface, "__abstractmethods__")
 
     def test_cannot_instantiate(self):
         """Test that SettingsServiceInterface cannot be instantiated directly."""
@@ -151,24 +151,24 @@ class TestSettingsServiceInterface:
         abstract_methods = SettingsServiceInterface.__abstractmethods__
 
         required_methods = {
-            'get',
-            'get_github_settings',
-            'get_app_settings',
+            "get",
+            "get_github_settings",
+            "get_app_settings",
         }
 
         assert required_methods.issubset(abstract_methods)
 
     def test_get_signature(self):
         """Test get method signature."""
-        assert hasattr(SettingsServiceInterface, 'get')
+        assert hasattr(SettingsServiceInterface, "get")
 
     def test_get_github_settings_signature(self):
         """Test get_github_settings method signature."""
-        assert hasattr(SettingsServiceInterface, 'get_github_settings')
+        assert hasattr(SettingsServiceInterface, "get_github_settings")
 
     def test_get_app_settings_signature(self):
         """Test get_app_settings method signature."""
-        assert hasattr(SettingsServiceInterface, 'get_app_settings')
+        assert hasattr(SettingsServiceInterface, "get_app_settings")
 
 
 class TestRetryServiceInterface:
@@ -177,7 +177,7 @@ class TestRetryServiceInterface:
     def test_is_abstract_base_class(self):
         """Test that RetryServiceInterface is an ABC."""
         assert issubclass(RetryServiceInterface, ABC)
-        assert hasattr(RetryServiceInterface, '__abstractmethods__')
+        assert hasattr(RetryServiceInterface, "__abstractmethods__")
 
     def test_cannot_instantiate(self):
         """Test that RetryServiceInterface cannot be instantiated directly."""
@@ -188,13 +188,13 @@ class TestRetryServiceInterface:
         """Test that RetryServiceInterface has all required abstract methods."""
         abstract_methods = RetryServiceInterface.__abstractmethods__
 
-        required_methods = {'execute_with_retry'}
+        required_methods = {"execute_with_retry"}
 
         assert required_methods.issubset(abstract_methods)
 
     def test_execute_with_retry_signature(self):
         """Test execute_with_retry method signature."""
-        assert hasattr(RetryServiceInterface, 'execute_with_retry')
+        assert hasattr(RetryServiceInterface, "execute_with_retry")
 
 
 class TestPatternMatchingServiceInterface:
@@ -203,7 +203,7 @@ class TestPatternMatchingServiceInterface:
     def test_is_abstract_base_class(self):
         """Test that PatternMatchingServiceInterface is an ABC."""
         assert issubclass(PatternMatchingServiceInterface, ABC)
-        assert hasattr(PatternMatchingServiceInterface, '__abstractmethods__')
+        assert hasattr(PatternMatchingServiceInterface, "__abstractmethods__")
 
     def test_cannot_instantiate(self):
         """Test that PatternMatchingServiceInterface cannot be instantiated directly."""
@@ -214,17 +214,17 @@ class TestPatternMatchingServiceInterface:
         """Test that PatternMatchingServiceInterface has all required abstract methods."""
         abstract_methods = PatternMatchingServiceInterface.__abstractmethods__
 
-        required_methods = {'is_valid_file', 'filter_files'}
+        required_methods = {"is_valid_file", "filter_files"}
 
         assert required_methods.issubset(abstract_methods)
 
     def test_is_valid_file_signature(self):
         """Test is_valid_file method signature."""
-        assert hasattr(PatternMatchingServiceInterface, 'is_valid_file')
+        assert hasattr(PatternMatchingServiceInterface, "is_valid_file")
 
     def test_filter_files_signature(self):
         """Test filter_files method signature."""
-        assert hasattr(PatternMatchingServiceInterface, 'filter_files')
+        assert hasattr(PatternMatchingServiceInterface, "filter_files")
 
 
 class TestDiffServiceInterface:
@@ -233,7 +233,7 @@ class TestDiffServiceInterface:
     def test_is_abstract_base_class(self):
         """Test that DiffServiceInterface is an ABC."""
         assert issubclass(DiffServiceInterface, ABC)
-        assert hasattr(DiffServiceInterface, '__abstractmethods__')
+        assert hasattr(DiffServiceInterface, "__abstractmethods__")
 
     def test_cannot_instantiate(self):
         """Test that DiffServiceInterface cannot be instantiated directly."""
@@ -245,24 +245,24 @@ class TestDiffServiceInterface:
         abstract_methods = DiffServiceInterface.__abstractmethods__
 
         required_methods = {
-            'build_full_file_patch',
-            'decode_if_bytes',
-            'extend_patch',
+            "build_full_file_patch",
+            "decode_if_bytes",
+            "extend_patch",
         }
 
         assert required_methods.issubset(abstract_methods)
 
     def test_build_full_file_patch_signature(self):
         """Test build_full_file_patch method signature."""
-        assert hasattr(DiffServiceInterface, 'build_full_file_patch')
+        assert hasattr(DiffServiceInterface, "build_full_file_patch")
 
     def test_decode_if_bytes_signature(self):
         """Test decode_if_bytes method signature."""
-        assert hasattr(DiffServiceInterface, 'decode_if_bytes')
+        assert hasattr(DiffServiceInterface, "decode_if_bytes")
 
     def test_extend_patch_signature(self):
         """Test extend_patch method signature."""
-        assert hasattr(DiffServiceInterface, 'extend_patch')
+        assert hasattr(DiffServiceInterface, "extend_patch")
 
 
 class TestRepositoryCacheServiceInterface:
@@ -271,7 +271,7 @@ class TestRepositoryCacheServiceInterface:
     def test_is_abstract_base_class(self):
         """Test that RepositoryCacheServiceInterface is an ABC."""
         assert issubclass(RepositoryCacheServiceInterface, ABC)
-        assert hasattr(RepositoryCacheServiceInterface, '__abstractmethods__')
+        assert hasattr(RepositoryCacheServiceInterface, "__abstractmethods__")
 
     def test_cannot_instantiate(self):
         """Test that RepositoryCacheServiceInterface cannot be instantiated directly."""
@@ -283,44 +283,44 @@ class TestRepositoryCacheServiceInterface:
         abstract_methods = RepositoryCacheServiceInterface.__abstractmethods__
 
         required_methods = {
-            'insert',
-            'retrieve',
-            'validate',
-            'remove',
-            'clear',
-            'size',
-            'stats',
+            "insert",
+            "retrieve",
+            "validate",
+            "remove",
+            "clear",
+            "size",
+            "stats",
         }
 
         assert required_methods.issubset(abstract_methods)
 
     def test_insert_signature(self):
         """Test insert method signature."""
-        assert hasattr(RepositoryCacheServiceInterface, 'insert')
+        assert hasattr(RepositoryCacheServiceInterface, "insert")
 
     def test_retrieve_signature(self):
         """Test retrieve method signature."""
-        assert hasattr(RepositoryCacheServiceInterface, 'retrieve')
+        assert hasattr(RepositoryCacheServiceInterface, "retrieve")
 
     def test_validate_signature(self):
         """Test validate method signature."""
-        assert hasattr(RepositoryCacheServiceInterface, 'validate')
+        assert hasattr(RepositoryCacheServiceInterface, "validate")
 
     def test_remove_signature(self):
         """Test remove method signature."""
-        assert hasattr(RepositoryCacheServiceInterface, 'remove')
+        assert hasattr(RepositoryCacheServiceInterface, "remove")
 
     def test_clear_signature(self):
         """Test clear method signature."""
-        assert hasattr(RepositoryCacheServiceInterface, 'clear')
+        assert hasattr(RepositoryCacheServiceInterface, "clear")
 
     def test_size_signature(self):
         """Test size method signature."""
-        assert hasattr(RepositoryCacheServiceInterface, 'size')
+        assert hasattr(RepositoryCacheServiceInterface, "size")
 
     def test_stats_signature(self):
         """Test stats method signature."""
-        assert hasattr(RepositoryCacheServiceInterface, 'stats')
+        assert hasattr(RepositoryCacheServiceInterface, "stats")
 
 
 class TestGitHubAPIServiceInterface:
@@ -329,7 +329,7 @@ class TestGitHubAPIServiceInterface:
     def test_is_abstract_base_class(self):
         """Test that GitHubAPIServiceInterface is an ABC."""
         assert issubclass(GitHubAPIServiceInterface, ABC)
-        assert hasattr(GitHubAPIServiceInterface, '__abstractmethods__')
+        assert hasattr(GitHubAPIServiceInterface, "__abstractmethods__")
 
     def test_cannot_instantiate(self):
         """Test that GitHubAPIServiceInterface cannot be instantiated directly."""
@@ -345,7 +345,7 @@ class TestGitHubAPIServiceInterface:
 
     def test_initialize_client_exists(self):
         """Test that initialize_client method exists."""
-        assert hasattr(GitHubAPIServiceInterface, 'initialize_client')
+        assert hasattr(GitHubAPIServiceInterface, "initialize_client")
 
 
 class TestPRDiffServiceInterface:
@@ -354,7 +354,7 @@ class TestPRDiffServiceInterface:
     def test_is_abstract_base_class(self):
         """Test that PRDiffServiceInterface is an ABC."""
         assert issubclass(PRDiffServiceInterface, ABC)
-        assert hasattr(PRDiffServiceInterface, '__abstractmethods__')
+        assert hasattr(PRDiffServiceInterface, "__abstractmethods__")
 
     def test_cannot_instantiate(self):
         """Test that PRDiffServiceInterface cannot be instantiated directly."""
@@ -366,24 +366,24 @@ class TestPRDiffServiceInterface:
         abstract_methods = PRDiffServiceInterface.__abstractmethods__
 
         required_methods = {
-            'get_pr_diff',
-            'get_latest_commit_sha',
-            'validate_repository_access',
+            "get_pr_diff",
+            "get_latest_commit_sha",
+            "validate_repository_access",
         }
 
         assert required_methods.issubset(abstract_methods)
 
     def test_get_pr_diff_signature(self):
         """Test get_pr_diff method signature."""
-        assert hasattr(PRDiffServiceInterface, 'get_pr_diff')
+        assert hasattr(PRDiffServiceInterface, "get_pr_diff")
 
     def test_get_latest_commit_sha_signature(self):
         """Test get_latest_commit_sha method signature."""
-        assert hasattr(PRDiffServiceInterface, 'get_latest_commit_sha')
+        assert hasattr(PRDiffServiceInterface, "get_latest_commit_sha")
 
     def test_validate_repository_access_signature(self):
         """Test validate_repository_access method signature."""
-        assert hasattr(PRDiffServiceInterface, 'validate_repository_access')
+        assert hasattr(PRDiffServiceInterface, "validate_repository_access")
 
 
 class TestInterfaceStructure:
@@ -404,7 +404,7 @@ class TestInterfaceStructure:
         ]
 
         for interface in interfaces:
-            assert issubclass(interface, ABC), f'{interface.__name__} should inherit from ABC'
+            assert issubclass(interface, ABC), f"{interface.__name__} should inherit from ABC"
 
     def test_all_interfaces_have_abstract_methods(self):
         """Test that all service interfaces have abstract methods."""
@@ -421,7 +421,7 @@ class TestInterfaceStructure:
         ]
 
         for interface in interfaces:
-            assert len(interface.__abstractmethods__) > 0, f'{interface.__name__} should have abstract methods'
+            assert len(interface.__abstractmethods__) > 0, f"{interface.__name__} should have abstract methods"
 
     def test_all_interfaces_cannot_be_instantiated(self):
         """Test that all service interfaces cannot be instantiated directly."""
@@ -438,7 +438,7 @@ class TestInterfaceStructure:
         ]
 
         for interface in interfaces:
-            with pytest.raises(TypeError, match=r'(abstract|instantiated)'):
+            with pytest.raises(TypeError, match=r"(abstract|instantiated)"):
                 interface()
 
     def test_interface_names_follow_convention(self):
@@ -456,7 +456,7 @@ class TestInterfaceStructure:
         ]
 
         for interface in interfaces:
-            assert interface.__name__.endswith('Interface'), f"{interface.__name__} should end with 'Interface' suffix"
+            assert interface.__name__.endswith("Interface"), f"{interface.__name__} should end with 'Interface' suffix"
 
     def test_interfaces_have_docstrings(self):
         """Test that all interfaces have docstrings."""
@@ -473,8 +473,8 @@ class TestInterfaceStructure:
         ]
 
         for interface in interfaces:
-            assert interface.__doc__ is not None, f'{interface.__name__} should have a docstring'
-            assert len(interface.__doc__.strip()) > 0, f'{interface.__name__} docstring should not be empty'
+            assert interface.__doc__ is not None, f"{interface.__name__} should have a docstring"
+            assert len(interface.__doc__.strip()) > 0, f"{interface.__name__} docstring should not be empty"
 
 
 class TestMockImplementationCompliance:
@@ -488,7 +488,7 @@ class TestMockImplementationCompliance:
                 self._data = {}
 
             def get_cache_key(self, repo_owner: str, repo_name: str, pr_number: int) -> str:
-                return f'{repo_owner}/{repo_name}/pr/{pr_number}'
+                return f"{repo_owner}/{repo_name}/pr/{pr_number}"
 
             def get(self, cache_key: str, current_commit_sha: str):
                 return self._data.get(cache_key)
@@ -509,7 +509,7 @@ class TestMockImplementationCompliance:
                 pass
 
             def get_stats(self):
-                return {'size': len(self._data)}
+                return {"size": len(self._data)}
 
         mock = MockCacheService()
         assert isinstance(mock, CacheServiceInterface)
@@ -522,22 +522,22 @@ class TestMockImplementationCompliance:
                 self.messages = []
 
             def _log(self, level, message, **kwargs):
-                self.messages.append({'level': level, 'message': message, **kwargs})
+                self.messages.append({"level": level, "message": message, **kwargs})
 
             def debug(self, message: str, **kwargs):
-                self._log('DEBUG', message, **kwargs)
+                self._log("DEBUG", message, **kwargs)
 
             def info(self, message: str, **kwargs):
-                self._log('INFO', message, **kwargs)
+                self._log("INFO", message, **kwargs)
 
             def warning(self, message: str, **kwargs):
-                self._log('WARNING', message, **kwargs)
+                self._log("WARNING", message, **kwargs)
 
             def error(self, message: str, **kwargs):
-                self._log('ERROR', message, **kwargs)
+                self._log("ERROR", message, **kwargs)
 
             def critical(self, message: str, **kwargs):
-                self._log('CRITICAL', message, **kwargs)
+                self._log("CRITICAL", message, **kwargs)
 
             def should_log(self, level):
                 return True  # Log everything
@@ -557,20 +557,20 @@ class TestMockImplementationCompliance:
 
             def get_github_settings(self):
                 return {
-                    'rate_limit': 5000,
-                    'timeout': 30,
+                    "rate_limit": 5000,
+                    "timeout": 30,
                 }
 
             def get_cache_settings(self):
                 return {
-                    'default_ttl': 300,
-                    'max_size': 1000,
+                    "default_ttl": 300,
+                    "max_size": 1000,
                 }
 
             def get_app_settings(self):
                 return {
-                    'debug': False,
-                    'log_level': 'INFO',
+                    "debug": False,
+                    "log_level": "INFO",
                 }
 
             def clear_cache(self):
@@ -615,14 +615,14 @@ class TestMockImplementationCompliance:
 
         class MockDiffService(DiffServiceInterface):
             def build_full_file_patch(self, original_file_str, new_file_str):
-                return f'@@ -1,1 +1,1 @@\n-{original_file_str}\n+{new_file_str}\n'
+                return f"@@ -1,1 +1,1 @@\n-{original_file_str}\n+{new_file_str}\n"
 
             def decode_if_bytes(self, content):
                 if isinstance(content, bytes):
-                    return content.decode('utf-8')
+                    return content.decode("utf-8")
                 return str(content)
 
-            def extend_patch(self, original_file_str, patch_str, new_file_str=''):
+            def extend_patch(self, original_file_str, patch_str, new_file_str=""):
                 return patch_str
 
         mock = MockDiffService()
@@ -636,19 +636,19 @@ class TestMockImplementationCompliance:
                 self._cache = {}
 
             def insert(self, repository):
-                key = f'{repository.repo_owner}/{repository.repo_name}/{repository.pr_number}'
+                key = f"{repository.repo_owner}/{repository.repo_name}/{repository.pr_number}"
                 self._cache[key] = repository
                 return True
 
             def retrieve(self, owner, name, pr_number):
-                key = f'{owner}/{name}/{pr_number}'
+                key = f"{owner}/{name}/{pr_number}"
                 return self._cache.get(key)
 
             def validate(self, owner, name, pr_number):
-                return f'{owner}/{name}/{pr_number}' in self._cache
+                return f"{owner}/{name}/{pr_number}" in self._cache
 
             def remove(self, owner, name, pr_number):
-                key = f'{owner}/{name}/{pr_number}'
+                key = f"{owner}/{name}/{pr_number}"
                 return self._cache.pop(key, None) is not None
 
             def clear(self):
@@ -658,7 +658,7 @@ class TestMockImplementationCompliance:
                 return len(self._cache)
 
             def stats(self):
-                return {'size': len(self._cache), 'keys': list(self._cache.keys())}
+                return {"size": len(self._cache), "keys": list(self._cache.keys())}
 
             def invalidate(self, cache_key: str) -> bool:
                 key = cache_key
@@ -675,7 +675,7 @@ class TestMockImplementationCompliance:
                 return None
 
             def get_latest_commit_sha(self, repo_owner, repo_name, pr_number):
-                return 'abc123'
+                return "abc123"
 
             def validate_repository_access(self, repo_owner, repo_name):
                 return True
@@ -700,7 +700,7 @@ class TestMockImplementationCompliance:
                 return None  # Mock implementation
 
             def get_file_content(self, repository, file_path, branch):
-                return ''  # Mock implementation
+                return ""  # Mock implementation
 
             def get_files_content_batch(self, repository, file_paths, branch):
                 return {}  # Mock implementation

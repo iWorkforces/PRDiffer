@@ -23,7 +23,7 @@ if PyGithubException is not None:
 class OperationContext(StrEnum):
     """Context types for different operations."""
 
-    REPOSITORY_ACCESS = 'repository_access'
-    FILE_CONTENT = 'file_content'
-    PULL_REQUEST = 'pull_request'
-    BATCH_OPERATION = 'batch_operation'
+    REPOSITORY_ACCESS = "repository_access"
+    FILE_CONTENT = "file_content"
+    PULL_REQUEST = "pull_request"
+    BATCH_OPERATION = "batch_operation"

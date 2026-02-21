@@ -17,7 +17,7 @@ class TestCalculateBasicBackoff:
 
     def test_first_attempt_base_delay(self):
         """Test that first attempt uses base delay."""
-        with patch('prdiffer.infrastructure.utils.delay_calculator.random') as mock_random:
+        with patch("prdiffer.infrastructure.utils.delay_calculator.random") as mock_random:
             mock_random.uniform.return_value = 0
             delay = calculate_basic_backoff(0, 1.0)
 
@@ -25,7 +25,7 @@ class TestCalculateBasicBackoff:
 
     def test_exponential_growth(self):
         """Test exponential backoff growth."""
-        with patch('prdiffer.infrastructure.utils.delay_calculator.random') as mock_random:
+        with patch("prdiffer.infrastructure.utils.delay_calculator.random") as mock_random:
             mock_random.uniform.return_value = 0
             delay_0 = calculate_basic_backoff(0, 1.0)
             delay_1 = calculate_basic_backoff(1, 1.0)
@@ -37,7 +37,7 @@ class TestCalculateBasicBackoff:
 
     def test_jitter_added(self):
         """Test that jitter is added."""
-        with patch('prdiffer.infrastructure.utils.delay_calculator.random') as mock_random:
+        with patch("prdiffer.infrastructure.utils.delay_calculator.random") as mock_random:
             mock_random.uniform.return_value = 0.1
             delay = calculate_basic_backoff(0, 1.0)
 
@@ -45,7 +45,7 @@ class TestCalculateBasicBackoff:
 
     def test_rate_limit_doubles_delay(self):
         """Test that rate limit errors double the delay."""
-        with patch('prdiffer.infrastructure.utils.delay_calculator.random') as mock_random:
+        with patch("prdiffer.infrastructure.utils.delay_calculator.random") as mock_random:
             mock_random.uniform.return_value = 0
             delay = calculate_basic_backoff(0, 1.0, is_rate_limit=True)
 
@@ -60,7 +60,7 @@ class TestCalculateAdaptiveDelay:
         mock_tracker = Mock()
         mock_tracker.get_recommended_delay.return_value = 5.0
 
-        with patch('prdiffer.infrastructure.utils.delay_calculator.random') as mock_random:
+        with patch("prdiffer.infrastructure.utils.delay_calculator.random") as mock_random:
             mock_random.uniform.return_value = 0
             delay = calculate_adaptive_delay(0, 1.0, 2.0, health_tracker=mock_tracker)
 
@@ -69,12 +69,12 @@ class TestCalculateAdaptiveDelay:
 
     def test_rate_limit_error_doubles_delay(self):
         """Test that rate limit errors double delay when no health tracker."""
-        error = Exception('403 rate limit')
+        error = Exception("403 rate limit")
 
-        with patch('prdiffer.infrastructure.utils.delay_calculator.random') as mock_random:
+        with patch("prdiffer.infrastructure.utils.delay_calculator.random") as mock_random:
             mock_random.uniform.return_value = 0
             with patch(
-                'prdiffer.infrastructure.utils.delay_calculator.is_rate_limit_error',
+                "prdiffer.infrastructure.utils.delay_calculator.is_rate_limit_error",
                 return_value=True,
             ):
                 delay = calculate_adaptive_delay(0, 1.0, 2.0, error=error)
@@ -83,12 +83,12 @@ class TestCalculateAdaptiveDelay:
 
     def test_max_delay_cap(self):
         """Test that delay is capped at max_delay."""
-        error = Exception('403 rate limit')
+        error = Exception("403 rate limit")
 
-        with patch('prdiffer.infrastructure.utils.delay_calculator.random') as mock_random:
+        with patch("prdiffer.infrastructure.utils.delay_calculator.random") as mock_random:
             mock_random.uniform.return_value = 100
             with patch(
-                'prdiffer.infrastructure.utils.delay_calculator.is_rate_limit_error',
+                "prdiffer.infrastructure.utils.delay_calculator.is_rate_limit_error",
                 return_value=True,
             ):
                 delay = calculate_adaptive_delay(0, 1.0, 2.0, error=error, max_delay=5.0)
@@ -97,7 +97,7 @@ class TestCalculateAdaptiveDelay:
 
     def test_basic_delay_without_tracker(self):
         """Test basic delay without health tracker."""
-        with patch('prdiffer.infrastructure.utils.delay_calculator.random') as mock_random:
+        with patch("prdiffer.infrastructure.utils.delay_calculator.random") as mock_random:
             mock_random.uniform.return_value = 0.1
             delay = calculate_adaptive_delay(0, 1.0, 2.0)
 
@@ -109,7 +109,7 @@ class TestCalculateSecondaryRateLimitBackoff:
 
     def test_default_base_backoff(self):
         """Test default base backoff of 60 seconds."""
-        with patch('prdiffer.infrastructure.utils.delay_calculator.random') as mock_random:
+        with patch("prdiffer.infrastructure.utils.delay_calculator.random") as mock_random:
             mock_random.uniform.return_value = 0
             delay = calculate_secondary_rate_limit_backoff(0)
 
@@ -117,7 +117,7 @@ class TestCalculateSecondaryRateLimitBackoff:
 
     def test_exponential_growth(self):
         """Test exponential growth of secondary rate limit backoff."""
-        with patch('prdiffer.infrastructure.utils.delay_calculator.random') as mock_random:
+        with patch("prdiffer.infrastructure.utils.delay_calculator.random") as mock_random:
             mock_random.uniform.return_value = 0
             delay_0 = calculate_secondary_rate_limit_backoff(0)
             delay_1 = calculate_secondary_rate_limit_backoff(1)
@@ -127,7 +127,7 @@ class TestCalculateSecondaryRateLimitBackoff:
 
     def test_custom_base_backoff(self):
         """Test custom base backoff."""
-        with patch('prdiffer.infrastructure.utils.delay_calculator.random') as mock_random:
+        with patch("prdiffer.infrastructure.utils.delay_calculator.random") as mock_random:
             mock_random.uniform.return_value = 0
             delay = calculate_secondary_rate_limit_backoff(0, base_backoff=30.0)
 
@@ -135,7 +135,7 @@ class TestCalculateSecondaryRateLimitBackoff:
 
     def test_jitter_added(self):
         """Test that jitter is added."""
-        with patch('prdiffer.infrastructure.utils.delay_calculator.random') as mock_random:
+        with patch("prdiffer.infrastructure.utils.delay_calculator.random") as mock_random:
             mock_random.uniform.return_value = 6.0
             delay = calculate_secondary_rate_limit_backoff(0)
 
@@ -154,11 +154,11 @@ class TestCalculateRetryDelay:
             retry_after=30,
         )
 
-        with patch('prdiffer.infrastructure.utils.delay_calculator.random') as mock_random:
+        with patch("prdiffer.infrastructure.utils.delay_calculator.random") as mock_random:
             mock_random.uniform.return_value = 0
             delay = calculate_retry_delay(
                 0,
-                Exception('test'),
+                Exception("test"),
                 1.0,
                 2.0,
                 rate_limit_info=rate_limit_info,
@@ -178,7 +178,7 @@ class TestCalculateRetryDelay:
 
         delay = calculate_retry_delay(
             0,
-            Exception('test'),
+            Exception("test"),
             1.0,
             2.0,
             rate_limit_info=rate_limit_info,
@@ -189,11 +189,11 @@ class TestCalculateRetryDelay:
 
     def test_secondary_rate_limit_backoff(self):
         """Test secondary rate limit uses special backoff."""
-        with patch('prdiffer.infrastructure.utils.delay_calculator.random') as mock_random:
+        with patch("prdiffer.infrastructure.utils.delay_calculator.random") as mock_random:
             mock_random.uniform.return_value = 0
             delay = calculate_retry_delay(
                 0,
-                Exception('test'),
+                Exception("test"),
                 1.0,
                 2.0,
                 is_secondary_rate_limit=True,
@@ -211,11 +211,11 @@ class TestCalculateRetryDelay:
             retry_after=120,
         )
 
-        with patch('prdiffer.infrastructure.utils.delay_calculator.random') as mock_random:
+        with patch("prdiffer.infrastructure.utils.delay_calculator.random") as mock_random:
             mock_random.uniform.return_value = 0
             delay = calculate_retry_delay(
                 0,
-                Exception('test'),
+                Exception("test"),
                 1.0,
                 2.0,
                 rate_limit_info=rate_limit_info,
@@ -230,11 +230,11 @@ class TestCalculateRetryDelay:
         mock_tracker = Mock()
         mock_tracker.get_recommended_delay.return_value = 10.0
 
-        with patch('prdiffer.infrastructure.utils.delay_calculator.random') as mock_random:
+        with patch("prdiffer.infrastructure.utils.delay_calculator.random") as mock_random:
             mock_random.uniform.return_value = 0
             delay = calculate_retry_delay(
                 0,
-                Exception('test'),
+                Exception("test"),
                 1.0,
                 2.0,
                 use_adaptive=True,
@@ -245,11 +245,11 @@ class TestCalculateRetryDelay:
 
     def test_basic_backoff_fallback(self):
         """Test basic backoff as fallback."""
-        with patch('prdiffer.infrastructure.utils.delay_calculator.random') as mock_random:
+        with patch("prdiffer.infrastructure.utils.delay_calculator.random") as mock_random:
             mock_random.uniform.return_value = 0
             delay = calculate_retry_delay(
                 0,
-                Exception('test'),
+                Exception("test"),
                 1.0,
                 2.0,
             )
@@ -267,7 +267,7 @@ class TestCalculateRetryDelay:
 
         delay = calculate_retry_delay(
             0,
-            Exception('test'),
+            Exception("test"),
             1.0,
             2.0,
             rate_limit_info=rate_limit_info,
@@ -288,7 +288,7 @@ class TestCalculateRetryDelay:
 
         delay = calculate_retry_delay(
             0,
-            Exception('test'),
+            Exception("test"),
             1.0,
             2.0,
             rate_limit_info=rate_limit_info,

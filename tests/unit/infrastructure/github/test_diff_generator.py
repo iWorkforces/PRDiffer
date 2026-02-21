@@ -20,11 +20,11 @@ class TestDiffGenerator:
 
         return DiffGenerator(diff_utils=DiffUtils())
 
-    @pytest.mark.skip(reason='Test patches non-existent _get_file_content method. DiffGenerator does not have this method - test needs to be rewritten.')
+    @pytest.mark.skip(reason="Test patches non-existent _get_file_content method. DiffGenerator does not have this method - test needs to be rewritten.")
     def test_generate_extended_diff(self, diff_generator):
         """Test basic extended diff generation."""
-        with patch.object(diff_generator, '_get_file_content') as mock_content:
-            mock_content.side_effect = ['old content', 'new content']
+        with patch.object(diff_generator, "_get_file_content") as mock_content:
+            mock_content.side_effect = ["old content", "new content"]
 
             # This test requires more setup for actual execution
             # The skeleton is provided for future implementation
@@ -97,5 +97,5 @@ class TestDiffGeneratorHunkParsing:
         pass
 
 
-if __name__ == '__main__':
-    pytest.main([__file__, '-v'])
+if __name__ == "__main__":
+    pytest.main([__file__, "-v"])

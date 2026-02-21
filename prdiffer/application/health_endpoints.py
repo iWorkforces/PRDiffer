@@ -69,10 +69,10 @@ class HealthEndpoints:
             dict: Health status and metrics information
         """
         health_status = self._health_monitor.check_health()
-        health_status['authentication'] = self._authentication.get_status()
-        health_status['cache'] = self._cache_service.get_stats()
-        health_status['repository_cache'] = self._repository_cache_service.stats()
-        health_status['request_coalescing'] = await self._request_coalescing.get_stats()
+        health_status["authentication"] = self._authentication.get_status()
+        health_status["cache"] = self._cache_service.get_stats()
+        health_status["repository_cache"] = self._repository_cache_service.stats()
+        health_status["request_coalescing"] = await self._request_coalescing.get_stats()
         return health_status
 
     def get_health_handler(self):
@@ -95,12 +95,12 @@ class HealthEndpoints:
                 return await self._get_health_status()
             except (RuntimeError, KeyError, AttributeError) as e:
                 self._logger.error(
-                    'Failed to get health status',
+                    "Failed to get health status",
                     error=str(e),
                     error_type=type(e).__name__,
                 )
                 safe_message = self._create_safe_error_message(e)
-                return {'status': 'unhealthy', 'error': safe_message}
+                return {"status": "unhealthy", "error": safe_message}
 
         return health
 
@@ -128,15 +128,15 @@ class HealthEndpoints:
                 return JSONResponse(metrics)
             except (RuntimeError, KeyError, AttributeError) as e:
                 self._logger.error(
-                    'Failed to get metrics',
+                    "Failed to get metrics",
                     error=str(e),
                     error_type=type(e).__name__,
                 )
                 return JSONResponse(
                     {
-                        'server': 'prdiffer',
-                        'error': 'Failed to get metrics',
-                        'message': 'Internal server error',
+                        "server": "prdiffer",
+                        "error": "Failed to get metrics",
+                        "message": "Internal server error",
                     },
                     status_code=500,
                 )
@@ -153,23 +153,23 @@ class HealthEndpoints:
             str: A safe error message suitable for external consumption
         """
         safe_messages = {
-            'GithubException': 'GitHub API error occurred',
-            'RateLimitExceededException': 'API rate limit exceeded. Please try again later',
-            'UnknownObjectException': 'Repository or PR not found',
-            'BadCredentialsException': 'GitHub authentication failed',
-            'TwoFactorException': 'Two-factor authentication required',
-            'InvalidURLError': 'Invalid GitHub PR URL format',
-            'InvalidRepositoryError': 'Invalid repository identifier',
-            'InvalidPRNumberError': 'Invalid pull request number',
-            'InputSanitizationError': 'Invalid input parameters',
-            'SuspiciousOperationError': 'Request contains suspicious patterns',
-            'ConnectionError': 'Connection to GitHub failed',
-            'TimeoutError': 'Request timed out',
-            'SSLError': 'Secure connection failed',
-            'ValueError': 'Invalid input value',
-            'TypeError': 'Invalid input type',
-            'KeyError': 'Missing required field',
-            'AttributeError': 'Configuration error',
+            "GithubException": "GitHub API error occurred",
+            "RateLimitExceededException": "API rate limit exceeded. Please try again later",
+            "UnknownObjectException": "Repository or PR not found",
+            "BadCredentialsException": "GitHub authentication failed",
+            "TwoFactorException": "Two-factor authentication required",
+            "InvalidURLError": "Invalid GitHub PR URL format",
+            "InvalidRepositoryError": "Invalid repository identifier",
+            "InvalidPRNumberError": "Invalid pull request number",
+            "InputSanitizationError": "Invalid input parameters",
+            "SuspiciousOperationError": "Request contains suspicious patterns",
+            "ConnectionError": "Connection to GitHub failed",
+            "TimeoutError": "Request timed out",
+            "SSLError": "Secure connection failed",
+            "ValueError": "Invalid input value",
+            "TypeError": "Invalid input type",
+            "KeyError": "Missing required field",
+            "AttributeError": "Configuration error",
         }
 
         exception_type = type(exception).__name__
@@ -177,4 +177,4 @@ class HealthEndpoints:
         if exception_type in safe_messages:
             return safe_messages[exception_type]
 
-        return 'Request processing failed'
+        return "Request processing failed"

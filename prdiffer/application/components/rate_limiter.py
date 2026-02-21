@@ -64,8 +64,8 @@ class RateLimiter(RateLimiterProtocol):
         if current_count >= self._rate_limit_requests:
             self._logger.warning(
                 f"Rate limit exceeded for client '{identifier}'. "
-                f'Maximum {self._rate_limit_requests} requests per {self._rate_limit_window} '
-                f'seconds. Current rate: {current_count}'
+                f"Maximum {self._rate_limit_requests} requests per {self._rate_limit_window} "
+                f"seconds. Current rate: {current_count}"
             )
             return False
 
@@ -83,7 +83,7 @@ class RateLimiter(RateLimiterProtocol):
         current_count = len(self._client_timestamps[identifier])
         self._logger.debug(f"Rate limit incremented for client '{identifier}'. Current rate: {current_count}/{self._rate_limit_requests}")
 
-    def get_current_rate(self, identifier: str = 'global') -> int:
+    def get_current_rate(self, identifier: str = "global") -> int:
         """Get current number of requests in the rate limit window for a client.
 
         Args:
@@ -94,7 +94,7 @@ class RateLimiter(RateLimiterProtocol):
         """
         current_time = time.time()
 
-        if identifier == 'global':
+        if identifier == "global":
             # Return the maximum rate across all clients
             return max(
                 (len([ts for ts in timestamps if current_time - ts < self._rate_limit_window]) for timestamps in self._client_timestamps.values()),
@@ -107,7 +107,7 @@ class RateLimiter(RateLimiterProtocol):
 
         return len(self._client_timestamps[identifier])
 
-    def get_rate_limit_info(self, identifier: str = 'global') -> dict:
+    def get_rate_limit_info(self, identifier: str = "global") -> dict:
         """Get rate limit configuration and current status for a client.
 
         Args:
@@ -118,11 +118,11 @@ class RateLimiter(RateLimiterProtocol):
         """
         current_requests = self.get_current_rate(identifier)
         return {
-            'max_requests': self._rate_limit_requests,
-            'window_seconds': self._rate_limit_window,
-            'current_requests': current_requests,
-            'remaining_requests': max(0, self._rate_limit_requests - current_requests),
-            'identifier': identifier,
+            "max_requests": self._rate_limit_requests,
+            "window_seconds": self._rate_limit_window,
+            "current_requests": current_requests,
+            "remaining_requests": max(0, self._rate_limit_requests - current_requests),
+            "identifier": identifier,
         }
 
     def _cleanup_old_entries(self, current_time: float) -> None:
@@ -139,7 +139,7 @@ class RateLimiter(RateLimiterProtocol):
             del self._last_access[identifier]
 
         if expired_identifiers:
-            self._logger.debug(f'Cleaned up {len(expired_identifiers)} expired rate limit entries')
+            self._logger.debug(f"Cleaned up {len(expired_identifiers)} expired rate limit entries")
 
     def get_active_clients_count(self) -> int:
         """Get the number of active clients tracked.
@@ -178,10 +178,10 @@ class RateLimiter(RateLimiterProtocol):
             # Count requests within the window
             valid_timestamps = [ts for ts in timestamps if current_time - ts < self._rate_limit_window]
             result[identifier] = {
-                'current_requests': len(valid_timestamps),
-                'max_requests': self._rate_limit_requests,
-                'remaining_requests': max(0, self._rate_limit_requests - len(valid_timestamps)),
-                'last_access': self._last_access.get(identifier, current_time),
+                "current_requests": len(valid_timestamps),
+                "max_requests": self._rate_limit_requests,
+                "remaining_requests": max(0, self._rate_limit_requests - len(valid_timestamps)),
+                "last_access": self._last_access.get(identifier, current_time),
             }
 
         return result

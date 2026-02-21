@@ -38,11 +38,11 @@ class TestUnifiedRetryHandler:
 
         def successful_func():
             call_count[0] += 1
-            return 'success'
+            return "success"
 
         result = retry_handler.execute_with_retry(successful_func)
 
-        assert result == 'success'
+        assert result == "success"
         assert call_count[0] == 1  # Called only once
 
     def test_retry_on_connection_error(self, retry_handler):
@@ -53,12 +53,12 @@ class TestUnifiedRetryHandler:
             call_count[0] += 1
             # Fail on first 2 calls, succeed on 3rd call (3 total attempts with max_retries=3)
             if call_count[0] < 3:
-                raise ConnectionError('Connection failed - transient error')
-            return 'success'
+                raise ConnectionError("Connection failed - transient error")
+            return "success"
 
         result = retry_handler.execute_with_retry(transient_func)
 
-        assert result == 'success'
+        assert result == "success"
         assert call_count[0] == 3  # 3 total attempts
 
     def test_no_retry_on_non_transient_error(self, retry_handler):
@@ -68,9 +68,9 @@ class TestUnifiedRetryHandler:
         def non_transient_func():
             call_count[0] += 1
             # Error message doesn't contain retry keywords (timeout, connection, network, etc.)
-            raise ValueError('Some random error')
+            raise ValueError("Some random error")
 
-        with pytest.raises(ValueError, match='Some random error'):
+        with pytest.raises(ValueError, match="Some random error"):
             retry_handler.execute_with_retry(non_transient_func)
 
         # Should only be called once since error doesn't match retry criteria
@@ -98,7 +98,7 @@ class TestRetryHandlerCircuitBreaker:
         def failing_func():
             call_count[0] += 1
             # Use "connection" in error message so it will be retried
-            raise ConnectionError('Connection failed - always fails')
+            raise ConnectionError("Connection failed - always fails")
 
         # Execute until circuit breaker opens (after threshold failures)
         # First call: initial attempt + retries (total max_retries attempts)
@@ -125,14 +125,14 @@ class TestRetryHandlerErrorClassification:
 
     def test_should_retry_connection_error(self, retry_handler):
         """Test that connection errors with 'connection' in message are retried."""
-        error = ConnectionError('Connection failed')
+        error = ConnectionError("Connection failed")
         should_retry = retry_handler._should_retry_error(error, None)
         assert should_retry is True
 
     def test_should_retry_timeout_error(self, retry_handler):
         """Test that timeout errors are retried."""
         # Use "timeout" (single word) to match the retry logic check
-        error = TimeoutError('Connection timeout')
+        error = TimeoutError("Connection timeout")
         should_retry = retry_handler._should_retry_error(error, None)
         # Contains "timeout" so should be retried
         assert should_retry is True
@@ -166,12 +166,12 @@ class TestRetryHandlerAsync:
             # Fail on first 2 calls, succeed on 3rd call (3 total attempts)
             if call_count[0] < 3:
                 # Use "connection" in error message so it will be retried
-                raise ConnectionError('Connection failed - transient error')
-            return 'async_success'
+                raise ConnectionError("Connection failed - transient error")
+            return "async_success"
 
         result = await retry_handler.execute_with_retry_async(transient_async_func)
 
-        assert result == 'async_success'
+        assert result == "async_success"
         assert call_count[0] == 3  # 3 total attempts
 
     async def test_async_uses_anyio_sleep(self, retry_handler):
@@ -183,9 +183,9 @@ class TestRetryHandlerAsync:
 
         async def failing_func():
             # Use "connection" in error message so it will be retried
-            raise ConnectionError('Connection failed')
+            raise ConnectionError("Connection failed")
 
-        with patch('prdiffer.infrastructure.utils.retry.handler.anyio.sleep', mock_sleep):
+        with patch("prdiffer.infrastructure.utils.retry.handler.anyio.sleep", mock_sleep):
             with pytest.raises(ConnectionError):
                 await retry_handler.execute_with_retry_async(failing_func)
 
@@ -193,5 +193,5 @@ class TestRetryHandlerAsync:
         assert len(executed_sleeps) > 0
 
 
-if __name__ == '__main__':
-    pytest.main([__file__, '-v'])
+if __name__ == "__main__":
+    pytest.main([__file__, "-v"])

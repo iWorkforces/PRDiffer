@@ -36,18 +36,18 @@ class PatternMatcher(PatternMatchingServiceInterface):
         """
         compiled: list[tuple[str, str | re.Pattern]] = []
         for pattern in patterns:
-            if '*' in pattern and not pattern.startswith('*.'):
+            if "*" in pattern and not pattern.startswith("*."):
                 # Convert wildcard pattern to regex
-                regex_pattern = pattern.replace('*', '.*')
+                regex_pattern = pattern.replace("*", ".*")
                 try:
-                    compiled_regex = re.compile(regex_pattern + '$')
-                    compiled.append(('regex', compiled_regex))
+                    compiled_regex = re.compile(regex_pattern + "$")
+                    compiled.append(("regex", compiled_regex))
                 except re.error:
                     # Fall back to original pattern if regex compilation fails
-                    compiled.append(('string', pattern))
+                    compiled.append(("string", pattern))
             else:
                 # Simple string patterns (exact matches, *.ext patterns)
-                compiled.append(('string', pattern))
+                compiled.append(("string", pattern))
         return compiled
 
     def is_valid_file(self, filename: str) -> bool:
@@ -81,7 +81,7 @@ class PatternMatcher(PatternMatchingServiceInterface):
             bool: True if filename matches any ignore pattern, False otherwise
         """
         for pattern_type, pattern in self._compiled_patterns:
-            if pattern_type == 'regex':
+            if pattern_type == "regex":
                 # Use pre-compiled regex pattern
                 if isinstance(pattern, re.Pattern) and pattern.match(filename):
                     return True
@@ -101,7 +101,7 @@ class PatternMatcher(PatternMatchingServiceInterface):
         Returns:
             bool: True if filename matches pattern, False otherwise
         """
-        if pattern.endswith('/'):
+        if pattern.endswith("/"):
             # Directory pattern
             return filename.startswith(pattern[:-1])
         else:
@@ -123,16 +123,16 @@ class PatternMatcher(PatternMatchingServiceInterface):
             return True
 
         # Handle wildcard patterns like *.lock
-        if pattern.startswith('*.'):
+        if pattern.startswith("*."):
             # Pattern like *.lock - check if filename ends with the extension
             extension = pattern[1:]  # Remove the * (becomes .lock)
             return filename.endswith(extension)
 
         # Handle other wildcard patterns if needed
-        if '*' in pattern:
+        if "*" in pattern:
             # Convert pattern to regex for more complex matching
-            regex_pattern = pattern.replace('*', '.*')
-            return bool(re.match(regex_pattern + '$', filename))
+            regex_pattern = pattern.replace("*", ".*")
+            return bool(re.match(regex_pattern + "$", filename))
 
         # Simple suffix matching (for backward compatibility)
         return filename.endswith(pattern)

@@ -33,8 +33,8 @@ def cache_service():
 def mock_repository():
     """Create a mock repository."""
     repo = Mock()
-    repo.repo_owner = 'owner'
-    repo.repo_name = 'repo'
+    repo.repo_owner = "owner"
+    repo.repo_name = "repo"
     repo.pr_number = 123
     repo._initialized = True
     return repo
@@ -79,13 +79,13 @@ class TestRepositoryCacheServiceGetCacheKey:
 
     def test_get_cache_key_normalizes_case(self, cache_service):
         """Test that cache key normalizes to lowercase."""
-        key = cache_service._get_cache_key('OWNER', 'REPO', 123)
+        key = cache_service._get_cache_key("OWNER", "REPO", 123)
 
-        assert key == ('owner', 'repo', 123)
+        assert key == ("owner", "repo", 123)
 
     def test_get_cache_key_preserves_pr_number(self, cache_service):
         """Test that PR number is preserved as-is."""
-        key = cache_service._get_cache_key('owner', 'repo', 456)
+        key = cache_service._get_cache_key("owner", "repo", 456)
 
         assert key[2] == 456
 
@@ -104,8 +104,8 @@ class TestRepositoryCacheServiceInsert:
         """Test inserting multiple repositories."""
         for i in range(3):
             repo = Mock()
-            repo.repo_owner = 'owner'
-            repo.repo_name = f'repo{i}'
+            repo.repo_owner = "owner"
+            repo.repo_name = f"repo{i}"
             repo.pr_number = i
             repo._initialized = True
             cache_service.insert(repo)
@@ -117,16 +117,16 @@ class TestRepositoryCacheServiceInsert:
         cache_service.insert(mock_repository)
 
         new_repo = Mock()
-        new_repo.repo_owner = 'owner'
-        new_repo.repo_name = 'repo'
+        new_repo.repo_owner = "owner"
+        new_repo.repo_name = "repo"
         new_repo.pr_number = 123
         new_repo._initialized = True
-        new_repo.new_field = 'new'
+        new_repo.new_field = "new"
 
         cache_service.insert(new_repo)
 
-        retrieved = cache_service.retrieve('owner', 'repo', 123)
-        assert retrieved.new_field == 'new'
+        retrieved = cache_service.retrieve("owner", "repo", 123)
+        assert retrieved.new_field == "new"
 
 
 class TestRepositoryCacheServiceRetrieve:
@@ -136,13 +136,13 @@ class TestRepositoryCacheServiceRetrieve:
         """Test retrieving an existing entry."""
         cache_service.insert(mock_repository)
 
-        result = cache_service.retrieve('owner', 'repo', 123)
+        result = cache_service.retrieve("owner", "repo", 123)
 
         assert result == mock_repository
 
     def test_retrieve_not_found(self, cache_service):
         """Test retrieving non-existent entry."""
-        result = cache_service.retrieve('owner', 'repo', 123)
+        result = cache_service.retrieve("owner", "repo", 123)
 
         assert result is None
 
@@ -150,7 +150,7 @@ class TestRepositoryCacheServiceRetrieve:
         """Test retrieval is case-insensitive."""
         cache_service.insert(mock_repository)
 
-        result = cache_service.retrieve('OWNER', 'REPO', 123)
+        result = cache_service.retrieve("OWNER", "REPO", 123)
 
         assert result == mock_repository
 
@@ -162,10 +162,10 @@ class TestRepositoryCacheServiceRetrieve:
         time.sleep(0.1)
 
         # Retrieve should extend TTL
-        cache_service.retrieve('owner', 'repo', 123)
+        cache_service.retrieve("owner", "repo", 123)
 
         # Entry should still be valid
-        assert cache_service.validate('owner', 'repo', 123) is True
+        assert cache_service.validate("owner", "repo", 123) is True
 
 
 class TestRepositoryCacheServiceValidate:
@@ -175,18 +175,18 @@ class TestRepositoryCacheServiceValidate:
         """Test validating existing entry."""
         cache_service.insert(mock_repository)
 
-        assert cache_service.validate('owner', 'repo', 123) is True
+        assert cache_service.validate("owner", "repo", 123) is True
 
     def test_validate_not_found(self, cache_service):
         """Test validating non-existent entry."""
-        assert cache_service.validate('owner', 'repo', 123) is False
+        assert cache_service.validate("owner", "repo", 123) is False
 
     def test_validate_uninitialized(self, cache_service, mock_repository):
         """Test validating uninitialized entry."""
         mock_repository._initialized = False
         cache_service.insert(mock_repository)
 
-        assert cache_service.validate('owner', 'repo', 123) is False
+        assert cache_service.validate("owner", "repo", 123) is False
 
 
 class TestRepositoryCacheServiceRemove:
@@ -196,14 +196,14 @@ class TestRepositoryCacheServiceRemove:
         """Test removing existing entry."""
         cache_service.insert(mock_repository)
 
-        result = cache_service.remove('owner', 'repo', 123)
+        result = cache_service.remove("owner", "repo", 123)
 
         assert result is True
         assert cache_service.size() == 0
 
     def test_remove_not_found(self, cache_service):
         """Test removing non-existent entry."""
-        result = cache_service.remove('owner', 'repo', 123)
+        result = cache_service.remove("owner", "repo", 123)
 
         assert result is False
 
@@ -221,8 +221,8 @@ class TestRepositoryCacheServiceClear:
         """Test clearing cache with entries."""
         for i in range(3):
             repo = Mock()
-            repo.repo_owner = 'owner'
-            repo.repo_name = f'repo{i}'
+            repo.repo_owner = "owner"
+            repo.repo_name = f"repo{i}"
             repo.pr_number = i
             repo._initialized = True
             cache_service.insert(repo)
@@ -253,11 +253,11 @@ class TestRepositoryCacheServiceStats:
         """Test stats of empty cache."""
         stats = cache_service.stats()
 
-        assert stats['total_entries'] == 0
-        assert stats['initialized_entries'] == 0
-        assert stats['expired_entries'] == 0
-        assert stats['max_size'] == 5
-        assert stats['ttl_seconds'] == 60
+        assert stats["total_entries"] == 0
+        assert stats["initialized_entries"] == 0
+        assert stats["expired_entries"] == 0
+        assert stats["max_size"] == 5
+        assert stats["ttl_seconds"] == 60
 
     def test_stats_with_entries(self, cache_service, mock_repository):
         """Test stats with entries."""
@@ -265,8 +265,8 @@ class TestRepositoryCacheServiceStats:
 
         stats = cache_service.stats()
 
-        assert stats['total_entries'] == 1
-        assert stats['initialized_entries'] == 1
+        assert stats["total_entries"] == 1
+        assert stats["initialized_entries"] == 1
 
     def test_stats_with_uninitialized(self, cache_service, mock_repository):
         """Test stats with uninitialized entry."""
@@ -275,7 +275,7 @@ class TestRepositoryCacheServiceStats:
 
         stats = cache_service.stats()
 
-        assert stats['initialized_entries'] == 0
+        assert stats["initialized_entries"] == 0
 
 
 class TestRepositoryCacheServiceExpiration:
@@ -289,7 +289,7 @@ class TestRepositoryCacheServiceExpiration:
         # Wait for TTL to expire
         time.sleep(0.2)
 
-        result = cache_service.retrieve('owner', 'repo', 123)
+        result = cache_service.retrieve("owner", "repo", 123)
 
         assert result is None
 
@@ -301,7 +301,7 @@ class TestRepositoryCacheServiceExpiration:
         # Wait for TTL to expire
         time.sleep(0.2)
 
-        cache_service.validate('owner', 'repo', 123)
+        cache_service.validate("owner", "repo", 123)
 
         assert cache_service.size() == 0
 
@@ -316,8 +316,8 @@ class TestRepositoryCacheServiceEviction:
         # Insert 2 entries (at max)
         for i in range(2):
             repo = Mock()
-            repo.repo_owner = 'owner'
-            repo.repo_name = f'repo{i}'
+            repo.repo_owner = "owner"
+            repo.repo_name = f"repo{i}"
             repo.pr_number = i
             repo._initialized = True
             time.sleep(0.01)  # Ensure different timestamps
@@ -328,8 +328,8 @@ class TestRepositoryCacheServiceEviction:
 
         # Insert one more should evict oldest
         repo3 = Mock()
-        repo3.repo_owner = 'owner'
-        repo3.repo_name = 'repo3'
+        repo3.repo_owner = "owner"
+        repo3.repo_name = "repo3"
         repo3.pr_number = 3
         repo3._initialized = True
         cache_service.insert(repo3)
@@ -348,7 +348,7 @@ class TestRepositoryCacheServiceInvalidate:
         mock_repository.pr_number = 0
         cache_service.insert(mock_repository)
 
-        result = cache_service.invalidate('owner/repo')
+        result = cache_service.invalidate("owner/repo")
 
         assert result is True
         assert cache_service.size() == 0
@@ -357,26 +357,26 @@ class TestRepositoryCacheServiceInvalidate:
         """Test invalidation with owner/repo/pr/number format."""
         cache_service.insert(mock_repository)
 
-        result = cache_service.invalidate('owner/repo/pr/123')
+        result = cache_service.invalidate("owner/repo/pr/123")
 
         assert result is True
         assert cache_service.size() == 0
 
     def test_invalidate_not_found(self, cache_service):
         """Test invalidation of non-existent key."""
-        result = cache_service.invalidate('owner/repo/pr/999')
+        result = cache_service.invalidate("owner/repo/pr/999")
 
         assert result is False
 
     def test_invalidate_invalid_format(self, cache_service):
         """Test invalidation with invalid format."""
-        result = cache_service.invalidate('invalid_format')
+        result = cache_service.invalidate("invalid_format")
 
         assert result is False
 
     def test_invalidate_invalid_pr_number(self, cache_service):
         """Test invalidation with invalid PR number."""
-        result = cache_service.invalidate('owner/repo/pr/not_a_number')
+        result = cache_service.invalidate("owner/repo/pr/not_a_number")
 
         assert result is False
 
@@ -421,7 +421,7 @@ class TestGetValidEntry:
     def test_get_valid_entry_success(self, cache_service, mock_repository):
         """Test getting valid entry."""
         cache_service.insert(mock_repository)
-        key = ('owner', 'repo', 123)
+        key = ("owner", "repo", 123)
 
         entry = cache_service._get_valid_entry(key)
 
@@ -430,7 +430,7 @@ class TestGetValidEntry:
 
     def test_get_valid_entry_not_found(self, cache_service):
         """Test getting non-existent entry."""
-        key = ('owner', 'repo', 123)
+        key = ("owner", "repo", 123)
 
         entry = cache_service._get_valid_entry(key)
 
@@ -482,8 +482,8 @@ class TestEvictIfNeeded:
         # Insert 3 entries
         for i in range(3):
             repo = Mock()
-            repo.repo_owner = 'owner'
-            repo.repo_name = f'repo{i}'
+            repo.repo_owner = "owner"
+            repo.repo_name = f"repo{i}"
             repo.pr_number = i
             repo._initialized = True
             cache_service.insert(repo)
@@ -518,8 +518,8 @@ class TestWithLockDecorator:
         def insert_task(i):
             try:
                 repo = Mock()
-                repo.repo_owner = f'owner{i}'
-                repo.repo_name = f'repo{i}'
+                repo.repo_owner = f"owner{i}"
+                repo.repo_name = f"repo{i}"
                 repo.pr_number = i
                 repo._initialized = True
                 cache_service.insert(repo)

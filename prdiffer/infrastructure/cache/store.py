@@ -96,7 +96,7 @@ class CacheStore:
         Returns:
             True if expired, False otherwise
         """
-        timestamp = entry.get('timestamp')
+        timestamp = entry.get("timestamp")
         if timestamp is None:
             return False
         return time.time() - float(timestamp) > self._ttl
@@ -111,7 +111,7 @@ class CacheStore:
         expired_keys = []
 
         for key, entry in list(self._cache.items()):
-            age = current_time - float(entry.get('timestamp', 0))
+            age = current_time - float(entry.get("timestamp", 0))
             if age >= self._ttl:
                 expired_keys.append(key)
 

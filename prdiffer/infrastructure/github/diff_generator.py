@@ -17,7 +17,7 @@ class DiffGenerator:
     hunk processing, and formatting for pull request diff analysis.
     """
 
-    RE_HUNK_HEADER = re.compile(r'^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@[ ]?(.*)')
+    RE_HUNK_HEADER = re.compile(r"^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@[ ]?(.*)")
 
     def __init__(
         self,
@@ -64,11 +64,11 @@ class DiffGenerator:
         use_parallel = self._parallel_enabled and num_files >= self._parallel_threshold and self._parallel_executor is not None
 
         if use_parallel:
-            self._logger.debug(f'Using parallel processing for {num_files} files (threshold: {self._parallel_threshold})')
+            self._logger.debug(f"Using parallel processing for {num_files} files (threshold: {self._parallel_threshold})")
             return self._generate_extended_diff_parallel(diff_files, add_line_numbers_to_hunks)
         else:
-            reason = 'disabled' if not self._parallel_enabled else f'below threshold ({num_files} < {self._parallel_threshold})'
-            self._logger.debug(f'Using sequential processing for {num_files} files (parallel {reason})')
+            reason = "disabled" if not self._parallel_enabled else f"below threshold ({num_files} < {self._parallel_threshold})"
+            self._logger.debug(f"Using sequential processing for {num_files} files (parallel {reason})")
             return self._generate_extended_diff_sequential(diff_files, add_line_numbers_to_hunks)
 
     def _decouple_and_convert_to_hunks_with_lines_numbers(self, patch: str, file: FilePatchInfo, is_first_file: bool = False) -> str:
@@ -109,11 +109,11 @@ class DiffGenerator:
             str: Formatted file header
         """
         if not file:
-            return ''
+            return ""
 
-        separator = '' if is_first_file else '\n\n---'
+        separator = "" if is_first_file else "\n\n---"
 
-        return f'{separator}\n## Full file path: `{file.filename.strip()}`\n'
+        return f"{separator}\n## Full file path: `{file.filename.strip()}`\n"
 
     def _parse_hunks_from_patch(self, patch_lines: list[str]) -> list[dict]:
         """Parse hunks from patch lines.
@@ -129,10 +129,10 @@ class DiffGenerator:
         RE_HUNK_HEADER = self.RE_HUNK_HEADER
 
         for line_i, line in enumerate(patch_lines):
-            if 'no newline at end of file' in line.lower():
+            if "no newline at end of file" in line.lower():
                 continue
 
-            if line.startswith('@@'):
+            if line.startswith("@@"):
                 # Save previous hunk if exists
                 if current_hunk is not None:
                     hunks.append(current_hunk)
@@ -142,11 +142,11 @@ class DiffGenerator:
                 if match:
                     section_header, size1, size2, start1, start2 = self._extract_hunk_headers(match)
                     current_hunk = {
-                        'header': line,
-                        'new_lines': [],
-                        'old_lines': [],
-                        'start1': start1,
-                        'start2': start2,
+                        "header": line,
+                        "new_lines": [],
+                        "old_lines": [],
+                        "start1": start1,
+                        "start2": start2,
                     }
             elif current_hunk is not None:
                 # Process lines within current hunk
@@ -173,21 +173,21 @@ class DiffGenerator:
             line_i: Line index in patch
             patch_lines: All patch lines (for lookahead)
         """
-        if line.startswith('+'):
-            hunk['new_lines'].append(line)
-        elif line.startswith('-'):
-            hunk['old_lines'].append(line)
+        if line.startswith("+"):
+            hunk["new_lines"].append(line)
+        elif line.startswith("-"):
+            hunk["old_lines"].append(line)
         else:
             # Skip empty lines before hunk headers or at end of patch
             if not line and line_i:
-                if line_i + 1 < len(patch_lines) and patch_lines[line_i + 1].startswith('@@'):
+                if line_i + 1 < len(patch_lines) and patch_lines[line_i + 1].startswith("@@"):
                     return
                 elif line_i + 1 == len(patch_lines):
                     return
 
             # Context line (appears in both new and old)
-            hunk['new_lines'].append(line)
-            hunk['old_lines'].append(line)
+            hunk["new_lines"].append(line)
+            hunk["old_lines"].append(line)
 
     def _format_hunk_with_line_numbers(self, hunk: dict) -> str:
         """Format a hunk with line numbers.
@@ -204,63 +204,63 @@ class DiffGenerator:
         Returns:
             str: Formatted hunk string with line numbers
         """
-        output = f'\n{hunk["header"]}\n'
+        output = f"\n{hunk['header']}\n"
 
         # Check if there are any actual changes
-        has_additions = any(line.startswith('+') for line in hunk['new_lines'])
-        has_deletions = any(line.startswith('-') for line in hunk['old_lines'])
+        has_additions = any(line.startswith("+") for line in hunk["new_lines"])
+        has_deletions = any(line.startswith("-") for line in hunk["old_lines"])
 
         if not (has_additions or has_deletions):
-            return ''  # No changes in this hunk
+            return ""  # No changes in this hunk
 
         # Handle deletion-only case (file deleted or only lines removed)
         is_deletion_only = has_deletions and not has_additions
 
         # Calculate starting line number for new content
         # For new files with start2=0, use 1 as the starting line
-        new_start_line = max(1, hunk['start2'])
+        new_start_line = max(1, hunk["start2"])
 
         # Format new content section (unless deletion-only)
         if not is_deletion_only:
-            output = output.rstrip() + '\n__new hunk__\n'
+            output = output.rstrip() + "\n__new hunk__\n"
             line_num = new_start_line
             new_lines_output = []
-            for line_new in hunk['new_lines']:
+            for line_new in hunk["new_lines"]:
                 # Skip deleted lines in new hunk display
-                if not line_new.startswith('-'):
-                    new_lines_output.append(f'{line_num} {line_new}')
+                if not line_new.startswith("-"):
+                    new_lines_output.append(f"{line_num} {line_new}")
                     line_num += 1
-            output += '\n'.join(new_lines_output)
+            output += "\n".join(new_lines_output)
             if new_lines_output:
-                output += '\n'
-        elif is_deletion_only and hunk['new_lines']:
+                output += "\n"
+        elif is_deletion_only and hunk["new_lines"]:
             # Show context lines even for deletion-only hunks
-            output = output.rstrip() + '\n__new hunk__\n'
+            output = output.rstrip() + "\n__new hunk__\n"
             line_num = new_start_line
             new_lines_output = []
-            for line_new in hunk['new_lines']:
-                if not line_new.startswith('-'):
-                    new_lines_output.append(f'{line_num} {line_new}')
+            for line_new in hunk["new_lines"]:
+                if not line_new.startswith("-"):
+                    new_lines_output.append(f"{line_num} {line_new}")
                     line_num += 1
-            output += '\n'.join(new_lines_output)
+            output += "\n".join(new_lines_output)
             if new_lines_output:
-                output += '\n'
+                output += "\n"
 
         # Format old content section if there are deletions
         if has_deletions:
-            output = output.rstrip() + '\n__old hunk__\n'
+            output = output.rstrip() + "\n__old hunk__\n"
             # Calculate starting line number for old content
             # For new files, there's no old content to number
-            old_start_line = max(1, hunk['start1'])
+            old_start_line = max(1, hunk["start1"])
             line_num = old_start_line
             old_lines_output = []
-            for line_old in hunk['old_lines']:
+            for line_old in hunk["old_lines"]:
                 # Add line numbers to old hunk for better context
-                old_lines_output.append(f'{line_num} {line_old}')
+                old_lines_output.append(f"{line_num} {line_old}")
                 line_num += 1
-            output += '\n'.join(old_lines_output)
+            output += "\n".join(old_lines_output)
             if old_lines_output:
-                output += '\n'
+                output += "\n"
 
         return output
 
@@ -293,7 +293,7 @@ class DiffGenerator:
         for i in range(4):  # Only process numeric fields
             if res[i] is None:
                 # Size defaults to 1 if not specified (e.g., @@ -1 +1 @@)
-                res[i] = '1' if i in (1, 3) else '0'
+                res[i] = "1" if i in (1, 3) else "0"
 
         try:
             start1 = int(res[0])
@@ -302,10 +302,10 @@ class DiffGenerator:
             size2 = int(res[3])
         except (ValueError, IndexError) as e:
             # Fallback for unexpected formats
-            self._logger.warning(f'Unexpected hunk header format: {e}')
+            self._logger.warning(f"Unexpected hunk header format: {e}")
             start1, size1, start2, size2 = 0, 0, 0, 0
 
-        section_header = res[4] if len(res) > 4 else ''
+        section_header = res[4] if len(res) > 4 else ""
         return section_header, size1, size2, start1, start2
 
     def _process_single_file_for_diff(self, indexed_file_data: tuple) -> tuple | None:
@@ -331,7 +331,7 @@ class DiffGenerator:
             extended_patch = self._diff_utils.extend_patch(original_file_content_str, patch, new_file_str=new_file_content_str)
 
             if not extended_patch:
-                self._logger.warning(f'Failed to extend patch for file: {file.filename}')
+                self._logger.warning(f"Failed to extend patch for file: {file.filename}")
                 return None
 
             is_first_file = i == 0
@@ -340,16 +340,16 @@ class DiffGenerator:
                 full_extended_patch = self._decouple_and_convert_to_hunks_with_lines_numbers(extended_patch, file, is_first_file=is_first_file)
             else:
                 # Add separator and file header
-                separator = '' if is_first_file else '\n---'
-                full_extended_patch = f'{separator}{"" if is_first_file else "\n\n"}## Full file path: `{file.filename.strip()}`\n{extended_patch.rstrip()}\n'
+                separator = "" if is_first_file else "\n---"
+                full_extended_patch = f"{separator}{'' if is_first_file else '\n\n'}## Full file path: `{file.filename.strip()}`\n{extended_patch.rstrip()}\n"
                 if is_first_file:
-                    full_extended_patch = f'\n{full_extended_patch}'
+                    full_extended_patch = f"\n{full_extended_patch}"
 
             return (i, full_extended_patch)
 
         except Exception as e:
             sanitized = sanitize_exception_for_logging(e)
-            self._logger.error(f'Error processing file {file.filename} in parallel', extra=sanitized)
+            self._logger.error(f"Error processing file {file.filename} in parallel", extra=sanitized)
             return None
 
     def _generate_extended_diff_sequential(self, diff_files: list[FilePatchInfo], add_line_numbers_to_hunks: bool = False) -> list[str]:
@@ -375,17 +375,17 @@ class DiffGenerator:
             # extend each patch with extra lines of context
             extended_patch = self._diff_utils.extend_patch(original_file_content_str, patch, new_file_str=new_file_content_str)
             if not extended_patch:
-                self._logger.warning(f'Failed to extend patch for file: {file.filename}')
+                self._logger.warning(f"Failed to extend patch for file: {file.filename}")
                 continue
 
             if add_line_numbers_to_hunks:
                 full_extended_patch = self._decouple_and_convert_to_hunks_with_lines_numbers(extended_patch, file, is_first_file=(i == 0))
             else:
                 # Add separator and file header
-                separator = '' if i == 0 else '\n---'
-                full_extended_patch = f'{separator}{"" if i == 0 else "\n\n"}## Full file path: `{file.filename.strip()}`\n{extended_patch.rstrip()}\n'
+                separator = "" if i == 0 else "\n---"
+                full_extended_patch = f"{separator}{'' if i == 0 else '\n\n'}## Full file path: `{file.filename.strip()}`\n{extended_patch.rstrip()}\n"
                 if i == 0:
-                    full_extended_patch = f'\n{full_extended_patch}'
+                    full_extended_patch = f"\n{full_extended_patch}"
             extended_diffs.append(full_extended_patch)
         return extended_diffs
 
@@ -404,7 +404,7 @@ class DiffGenerator:
         """
         if not self._parallel_executor:
             # Fallback to sequential if no executor available
-            self._logger.warning('Parallel executor not available, falling back to sequential processing')
+            self._logger.warning("Parallel executor not available, falling back to sequential processing")
             return self._generate_extended_diff_sequential(diff_files, add_line_numbers_to_hunks)
 
         start_time = time.time()
@@ -413,7 +413,7 @@ class DiffGenerator:
         # Prepare data for parallel processing: (index, file, add_line_numbers, total_files)
         indexed_files = [(i, file, add_line_numbers_to_hunks, total_files) for i, file in enumerate(diff_files)]
 
-        self._logger.info(f'Starting parallel diff generation for {total_files} files using {self._parallel_executor.max_workers} workers')
+        self._logger.info(f"Starting parallel diff generation for {total_files} files using {self._parallel_executor.max_workers} workers")
 
         # Process all files in parallel
         results = self._parallel_executor.execute_batch(self._process_single_file_for_diff, indexed_files)
@@ -427,9 +427,9 @@ class DiffGenerator:
 
         elapsed_time = time.time() - start_time
         self._logger.info(
-            f'Parallel diff generation completed: {len(extended_diffs)}/{total_files} files '
-            f'processed in {elapsed_time:.2f}s '
-            f'({elapsed_time / total_files * 1000:.1f}ms per file avg)'
+            f"Parallel diff generation completed: {len(extended_diffs)}/{total_files} files "
+            f"processed in {elapsed_time:.2f}s "
+            f"({elapsed_time / total_files * 1000:.1f}ms per file avg)"
         )
 
         return extended_diffs

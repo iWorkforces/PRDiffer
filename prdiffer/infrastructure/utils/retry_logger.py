@@ -35,11 +35,11 @@ def log_retry_attempt(
         is_rate_limit_checker: Function to check if error is rate limit error
     """
     is_rate_limit = is_rate_limit_checker(error)
-    context_str = f' [{context}]' if context else ''
+    context_str = f" [{context}]" if context else ""
 
     if is_rate_limit:
-        label = 'Secondary rate limit' if is_secondary_rate_limit else 'Rate limit'
-        message = '%s hit%s, retrying in %.2fs (attempt %d)' % (
+        label = "Secondary rate limit" if is_secondary_rate_limit else "Rate limit"
+        message = "%s hit%s, retrying in %.2fs (attempt %d)" % (
             label,
             context_str,
             delay,
@@ -49,8 +49,8 @@ def log_retry_attempt(
         # Truncate long error messages for cleaner logs
         error_msg = str(error)
         if len(error_msg) > 100:
-            error_msg = error_msg[:97] + '...'
-        message = 'API error%s, retrying in %.2fs (attempt %d): %s' % (
+            error_msg = error_msg[:97] + "..."
+        message = "API error%s, retrying in %.2fs (attempt %d): %s" % (
             context_str,
             delay,
             attempt + 1,
@@ -83,8 +83,8 @@ def log_rate_limit_headers(
         is_secondary_rate_limit: Whether this is a secondary rate limit error
         rate_limit_remaining_threshold: Threshold for warning
     """
-    level = 'WARNING' if is_secondary_rate_limit else 'INFO'
-    message = 'Rate limit headers: remaining=%s limit=%s reset=%s retry_after=%s' % (
+    level = "WARNING" if is_secondary_rate_limit else "INFO"
+    message = "Rate limit headers: remaining=%s limit=%s reset=%s retry_after=%s" % (
         rate_limit_info.remaining,
         rate_limit_info.limit,
         rate_limit_info.reset_at,
@@ -93,11 +93,11 @@ def log_rate_limit_headers(
     log_at_level(logger, message, level)
 
     if is_rate_limit_remaining_below_threshold(rate_limit_info, rate_limit_remaining_threshold):
-        threshold_message = 'Rate limit remaining below threshold: %d <= %d' % (
+        threshold_message = "Rate limit remaining below threshold: %d <= %d" % (
             rate_limit_info.remaining,
             rate_limit_remaining_threshold,
         )
-        log_at_level(logger, threshold_message, 'WARNING')
+        log_at_level(logger, threshold_message, "WARNING")
 
 
 def log_permanent_failure(
@@ -120,13 +120,13 @@ def log_permanent_failure(
         # Permanent failure due to error type
         error_msg = str(error)
         if len(error_msg) > 150:
-            error_msg = error_msg[:147] + '...'
-        message = f'Permanent failure (no retry configured): {error_msg}'
+            error_msg = error_msg[:147] + "..."
+        message = f"Permanent failure (no retry configured): {error_msg}"
         log_at_level(logger, message, permanent_failure_log_level)
     elif is_last_attempt:
         # Final attempt failed
-        message = f'All retry attempts exhausted: {str(error)[:100]}...'
-        log_at_level(logger, message, 'ERROR')
+        message = f"All retry attempts exhausted: {str(error)[:100]}..."
+        log_at_level(logger, message, "ERROR")
 
 
 def log_at_level(logger, message: str, level: str):
@@ -138,15 +138,15 @@ def log_at_level(logger, message: str, level: str):
         level: Log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
     """
     level = level.upper()
-    if level == 'DEBUG':
+    if level == "DEBUG":
         logger.debug(message)
-    elif level == 'INFO':
+    elif level == "INFO":
         logger.info(message)
-    elif level == 'WARNING':
+    elif level == "WARNING":
         logger.warning(message)
-    elif level == 'ERROR':
+    elif level == "ERROR":
         logger.error(message)
-    elif level == 'CRITICAL':
+    elif level == "CRITICAL":
         logger.critical(message)
     else:
         # Fallback to INFO for unknown levels

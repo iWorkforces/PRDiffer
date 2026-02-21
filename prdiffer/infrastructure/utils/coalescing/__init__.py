@@ -8,8 +8,8 @@ from prdiffer.infrastructure.utils.coalescing.service import (
 )
 
 __all__ = [
-    'RequestCoalescingService',
-    'CoalescedRequest',
-    'get_request_coalescing_service',
-    'DEFAULT_MAX_WAITERS',
+    "RequestCoalescingService",
+    "CoalescedRequest",
+    "get_request_coalescing_service",
+    "DEFAULT_MAX_WAITERS",
 ]

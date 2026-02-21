@@ -80,48 +80,48 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
 
         # Get GitHub token from parameter or environment variable
         # Priority: parameter > GITHUB_TOKEN environment variable
-        self.github_token = github_token or os.getenv('GITHUB_TOKEN')
+        self.github_token = github_token or os.getenv("GITHUB_TOKEN")
 
         # Get configuration values
-        self.rate_limit = github_settings.get('rate_limit', 5000)
-        self.timeout = github_settings.get('timeout', 30)
-        self.max_retries = github_settings.get('max_retries', 3)
-        self.retry_delay = github_settings.get('retry_delay', 1)
-        self.ignore_patterns = github_settings.get('ignore_patterns', [])
-        self.valid_extensions = github_settings.get('valid_extensions', [])
-        self.max_files_allowed = app_settings.get('max_files_allowed', 50)
+        self.rate_limit = github_settings.get("rate_limit", 5000)
+        self.timeout = github_settings.get("timeout", 30)
+        self.max_retries = github_settings.get("max_retries", 3)
+        self.retry_delay = github_settings.get("retry_delay", 1)
+        self.ignore_patterns = github_settings.get("ignore_patterns", [])
+        self.valid_extensions = github_settings.get("valid_extensions", [])
+        self.max_files_allowed = app_settings.get("max_files_allowed", 50)
 
         # Get smart retry configuration (Phase 2)
-        self.retry_on_404 = github_settings.get('retry_on_404', False)
-        self.retry_on_403 = github_settings.get('retry_on_403', True)
-        self.retry_on_500 = github_settings.get('retry_on_500', True)
-        self.retry_log_level = github_settings.get('retry_log_level', 'DEBUG')
-        self.permanent_failure_log_level = github_settings.get('permanent_failure_log_level', 'INFO')
+        self.retry_on_404 = github_settings.get("retry_on_404", False)
+        self.retry_on_403 = github_settings.get("retry_on_403", True)
+        self.retry_on_500 = github_settings.get("retry_on_500", True)
+        self.retry_log_level = github_settings.get("retry_log_level", "DEBUG")
+        self.permanent_failure_log_level = github_settings.get("permanent_failure_log_level", "INFO")
 
         # Get Phase 3 advanced retry configuration
-        self.circuit_breaker_enabled = github_settings.get('circuit_breaker_enabled', True)
-        self.circuit_breaker_failure_threshold = github_settings.get('circuit_breaker_failure_threshold', 5)
-        self.circuit_breaker_timeout = github_settings.get('circuit_breaker_timeout', 60.0)
-        self.adaptive_retry_enabled = github_settings.get('adaptive_retry_enabled', True)
-        self.max_adaptive_delay = github_settings.get('max_adaptive_delay', 30.0)
-        self.api_health_tracking = github_settings.get('api_health_tracking', True)
-        self.context_aware_retry = github_settings.get('context_aware_retry', True)
-        self.use_advanced_retry = github_settings.get('use_advanced_retry', True)
+        self.circuit_breaker_enabled = github_settings.get("circuit_breaker_enabled", True)
+        self.circuit_breaker_failure_threshold = github_settings.get("circuit_breaker_failure_threshold", 5)
+        self.circuit_breaker_timeout = github_settings.get("circuit_breaker_timeout", 60.0)
+        self.adaptive_retry_enabled = github_settings.get("adaptive_retry_enabled", True)
+        self.max_adaptive_delay = github_settings.get("max_adaptive_delay", 30.0)
+        self.api_health_tracking = github_settings.get("api_health_tracking", True)
+        self.context_aware_retry = github_settings.get("context_aware_retry", True)
+        self.use_advanced_retry = github_settings.get("use_advanced_retry", True)
 
         # Get diff parallel processing configuration
-        self.diff_parallel_enabled = github_settings.get('diff_parallel_enabled', True)
-        self.diff_parallel_threshold = github_settings.get('diff_parallel_threshold', 3)
-        self.diff_max_workers = github_settings.get('diff_max_workers', 4)
-        self.diff_worker_timeout = github_settings.get('diff_worker_timeout', 30.0)
+        self.diff_parallel_enabled = github_settings.get("diff_parallel_enabled", True)
+        self.diff_parallel_threshold = github_settings.get("diff_parallel_threshold", 3)
+        self.diff_max_workers = github_settings.get("diff_max_workers", 4)
+        self.diff_worker_timeout = github_settings.get("diff_worker_timeout", 30.0)
 
         # File processing parallel fetch configuration
-        self.file_parallel_threshold = self.settings_service.get('file_processing.parallel_fetch_threshold', 10)
-        self.file_parallel_workers = self.settings_service.get('file_processing.concurrent_downloads', 3)
+        self.file_parallel_threshold = self.settings_service.get("file_processing.parallel_fetch_threshold", 10)
+        self.file_parallel_workers = self.settings_service.get("file_processing.concurrent_downloads", 3)
 
         # Diff truncation configuration
-        self._diff_truncate_enabled = self.settings_service.get('diff.truncate_enabled', False)
-        self._diff_max_total_chars = int(self.settings_service.get('diff.max_total_chars', 200000))
-        self._diff_truncation_notice = self.settings_service.get('diff.truncation_notice', '[DIFF TRUNCATED]')
+        self._diff_truncate_enabled = self.settings_service.get("diff.truncate_enabled", False)
+        self._diff_max_total_chars = int(self.settings_service.get("diff.max_total_chars", 200000))
+        self._diff_truncation_notice = self.settings_service.get("diff.truncation_notice", "[DIFF TRUNCATED]")
 
         # Initialize composed components
         self._github_api_client = get_github_api_client(
@@ -186,7 +186,7 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
         self._initialize_github_objects()
         if not self._initialized:
             raise PRDifferException(
-                f'Failed to initialize repository {self._repo_owner}/{self._repo_name}',
+                f"Failed to initialize repository {self._repo_owner}/{self._repo_name}",
                 error_code=E5009_CONFIGURATION_ERROR,
             )
 
@@ -214,56 +214,56 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
         self._github_api_client.initialize_client(github_token=self.github_token, timeout=self.timeout)
 
         # Define repository full name for error messages
-        repo_full_name = f'{self._repo_owner}/{self._repo_name}'
+        repo_full_name = f"{self._repo_owner}/{self._repo_name}"
 
         try:
             self._repository = self._github_api_client._get_pygithub_repository(repo_full_name)
         except (UnknownObjectException, RateLimitExceededException) as e:
             sanitized = sanitize_exception_for_logging(e)
-            self._logger.warning(f'Repository not accessible: {repo_full_name}', extra=sanitized)
+            self._logger.warning(f"Repository not accessible: {repo_full_name}", extra=sanitized)
             # Re-raise immediately to preserve exception context
             raise PRDifferException(
-                f'Failed to initialize repository {repo_full_name} - repository may not exist or access may be denied',
+                f"Failed to initialize repository {repo_full_name} - repository may not exist or access may be denied",
                 error_code=E5009_CONFIGURATION_ERROR,
             ) from e
         except GithubException as e:
             sanitized = sanitize_exception_for_logging(e)
             self._logger.error(
-                f'GitHub API error accessing repository {repo_full_name}',
+                f"GitHub API error accessing repository {repo_full_name}",
                 extra=sanitized,
             )
             # Re-raise immediately to preserve exception context
             raise PRDifferException(
-                f'GitHub API error accessing repository {repo_full_name}',
+                f"GitHub API error accessing repository {repo_full_name}",
                 error_code=E5009_CONFIGURATION_ERROR,
             ) from e
 
         try:
             if self._repository is None:
                 raise PRDifferException(
-                    f'Repository {repo_full_name} is not initialized',
+                    f"Repository {repo_full_name} is not initialized",
                     error_code=E5009_CONFIGURATION_ERROR,
                 )
             self._pull_request = self._github_api_client._get_pygithub_pull_request(self._repository, self._pr_number)
         except (UnknownObjectException, RateLimitExceededException) as e:
             sanitized = sanitize_exception_for_logging(e)
             self._logger.warning(
-                f'Pull request #{self._pr_number} not accessible in {repo_full_name}',
+                f"Pull request #{self._pr_number} not accessible in {repo_full_name}",
                 extra=sanitized,
             )
             # Re-raise immediately to preserve exception context
             raise PRDifferException(
-                f'Failed to initialize pull request #{self._pr_number} for repository {repo_full_name} - pull request may not exist or be inaccessible',
+                f"Failed to initialize pull request #{self._pr_number} for repository {repo_full_name} - pull request may not exist or be inaccessible",
                 error_code=E5009_CONFIGURATION_ERROR,
             ) from e
         except GithubException as e:
             sanitized = sanitize_exception_for_logging(e)
             self._logger.error(
-                f'GitHub API error fetching pull request #{self._pr_number}',
+                f"GitHub API error fetching pull request #{self._pr_number}",
                 extra=sanitized,
             )
             # Re-raise immediately to preserve exception context
-            raise RuntimeError(f'GitHub API error fetching pull request #{self._pr_number}') from e
+            raise RuntimeError(f"GitHub API error fetching pull request #{self._pr_number}") from e
 
         self._initialized = True
 
@@ -318,10 +318,10 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
         """
         # Validate inputs
         if not compliment:
-            raise ValueError('Compliment cannot be empty')
+            raise ValueError("Compliment cannot be empty")
 
         if not isinstance(compliment, str):
-            raise ValueError(f'Compliment must be a string, got {type(compliment).__name__}')
+            raise ValueError(f"Compliment must be a string, got {type(compliment).__name__}")
 
         # Sanitize compliment for logging
         safe_compliment = self._input_validator.sanitize_for_logging(compliment, max_length=500)
@@ -332,18 +332,18 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
         # Check if parsed components match current instance
         if repo_owner != self._repo_owner or repo_name != self._repo_name:
             self._logger.warning(
-                f'PR URL components do not match repository instance: expected {self._repo_owner}/{self._repo_name}, got {repo_owner}/{repo_name}',
+                f"PR URL components do not match repository instance: expected {self._repo_owner}/{self._repo_name}, got {repo_owner}/{repo_name}",
                 pr_url=pr_url[:100],
             )
 
         if pr_number != self._pr_number:
             self._logger.warning(
-                f'PR number does not match repository instance: expected {self._pr_number}, got {pr_number}',
+                f"PR number does not match repository instance: expected {self._pr_number}, got {pr_number}",
                 pr_url=pr_url[:100],
             )
 
         self._logger.info(
-            f'Approving PR #{pr_number} in {repo_owner}/{repo_name}',
+            f"Approving PR #{pr_number} in {repo_owner}/{repo_name}",
             pr_number=pr_number,
             repo=repo_name,
             owner=repo_owner,
@@ -356,58 +356,58 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
         # Verify PR exists and is accessible
         if self._pull_request is None:
             raise RuntimeError(
-                f'Failed to access pull request #{pr_number} in repository {repo_owner}/{repo_name} - pull request may not exist or be inaccessible'
+                f"Failed to access pull request #{pr_number} in repository {repo_owner}/{repo_name} - pull request may not exist or be inaccessible"
             )
 
         try:
             # Call create_review() with APPROVE event and compliment as body
             # This single call both approves the PR and posts the comment
             review = self._pull_request.create_review(
-                event='APPROVE',
+                event="APPROVE",
                 body=compliment,
             )
 
             self._logger.info(
-                f'Successfully approved PR #{pr_number}',
+                f"Successfully approved PR #{pr_number}",
                 pr_number=pr_number,
-                review_id=review.id if hasattr(review, 'id') else 'unknown',
+                review_id=review.id if hasattr(review, "id") else "unknown",
             )
 
-            return f'Successfully approved PR #{pr_number} in {repo_owner}/{repo_name}'
+            return f"Successfully approved PR #{pr_number} in {repo_owner}/{repo_name}"
 
         except GithubException as e:
             sanitized = sanitize_exception_for_logging(e)
 
-            if '404' in str(e).lower() or 'not found' in str(e).lower():
+            if "404" in str(e).lower() or "not found" in str(e).lower():
                 self._logger.error(
-                    f'Pull request #{pr_number} not found in {repo_owner}/{repo_name}',
+                    f"Pull request #{pr_number} not found in {repo_owner}/{repo_name}",
                     extra=sanitized,
                     pr_number=pr_number,
                 )
-                raise RuntimeError(f'Pull request #{pr_number} not found in repository {repo_owner}/{repo_name}') from e
+                raise RuntimeError(f"Pull request #{pr_number} not found in repository {repo_owner}/{repo_name}") from e
 
-            if '403' in str(e).lower() or 'forbidden' in str(e).lower():
+            if "403" in str(e).lower() or "forbidden" in str(e).lower():
                 self._logger.error(
-                    f'Permission denied for PR #{pr_number} - insufficient permissions',
+                    f"Permission denied for PR #{pr_number} - insufficient permissions",
                     extra=sanitized,
                     pr_number=pr_number,
                 )
                 raise RuntimeError(f"Insufficient permissions to approve PR #{pr_number} - ensure token has 'repo' scope and write access") from e
 
-            if '429' in str(e).lower() or 'rate limit' in str(e).lower():
+            if "429" in str(e).lower() or "rate limit" in str(e).lower():
                 self._logger.warning(
-                    f'GitHub API rate limit exceeded while approving PR #{pr_number}',
+                    f"GitHub API rate limit exceeded while approving PR #{pr_number}",
                     extra=sanitized,
                     pr_number=pr_number,
                 )
-                raise RuntimeError('GitHub API rate limit exceeded - please retry later') from e
+                raise RuntimeError("GitHub API rate limit exceeded - please retry later") from e
 
             self._logger.error(
-                f'GitHub API error while approving PR #{pr_number}',
+                f"GitHub API error while approving PR #{pr_number}",
                 extra=sanitized,
                 pr_number=pr_number,
             )
-            raise RuntimeError(f'GitHub API error while approving PR #{pr_number}') from e
+            raise RuntimeError(f"GitHub API error while approving PR #{pr_number}") from e
 
     async def update_pr_description(self, pr_url: str, description: str) -> str:
         """Update a GitHub PR description/body.
@@ -432,10 +432,10 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
         """
         # Validate inputs
         if not description:
-            raise ValueError('Description cannot be empty')
+            raise ValueError("Description cannot be empty")
 
         if not isinstance(description, str):
-            raise ValueError(f'Description must be a string, got {type(description).__name__}')
+            raise ValueError(f"Description must be a string, got {type(description).__name__}")
 
         # Sanitize description for logging
         safe_description = self._input_validator.sanitize_for_logging(description, max_length=500)
@@ -446,18 +446,18 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
         # Check if parsed components match current instance
         if repo_owner != self._repo_owner or repo_name != self._repo_name:
             self._logger.warning(
-                f'PR URL components do not match repository instance: expected {self._repo_owner}/{self._repo_name}, got {repo_owner}/{repo_name}',
+                f"PR URL components do not match repository instance: expected {self._repo_owner}/{self._repo_name}, got {repo_owner}/{repo_name}",
                 pr_url=pr_url[:100],
             )
 
         if pr_number != self._pr_number:
             self._logger.warning(
-                f'PR number does not match repository instance: expected {self._pr_number}, got {pr_number}',
+                f"PR number does not match repository instance: expected {self._pr_number}, got {pr_number}",
                 pr_url=pr_url[:100],
             )
 
         self._logger.info(
-            f'Updating description for PR #{pr_number} in {repo_owner}/{repo_name}',
+            f"Updating description for PR #{pr_number} in {repo_owner}/{repo_name}",
             pr_number=pr_number,
             repo=repo_name,
             owner=repo_owner,
@@ -470,7 +470,7 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
         # Verify PR exists and is accessible
         if self._pull_request is None:
             raise RuntimeError(
-                f'Failed to access pull request #{pr_number} in repository {repo_owner}/{repo_name} - pull request may not exist or be inaccessible'
+                f"Failed to access pull request #{pr_number} in repository {repo_owner}/{repo_name} - pull request may not exist or be inaccessible"
             )
 
         try:
@@ -478,58 +478,58 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
             self._pull_request.edit(body=description)
 
             self._logger.info(
-                f'Successfully updated description for PR #{pr_number}',
+                f"Successfully updated description for PR #{pr_number}",
                 pr_number=pr_number,
             )
 
-            return f'Successfully updated description for PR #{pr_number} in {repo_owner}/{repo_name}'
+            return f"Successfully updated description for PR #{pr_number} in {repo_owner}/{repo_name}"
 
         except GithubException as e:
             sanitized = sanitize_exception_for_logging(e)
 
-            if '404' in str(e).lower() or 'not found' in str(e).lower():
+            if "404" in str(e).lower() or "not found" in str(e).lower():
                 self._logger.error(
-                    f'Pull request #{pr_number} not found in {repo_owner}/{repo_name}',
+                    f"Pull request #{pr_number} not found in {repo_owner}/{repo_name}",
                     extra=sanitized,
                     pr_number=pr_number,
                 )
-                raise RuntimeError(f'Pull request #{pr_number} not found in repository {repo_owner}/{repo_name}') from e
+                raise RuntimeError(f"Pull request #{pr_number} not found in repository {repo_owner}/{repo_name}") from e
 
-            if '403' in str(e).lower() or 'forbidden' in str(e).lower():
+            if "403" in str(e).lower() or "forbidden" in str(e).lower():
                 self._logger.error(
-                    f'Permission denied for PR #{pr_number} - insufficient permissions',
+                    f"Permission denied for PR #{pr_number} - insufficient permissions",
                     extra=sanitized,
                     pr_number=pr_number,
                 )
                 raise RuntimeError(f"Insufficient permissions to update PR #{pr_number} - ensure token has 'repo' scope and write access") from e
 
-            if '429' in str(e).lower() or 'rate limit' in str(e).lower():
+            if "429" in str(e).lower() or "rate limit" in str(e).lower():
                 self._logger.warning(
-                    f'GitHub API rate limit exceeded while updating PR #{pr_number}',
+                    f"GitHub API rate limit exceeded while updating PR #{pr_number}",
                     extra=sanitized,
                     pr_number=pr_number,
                 )
-                raise RuntimeError('GitHub API rate limit exceeded - please retry later') from e
+                raise RuntimeError("GitHub API rate limit exceeded - please retry later") from e
 
             self._logger.error(
-                f'GitHub API error while updating description for PR #{pr_number}',
+                f"GitHub API error while updating description for PR #{pr_number}",
                 extra=sanitized,
                 pr_number=pr_number,
             )
-            raise RuntimeError(f'GitHub API error while updating description for PR #{pr_number}') from e
+            raise RuntimeError(f"GitHub API error while updating description for PR #{pr_number}") from e
 
     def _get_latest_commit_sha_sync(self) -> str:
         self._initialize_github_objects()
 
         if self._repository is None:
-            raise RuntimeError(f'Failed to initialize repository {self._repo_owner}/{self._repo_name} - GitHub objects may not have been properly initialized')
+            raise RuntimeError(f"Failed to initialize repository {self._repo_owner}/{self._repo_name} - GitHub objects may not have been properly initialized")
         if self._pull_request is None:
-            raise RuntimeError(f'Failed to initialize pull request #{self._pr_number} - GitHub objects may not have been properly initialized')
+            raise RuntimeError(f"Failed to initialize pull request #{self._pr_number} - GitHub objects may not have been properly initialized")
 
         self._pull_request = self._github_api_client._get_pygithub_pull_request(self._repository, self._pr_number)
 
         if self._pull_request is None:
-            raise ValueError(f'Failed to refresh pull request #{self._pr_number} - it may have been deleted or become inaccessible')
+            raise ValueError(f"Failed to refresh pull request #{self._pr_number} - it may have been deleted or become inaccessible")
 
         return self._pull_request.head.sha
 
@@ -537,9 +537,9 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
         self._initialize_github_objects()
 
         if self._repository is None:
-            raise RuntimeError(f'Failed to initialize repository {self._repo_owner}/{self._repo_name} - GitHub objects may not have been properly initialized')
+            raise RuntimeError(f"Failed to initialize repository {self._repo_owner}/{self._repo_name} - GitHub objects may not have been properly initialized")
         if self._pull_request is None:
-            raise RuntimeError(f'Failed to initialize pull request #{self._pr_number} - GitHub objects may not have been properly initialized')
+            raise RuntimeError(f"Failed to initialize pull request #{self._pr_number} - GitHub objects may not have been properly initialized")
 
         base_sha, head_sha = self._get_merge_base_commits()
 
@@ -550,7 +550,7 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
             self._log_filtered_files(pr_files, filtered_files)
 
         if self._repository is None:
-            raise RuntimeError(f'Repository {self._repo_owner}/{self._repo_name} became invalid during processing')
+            raise RuntimeError(f"Repository {self._repo_owner}/{self._repo_name} became invalid during processing")
         diff_files = self._file_processor.process_files_to_patches(filtered_files, self._repository, head_sha, base_sha)
 
         service = GitHubPRDiffService(
@@ -562,14 +562,14 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
         # Convert FilePatchInfo list to FileDiffResponse list
         file_responses: list[FileDiffResponse] = [service._convert_file_patch_info_to_response(file_patch) for file_patch in diff_files]
 
-        self._logger.info(f'Generated diff content for {len(file_responses)} files')
+        self._logger.info(f"Generated diff content for {len(file_responses)} files")
 
         if self._logger.should_log(LogLevel.DEBUG):
             safe_diff_preview = self._input_validator.sanitize_for_logging(
-                f'Files: {len(file_responses)}',
+                f"Files: {len(file_responses)}",
                 max_length=1000,
             )
-            self._logger.debug(f'Diff content preview:\n{safe_diff_preview}')
+            self._logger.debug(f"Diff content preview:\n{safe_diff_preview}")
 
         return PRDiff(files=tuple(file_responses))
 
@@ -584,9 +584,9 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
         """
         # Check that objects are initialized (replace assertion with proper exception)
         if self._repository is None:
-            raise RuntimeError(f'Repository {self._repo_owner}/{self._repo_name} not initialized')
+            raise RuntimeError(f"Repository {self._repo_owner}/{self._repo_name} not initialized")
         if self._pull_request is None:
-            raise RuntimeError(f'Pull request #{self._pr_number} not initialized')
+            raise RuntimeError(f"Pull request #{self._pr_number} not initialized")
 
         try:
             compare = self._repository.compare(self._pull_request.base.sha, self._pull_request.head.sha)
@@ -595,21 +595,21 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
         except (UnknownObjectException, RateLimitExceededException) as e:
             sanitized = sanitize_exception_for_logging(e)
             self._logger.warning(
-                'Could not determine merge base, falling back to base commit',
+                "Could not determine merge base, falling back to base commit",
                 extra=sanitized,
             )
             base_sha = self._pull_request.base.sha
         except GithubException as e:
             sanitized = sanitize_exception_for_logging(e)
-            self._logger.error('Failed to get merge base commit', extra=sanitized)
+            self._logger.error("Failed to get merge base commit", extra=sanitized)
             base_sha = self._pull_request.base.sha
 
         # Check pull request again after exception handling
         if self._pull_request is None:
-            raise RuntimeError(f'Pull request #{self._pr_number} became invalid during merge base calculation')
+            raise RuntimeError(f"Pull request #{self._pr_number} became invalid during merge base calculation")
 
         if base_sha != self._pull_request.base.sha:
-            self._logger.info(f'Using merge base commit {base_sha} instead of base commit {self._pull_request.base.sha}')
+            self._logger.info(f"Using merge base commit {base_sha} instead of base commit {self._pull_request.base.sha}")
 
         head_sha = self._pull_request.head.sha
         return base_sha, head_sha
@@ -634,19 +634,19 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
             original_names = [self._sanitize_filename_for_logging(file.filename) for file in original_files]
             filtered_names = [self._sanitize_filename_for_logging(file.filename) for file in filtered_files]
             self._logger.info(
-                'Filtered out [ignore] files for pull request:',
-                extra={'files': original_names, 'filtered_files': filtered_names},
+                "Filtered out [ignore] files for pull request:",
+                extra={"files": original_names, "filtered_files": filtered_names},
             )
         except Exception as e:
             # Log warning instead of silently swallowing exceptions
             self._logger.warning(
-                f'Failed to log filtered files: {e}',
+                f"Failed to log filtered files: {e}",
                 error_type=type(e).__name__,
             )
 
 
 # Global instance cache for singleton pattern
-_repository_cache: dict[str, 'GitHubPRDiffRepository'] = {}
+_repository_cache: dict[str, "GitHubPRDiffRepository"] = {}
 
 
 def get_github_repository(
@@ -678,9 +678,9 @@ def get_github_repository(
     global _repository_cache
 
     # Create a unique cache key for this repository and PR
-    cache_key = f'{repo_owner}/{repo_name}/pr/{pr_number}'
+    cache_key = f"{repo_owner}/{repo_name}/pr/{pr_number}"
     if github_token:
-        cache_key = f'{cache_key}/token'
+        cache_key = f"{cache_key}/token"
 
     if cache_key not in _repository_cache:
         _repository_cache[cache_key] = GitHubPRDiffRepository(

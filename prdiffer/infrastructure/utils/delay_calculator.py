@@ -42,7 +42,7 @@ def calculate_adaptive_delay(
     base_delay: float,
     backoff_multiplier: float,
     error: Exception | None = None,
-    health_tracker: 'APIHealthTracker | None' = None,
+    health_tracker: "APIHealthTracker | None" = None,
     max_delay: float = 30.0,
 ) -> float:
     """Calculate adaptive retry delay based on API health and error type.
@@ -102,7 +102,7 @@ def calculate_retry_delay(
     use_adaptive: bool = False,
     secondary_backoff: float = 60.0,
     reset_buffer: float = 1.0,
-    health_tracker: 'APIHealthTracker | None' = None,
+    health_tracker: "APIHealthTracker | None" = None,
     max_adaptive_delay: float = 30.0,
 ) -> float:
     """Calculate retry delay based on error type and configuration.

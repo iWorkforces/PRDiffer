@@ -9,10 +9,10 @@ from .file_processor import FileProcessor, get_file_processor
 from .diff_generator import DiffGenerator, get_diff_generator
 
 __all__ = [
-    'GitHubAPIClient',
-    'get_github_api_client',
-    'FileProcessor',
-    'get_file_processor',
-    'DiffGenerator',
-    'get_diff_generator',
+    "GitHubAPIClient",
+    "get_github_api_client",
+    "FileProcessor",
+    "get_file_processor",
+    "DiffGenerator",
+    "get_diff_generator",
 ]

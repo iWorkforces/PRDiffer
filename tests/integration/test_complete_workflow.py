@@ -30,16 +30,16 @@ class TestCompleteWorkflow:
         mock_settings = Mock()
         mock_settings.get = Mock(
             side_effect=lambda key, default=None: {
-                'app.debug': False,
-                'app.log_level': 'INFO',
-                'app.max_files_allowed': 50,
-                'github.rate_limit': 5000,
-                'github.timeout': 30,
-                'cache.ttl': 300,
-                'cache.use_hashed_keys': True,
-                'rate_limit.max_requests': 100,
-                'rate_limit.window_seconds': 60,
-                'mcp.transport': 'stdio',
+                "app.debug": False,
+                "app.log_level": "INFO",
+                "app.max_files_allowed": 50,
+                "github.rate_limit": 5000,
+                "github.timeout": 30,
+                "cache.ttl": 300,
+                "cache.use_hashed_keys": True,
+                "rate_limit.max_requests": 100,
+                "rate_limit.window_seconds": 60,
+                "mcp.transport": "stdio",
             }.get(key, default)
         )
         return mock_settings
@@ -51,7 +51,7 @@ class TestCompleteWorkflow:
 
         logger = ConsoleLogger()
         # Disable actual logging during tests
-        setattr(logger, '_logger', Mock())
+        setattr(logger, "_logger", Mock())
         return logger
 
     @pytest.fixture
@@ -62,7 +62,7 @@ class TestCompleteWorkflow:
         mock_cache.set = Mock()
         mock_cache.invalidate = Mock()
         mock_cache.clear = Mock()
-        mock_cache.get_stats = Mock(return_value={'size': 0})
+        mock_cache.get_stats = Mock(return_value={"size": 0})
         return mock_cache
 
     @pytest.fixture
@@ -71,7 +71,7 @@ class TestCompleteWorkflow:
         mock_repo_cache = Mock()
         mock_repo_cache.retrieve = Mock(return_value=None)
         mock_repo_cache.insert = Mock(return_value=True)
-        mock_repo_cache.stats = Mock(return_value={'total_entries': 0})
+        mock_repo_cache.stats = Mock(return_value={"total_entries": 0})
         return mock_repo_cache
 
     @pytest.fixture
@@ -112,7 +112,7 @@ class TestCompleteWorkflow:
 
         # Verify server initialized properly
         assert server.mcp is not None
-        assert hasattr(server, '_pr_diff_service')
+        assert hasattr(server, "_pr_diff_service")
 
     def test_workflow_with_caching(
         self,
@@ -164,8 +164,8 @@ class TestCompleteWorkflow:
 
         # Verify metrics tracker is available
         assert server._metrics_tracker is not None
-        assert hasattr(server._metrics_tracker, 'track_request')
-        assert hasattr(server._metrics_tracker, 'get_metrics_summary')
+        assert hasattr(server._metrics_tracker, "track_request")
+        assert hasattr(server._metrics_tracker, "get_metrics_summary")
 
     def test_workflow_with_health_monitoring(
         self,
@@ -189,12 +189,12 @@ class TestCompleteWorkflow:
 
         # Verify health monitor is available
         assert server._health_monitor is not None
-        assert hasattr(server._health_monitor, 'check_health')
+        assert hasattr(server._health_monitor, "check_health")
 
         # Get health status
         health = anyio.run(server._health_endpoints._get_health_status)
-        assert 'status' in health
-        assert 'uptime_seconds' in health
+        assert "status" in health
+        assert "uptime_seconds" in health
 
     def test_workflow_with_rate_limiting(
         self,
@@ -218,8 +218,8 @@ class TestCompleteWorkflow:
 
         # Verify rate limiter is available
         assert server._rate_limiter is not None
-        assert hasattr(server._rate_limiter, 'check_rate_limit')
-        assert hasattr(server._rate_limiter, 'increment_rate_limit')
+        assert hasattr(server._rate_limiter, "check_rate_limit")
+        assert hasattr(server._rate_limiter, "increment_rate_limit")
 
     def test_workflow_with_authentication(
         self,
@@ -243,13 +243,13 @@ class TestCompleteWorkflow:
 
         # Verify authentication middleware is available
         assert server._authentication is not None
-        assert hasattr(server._authentication, 'authenticate')
+        assert hasattr(server._authentication, "authenticate")
 
         # Test authentication (disabled by default)
         is_auth, client_id = server._authentication.authenticate(None)
         # When disabled, should allow all requests
         assert is_auth is True
-        assert client_id == 'anonymous'
+        assert client_id == "anonymous"
 
     def test_workflow_component_integration(
         self,
@@ -308,7 +308,7 @@ class TestCompleteWorkflow:
 
         # Verify request coalescing service is available
         assert server._request_coalescing is not None
-        assert hasattr(server._request_coalescing, 'coalesce')
+        assert hasattr(server._request_coalescing, "coalesce")
 
 
 @pytest.mark.integration
@@ -359,7 +359,7 @@ class TestWorkflowWithRealServices:
         mock_repo_cache = Mock()
         mock_repo_cache.retrieve = Mock(return_value=None)
         mock_repo_cache.insert = Mock(return_value=True)
-        mock_repo_cache.stats = Mock(return_value={'total_entries': 0})
+        mock_repo_cache.stats = Mock(return_value={"total_entries": 0})
 
         # Create server with real services
         server = create_mcp_server(
@@ -389,25 +389,25 @@ class TestWorkflowWithRealServices:
         pr_diff = PRDiff(
             files=(
                 FileDiffResponse(
-                    path='test.py',
+                    path="test.py",
                     status=EDIT_TYPE.MODIFIED,
                     stats=FileStats(additions=5, deletions=2),
-                    diff='test diff content',
+                    diff="test diff content",
                 ),
             )
         )
 
         # Test cache set and get
-        await real_cache.set('owner/repo/pr/123', 'abc123', pr_diff)
+        await real_cache.set("owner/repo/pr/123", "abc123", pr_diff)
 
         # Verify cache contains data
         stats = real_cache.get_stats()
-        assert stats['cache_size'] == 1
+        assert stats["cache_size"] == 1
 
         # Test cache retrieval
-        result = await real_cache.get('owner/repo/pr/123', 'abc123')
+        result = await real_cache.get("owner/repo/pr/123", "abc123")
         assert result is not None
-        assert result.files[0].diff == 'test diff content'
+        assert result.files[0].diff == "test diff content"
 
         # Clean up
         await real_cache.clear()
@@ -495,19 +495,19 @@ class TestEndToEndScenarios:
         )
 
         # Test rate limiter integration
-        is_allowed = rate_limiter.check_rate_limit('test_client')
+        is_allowed = rate_limiter.check_rate_limit("test_client")
         assert is_allowed is True
 
-        rate_limiter.increment_rate_limit('test_client')
+        rate_limiter.increment_rate_limit("test_client")
 
         # Test metrics tracker integration
         request_id = metrics_tracker.generate_request_id()
-        assert request_id.startswith('REQ-')
+        assert request_id.startswith("REQ-")
 
-        metrics_tracker.track_request('test_operation', True, 0.5)
+        metrics_tracker.track_request("test_operation", True, 0.5)
 
         summary = metrics_tracker.get_metrics_summary()
-        assert summary['total_requests'] == 1
+        assert summary["total_requests"] == 1
 
     def test_health_check_scenario(self):
         """Test health check scenario."""
@@ -547,8 +547,8 @@ class TestEndToEndScenarios:
         health = anyio.run(server._health_endpoints._get_health_status)
 
         # Verify health status structure
-        assert 'status' in health
-        assert 'uptime_seconds' in health
-        assert 'total_requests' in health
-        assert 'successful_requests' in health
-        assert 'failed_requests' in health
+        assert "status" in health
+        assert "uptime_seconds" in health
+        assert "total_requests" in health
+        assert "successful_requests" in health
+        assert "failed_requests" in health

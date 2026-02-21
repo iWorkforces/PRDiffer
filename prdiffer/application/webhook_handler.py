@@ -66,67 +66,67 @@ class WebhookHandler:
         Raises:
             ValueError: If signature verification fails or payload is invalid
         """
-        webhook_secret = self._settings_service.get('github.webhook.secret', default='')
+        webhook_secret = self._settings_service.get("github.webhook.secret", default="")
 
         if not webhook_secret:
             self._logger.warning(
-                'Webhook received but no secret configured',
+                "Webhook received but no secret configured",
                 github_event=github_event,
             )
-            return {'status': 'error', 'message': 'Webhook secret not configured'}
+            return {"status": "error", "message": "Webhook secret not configured"}
 
-        if github_event not in ['pull_request', 'push']:
+        if github_event not in ["pull_request", "push"]:
             self._logger.warning(
-                'Unsupported webhook event type',
+                "Unsupported webhook event type",
                 github_event=github_event,
             )
-            return {'status': 'error', 'message': 'Unsupported event type'}
+            return {"status": "error", "message": "Unsupported event type"}
 
-        expected_signature = f'sha256={hmac.new(webhook_secret.encode(), payload_bytes, "sha256").hexdigest()}'
+        expected_signature = f"sha256={hmac.new(webhook_secret.encode(), payload_bytes, 'sha256').hexdigest()}"
 
         if not hmac.compare_digest(expected_signature.encode(), signature.encode()):
             self._logger.warning(
-                'Invalid webhook signature',
+                "Invalid webhook signature",
                 github_event=github_event,
             )
-            return {'status': 'error', 'message': 'Invalid signature'}
+            return {"status": "error", "message": "Invalid signature"}
 
         try:
-            payload = json.loads(payload_bytes.decode('utf-8'))
+            payload = json.loads(payload_bytes.decode("utf-8"))
         except (json.JSONDecodeError, UnicodeDecodeError) as e:
             self._logger.error(
-                'Failed to parse webhook payload after HMAC verification',
+                "Failed to parse webhook payload after HMAC verification",
                 github_event=github_event,
                 error=str(e),
             )
-            return {'status': 'error', 'message': 'Invalid payload format'}
+            return {"status": "error", "message": "Invalid payload format"}
 
-        repository = payload.get('repository', {})
-        repository_full_name = repository.get('full_name', '')
-        number = payload.get('number')
-        action = payload.get('action')
+        repository = payload.get("repository", {})
+        repository_full_name = repository.get("full_name", "")
+        number = payload.get("number")
+        action = payload.get("action")
         cache_key = None
 
         if not repository_full_name:
             self._logger.warning(
-                'Webhook payload missing repository information',
+                "Webhook payload missing repository information",
                 github_event=github_event,
             )
-            return {'status': 'error', 'message': 'Missing repository info'}
+            return {"status": "error", "message": "Missing repository info"}
 
-        if github_event == 'pull_request':
-            if action in ['opened', 'synchronize', 'reopened']:
-                cache_key = f'{repository_full_name}/pr/{number}'
+        if github_event == "pull_request":
+            if action in ["opened", "synchronize", "reopened"]:
+                cache_key = f"{repository_full_name}/pr/{number}"
                 self._logger.info(
-                    'Invalidating cache on PR updated',
+                    "Invalidating cache on PR updated",
                     cache_key=cache_key,
                     github_event=github_event,
                 )
                 self._repository_cache_service.invalidate(cache_key)
-        elif github_event == 'push':
+        elif github_event == "push":
             cache_key = repository_full_name
             self._logger.info(
-                'Invalidating cache on push',
+                "Invalidating cache on push",
                 cache_key=cache_key,
                 github_event=github_event,
             )
@@ -134,12 +134,12 @@ class WebhookHandler:
             await self._cache_service.invalidate(repository_full_name)
 
         self._logger.info(
-            'Webhook processed successfully',
+            "Webhook processed successfully",
             github_event=github_event,
-            cache_key=cache_key if cache_key else 'N/A',
+            cache_key=cache_key if cache_key else "N/A",
         )
 
-        return {'status': 'success', 'message': 'Cache invalidated'}
+        return {"status": "success", "message": "Cache invalidated"}
 
     def get_webhook_handler(self):
         """Get the webhook handler function.
@@ -163,24 +163,24 @@ class WebhookHandler:
                 JSONResponse with status indicating success or failure
             """
             try:
-                signature = request.headers.get('X-Hub-Signature-256', '')
+                signature = request.headers.get("X-Hub-Signature-256", "")
                 if not signature:
-                    signature = request.headers.get('X-Hub-Signature', '')
+                    signature = request.headers.get("X-Hub-Signature", "")
 
-                github_event = request.headers.get('X-GitHub-Event', '')
+                github_event = request.headers.get("X-GitHub-Event", "")
 
                 payload_bytes = await request.body()
 
                 result = await self.webhook_invalidate_cache(payload_bytes, signature, github_event)
 
-                if result['status'] == 'error':
-                    error_message = result.get('message', '')
+                if result["status"] == "error":
+                    error_message = result.get("message", "")
                     if error_message in [
-                        'Invalid payload format',
-                        'Invalid JSON payload',
+                        "Invalid payload format",
+                        "Invalid JSON payload",
                     ]:
                         return JSONResponse(result, status_code=400)
-                    elif error_message == 'Invalid signature':
+                    elif error_message == "Invalid signature":
                         return JSONResponse(result, status_code=401)
                     else:
                         return JSONResponse(result, status_code=400)
@@ -188,22 +188,22 @@ class WebhookHandler:
                 return JSONResponse(result, status_code=200)
             except json.JSONDecodeError as e:
                 self._logger.error(
-                    'Failed to parse webhook payload',
+                    "Failed to parse webhook payload",
                     error=str(e),
                     error_type=type(e).__name__,
                 )
                 return JSONResponse(
-                    {'status': 'error', 'message': 'Invalid JSON payload'},
+                    {"status": "error", "message": "Invalid JSON payload"},
                     status_code=400,
                 )
             except Exception as e:
                 self._logger.error(
-                    'Webhook handler error',
+                    "Webhook handler error",
                     error=str(e),
                     error_type=type(e).__name__,
                 )
                 return JSONResponse(
-                    {'status': 'error', 'message': 'Internal server error'},
+                    {"status": "error", "message": "Internal server error"},
                     status_code=500,
                 )
 

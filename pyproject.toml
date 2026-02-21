@@ -209,18 +209,18 @@ target-version = "py314"
 line-length = 160  # Modern standard for readability, catches all project lines
 
 [tool.ruff.lint]
-# Enable flake8-quotes rules for single quote enforcement
+# Enable flake8-quotes rules for double quote enforcement
 select = ["E", "F", "W", "Q"]
 ignore = []  # All fixable issues should be handled
 
 [tool.ruff.lint.flake8-quotes]
-# Enforce single quotes throughout
-docstring-quotes = "single"
-multiline-quotes = "single"
-inline-quotes = "single"
+# Enforce double quotes throughout
+docstring-quotes = "double"
+multiline-quotes = "double"
+inline-quotes = "double"
 
 [tool.ruff.format]
-# Format with single quotes for inline strings
+# Format with double quotes for inline strings
 # Note: ruff format always uses double quotes for docstrings/multiline
-quote-style = "single"
+quote-style = "double"
 docstring-code-format = false

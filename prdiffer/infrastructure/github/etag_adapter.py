@@ -77,13 +77,13 @@ class ETagRequestAdapter:
             self._cache_service.set_etag(cache_key, etag, commit_sha)
             # Also update cache timestamp
             cache_entry = self._cache_service.get(cache_key)
-            if cache_entry and cache_entry.get('timestamp'):
-                cache_entry['timestamp'] = time.time()
+            if cache_entry and cache_entry.get("timestamp"):
+                cache_entry["timestamp"] = time.time()
 
     def clear_cache(self) -> None:
         """Clear all cached ETags and content."""
         self._etag_cache.clear()
-        self._logger.info('ETag cache cleared')
+        self._logger.info("ETag cache cleared")
 
     def get_stats(self) -> dict[str, Any]:
         """Get ETag adapter statistics.
@@ -95,14 +95,14 @@ class ETagRequestAdapter:
         hit_rate = (self._etag_hits / total_requests * 100) if total_requests > 0 else 0
 
         return {
-            'enabled': self._enabled,
-            'cache_size': len(self._etag_cache),
-            'max_cache_size': self._etag_cache_size,
-            'ttl_seconds': self._etag_ttl,
-            'etag_hits': self._etag_hits,
-            'etag_misses': self._etag_misses,
-            'not_modified_responses': self._not_modified_responses,
-            'hit_rate_percent': round(hit_rate, 2),
+            "enabled": self._enabled,
+            "cache_size": len(self._etag_cache),
+            "max_cache_size": self._etag_cache_size,
+            "ttl_seconds": self._etag_ttl,
+            "etag_hits": self._etag_hits,
+            "etag_misses": self._etag_misses,
+            "not_modified_responses": self._not_modified_responses,
+            "hit_rate_percent": round(hit_rate, 2),
         }
 
     def add_if_none_match_header(self, url: str, headers: dict[str, str]) -> dict[str, str]:
@@ -120,9 +120,9 @@ class ETagRequestAdapter:
 
         etag = self._get_etag(url)
         if etag:
-            headers['If-None-Match'] = etag
+            headers["If-None-Match"] = etag
             self._logger.debug(
-                f'Added If-None-Match header for {url[:60]}...',
+                f"Added If-None-Match header for {url[:60]}...",
                 etag=etag,
             )
         return headers
@@ -142,7 +142,7 @@ class ETagRequestAdapter:
         if not self._enabled:
             return content
 
-        etag = headers.get('ETag')
+        etag = headers.get("ETag")
 
         if status_code == self.HTTP_NOT_MODIFIED:
             self._not_modified_responses += 1
@@ -150,22 +150,22 @@ class ETagRequestAdapter:
 
             if cached_content is not None:
                 self._logger.info(
-                    f'304 Not Modified - returning cached content for {url[:60]}...',
+                    f"304 Not Modified - returning cached content for {url[:60]}...",
                     etag=etag,
                 )
                 return cached_content
             else:
                 self._logger.warning(
-                    f'304 response but no cached content for {url[:60]}...',
+                    f"304 response but no cached content for {url[:60]}...",
                     url=url,
                 )
-                return ''
+                return ""
 
         if etag:
             self._store_etag(url, etag, content)
         elif status_code == 200:
             self._logger.debug(
-                f'200 response without ETag for {url[:60]}...',
+                f"200 response without ETag for {url[:60]}...",
                 url=url,
             )
 

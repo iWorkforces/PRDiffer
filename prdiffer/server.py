@@ -24,8 +24,8 @@ def parse_args() -> argparse.Namespace:
         Parsed command-line arguments
     """
     parser = argparse.ArgumentParser(
-        prog='prdiffer',
-        description='MCP Server for GitHub PR Review Process with Full Contexts',
+        prog="prdiffer",
+        description="MCP Server for GitHub PR Review Process with Full Contexts",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
@@ -48,35 +48,35 @@ Environment Variables:
     )
 
     parser.add_argument(
-        '--version',
-        action='version',
-        version=f'%(prog)s {__version__}',
-        help='Show version and exit',
+        "--version",
+        action="version",
+        version=f"%(prog)s {__version__}",
+        help="Show version and exit",
     )
 
     parser.add_argument(
-        '--transport',
+        "--transport",
         type=str,
-        choices=['stdio', 'http', 'sse', 'streamable-http'],
-        help='Transport protocol (default: http, or from settings.toml)',
+        choices=["stdio", "http", "sse", "streamable-http"],
+        help="Transport protocol (default: http, or from settings.toml)",
     )
 
     parser.add_argument(
-        '--port',
+        "--port",
         type=int,
-        help='Server port for non-stdio transports (default: 9102)',
+        help="Server port for non-stdio transports (default: 9102)",
     )
 
     parser.add_argument(
-        '--host',
+        "--host",
         type=str,
-        help='Server host for non-stdio transports (default: 127.0.0.1)',
+        help="Server host for non-stdio transports (default: 127.0.0.1)",
     )
 
     parser.add_argument(
-        '--path',
+        "--path",
         type=str,
-        help='Server path for non-stdio transports (default: /mcp)',
+        help="Server path for non-stdio transports (default: /mcp)",
     )
 
     return parser.parse_args()
@@ -94,29 +94,29 @@ def main() -> None:
     # Set environment variables based on CLI args or defaults
     # Priority: CLI args > existing env vars > default (http)
     if args.transport:
-        os.environ['MCP_TRANSPORT'] = args.transport
-    elif 'MCP_TRANSPORT' not in os.environ:
-        os.environ['MCP_TRANSPORT'] = 'http'
+        os.environ["MCP_TRANSPORT"] = args.transport
+    elif "MCP_TRANSPORT" not in os.environ:
+        os.environ["MCP_TRANSPORT"] = "http"
 
     if args.port:
-        os.environ['MCP_PORT'] = str(args.port)
+        os.environ["MCP_PORT"] = str(args.port)
 
     if args.host:
-        os.environ['MCP_HOST'] = args.host
+        os.environ["MCP_HOST"] = args.host
 
     if args.path:
-        os.environ['MCP_PATH'] = args.path
+        os.environ["MCP_PATH"] = args.path
 
     # Get the transport mode to determine where to print messages
-    transport_mode = os.environ.get('MCP_TRANSPORT', 'stdio')
+    transport_mode = os.environ.get("MCP_TRANSPORT", "stdio")
 
     # In stdio mode, ALL output must go to stderr to avoid corrupting JSON-RPC protocol
     # Only JSON-RPC messages should go to stdout in stdio mode
-    output_stream = sys.stderr if transport_mode == 'stdio' else sys.stdout
+    output_stream = sys.stderr if transport_mode == "stdio" else sys.stdout
 
     print("🚀 Starting MCP Server For Fetching GitHub PR's Diff...", file=output_stream)
-    print(f'📦 Version: {__version__}', file=output_stream)
-    print(f'🔧 Transport: {transport_mode}', file=output_stream)
+    print(f"📦 Version: {__version__}", file=output_stream)
+    print(f"🔧 Transport: {transport_mode}", file=output_stream)
 
     # Load environment variables from .env file (if present)
     load_dotenv()
@@ -140,24 +140,24 @@ def main() -> None:
         server.run()
     except KeyboardInterrupt:
         # Allow graceful exit on Ctrl+C
-        print('\n⚠️  Server shutdown requested by user', file=output_stream)
+        print("\n⚠️  Server shutdown requested by user", file=output_stream)
         sys.exit(0)
     except SystemExit as e:
         # Allow sys.exit() to propagate
         if e.code != 0:
-            logger.critical(f'Server exiting with code {e.code}')
+            logger.critical(f"Server exiting with code {e.code}")
         sys.exit(e.code)
     except Exception as e:
         # Catch-all for any other unhandled exceptions
         logger.critical(
-            'Server crashed with unhandled exception',
+            "Server crashed with unhandled exception",
             exc_info=True,
             error_type=type(e).__name__,
             error_message=str(e),
         )
-        print(f'❌ Fatal error: {type(e).__name__}: {e}', file=output_stream)
+        print(f"❌ Fatal error: {type(e).__name__}: {e}", file=output_stream)
         sys.exit(1)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

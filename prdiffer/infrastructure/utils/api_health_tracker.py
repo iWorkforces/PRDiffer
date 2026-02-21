@@ -159,23 +159,23 @@ class APIHealthTracker:
 
         if not recent_calls:
             return {
-                'health_score': 1.0,
-                'total_calls': 0,
-                'success_rate': 1.0,
-                'avg_duration': 0.0,
-                'error_patterns': {},
+                "health_score": 1.0,
+                "total_calls": 0,
+                "success_rate": 1.0,
+                "avg_duration": 0.0,
+                "error_patterns": {},
             }
 
         successful_calls = [call for call in recent_calls if call.success]
 
         return {
-            'health_score': self.get_health_score(),
-            'total_calls': len(recent_calls),
-            'success_rate': len(successful_calls) / len(recent_calls),
-            'avg_duration': sum(call.duration for call in recent_calls) / len(recent_calls),
-            'error_patterns': self.get_error_pattern(),
-            'window_size': self.window_size,
-            'time_window': self.time_window,
+            "health_score": self.get_health_score(),
+            "total_calls": len(recent_calls),
+            "success_rate": len(successful_calls) / len(recent_calls),
+            "avg_duration": sum(call.duration for call in recent_calls) / len(recent_calls),
+            "error_patterns": self.get_error_pattern(),
+            "window_size": self.window_size,
+            "time_window": self.time_window,
         }
 
 

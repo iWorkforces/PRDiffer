@@ -14,7 +14,7 @@ from prdiffer.infrastructure.settings import (
 @pytest.fixture
 def settings_service():
     """Create SettingsService for testing."""
-    with patch('prdiffer.infrastructure.settings.Dynaconf') as MockDynaconf:
+    with patch("prdiffer.infrastructure.settings.Dynaconf") as MockDynaconf:
         MockDynaconf.return_value = MagicMock()
         service = SettingsService()
         service.settings = MagicMock()
@@ -28,28 +28,28 @@ class TestSettingsServiceInit:
 
     def test_init_default_files(self):
         """Test initialization with default settings files."""
-        with patch('prdiffer.infrastructure.settings.Dynaconf') as MockDynaconf:
+        with patch("prdiffer.infrastructure.settings.Dynaconf") as MockDynaconf:
             _ = SettingsService()  # service created for side effect
 
             MockDynaconf.assert_called_once()
             call_kwargs = MockDynaconf.call_args[1]
-            assert call_kwargs['settings_files'] == ['settings.toml', '.secrets.toml']
+            assert call_kwargs["settings_files"] == ["settings.toml", ".secrets.toml"]
 
     def test_init_custom_files(self):
         """Test initialization with custom settings files."""
-        with patch('prdiffer.infrastructure.settings.Dynaconf') as MockDynaconf:
-            custom_files = ['custom.toml']
+        with patch("prdiffer.infrastructure.settings.Dynaconf") as MockDynaconf:
+            custom_files = ["custom.toml"]
             _ = SettingsService(settings_files=custom_files)  # service created for side effect
 
             call_kwargs = MockDynaconf.call_args[1]
-            assert call_kwargs['settings_files'] == custom_files
+            assert call_kwargs["settings_files"] == custom_files
 
     def test_init_cache_attributes(self):
         """Test initialization creates cache attributes."""
-        with patch('prdiffer.infrastructure.settings.Dynaconf'):
+        with patch("prdiffer.infrastructure.settings.Dynaconf"):
             service = SettingsService()
 
-            assert hasattr(service, '_cache_lock')
+            assert hasattr(service, "_cache_lock")
             assert isinstance(service._cache_lock, type(RLock()))
             assert service._github_settings_cache is None
             assert service._github_config_cache is None
@@ -62,27 +62,27 @@ class TestGet:
 
     def test_get_value(self, settings_service):
         """Test getting a value."""
-        settings_service.settings.get.return_value = 'test_value'
+        settings_service.settings.get.return_value = "test_value"
 
-        result = settings_service.get('test.key')
+        result = settings_service.get("test.key")
 
-        settings_service.settings.get.assert_called_once_with('test.key', None)
-        assert result == 'test_value'
+        settings_service.settings.get.assert_called_once_with("test.key", None)
+        assert result == "test_value"
 
     def test_get_with_default(self, settings_service):
         """Test getting a value with default."""
 
         # When get returns None, the default should be returned
         def mock_get(key, default=None):
-            if key == 'test.key':
+            if key == "test.key":
                 return default
             return None
 
         settings_service.settings.get = mock_get
 
-        result = settings_service.get('test.key', 'default_value')
+        result = settings_service.get("test.key", "default_value")
 
-        assert result == 'default_value'
+        assert result == "default_value"
 
 
 class TestGetGithubSettings:
@@ -105,19 +105,19 @@ class TestGetGithubSettings:
 
         result = settings_service.get_github_settings()
 
-        assert 'rate_limit' in result
-        assert 'timeout' in result
-        assert 'max_retries' in result
-        assert 'ignore_patterns' in result
-        assert 'valid_extensions' in result
+        assert "rate_limit" in result
+        assert "timeout" in result
+        assert "max_retries" in result
+        assert "ignore_patterns" in result
+        assert "valid_extensions" in result
 
     def test_get_github_settings_custom_values(self, settings_service):
         """Test GitHub settings with custom values."""
 
         def mock_get(key, default=None):
-            if key == 'github.rate_limit':
+            if key == "github.rate_limit":
                 return 10000
-            if key == 'github.timeout':
+            if key == "github.timeout":
                 return 60
             return default
 
@@ -125,8 +125,8 @@ class TestGetGithubSettings:
 
         result = settings_service.get_github_settings()
 
-        assert result['rate_limit'] == 10000
-        assert result['timeout'] == 60
+        assert result["rate_limit"] == 10000
+        assert result["timeout"] == 60
 
 
 class TestGetGithubConfig:
@@ -158,10 +158,10 @@ class TestGetGithubConfig:
 
         result = settings_service.get_github_config()
 
-        assert hasattr(result, 'rate_limit')
-        assert hasattr(result, 'timeout')
-        assert hasattr(result, 'max_retries')
-        assert hasattr(result, 'ignore_patterns')
+        assert hasattr(result, "rate_limit")
+        assert hasattr(result, "timeout")
+        assert hasattr(result, "max_retries")
+        assert hasattr(result, "ignore_patterns")
 
 
 class TestGetCacheSettings:
@@ -182,9 +182,9 @@ class TestGetCacheSettings:
 
         result = settings_service.get_cache_settings()
 
-        assert 'ttl' in result
-        assert 'max_size' in result
-        assert 'enabled' in result
+        assert "ttl" in result
+        assert "max_size" in result
+        assert "enabled" in result
 
 
 class TestGetAppSettings:
@@ -205,9 +205,9 @@ class TestGetAppSettings:
 
         result = settings_service.get_app_settings()
 
-        assert 'debug' in result
-        assert 'log_level' in result
-        assert 'max_files_allowed' in result
+        assert "debug" in result
+        assert "log_level" in result
+        assert "max_files_allowed" in result
 
 
 class TestGetConfigurationWarnings:
@@ -217,28 +217,28 @@ class TestGetConfigurationWarnings:
         """Test no warnings with normal config."""
 
         def mock_get(key, default=None):
-            if key == 'github.rate_limit':
+            if key == "github.rate_limit":
                 return 5000
-            if key == 'github.timeout':
+            if key == "github.timeout":
                 return 30
-            if key == 'github.max_retries':
+            if key == "github.max_retries":
                 return 3
             return default
 
         settings_service.settings.get = mock_get
 
-        with patch.dict(os.environ, {'GITHUB_TOKEN': 'test_token'}):
+        with patch.dict(os.environ, {"GITHUB_TOKEN": "test_token"}):
             warnings = settings_service.get_configuration_warnings()
 
         # Should not have warnings for normal config
-        rate_warnings = [w for w in warnings if 'rate limit' in w.lower()]
+        rate_warnings = [w for w in warnings if "rate limit" in w.lower()]
         assert len(rate_warnings) == 0
 
     def test_warning_high_rate_limit(self, settings_service):
         """Test warning for high rate limit."""
 
         def mock_get(key, default=None):
-            if key == 'github.rate_limit':
+            if key == "github.rate_limit":
                 return 10000
             return default
 
@@ -246,13 +246,13 @@ class TestGetConfigurationWarnings:
 
         warnings = settings_service.get_configuration_warnings()
 
-        assert any('High rate limit' in w for w in warnings)
+        assert any("High rate limit" in w for w in warnings)
 
     def test_warning_low_timeout(self, settings_service):
         """Test warning for low timeout."""
 
         def mock_get(key, default=None):
-            if key == 'github.timeout':
+            if key == "github.timeout":
                 return 5
             return default
 
@@ -260,13 +260,13 @@ class TestGetConfigurationWarnings:
 
         warnings = settings_service.get_configuration_warnings()
 
-        assert any('Low timeout' in w for w in warnings)
+        assert any("Low timeout" in w for w in warnings)
 
     def test_warning_high_retry_count(self, settings_service):
         """Test warning for high retry count."""
 
         def mock_get(key, default=None):
-            if key == 'github.max_retries':
+            if key == "github.max_retries":
                 return 15
             return default
 
@@ -274,7 +274,7 @@ class TestGetConfigurationWarnings:
 
         warnings = settings_service.get_configuration_warnings()
 
-        assert any('High retry count' in w for w in warnings)
+        assert any("High retry count" in w for w in warnings)
 
 
 class TestIsDevelopmentMode:
@@ -292,7 +292,7 @@ class TestIsDevelopmentMode:
         """Test development mode when env is development."""
         settings_service.settings.get.return_value = False
 
-        with patch.dict(os.environ, {'ENV_FOR_DYNACONF': 'development'}):
+        with patch.dict(os.environ, {"ENV_FOR_DYNACONF": "development"}):
             result = settings_service.is_development_mode()
 
         assert result is True
@@ -301,7 +301,7 @@ class TestIsDevelopmentMode:
         """Test production mode."""
         settings_service.settings.get.return_value = False
 
-        with patch.dict(os.environ, {'ENV_FOR_DYNACONF': 'production'}):
+        with patch.dict(os.environ, {"ENV_FOR_DYNACONF": "production"}):
             result = settings_service.is_development_mode()
 
         assert result is False
@@ -312,20 +312,20 @@ class TestGetLoadedConfigFiles:
 
     def test_loaded_files_from_attribute(self, settings_service):
         """Test getting loaded files from _loaded_files attribute."""
-        settings_service.settings._loaded_files = ['/path/to/settings.toml']
+        settings_service.settings._loaded_files = ["/path/to/settings.toml"]
 
         result = settings_service._get_loaded_config_files()
 
-        assert result == ['/path/to/settings.toml']
+        assert result == ["/path/to/settings.toml"]
 
     def test_loaded_files_from_settings_files(self, settings_service):
         """Test getting loaded files from settings_files attribute."""
         del settings_service.settings._loaded_files
-        settings_service.settings.settings_files = ['/path/to/settings.toml']
+        settings_service.settings.settings_files = ["/path/to/settings.toml"]
 
         result = settings_service._get_loaded_config_files()
 
-        assert result == ['/path/to/settings.toml']
+        assert result == ["/path/to/settings.toml"]
 
     def test_loaded_files_no_attribute(self, settings_service):
         """Test empty list when no attributes."""
@@ -343,10 +343,10 @@ class TestClearCache:
     def test_clear_cache(self, settings_service):
         """Test clearing cache."""
         # Set some cached values
-        settings_service._github_settings_cache = {'test': 'value'}
+        settings_service._github_settings_cache = {"test": "value"}
         settings_service._github_config_cache = MagicMock()
-        settings_service._cache_settings_cache = {'test': 'value'}
-        settings_service._app_settings_cache = {'test': 'value'}
+        settings_service._cache_settings_cache = {"test": "value"}
+        settings_service._app_settings_cache = {"test": "value"}
 
         settings_service.clear_cache()
 
@@ -361,7 +361,7 @@ class TestGetSettingsService:
 
     def test_get_settings_service_singleton(self):
         """Test that get_settings_service returns singleton."""
-        with patch('prdiffer.infrastructure.settings.Dynaconf'):
+        with patch("prdiffer.infrastructure.settings.Dynaconf"):
             # Reset global
             import prdiffer.infrastructure.settings as settings_module
 
@@ -374,7 +374,7 @@ class TestGetSettingsService:
 
     def test_get_settings_service_creates_new(self):
         """Test that get_settings_service creates new instance."""
-        with patch('prdiffer.infrastructure.settings.Dynaconf'):
+        with patch("prdiffer.infrastructure.settings.Dynaconf"):
             import prdiffer.infrastructure.settings as settings_module
 
             settings_module._settings_service = None
@@ -391,8 +391,8 @@ class TestThreadSafety:
     def test_cache_lock_exists(self, settings_service):
         """Test that cache lock exists and is RLock."""
 
-        assert hasattr(settings_service, '_cache_lock')
-        assert type(settings_service._cache_lock).__name__ == 'RLock'
+        assert hasattr(settings_service, "_cache_lock")
+        assert type(settings_service._cache_lock).__name__ == "RLock"
 
     def test_cache_lock_locked_during_operation(self, settings_service):
         """Test that lock is held during cache operations."""

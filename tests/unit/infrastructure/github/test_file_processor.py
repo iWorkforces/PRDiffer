@@ -40,23 +40,23 @@ class TestFileProcessor:
         """Test file filtering using pattern matcher."""
         # Create mock files
         mock_file1 = Mock(spec=File)
-        mock_file1.filename = 'test.py'
+        mock_file1.filename = "test.py"
         mock_file2 = Mock(spec=File)
-        mock_file2.filename = 'test.lock'
+        mock_file2.filename = "test.lock"
         mock_file3 = Mock(spec=File)
-        mock_file3.filename = 'test.js'
+        mock_file3.filename = "test.js"
 
         mock_files = [mock_file1, mock_file2, mock_file3]
 
         # Mock pattern matcher to only accept .py files
-        file_processor._pattern_matcher.is_valid_file.side_effect = lambda fname: fname.endswith('.py')
+        file_processor._pattern_matcher.is_valid_file.side_effect = lambda fname: fname.endswith(".py")
 
         # Call filter_files (public method)
         filtered = file_processor.filter_files(mock_files)
 
         # Should only include .py files
         assert len(filtered) == 1
-        assert filtered[0].filename == 'test.py'
+        assert filtered[0].filename == "test.py"
         # Verify pattern matcher was called for each file
         assert file_processor._pattern_matcher.is_valid_file.call_count == 3
 
@@ -154,26 +154,26 @@ class TestFileProcessorBatchProcessing:
         """Test basic processing of files to FilePatchInfo objects."""
         # Create mock files
         mock_file = Mock(spec=File)
-        mock_file.filename = 'test.py'
-        mock_file.status = 'modified'
-        mock_file.patch = '@@ -1 +1 @@'
+        mock_file.filename = "test.py"
+        mock_file.status = "modified"
+        mock_file.patch = "@@ -1 +1 @@"
         mock_file.additions = 1
         mock_file.deletions = 0
 
         # Mock the get_files_content_batch method on the internal github_api_service
         # The method returns a dict mapping filename -> decoded content string
-        file_processor._github_api_service.get_files_content_batch = Mock(return_value={'test.py': "def hello():\n    print('world')"})
+        file_processor._github_api_service.get_files_content_batch = Mock(return_value={"test.py": "def hello():\n    print('world')"})
 
         # Create mock repository
         mock_repo = Mock()
 
         # Process the file
-        result = file_processor.process_files_to_patches([mock_file], mock_repo, 'head_sha', 'base_sha')
+        result = file_processor.process_files_to_patches([mock_file], mock_repo, "head_sha", "base_sha")
 
         # Should return a list of FilePatchInfo objects
         assert isinstance(result, list)
         assert len(result) == 1
-        assert result[0].filename == 'test.py'
+        assert result[0].filename == "test.py"
         assert result[0].base_file == "def hello():\n    print('world')"
         assert result[0].head_file == "def hello():\n    print('world')"
 
@@ -204,5 +204,5 @@ class TestFileProcessorBatchProcessing:
         assert limited_processor.max_files_allowed == 5
 
 
-if __name__ == '__main__':
-    pytest.main([__file__, '-v'])
+if __name__ == "__main__":
+    pytest.main([__file__, "-v"])

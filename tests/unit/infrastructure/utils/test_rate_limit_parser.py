@@ -64,23 +64,23 @@ class TestGetErrorHeaders:
     def test_error_with_headers(self):
         """Test error with headers attribute."""
         error = MagicMock()
-        error.headers = {'X-RateLimit-Remaining': '100'}
+        error.headers = {"X-RateLimit-Remaining": "100"}
 
         result = get_error_headers(error)
 
-        assert result == {'X-RateLimit-Remaining': '100'}
+        assert result == {"X-RateLimit-Remaining": "100"}
 
     def test_error_with_response_headers(self):
         """Test error with response.headers attribute."""
         error = MagicMock()
         del error.headers
         response = MagicMock()
-        response.headers = {'X-RateLimit-Limit': '5000'}
+        response.headers = {"X-RateLimit-Limit": "5000"}
         error.response = response
 
         result = get_error_headers(error)
 
-        assert result == {'X-RateLimit-Limit': '5000'}
+        assert result == {"X-RateLimit-Limit": "5000"}
 
     def test_error_without_headers(self):
         """Test error without headers."""
@@ -98,7 +98,7 @@ class TestGetErrorHeaders:
 
         class BadHeaders:
             def items(self):
-                raise Exception('Not iterable')
+                raise Exception("Not iterable")
 
         error.headers = BadHeaders()
 
@@ -112,41 +112,41 @@ class TestParseIntHeader:
 
     def test_parse_valid_int(self):
         """Test parsing valid integer header."""
-        headers = {'X-RateLimit-Remaining': '100'}
+        headers = {"X-RateLimit-Remaining": "100"}
 
-        result = parse_int_header(headers, 'X-RateLimit-Remaining')
+        result = parse_int_header(headers, "X-RateLimit-Remaining")
 
         assert result == 100
 
     def test_parse_case_insensitive(self):
         """Test case insensitive header matching."""
-        headers = {'x-ratelimit-remaining': '100'}
+        headers = {"x-ratelimit-remaining": "100"}
 
-        result = parse_int_header(headers, 'X-RATELIMIT-REMAINING')
+        result = parse_int_header(headers, "X-RATELIMIT-REMAINING")
 
         assert result == 100
 
     def test_parse_missing_header(self):
         """Test missing header."""
-        headers = {'Other-Header': 'value'}
+        headers = {"Other-Header": "value"}
 
-        result = parse_int_header(headers, 'X-RateLimit-Remaining')
+        result = parse_int_header(headers, "X-RateLimit-Remaining")
 
         assert result is None
 
     def test_parse_invalid_int(self):
         """Test invalid integer value."""
-        headers = {'X-RateLimit-Remaining': 'not-a-number'}
+        headers = {"X-RateLimit-Remaining": "not-a-number"}
 
-        result = parse_int_header(headers, 'X-RateLimit-Remaining')
+        result = parse_int_header(headers, "X-RateLimit-Remaining")
 
         assert result is None
 
     def test_parse_none_value(self):
         """Test None value in header."""
-        headers = {'X-RateLimit-Remaining': None}
+        headers = {"X-RateLimit-Remaining": None}
 
-        result = parse_int_header(headers, 'X-RateLimit-Remaining')
+        result = parse_int_header(headers, "X-RateLimit-Remaining")
 
         assert result is None
 
@@ -156,7 +156,7 @@ class TestParseRetryAfter:
 
     def test_parse_seconds(self):
         """Test parsing seconds value."""
-        headers = {'Retry-After': '60'}
+        headers = {"Retry-After": "60"}
 
         result = parse_retry_after(headers)
 
@@ -164,7 +164,7 @@ class TestParseRetryAfter:
 
     def test_parse_case_insensitive(self):
         """Test case insensitive header matching."""
-        headers = {'retry-after': '30'}
+        headers = {"retry-after": "30"}
 
         result = parse_retry_after(headers)
 
@@ -172,7 +172,7 @@ class TestParseRetryAfter:
 
     def test_parse_missing_header(self):
         """Test missing header."""
-        headers = {'Other-Header': 'value'}
+        headers = {"Other-Header": "value"}
 
         result = parse_retry_after(headers)
 
@@ -180,7 +180,7 @@ class TestParseRetryAfter:
 
     def test_parse_invalid_number(self):
         """Test invalid number value."""
-        headers = {'Retry-After': 'not-a-number'}
+        headers = {"Retry-After": "not-a-number"}
 
         result = parse_retry_after(headers)
 
@@ -189,8 +189,8 @@ class TestParseRetryAfter:
     def test_parse_http_date(self):
         """Test parsing HTTP date value."""
         future_time = datetime.now(timezone.utc) + timedelta(seconds=120)
-        http_date = future_time.strftime('%a, %d %b %Y %H:%M:%S GMT')
-        headers = {'Retry-After': http_date}
+        http_date = future_time.strftime("%a, %d %b %Y %H:%M:%S GMT")
+        headers = {"Retry-After": http_date}
 
         result = parse_retry_after(headers)
 
@@ -199,7 +199,7 @@ class TestParseRetryAfter:
 
     def test_parse_negative_value(self):
         """Test negative value returns 0."""
-        headers = {'Retry-After': '-10'}
+        headers = {"Retry-After": "-10"}
 
         result = parse_retry_after(headers)
 
@@ -207,7 +207,7 @@ class TestParseRetryAfter:
 
     def test_parse_float_value(self):
         """Test float value."""
-        headers = {'Retry-After': '45.5'}
+        headers = {"Retry-After": "45.5"}
 
         result = parse_retry_after(headers)
 
@@ -221,10 +221,10 @@ class TestExtractRateLimitInfo:
         """Test extracting all rate limit headers."""
         error = MagicMock()
         error.headers = {
-            'X-RateLimit-Remaining': '100',
-            'X-RateLimit-Limit': '5000',
-            'X-RateLimit-Reset': '1234567890',
-            'Retry-After': '60',
+            "X-RateLimit-Remaining": "100",
+            "X-RateLimit-Limit": "5000",
+            "X-RateLimit-Reset": "1234567890",
+            "Retry-After": "60",
         }
 
         result = extract_rate_limit_info(error)
@@ -239,7 +239,7 @@ class TestExtractRateLimitInfo:
         """Test extracting partial rate limit headers."""
         error = MagicMock()
         error.headers = {
-            'X-RateLimit-Remaining': '100',
+            "X-RateLimit-Remaining": "100",
         }
 
         result = extract_rate_limit_info(error)

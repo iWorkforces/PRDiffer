@@ -62,8 +62,8 @@ class GitHubConfig(GitHubConfigInterface):
     retry_on_404: bool = False
     retry_on_403: bool = True
     retry_on_500: bool = True
-    retry_log_level: str = 'DEBUG'
-    permanent_failure_log_level: str = 'INFO'
+    retry_log_level: str = "DEBUG"
+    permanent_failure_log_level: str = "INFO"
 
     # Circuit breaker and adaptive retry
     circuit_breaker_enabled: bool = True
@@ -93,7 +93,7 @@ class GitHubConfig(GitHubConfigInterface):
     max_diff_size: int = 100000
 
     @classmethod
-    def from_dict(cls, config: dict) -> 'GitHubConfig':
+    def from_dict(cls, config: dict) -> "GitHubConfig":
         """Create GitHubConfig from a dictionary.
 
         Args:
@@ -103,42 +103,42 @@ class GitHubConfig(GitHubConfigInterface):
             GitHubConfig: New configuration instance
         """
         # Convert lists to tuples for hashability
-        ignore_patterns = config.get('ignore_patterns', ())
+        ignore_patterns = config.get("ignore_patterns", ())
         if isinstance(ignore_patterns, list):
             ignore_patterns = tuple(ignore_patterns)
 
-        valid_extensions = config.get('valid_extensions', ())
+        valid_extensions = config.get("valid_extensions", ())
         if isinstance(valid_extensions, list):
             valid_extensions = tuple(valid_extensions)
 
         return cls(
-            rate_limit=config.get('rate_limit', 5000),
-            timeout=config.get('timeout', 30),
-            max_retries=config.get('max_retries', 3),
-            retry_delay=float(config.get('retry_delay', 1.0)),
-            retry_on_404=config.get('retry_on_404', False),
-            retry_on_403=config.get('retry_on_403', True),
-            retry_on_500=config.get('retry_on_500', True),
-            retry_log_level=config.get('retry_log_level', 'DEBUG'),
-            permanent_failure_log_level=config.get('permanent_failure_log_level', 'INFO'),
-            circuit_breaker_enabled=config.get('circuit_breaker_enabled', True),
-            circuit_breaker_failure_threshold=config.get('circuit_breaker_failure_threshold', 5),
-            circuit_breaker_timeout=config.get('circuit_breaker_timeout', 60),
-            adaptive_retry_enabled=config.get('adaptive_retry_enabled', True),
-            max_adaptive_delay=config.get('max_adaptive_delay', 30),
-            api_health_tracking=config.get('api_health_tracking', True),
-            context_aware_retry=config.get('context_aware_retry', True),
+            rate_limit=config.get("rate_limit", 5000),
+            timeout=config.get("timeout", 30),
+            max_retries=config.get("max_retries", 3),
+            retry_delay=float(config.get("retry_delay", 1.0)),
+            retry_on_404=config.get("retry_on_404", False),
+            retry_on_403=config.get("retry_on_403", True),
+            retry_on_500=config.get("retry_on_500", True),
+            retry_log_level=config.get("retry_log_level", "DEBUG"),
+            permanent_failure_log_level=config.get("permanent_failure_log_level", "INFO"),
+            circuit_breaker_enabled=config.get("circuit_breaker_enabled", True),
+            circuit_breaker_failure_threshold=config.get("circuit_breaker_failure_threshold", 5),
+            circuit_breaker_timeout=config.get("circuit_breaker_timeout", 60),
+            adaptive_retry_enabled=config.get("adaptive_retry_enabled", True),
+            max_adaptive_delay=config.get("max_adaptive_delay", 30),
+            api_health_tracking=config.get("api_health_tracking", True),
+            context_aware_retry=config.get("context_aware_retry", True),
             ignore_patterns=ignore_patterns,
             valid_extensions=valid_extensions,
-            diff_parallel_enabled=config.get('diff_parallel_enabled', True),
-            diff_parallel_threshold=config.get('diff_parallel_threshold', 3),
-            diff_max_workers=config.get('diff_max_workers', 4),
-            diff_worker_timeout=float(config.get('diff_worker_timeout', 30.0)),
-            max_files_allowed=config.get('max_files_allowed', 50),
+            diff_parallel_enabled=config.get("diff_parallel_enabled", True),
+            diff_parallel_threshold=config.get("diff_parallel_threshold", 3),
+            diff_max_workers=config.get("diff_max_workers", 4),
+            diff_worker_timeout=float(config.get("diff_worker_timeout", 30.0)),
+            max_files_allowed=config.get("max_files_allowed", 50),
             # Diff processing thresholds
-            large_file_threshold=config.get('large_file_threshold', 5000),
-            chunk_size=config.get('chunk_size', 1000),
-            max_diff_size=config.get('max_diff_size', 100000),
+            large_file_threshold=config.get("large_file_threshold", 5000),
+            chunk_size=config.get("chunk_size", 1000),
+            max_diff_size=config.get("max_diff_size", 100000),
         )
 
     def to_dict(self) -> dict:
@@ -148,35 +148,35 @@ class GitHubConfig(GitHubConfigInterface):
             dict: Dictionary representation of configuration
         """
         return {
-            'rate_limit': self.rate_limit,
-            'timeout': self.timeout,
-            'max_retries': self.max_retries,
-            'retry_delay': self.retry_delay,
-            'retry_on_404': self.retry_on_404,
-            'retry_on_403': self.retry_on_403,
-            'retry_on_500': self.retry_on_500,
-            'retry_log_level': self.retry_log_level,
-            'permanent_failure_log_level': self.permanent_failure_log_level,
-            'circuit_breaker_enabled': self.circuit_breaker_enabled,
-            'circuit_breaker_failure_threshold': self.circuit_breaker_failure_threshold,
-            'circuit_breaker_timeout': self.circuit_breaker_timeout,
-            'adaptive_retry_enabled': self.adaptive_retry_enabled,
-            'max_adaptive_delay': self.max_adaptive_delay,
-            'api_health_tracking': self.api_health_tracking,
-            'context_aware_retry': self.context_aware_retry,
-            'ignore_patterns': list(self.ignore_patterns),
-            'valid_extensions': list(self.valid_extensions),
-            'diff_parallel_enabled': self.diff_parallel_enabled,
-            'diff_parallel_threshold': self.diff_parallel_threshold,
-            'diff_max_workers': self.diff_max_workers,
-            'diff_worker_timeout': self.diff_worker_timeout,
-            'max_files_allowed': self.max_files_allowed,
-            'large_file_threshold': self.large_file_threshold,
-            'chunk_size': self.chunk_size,
-            'max_diff_size': self.max_diff_size,
+            "rate_limit": self.rate_limit,
+            "timeout": self.timeout,
+            "max_retries": self.max_retries,
+            "retry_delay": self.retry_delay,
+            "retry_on_404": self.retry_on_404,
+            "retry_on_403": self.retry_on_403,
+            "retry_on_500": self.retry_on_500,
+            "retry_log_level": self.retry_log_level,
+            "permanent_failure_log_level": self.permanent_failure_log_level,
+            "circuit_breaker_enabled": self.circuit_breaker_enabled,
+            "circuit_breaker_failure_threshold": self.circuit_breaker_failure_threshold,
+            "circuit_breaker_timeout": self.circuit_breaker_timeout,
+            "adaptive_retry_enabled": self.adaptive_retry_enabled,
+            "max_adaptive_delay": self.max_adaptive_delay,
+            "api_health_tracking": self.api_health_tracking,
+            "context_aware_retry": self.context_aware_retry,
+            "ignore_patterns": list(self.ignore_patterns),
+            "valid_extensions": list(self.valid_extensions),
+            "diff_parallel_enabled": self.diff_parallel_enabled,
+            "diff_parallel_threshold": self.diff_parallel_threshold,
+            "diff_max_workers": self.diff_max_workers,
+            "diff_worker_timeout": self.diff_worker_timeout,
+            "max_files_allowed": self.max_files_allowed,
+            "large_file_threshold": self.large_file_threshold,
+            "chunk_size": self.chunk_size,
+            "max_diff_size": self.max_diff_size,
         }
 
-    def with_overrides(self, **kwargs) -> 'GitHubConfig':
+    def with_overrides(self, **kwargs) -> "GitHubConfig":
         """Create new config with overridden values.
 
         Args:
@@ -225,7 +225,7 @@ class GitHubConfig(GitHubConfigInterface):
             if fnmatch.fnmatch(filename_lower, pattern.lower()):
                 return True
             # Also check if pattern is in the filename for directory patterns
-            if pattern.endswith('/') and pattern[:-1].lower() in filename_lower:
+            if pattern.endswith("/") and pattern[:-1].lower() in filename_lower:
                 return True
         return False
 

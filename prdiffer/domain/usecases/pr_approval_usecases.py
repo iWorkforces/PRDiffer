@@ -52,26 +52,26 @@ class ApprovePRUseCase:
         """
         if self._logger:
             self._logger.info(
-                'Executing approve PR use case',
+                "Executing approve PR use case",
                 pr_url=pr_url[:100],
             )
 
         # Validate inputs
         if not pr_url:
-            raise InvalidURLError('PR URL cannot be empty', error_code=E1001_INVALID_URL)
+            raise InvalidURLError("PR URL cannot be empty", error_code=E1001_INVALID_URL)
 
         if not isinstance(pr_url, str):
             raise ValidationError(
-                f'PR URL must be a string, got {type(pr_url).__name__}',
+                f"PR URL must be a string, got {type(pr_url).__name__}",
                 error_code=E1009_INVALID_FORMAT,
             )
 
         if not compliment:
-            raise ValidationError('Compliment cannot be empty', error_code=E1001_INVALID_URL)
+            raise ValidationError("Compliment cannot be empty", error_code=E1001_INVALID_URL)
 
         if not isinstance(compliment, str):
             raise ValidationError(
-                f'Compliment must be a string, got {type(compliment).__name__}',
+                f"Compliment must be a string, got {type(compliment).__name__}",
                 error_code=E1009_INVALID_FORMAT,
             )
 
@@ -84,7 +84,7 @@ class ApprovePRUseCase:
 
         if self._logger:
             self._logger.info(
-                'PR approval use case completed successfully',
+                "PR approval use case completed successfully",
                 result=result[:100],
             )
 

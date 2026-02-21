@@ -16,14 +16,14 @@ from .settings import SettingsServiceInterface
 from .github_api import GitHubAPIServiceInterface
 
 __all__ = [
-    'CacheServiceInterface',
-    'DiffServiceInterface',
-    'LoggerServiceInterface',
-    'LogLevel',
-    'PatternMatchingServiceInterface',
-    'PRDiffServiceInterface',
-    'RepositoryCacheServiceInterface',
-    'RetryServiceInterface',
-    'SettingsServiceInterface',
-    'GitHubAPIServiceInterface',
+    "CacheServiceInterface",
+    "DiffServiceInterface",
+    "LoggerServiceInterface",
+    "LogLevel",
+    "PatternMatchingServiceInterface",
+    "PRDiffServiceInterface",
+    "RepositoryCacheServiceInterface",
+    "RetryServiceInterface",
+    "SettingsServiceInterface",
+    "GitHubAPIServiceInterface",
 ]

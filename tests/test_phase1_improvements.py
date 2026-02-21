@@ -38,7 +38,7 @@ class TestLRUCacheEviction:
         """Create mock logger."""
         return Mock()
 
-    @patch('prdiffer.infrastructure.github.api_client.get_logger')
+    @patch("prdiffer.infrastructure.github.api_client.get_logger")
     def test_cache_eviction_when_max_size_reached(self, mock_get_logger):
         """Test that oldest entries are evicted when cache reaches max size."""
         from prdiffer.infrastructure.github.client import GitHubAPIClient
@@ -55,20 +55,20 @@ class TestLRUCacheEviction:
         )
 
         # Add entries up to max size
-        client._cache_set(('file1.py', 'branch1'), 'content1')
-        client._cache_set(('file2.py', 'branch1'), 'content2')
-        client._cache_set(('file3.py', 'branch1'), 'content3')
+        client._cache_set(("file1.py", "branch1"), "content1")
+        client._cache_set(("file2.py", "branch1"), "content2")
+        client._cache_set(("file3.py", "branch1"), "content3")
 
         assert len(client._file_content_cache) == 3
 
         # Add one more - should evict oldest (file1.py)
-        client._cache_set(('file4.py', 'branch1'), 'content4')
+        client._cache_set(("file4.py", "branch1"), "content4")
 
         assert len(client._file_content_cache) == 3
-        assert ('file1.py', 'branch1') not in client._file_content_cache
-        assert ('file4.py', 'branch1') in client._file_content_cache
+        assert ("file1.py", "branch1") not in client._file_content_cache
+        assert ("file4.py", "branch1") in client._file_content_cache
 
-    @patch('prdiffer.infrastructure.github.api_client.get_logger')
+    @patch("prdiffer.infrastructure.github.api_client.get_logger")
     def test_cache_lru_ordering(self, mock_get_logger):
         """Test that accessing an entry moves it to the end (most recently used)."""
         from prdiffer.infrastructure.github.client import GitHubAPIClient
@@ -84,21 +84,21 @@ class TestLRUCacheEviction:
         )
 
         # Add 3 entries
-        client._cache_set(('file1.py', 'branch1'), 'content1')
-        client._cache_set(('file2.py', 'branch1'), 'content2')
-        client._cache_set(('file3.py', 'branch1'), 'content3')
+        client._cache_set(("file1.py", "branch1"), "content1")
+        client._cache_set(("file2.py", "branch1"), "content2")
+        client._cache_set(("file3.py", "branch1"), "content3")
 
         # Access file1 - should move it to end
-        result = client._cache_get(('file1.py', 'branch1'))
-        assert result == 'content1'
+        result = client._cache_get(("file1.py", "branch1"))
+        assert result == "content1"
 
         # Add new entry - should evict file2 (now oldest)
-        client._cache_set(('file4.py', 'branch1'), 'content4')
+        client._cache_set(("file4.py", "branch1"), "content4")
 
-        assert ('file2.py', 'branch1') not in client._file_content_cache
-        assert ('file1.py', 'branch1') in client._file_content_cache
+        assert ("file2.py", "branch1") not in client._file_content_cache
+        assert ("file1.py", "branch1") in client._file_content_cache
 
-    @patch('prdiffer.infrastructure.github.api_client.get_logger')
+    @patch("prdiffer.infrastructure.github.api_client.get_logger")
     def test_cache_statistics_tracking(self, mock_get_logger):
         """Test that cache hits, misses, and evictions are tracked."""
         from prdiffer.infrastructure.github.client import GitHubAPIClient
@@ -119,21 +119,21 @@ class TestLRUCacheEviction:
         assert client._cache_evictions == 0
 
         # Cache miss
-        result = client._cache_get(('nonexistent.py', 'branch1'))
+        result = client._cache_get(("nonexistent.py", "branch1"))
         assert result is None
         assert client._cache_misses == 1
 
         # Add entry
-        client._cache_set(('file1.py', 'branch1'), 'content1')
+        client._cache_set(("file1.py", "branch1"), "content1")
 
         # Cache hit
-        result = client._cache_get(('file1.py', 'branch1'))
-        assert result == 'content1'
+        result = client._cache_get(("file1.py", "branch1"))
+        assert result == "content1"
         assert client._cache_hits == 1
 
         # Fill cache and trigger eviction
-        client._cache_set(('file2.py', 'branch1'), 'content2')
-        client._cache_set(('file3.py', 'branch1'), 'content3')  # Triggers eviction
+        client._cache_set(("file2.py", "branch1"), "content2")
+        client._cache_set(("file3.py", "branch1"), "content3")  # Triggers eviction
 
         assert client._cache_evictions >= 1
 
@@ -151,7 +151,7 @@ class TestTTLExpiration:
         """Create sample PRDiff for testing."""
         return PRDiff(files=())
 
-    @patch('prdiffer.infrastructure.settings.get_settings_service')
+    @patch("prdiffer.infrastructure.settings.get_settings_service")
     @pytest.mark.asyncio
     async def test_entry_not_expired_within_ttl(self, mock_get_settings, sample_pr_diff):
         """Test that entries are valid within TTL."""
@@ -159,14 +159,14 @@ class TestTTLExpiration:
 
         mock_settings = Mock()
         mock_settings.get.side_effect = lambda key, default: {
-            'cache.use_hashed_keys': False,
-            'cache.ttl': 600,  # 10 minutes
+            "cache.use_hashed_keys": False,
+            "cache.ttl": 600,  # 10 minutes
         }.get(key, default)
         mock_get_settings.return_value = mock_settings
 
         cache_service = CacheService()
-        cache_key = 'owner/repo/pr/123'
-        commit_sha = 'abc123'
+        cache_key = "owner/repo/pr/123"
+        commit_sha = "abc123"
 
         await cache_service.set(cache_key, commit_sha, sample_pr_diff)
 
@@ -174,7 +174,7 @@ class TestTTLExpiration:
         result = await cache_service.get(cache_key, commit_sha)
         assert result == sample_pr_diff
 
-    @patch('prdiffer.infrastructure.settings.get_settings_service')
+    @patch("prdiffer.infrastructure.settings.get_settings_service")
     @pytest.mark.asyncio
     async def test_entry_expired_after_ttl(self, mock_get_settings, sample_pr_diff):
         """Test that entries expire after TTL."""
@@ -182,14 +182,14 @@ class TestTTLExpiration:
 
         mock_settings = Mock()
         mock_settings.get.side_effect = lambda key, default: {
-            'cache.use_hashed_keys': False,
-            'cache.ttl': 1,  # 1 second TTL for testing
+            "cache.use_hashed_keys": False,
+            "cache.ttl": 1,  # 1 second TTL for testing
         }.get(key, default)
         mock_get_settings.return_value = mock_settings
 
         cache_service = CacheService()
-        cache_key = 'owner/repo/pr/123'
-        commit_sha = 'abc123'
+        cache_key = "owner/repo/pr/123"
+        commit_sha = "abc123"
 
         await cache_service.set(cache_key, commit_sha, sample_pr_diff)
 
@@ -200,7 +200,7 @@ class TestTTLExpiration:
         result = await cache_service.get(cache_key, commit_sha)
         assert result is None
 
-    @patch('prdiffer.infrastructure.settings.get_settings_service')
+    @patch("prdiffer.infrastructure.settings.get_settings_service")
     @pytest.mark.asyncio
     async def test_expiration_statistics(self, mock_get_settings, sample_pr_diff):
         """Test that expiration statistics are tracked."""
@@ -208,14 +208,14 @@ class TestTTLExpiration:
 
         mock_settings = Mock()
         mock_settings.get.side_effect = lambda key, default: {
-            'cache.use_hashed_keys': False,
-            'cache.ttl': 1,
+            "cache.use_hashed_keys": False,
+            "cache.ttl": 1,
         }.get(key, default)
         mock_get_settings.return_value = mock_settings
 
         cache_service = CacheService()
-        cache_key = 'owner/repo/pr/123'
-        commit_sha = 'abc123'
+        cache_key = "owner/repo/pr/123"
+        commit_sha = "abc123"
 
         await cache_service.set(cache_key, commit_sha, sample_pr_diff)
 
@@ -252,11 +252,11 @@ class TestAsyncRetryHandler:
         async def successful_operation():
             nonlocal call_count
             call_count += 1
-            return 'success'
+            return "success"
 
         result = await retry_handler.execute_with_retry_async(successful_operation)
 
-        assert result == 'success'
+        assert result == "success"
         assert call_count == 1
 
     @pytest.mark.asyncio
@@ -269,12 +269,12 @@ class TestAsyncRetryHandler:
             call_count += 1
             if call_count < 3:
                 # Use TimeoutError which is in RETRY_EXCEPTIONS and has "timeout" keyword
-                raise TimeoutError('Connection timeout error')
-            return 'success'
+                raise TimeoutError("Connection timeout error")
+            return "success"
 
         result = await retry_handler.execute_with_retry_async(eventually_successful)
 
-        assert result == 'success'
+        assert result == "success"
         assert call_count == 3
 
     @pytest.mark.asyncio
@@ -283,9 +283,9 @@ class TestAsyncRetryHandler:
 
         async def always_fails():
             # Use TimeoutError which is in RETRY_EXCEPTIONS and has "timeout" keyword
-            raise TimeoutError('Connection timeout error')
+            raise TimeoutError("Connection timeout error")
 
-        with pytest.raises(TimeoutError, match='timeout'):
+        with pytest.raises(TimeoutError, match="timeout"):
             await retry_handler.execute_with_retry_async(always_fails)
 
     @pytest.mark.asyncio
@@ -298,14 +298,14 @@ class TestAsyncRetryHandler:
             call_count += 1
             if call_count == 1:
                 # Use TimeoutError which is in RETRY_EXCEPTIONS and has "timeout" keyword
-                raise TimeoutError('Connection timeout')
-            return 'success'
+                raise TimeoutError("Connection timeout")
+            return "success"
 
         start_time = time.time()
         result = await retry_handler.execute_with_retry_async(fail_once)
         elapsed = time.time() - start_time
 
-        assert result == 'success'
+        assert result == "success"
         # Should have waited at least base_delay (0.1s)
         assert elapsed >= 0.1
 
@@ -457,48 +457,48 @@ class TestReDoSPatternFixes:
         validator = InputValidator()
 
         # Should detect SQL keywords followed by whitespace
-        assert validator._contains_suspicious_patterns('select ')
-        assert validator._contains_suspicious_patterns('union ')
-        assert validator._contains_suspicious_patterns('drop ')
+        assert validator._contains_suspicious_patterns("select ")
+        assert validator._contains_suspicious_patterns("union ")
+        assert validator._contains_suspicious_patterns("drop ")
 
     def test_sql_keyword_detection_at_end(self):
         """Test SQL keyword detection works at end of string."""
         validator = InputValidator()
 
         # Should detect SQL keywords at end of string
-        assert validator._contains_suspicious_patterns('test select')
-        assert validator._contains_suspicious_patterns('test union')
+        assert validator._contains_suspicious_patterns("test select")
+        assert validator._contains_suspicious_patterns("test union")
 
     def test_sql_keyword_not_detected_in_middle_of_word(self):
         """Test SQL keywords not detected when part of another word."""
         validator = InputValidator()
 
         # Should NOT detect keywords that are part of larger words
-        assert not validator._contains_suspicious_patterns('selector')
-        assert not validator._contains_suspicious_patterns('reunion')
-        assert not validator._contains_suspicious_patterns('dropdown')
+        assert not validator._contains_suspicious_patterns("selector")
+        assert not validator._contains_suspicious_patterns("reunion")
+        assert not validator._contains_suspicious_patterns("dropdown")
 
     def test_windows_path_traversal_detection(self):
         """Test Windows path traversal pattern detection."""
         validator = InputValidator()
 
         # Windows absolute paths
-        assert validator._contains_suspicious_patterns('C:\\Windows\\System32')
-        assert validator._contains_suspicious_patterns('D:\\')
+        assert validator._contains_suspicious_patterns("C:\\Windows\\System32")
+        assert validator._contains_suspicious_patterns("D:\\")
 
         # Windows parent directory
-        assert validator._contains_suspicious_patterns('..\\config')
+        assert validator._contains_suspicious_patterns("..\\config")
 
         # UNC paths
-        assert validator._contains_suspicious_patterns('\\\\server\\share')
+        assert validator._contains_suspicious_patterns("\\\\server\\share")
 
     def test_unix_path_traversal_detection(self):
         """Test Unix path traversal patterns still work."""
         validator = InputValidator()
 
-        assert validator._contains_suspicious_patterns('../etc/passwd')
-        assert validator._contains_suspicious_patterns('~/')
-        assert validator._contains_suspicious_patterns('/etc/passwd')
+        assert validator._contains_suspicious_patterns("../etc/passwd")
+        assert validator._contains_suspicious_patterns("~/")
+        assert validator._contains_suspicious_patterns("/etc/passwd")
 
     def test_no_redos_vulnerability(self):
         """Test that patterns don't cause ReDoS with malicious input."""
@@ -507,9 +507,9 @@ class TestReDoSPatternFixes:
         # This input would cause ReDoS with vulnerable patterns
         # Using repeated patterns that could cause catastrophic backtracking
         malicious_inputs = [
-            'a' * 1000 + ' select',  # Long string before keyword
-            'select' + ' ' * 1000,  # Many spaces after keyword
-            'union' + '\t' * 100,  # Many tabs
+            "a" * 1000 + " select",  # Long string before keyword
+            "select" + " " * 1000,  # Many spaces after keyword
+            "union" + "\t" * 100,  # Many tabs
         ]
 
         start_time = time.time()
@@ -521,7 +521,7 @@ class TestReDoSPatternFixes:
 
         # Should complete quickly (< 1 second for all inputs)
         # ReDoS would cause exponential time
-        assert elapsed < 1.0, f'Pattern matching took too long: {elapsed}s'
+        assert elapsed < 1.0, f"Pattern matching took too long: {elapsed}s"
 
 
 # =============================================================================
@@ -536,18 +536,18 @@ class TestErrorMessageSanitization:
     def mock_dependencies(self):
         """Create mock dependencies for FastMCPServer."""
         return {
-            'settings_service': Mock(),
-            'cache_service': Mock(),
-            'repository_cache_service': Mock(),
-            'pr_diff_service': Mock(),
-            'logger': Mock(),
-            'github_repository_class': Mock(),
-            'input_validator': Mock(),
-            'rate_limiter': Mock(),
-            'metrics_tracker': Mock(),
-            'pr_operation_handler': Mock(),
-            'health_monitor': Mock(),
-            'server_configuration': Mock(),
+            "settings_service": Mock(),
+            "cache_service": Mock(),
+            "repository_cache_service": Mock(),
+            "pr_diff_service": Mock(),
+            "logger": Mock(),
+            "github_repository_class": Mock(),
+            "input_validator": Mock(),
+            "rate_limiter": Mock(),
+            "metrics_tracker": Mock(),
+            "pr_operation_handler": Mock(),
+            "health_monitor": Mock(),
+            "server_configuration": Mock(),
         }
 
     def test_github_exception_sanitization(self, mock_dependencies):
@@ -555,60 +555,60 @@ class TestErrorMessageSanitization:
         from prdiffer.application.mcp_server import FastMCPServer
 
         # Configure mock
-        mock_dependencies['server_configuration'].setup_logging = Mock()
-        mock_dependencies['server_configuration'].get_mcp_instructions = Mock(return_value='')
+        mock_dependencies["server_configuration"].setup_logging = Mock()
+        mock_dependencies["server_configuration"].get_mcp_instructions = Mock(return_value="")
 
-        with patch('prdiffer.application.mcp_server.FastMCP'):
+        with patch("prdiffer.application.mcp_server.FastMCP"):
             server = FastMCPServer(**mock_dependencies)
 
         # Create mock exception
         class GithubException(Exception):
             pass
 
-        exc = GithubException('Detailed internal error: token xyz123 invalid')
+        exc = GithubException("Detailed internal error: token xyz123 invalid")
         safe_message = server._tool_registry._create_safe_error_message(exc)
 
-        assert safe_message == 'GitHub API error occurred'
-        assert 'xyz123' not in safe_message
-        assert 'token' not in safe_message
+        assert safe_message == "GitHub API error occurred"
+        assert "xyz123" not in safe_message
+        assert "token" not in safe_message
 
     def test_rate_limit_exception_sanitization(self, mock_dependencies):
         """Test rate limit exception is sanitized."""
         from prdiffer.application.mcp_server import FastMCPServer
 
-        mock_dependencies['server_configuration'].setup_logging = Mock()
-        mock_dependencies['server_configuration'].get_mcp_instructions = Mock(return_value='')
+        mock_dependencies["server_configuration"].setup_logging = Mock()
+        mock_dependencies["server_configuration"].get_mcp_instructions = Mock(return_value="")
 
-        with patch('prdiffer.application.mcp_server.FastMCP'):
+        with patch("prdiffer.application.mcp_server.FastMCP"):
             server = FastMCPServer(**mock_dependencies)
 
         class RateLimitExceededException(Exception):
             pass
 
-        exc = RateLimitExceededException('Rate limit: 5000/hour exceeded at 14:32:01')
+        exc = RateLimitExceededException("Rate limit: 5000/hour exceeded at 14:32:01")
         safe_message = server._tool_registry._create_safe_error_message(exc)
 
-        assert safe_message == 'API rate limit exceeded. Please try again later'
+        assert safe_message == "API rate limit exceeded. Please try again later"
 
     def test_unknown_exception_sanitization(self, mock_dependencies):
         """Test unknown exception returns generic message."""
         from prdiffer.application.mcp_server import FastMCPServer
 
-        mock_dependencies['server_configuration'].setup_logging = Mock()
-        mock_dependencies['server_configuration'].get_mcp_instructions = Mock(return_value='')
+        mock_dependencies["server_configuration"].setup_logging = Mock()
+        mock_dependencies["server_configuration"].get_mcp_instructions = Mock(return_value="")
 
-        with patch('prdiffer.application.mcp_server.FastMCP'):
+        with patch("prdiffer.application.mcp_server.FastMCP"):
             server = FastMCPServer(**mock_dependencies)
 
         class UnknownInternalError(Exception):
             pass
 
-        exc = UnknownInternalError('Internal: database connection string is postgres://user:pass@host')
+        exc = UnknownInternalError("Internal: database connection string is postgres://user:pass@host")
         safe_message = server._tool_registry._create_safe_error_message(exc)
 
-        assert safe_message == 'Request processing failed'
-        assert 'postgres' not in safe_message
-        assert 'user:pass' not in safe_message
+        assert safe_message == "Request processing failed"
+        assert "postgres" not in safe_message
+        assert "user:pass" not in safe_message
 
     def test_security_exceptions_sanitization(self, mock_dependencies):
         """Test security exceptions are sanitized."""
@@ -618,23 +618,23 @@ class TestErrorMessageSanitization:
             SuspiciousOperationError,
         )
 
-        mock_dependencies['server_configuration'].setup_logging = Mock()
-        mock_dependencies['server_configuration'].get_mcp_instructions = Mock(return_value='')
+        mock_dependencies["server_configuration"].setup_logging = Mock()
+        mock_dependencies["server_configuration"].get_mcp_instructions = Mock(return_value="")
 
-        with patch('prdiffer.application.mcp_server.FastMCP'):
+        with patch("prdiffer.application.mcp_server.FastMCP"):
             server = FastMCPServer(**mock_dependencies)
 
         # InvalidURLError
-        invalid_url_exc = InvalidURLError('URL contains malicious pattern: $(whoami)')
+        invalid_url_exc = InvalidURLError("URL contains malicious pattern: $(whoami)")
         safe_message = server._tool_registry._create_safe_error_message(invalid_url_exc)
-        assert safe_message == 'Invalid GitHub PR URL format'
-        assert 'whoami' not in safe_message
+        assert safe_message == "Invalid GitHub PR URL format"
+        assert "whoami" not in safe_message
 
         # SuspiciousOperationError
-        suspicious_exc = SuspiciousOperationError('Detected SQL injection: DROP TABLE users')
+        suspicious_exc = SuspiciousOperationError("Detected SQL injection: DROP TABLE users")
         safe_message = server._tool_registry._create_safe_error_message(suspicious_exc)
-        assert safe_message == 'Request contains suspicious patterns'
-        assert 'DROP TABLE' not in safe_message
+        assert safe_message == "Request contains suspicious patterns"
+        assert "DROP TABLE" not in safe_message
 
 
 # =============================================================================
@@ -650,46 +650,46 @@ class TestFileNameSanitization:
         validator = InputValidator()
 
         # Normal file names
-        result = validator.sanitize_for_logging('src/main.py')
-        assert result == 'src/main.py'
+        result = validator.sanitize_for_logging("src/main.py")
+        assert result == "src/main.py"
 
-        result = validator.sanitize_for_logging('tests/test_file.py')
-        assert result == 'tests/test_file.py'
+        result = validator.sanitize_for_logging("tests/test_file.py")
+        assert result == "tests/test_file.py"
 
     def test_sanitize_for_logging_truncation(self):
         """Test that long file names are truncated."""
         validator = InputValidator()
 
-        long_name = 'a' * 300
+        long_name = "a" * 300
         result = validator.sanitize_for_logging(long_name, max_length=200)
 
         assert len(result) <= 203  # 200 + "..."
-        assert result.endswith('...')
+        assert result.endswith("...")
 
     def test_sanitize_for_logging_control_characters(self):
         """Test that control characters are replaced."""
         validator = InputValidator()
 
         # File name with control characters
-        malicious = 'file\x00name\x07with\x1bcontrol.py'
+        malicious = "file\x00name\x07with\x1bcontrol.py"
         result = validator.sanitize_for_logging(malicious)
 
-        assert '\x00' not in result
-        assert '\x07' not in result
-        assert '\x1b' not in result
+        assert "\x00" not in result
+        assert "\x07" not in result
+        assert "\x1b" not in result
 
     def test_sanitize_for_logging_newlines(self):
         """Test handling of newlines (log injection prevention)."""
         validator = InputValidator()
 
         # File name with newlines (log injection attempt)
-        malicious = 'file.py\nFake log entry: SUCCESS'
+        malicious = "file.py\nFake log entry: SUCCESS"
         result = validator.sanitize_for_logging(malicious)
 
         # Newlines should be preserved but non-printable chars removed
         # The sanitize_for_logging allows \n, \r, \t
-        assert 'Fake log entry' in result  # Content preserved
+        assert "Fake log entry" in result  # Content preserved
 
 
-if __name__ == '__main__':
-    pytest.main([__file__, '-v'])
+if __name__ == "__main__":
+    pytest.main([__file__, "-v"])

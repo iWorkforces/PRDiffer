@@ -6,10 +6,10 @@ from .repository import Repository
 from .pull_request import PullRequest, PRState
 
 __all__ = [
-    'FilePatchInfo',
-    'EDIT_TYPE',
-    'PRDiff',
-    'Repository',
-    'PullRequest',
-    'PRState',
+    "FilePatchInfo",
+    "EDIT_TYPE",
+    "PRDiff",
+    "Repository",
+    "PullRequest",
+    "PRState",
 ]

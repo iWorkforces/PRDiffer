@@ -24,7 +24,7 @@ class GlobalCircuitBreakerRegistry:
     - Statistics aggregation across all breakers
     """
 
-    _instance: 'GlobalCircuitBreakerRegistry | None' = None
+    _instance: "GlobalCircuitBreakerRegistry | None" = None
     _lock = threading.Lock()
     _initialized: bool = False
 
@@ -32,7 +32,7 @@ class GlobalCircuitBreakerRegistry:
         cls,
         default_failure_threshold: int = 5,
         default_timeout: float = 60.0,
-    ) -> 'GlobalCircuitBreakerRegistry':
+    ) -> "GlobalCircuitBreakerRegistry":
         """Singleton pattern implementation."""
         if cls._instance is None:
             with cls._lock:
@@ -42,7 +42,7 @@ class GlobalCircuitBreakerRegistry:
                     cls._instance = instance
         # Type narrowing: instance is guaranteed to be initialized here
         if cls._instance is None:
-            raise PRDifferException('Singleton instance not initialized', error_code=E5001_INTERNAL_ERROR)
+            raise PRDifferException("Singleton instance not initialized", error_code=E5001_INTERNAL_ERROR)
         return cls._instance
 
     def __init__(
@@ -90,7 +90,7 @@ class GlobalCircuitBreakerRegistry:
                     timeout=self._default_timeout,
                     logger=self._logger,
                 )
-                self._logger.debug(f'Created circuit breaker for endpoint: {endpoint}')
+                self._logger.debug(f"Created circuit breaker for endpoint: {endpoint}")
             return self._breakers[endpoint]
 
     @property
@@ -189,7 +189,7 @@ class GlobalCircuitBreakerRegistry:
             Dict mapping endpoint names to their statistics
         """
         with self._registry_lock:
-            stats = {'global': self._global_breaker.get_stats()}
+            stats = {"global": self._global_breaker.get_stats()}
             for endpoint, breaker in self._breakers.items():
                 stats[endpoint] = breaker.get_stats()
             return stats
@@ -203,7 +203,7 @@ class GlobalCircuitBreakerRegistry:
         with self._registry_lock:
             open_breakers = []
             if self._global_breaker.state == CircuitState.OPEN:
-                open_breakers.append('global')
+                open_breakers.append("global")
             for endpoint, breaker in self._breakers.items():
                 if breaker.state == CircuitState.OPEN:
                     open_breakers.append(endpoint)
@@ -215,7 +215,7 @@ class GlobalCircuitBreakerRegistry:
             self._global_breaker._transition_to_closed()
             for breaker in self._breakers.values():
                 breaker._transition_to_closed()
-            self._logger.info('All circuit breakers reset to CLOSED')
+            self._logger.info("All circuit breakers reset to CLOSED")
 
     def clear_endpoint(self, endpoint: str) -> None:
         """Remove a specific endpoint's circuit breaker.
@@ -226,7 +226,7 @@ class GlobalCircuitBreakerRegistry:
         with self._registry_lock:
             if endpoint in self._breakers:
                 del self._breakers[endpoint]
-                self._logger.debug(f'Removed circuit breaker for endpoint: {endpoint}')
+                self._logger.debug(f"Removed circuit breaker for endpoint: {endpoint}")
 
 
 # Global registry instance (singleton)
@@ -252,7 +252,7 @@ def get_global_circuit_breaker_registry(
     # This ensures backward compatibility with tests that reset the singleton
     import sys
 
-    deprecated_module = sys.modules.get('prdiffer.infrastructure.utils.circuit_breaker')
+    deprecated_module = sys.modules.get("prdiffer.infrastructure.utils.circuit_breaker")
     if deprecated_module is not None:
         try:
             # If the deprecated module's variable is None but our variable is not,

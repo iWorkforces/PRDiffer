@@ -21,12 +21,12 @@ def apply_diff_limits(
     if max_chars <= 0 or len(diff_content) <= max_chars:
         return diff_content, metadata
 
-    metadata['diff_truncated'] = True
-    metadata['diff_original_length'] = len(diff_content)
+    metadata["diff_truncated"] = True
+    metadata["diff_original_length"] = len(diff_content)
 
     truncated = diff_content[:max_chars]
     if truncation_notice:
-        truncated = f'{truncated}\n{truncation_notice}'
+        truncated = f"{truncated}\n{truncation_notice}"
 
-    metadata['diff_truncated_length'] = len(truncated)
+    metadata["diff_truncated_length"] = len(truncated)
     return truncated, metadata

@@ -22,10 +22,10 @@ class TestFilePatchInfoExtensions:
         from prdiffer.domain.entities.file_patch import FilePatchInfo, EDIT_TYPE
 
         patch = FilePatchInfo(
-            filename='test.py',
-            base_file='old',
-            head_file='new',
-            patch='@@ diff @@',
+            filename="test.py",
+            base_file="old",
+            head_file="new",
+            patch="@@ diff @@",
             edit_type=EDIT_TYPE.MODIFIED,
             num_plus_lines=1,
             num_minus_lines=1,
@@ -34,18 +34,18 @@ class TestFilePatchInfoExtensions:
         # New Phase 3 fields should have defaults
         assert patch.diff_metadata is None
         assert patch.code_smell_indicators is None
-        assert patch.suggested_review_priority == 'normal'
+        assert patch.suggested_review_priority == "normal"
 
     def test_calculate_review_priority_high_for_security_files(self):
         """Test high priority for security-sensitive files."""
         from prdiffer.domain.entities.file_patch import FilePatchInfo, EDIT_TYPE
 
         security_files = [
-            'auth.py',
-            'security/config.py',
-            'password_manager.py',
-            'token_handler.py',
-            '.env.example',
+            "auth.py",
+            "security/config.py",
+            "password_manager.py",
+            "token_handler.py",
+            ".env.example",
         ]
 
         for filename in security_files:
@@ -55,28 +55,28 @@ class TestFilePatchInfoExtensions:
                 num_plus_lines=5,
                 num_minus_lines=3,
             )
-            assert patch.calculate_review_priority() == 'high', f'Expected high for {filename}'
+            assert patch.calculate_review_priority() == "high", f"Expected high for {filename}"
 
     def test_calculate_review_priority_high_for_large_changes(self):
         """Test high priority for large change sets."""
         from prdiffer.domain.entities.file_patch import FilePatchInfo, EDIT_TYPE
 
         patch = FilePatchInfo(
-            filename='regular.py',
+            filename="regular.py",
             edit_type=EDIT_TYPE.MODIFIED,
             num_plus_lines=80,
             num_minus_lines=50,  # 130 total changes > 100
         )
 
-        assert patch.calculate_review_priority() == 'high'
+        assert patch.calculate_review_priority() == "high"
 
     def test_calculate_review_priority_low_for_docs(self):
         """Test low priority for documentation files."""
         from prdiffer.domain.entities.file_patch import FilePatchInfo, EDIT_TYPE
 
-        doc_files = ['README.md', 'docs/api.md', 'CHANGELOG.txt', 'LICENSE']
+        doc_files = ["README.md", "docs/api.md", "CHANGELOG.txt", "LICENSE"]
         # Provide enough base_file content to keep change_percentage < 50%
-        base_content = '\n'.join([f'line {i}' for i in range(100)])
+        base_content = "\n".join([f"line {i}" for i in range(100)])
 
         for filename in doc_files:
             patch = FilePatchInfo(
@@ -86,15 +86,15 @@ class TestFilePatchInfoExtensions:
                 num_plus_lines=5,
                 num_minus_lines=3,
             )
-            assert patch.calculate_review_priority() == 'low', f'Expected low for {filename}'
+            assert patch.calculate_review_priority() == "low", f"Expected low for {filename}"
 
     def test_calculate_review_priority_low_for_tests(self):
         """Test low priority for test files."""
         from prdiffer.domain.entities.file_patch import FilePatchInfo, EDIT_TYPE
 
-        test_files = ['test_main.py', 'tests/unit/test_api.py', 'spec/test_helper.js']
+        test_files = ["test_main.py", "tests/unit/test_api.py", "spec/test_helper.js"]
         # Provide enough base_file content to keep change_percentage < 50%
-        base_content = '\n'.join([f'line {i}' for i in range(100)])
+        base_content = "\n".join([f"line {i}" for i in range(100)])
 
         for filename in test_files:
             patch = FilePatchInfo(
@@ -104,61 +104,61 @@ class TestFilePatchInfoExtensions:
                 num_plus_lines=10,
                 num_minus_lines=5,
             )
-            assert patch.calculate_review_priority() == 'low', f'Expected low for {filename}'
+            assert patch.calculate_review_priority() == "low", f"Expected low for {filename}"
 
     def test_calculate_review_priority_normal_for_regular_files(self):
         """Test normal priority for regular source files."""
         from prdiffer.domain.entities.file_patch import FilePatchInfo, EDIT_TYPE
 
         # Provide enough base_file content to keep change_percentage < 50%
-        base_content = '\n'.join([f'line {i}' for i in range(100)])
+        base_content = "\n".join([f"line {i}" for i in range(100)])
 
         patch = FilePatchInfo(
-            filename='src/utils.py',
+            filename="src/utils.py",
             base_file=base_content,
             edit_type=EDIT_TYPE.MODIFIED,
             num_plus_lines=10,
             num_minus_lines=5,
         )
 
-        assert patch.calculate_review_priority() == 'normal'
+        assert patch.calculate_review_priority() == "normal"
 
     def test_detect_code_smells_todo(self):
         """Test detection of TODO comments."""
         from prdiffer.domain.entities.file_patch import FilePatchInfo, EDIT_TYPE
 
         patch = FilePatchInfo(
-            filename='test.py',
-            patch='+# TODO: fix this later\n+def broken():\n+    pass',
+            filename="test.py",
+            patch="+# TODO: fix this later\n+def broken():\n+    pass",
             edit_type=EDIT_TYPE.MODIFIED,
             num_plus_lines=3,
             num_minus_lines=0,
         )
 
         smells = patch.detect_code_smells()
-        assert any('TODO' in s for s in smells)
+        assert any("TODO" in s for s in smells)
 
     def test_detect_code_smells_fixme(self):
         """Test detection of FIXME comments."""
         from prdiffer.domain.entities.file_patch import FilePatchInfo, EDIT_TYPE
 
         patch = FilePatchInfo(
-            filename='test.py',
-            patch='+# FIXME: this is broken\n+return None',
+            filename="test.py",
+            patch="+# FIXME: this is broken\n+return None",
             edit_type=EDIT_TYPE.MODIFIED,
             num_plus_lines=2,
             num_minus_lines=0,
         )
 
         smells = patch.detect_code_smells()
-        assert any('FIXME' in s for s in smells)
+        assert any("FIXME" in s for s in smells)
 
     def test_detect_code_smells_debug_statements(self):
         """Test detection of debug statements."""
         from prdiffer.domain.entities.file_patch import FilePatchInfo, EDIT_TYPE
 
         patch = FilePatchInfo(
-            filename='test.py',
+            filename="test.py",
             patch="+print('debugging')\n+console.log('test')",
             edit_type=EDIT_TYPE.MODIFIED,
             num_plus_lines=2,
@@ -166,30 +166,30 @@ class TestFilePatchInfoExtensions:
         )
 
         smells = patch.detect_code_smells()
-        assert any('print' in s for s in smells) or any('console.log' in s for s in smells)
+        assert any("print" in s for s in smells) or any("console.log" in s for s in smells)
 
     def test_detect_code_smells_large_changes(self):
         """Test detection of very large change sets."""
         from prdiffer.domain.entities.file_patch import FilePatchInfo, EDIT_TYPE
 
         patch = FilePatchInfo(
-            filename='test.py',
-            patch='@@ -1,500 +1,600 @@',
+            filename="test.py",
+            patch="@@ -1,500 +1,600 @@",
             edit_type=EDIT_TYPE.MODIFIED,
             num_plus_lines=600,
             num_minus_lines=0,
         )
 
         smells = patch.detect_code_smells()
-        assert any('large' in s.lower() for s in smells)
+        assert any("large" in s.lower() for s in smells)
 
     def test_detect_code_smells_empty_patch(self):
         """Test that empty patch returns no smells."""
         from prdiffer.domain.entities.file_patch import FilePatchInfo, EDIT_TYPE
 
         patch = FilePatchInfo(
-            filename='test.py',
-            patch='',
+            filename="test.py",
+            patch="",
             edit_type=EDIT_TYPE.MODIFIED,
             num_plus_lines=0,
             num_minus_lines=0,
@@ -203,20 +203,20 @@ class TestFilePatchInfoExtensions:
         from prdiffer.domain.entities.file_patch import FilePatchInfo, EDIT_TYPE
 
         patch = FilePatchInfo(
-            filename='test.py',
+            filename="test.py",
             edit_type=EDIT_TYPE.MODIFIED,
             num_plus_lines=5,
             num_minus_lines=3,
-            suggested_review_priority='high',
-            code_smell_indicators=('Contains TODO',),
+            suggested_review_priority="high",
+            code_smell_indicators=("Contains TODO",),
         )
 
         summary = patch.get_summary()
 
-        assert 'review_priority' in summary
-        assert 'code_smell_indicators' in summary
-        assert summary['review_priority'] == 'high'
-        assert summary['code_smell_indicators'] == ('Contains TODO',)
+        assert "review_priority" in summary
+        assert "code_smell_indicators" in summary
+        assert summary["review_priority"] == "high"
+        assert summary["code_smell_indicators"] == ("Contains TODO",)
 
 
 # =============================================================================
@@ -239,10 +239,10 @@ class TestPRDiffExtensions:
         diff = PRDiff(
             files=(
                 FileDiffResponse(
-                    path='test.py',
+                    path="test.py",
                     status=EDIT_TYPE.MODIFIED,
                     stats=FileStats(additions=1, deletions=1),
-                    diff='@@ -1,3 +1,3 @@',
+                    diff="@@ -1,3 +1,3 @@",
                 ),
             )
         )
@@ -268,7 +268,7 @@ class TestStructuredErrorCodes:
         """Test error code string representation."""
         from prdiffer.domain.errors import E1001_INVALID_URL
 
-        assert str(E1001_INVALID_URL) == 'E1001_INVALID_URL'
+        assert str(E1001_INVALID_URL) == "E1001_INVALID_URL"
 
     def test_error_code_to_dict(self):
         """Test error code conversion to dictionary."""
@@ -276,11 +276,11 @@ class TestStructuredErrorCodes:
 
         result = E1001_INVALID_URL.to_dict()
 
-        assert 'error_code' in result
-        assert 'message' in result
-        assert 'remediation' in result
-        assert 'category' in result
-        assert result['error_code'] == 'E1001_INVALID_URL'
+        assert "error_code" in result
+        assert "message" in result
+        assert "remediation" in result
+        assert "category" in result
+        assert result["error_code"] == "E1001_INVALID_URL"
 
     def test_input_validation_errors(self):
         """Test input validation error codes."""
@@ -301,7 +301,7 @@ class TestStructuredErrorCodes:
 
         for error in errors:
             assert error.category == ErrorCategory.INPUT_VALIDATION
-            assert error.code.startswith('E1')
+            assert error.code.startswith("E1")
 
     def test_authentication_errors(self):
         """Test authentication error codes."""
@@ -320,7 +320,7 @@ class TestStructuredErrorCodes:
 
         for error in errors:
             assert error.category == ErrorCategory.AUTHENTICATION
-            assert error.code.startswith('E2')
+            assert error.code.startswith("E2")
 
     def test_rate_limiting_errors(self):
         """Test rate limiting error codes."""
@@ -334,7 +334,7 @@ class TestStructuredErrorCodes:
 
         for error in errors:
             assert error.category == ErrorCategory.RATE_LIMITING
-            assert error.code.startswith('E3')
+            assert error.code.startswith("E3")
 
     def test_not_found_errors(self):
         """Test resource not found error codes."""
@@ -349,7 +349,7 @@ class TestStructuredErrorCodes:
 
         for error in errors:
             assert error.category == ErrorCategory.NOT_FOUND
-            assert error.code.startswith('E4')
+            assert error.code.startswith("E4")
 
     def test_internal_errors(self):
         """Test internal server error codes."""
@@ -368,7 +368,7 @@ class TestStructuredErrorCodes:
 
         for error in errors:
             assert error.category == ErrorCategory.INTERNAL
-            assert error.code.startswith('E5')
+            assert error.code.startswith("E5")
 
 
 class TestMCPErrorException:
@@ -388,31 +388,31 @@ class TestMCPErrorException:
         """Test MCPError with additional detail."""
         from prdiffer.domain.errors import MCPError, E1001_INVALID_URL
 
-        error = MCPError(E1001_INVALID_URL, detail='URL missing protocol')
+        error = MCPError(E1001_INVALID_URL, detail="URL missing protocol")
 
-        assert error.detail == 'URL missing protocol'
+        assert error.detail == "URL missing protocol"
 
     def test_mcp_error_with_context(self):
         """Test MCPError with context information."""
         from prdiffer.domain.errors import MCPError, E1001_INVALID_URL
 
-        error = MCPError(E1001_INVALID_URL, context={'provided_url': 'invalid://url'})
+        error = MCPError(E1001_INVALID_URL, context={"provided_url": "invalid://url"})
 
-        assert error.context['provided_url'] == 'invalid://url'
+        assert error.context["provided_url"] == "invalid://url"
 
     def test_mcp_error_to_dict(self):
         """Test MCPError conversion to dictionary."""
         from prdiffer.domain.errors import MCPError, E1001_INVALID_URL
 
-        error = MCPError(E1001_INVALID_URL, detail='Missing protocol', context={'url': 'test'})
+        error = MCPError(E1001_INVALID_URL, detail="Missing protocol", context={"url": "test"})
 
         result = error.to_dict()
 
-        assert 'error_code' in result
-        assert 'message' in result
-        assert 'detail' in result
-        assert 'context' in result
-        assert result['detail'] == 'Missing protocol'
+        assert "error_code" in result
+        assert "message" in result
+        assert "detail" in result
+        assert "context" in result
+        assert result["detail"] == "Missing protocol"
 
     def test_category_specific_exceptions(self):
         """Test category-specific exception classes."""
@@ -470,8 +470,8 @@ class TestErrorHandlingUtilities:
 
         # Note: We're testing the mapping by name, not actual exception types
         # because we don't want to import github exceptions
-        assert get_error_for_exception(ValueError('test')).code == E1001_INVALID_URL.code
-        assert get_error_for_exception(TimeoutError('test')).code == E5004_TIMEOUT_ERROR.code
+        assert get_error_for_exception(ValueError("test")).code == E1001_INVALID_URL.code
+        assert get_error_for_exception(TimeoutError("test")).code == E5004_TIMEOUT_ERROR.code
 
     def test_get_error_for_exception_unknown_type(self):
         """Test mapping unknown exception types to internal error."""
@@ -483,7 +483,7 @@ class TestErrorHandlingUtilities:
         class CustomError(Exception):
             pass
 
-        result = get_error_for_exception(CustomError('test'))
+        result = get_error_for_exception(CustomError("test"))
         assert result == E5001_INTERNAL_ERROR
 
     def test_create_error_response_basic(self):
@@ -492,26 +492,26 @@ class TestErrorHandlingUtilities:
 
         response = create_error_response(E1001_INVALID_URL)
 
-        assert response['success'] is False
-        assert 'error' in response
-        assert response['error']['error_code'] == 'E1001_INVALID_URL'
+        assert response["success"] is False
+        assert "error" in response
+        assert response["error"]["error_code"] == "E1001_INVALID_URL"
 
     def test_create_error_response_with_detail(self):
         """Test creating error response with detail."""
         from prdiffer.domain.errors import create_error_response, E1001_INVALID_URL
 
-        response = create_error_response(E1001_INVALID_URL, detail='Missing protocol in URL')
+        response = create_error_response(E1001_INVALID_URL, detail="Missing protocol in URL")
 
-        assert response['error']['detail'] == 'Missing protocol in URL'
+        assert response["error"]["detail"] == "Missing protocol in URL"
 
     def test_create_error_response_with_context(self):
         """Test creating error response with context."""
         from prdiffer.domain.errors import create_error_response, E1001_INVALID_URL
 
-        response = create_error_response(E1001_INVALID_URL, context={'provided_url': 'invalid://url'})
+        response = create_error_response(E1001_INVALID_URL, context={"provided_url": "invalid://url"})
 
-        assert 'context' in response['error']
-        assert response['error']['context']['provided_url'] == 'invalid://url'
+        assert "context" in response["error"]
+        assert response["error"]["context"]["provided_url"] == "invalid://url"
 
 
 # =============================================================================
@@ -528,9 +528,9 @@ class TestPhase3Integration:
 
         # Create a security-related file with code smells
         patch = FilePatchInfo(
-            filename='auth/token_handler.py',
-            base_file='original code',
-            head_file='new code',
+            filename="auth/token_handler.py",
+            base_file="original code",
+            head_file="new code",
             patch="+# TODO: add proper validation\n+password = 'hardcoded'\n+print('debug')",
             edit_type=EDIT_TYPE.MODIFIED,
             num_plus_lines=3,
@@ -539,7 +539,7 @@ class TestPhase3Integration:
 
         # Calculate priority
         priority = patch.calculate_review_priority()
-        assert priority == 'high'  # Security file
+        assert priority == "high"  # Security file
 
         # Detect smells
         smells = patch.detect_code_smells()
@@ -557,17 +557,17 @@ class TestPhase3Integration:
         diff = PRDiff(
             files=(
                 FileDiffResponse(
-                    path='test.py',
+                    path="test.py",
                     status=EDIT_TYPE.MODIFIED,
                     stats=FileStats(additions=1, deletions=1),
-                    diff='@@ -1,10 +1,15 @@\n-old\n+new',
+                    diff="@@ -1,10 +1,15 @@\n-old\n+new",
                 ),
             )
         )
 
         # Verify files array works correctly
         assert len(diff.files) == 1
-        assert diff.files[0].diff.startswith('@@')
+        assert diff.files[0].diff.startswith("@@")
 
     def test_error_handling_flow(self):
         """Test complete error handling flow."""
@@ -579,10 +579,10 @@ class TestPhase3Integration:
 
         # Simulate error occurrence
         try:
-            raise MCPError(E1001_INVALID_URL, detail='No PR number in URL')
+            raise MCPError(E1001_INVALID_URL, detail="No PR number in URL")
         except MCPError as e:
             response = create_error_response(e.error_code, detail=e.detail, context=e.context)
 
-        assert response['success'] is False
-        assert response['error']['detail'] == 'No PR number in URL'
-        assert 'remediation' in response['error']
+        assert response["success"] is False
+        assert response["error"]["detail"] == "No PR number in URL"
+        assert "remediation" in response["error"]

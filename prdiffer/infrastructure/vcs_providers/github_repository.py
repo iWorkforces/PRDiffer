@@ -120,7 +120,7 @@ class GitHubVCSRepository(PRDiffRepositoryInterface):
         """
         import re
 
-        pattern = r'https://github\.com/([^/]+)/([^/]+)/(pull|tree)/(\d+)'
+        pattern = r"https://github\.com/([^/]+)/([^/]+)/(pull|tree)/(\d+)"
         return bool(re.match(pattern, url))
 
 

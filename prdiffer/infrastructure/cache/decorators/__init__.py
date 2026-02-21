@@ -13,8 +13,8 @@ from prdiffer.infrastructure.cache.decorators.utils import (
 )
 
 __all__ = [
-    'CachingMixin',
-    'cached_method',
-    '_make_hashable',
-    '_generate_cache_key',
+    "CachingMixin",
+    "cached_method",
+    "_make_hashable",
+    "_generate_cache_key",
 ]

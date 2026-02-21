@@ -51,8 +51,8 @@ class GitHubAPIClient(GitHubAPIServiceInterface):
         retry_on_404: bool = False,
         retry_on_403: bool = True,
         retry_on_500: bool = True,
-        retry_log_level: str = 'DEBUG',
-        permanent_failure_log_level: str = 'INFO',
+        retry_log_level: str = "DEBUG",
+        permanent_failure_log_level: str = "INFO",
         circuit_breaker_enabled: bool = True,
         circuit_breaker_failure_threshold: int = 5,
         circuit_breaker_timeout: float = 60.0,
@@ -141,7 +141,7 @@ class GitHubAPIClient(GitHubAPIServiceInterface):
     def get_repository(self, repo_full_name: str) -> Repository | None:
         if not self._github_client:
             raise PRDifferException(
-                'GitHub client not initialized. Call initialize_client() before using get_repository().',
+                "GitHub client not initialized. Call initialize_client() before using get_repository().",
                 error_code=E5009_CONFIGURATION_ERROR,
             )
 
@@ -157,12 +157,12 @@ class GitHubAPIClient(GitHubAPIServiceInterface):
         except GITHUB_API_EXCEPTIONS as e:
             exc = cast(Exception, e)
             sanitized = sanitize_exception_for_logging(exc)
-            self._logger.error(f'Failed to get repository {repo_full_name}', extra=sanitized)
+            self._logger.error(f"Failed to get repository {repo_full_name}", extra=sanitized)
             return None
 
     def _get_pygithub_repository(self, repo_full_name: str) -> PyGithubRepository | None:
         if not self._github_client:
-            raise PRDifferException('GitHub client not initialized.', error_code=E5009_CONFIGURATION_ERROR)
+            raise PRDifferException("GitHub client not initialized.", error_code=E5009_CONFIGURATION_ERROR)
 
         try:
             result = self._retry_handler.execute_with_retry(
@@ -174,13 +174,13 @@ class GitHubAPIClient(GitHubAPIServiceInterface):
         except GITHUB_API_EXCEPTIONS as e:
             exc = cast(Exception, e)
             sanitized = sanitize_exception_for_logging(exc)
-            self._logger.error(f'Failed to get repository {repo_full_name}', extra=sanitized)
+            self._logger.error(f"Failed to get repository {repo_full_name}", extra=sanitized)
             return None
 
     def get_pull_request(self, repo_full_name: str, pr_number: int) -> PullRequest | None:
         if not self._github_client:
             raise PRDifferException(
-                'GitHub client not initialized. Call initialize_client() before using get_pull_request().',
+                "GitHub client not initialized. Call initialize_client() before using get_pull_request().",
                 error_code=E5009_CONFIGURATION_ERROR,
             )
 
@@ -200,7 +200,7 @@ class GitHubAPIClient(GitHubAPIServiceInterface):
         except GITHUB_API_EXCEPTIONS as e:
             exc = cast(Exception, e)
             sanitized = sanitize_exception_for_logging(exc)
-            self._logger.error(f'Failed to get pull request #{pr_number}', extra=sanitized)
+            self._logger.error(f"Failed to get pull request #{pr_number}", extra=sanitized)
             return None
 
     def _get_pygithub_pull_request(self, pygithub_repo: PyGithubRepository, pr_number: int) -> PyGithubPullRequest | None:
@@ -210,14 +210,14 @@ class GitHubAPIClient(GitHubAPIServiceInterface):
         except GITHUB_API_EXCEPTIONS as e:
             exc = cast(Exception, e)
             sanitized = sanitize_exception_for_logging(exc)
-            self._logger.error(f'Failed to get pull request #{pr_number}', extra=sanitized)
+            self._logger.error(f"Failed to get pull request #{pr_number}", extra=sanitized)
             return None
 
     def _is_cache_entry_valid(self, cache_key: tuple) -> bool:
         if cache_key not in self._file_content_cache:
             return False
         entry = self._file_content_cache[cache_key]
-        age = time.time() - float(entry['timestamp'])
+        age = time.time() - float(entry["timestamp"])
         return bool(age < self._cache_ttl)
 
     def _evict_oldest_entries(self) -> None:
@@ -225,7 +225,7 @@ class GitHubAPIClient(GitHubAPIServiceInterface):
 
         expired_keys = []
         for key, entry in self._file_content_cache.items():
-            age = current_time - float(entry['timestamp'])
+            age = current_time - float(entry["timestamp"])
             if age >= self._cache_ttl:
                 expired_keys.append(key)
 
@@ -235,14 +235,14 @@ class GitHubAPIClient(GitHubAPIServiceInterface):
 
         if expired_keys:
             self._logger.debug(
-                f'Cache eviction (TTL): removed {len(expired_keys)} expired entries [size={len(self._file_content_cache)}/{self._cache_max_size}]'
+                f"Cache eviction (TTL): removed {len(expired_keys)} expired entries [size={len(self._file_content_cache)}/{self._cache_max_size}]"
             )
 
         while len(self._file_content_cache) >= self._cache_max_size:
             evicted_key, _ = self._file_content_cache.popitem(last=False)
             self._cache_evictions_size += 1
             self._cache_evictions += 1
-            self._logger.debug(f'Cache eviction (LRU): {evicted_key[0][:50]}... [size={len(self._file_content_cache)}/{self._cache_max_size}]')
+            self._logger.debug(f"Cache eviction (LRU): {evicted_key[0][:50]}... [size={len(self._file_content_cache)}/{self._cache_max_size}]")
 
     def _cache_set(self, cache_key: tuple, content: str) -> None:
         if cache_key in self._file_content_cache:
@@ -251,8 +251,8 @@ class GitHubAPIClient(GitHubAPIServiceInterface):
             self._evict_oldest_entries()
 
         self._file_content_cache[cache_key] = {
-            'content': content,
-            'timestamp': time.time(),
+            "content": content,
+            "timestamp": time.time(),
         }
 
     def _cache_get(self, cache_key: tuple) -> str | None:
@@ -264,12 +264,12 @@ class GitHubAPIClient(GitHubAPIServiceInterface):
 
         self._file_content_cache.move_to_end(cache_key)
         self._cache_hits += 1
-        return str(self._file_content_cache[cache_key]['content'])
+        return str(self._file_content_cache[cache_key]["content"])
 
     def get_file_content(self, repo_full_name: str, file_path: str, branch: str) -> str:
         if not self._github_client:
             raise PRDifferException(
-                'GitHub client not initialized. Call initialize_client() before using get_file_content().',
+                "GitHub client not initialized. Call initialize_client() before using get_file_content().",
                 error_code=E5009_CONFIGURATION_ERROR,
             )
 
@@ -285,7 +285,7 @@ class GitHubAPIClient(GitHubAPIServiceInterface):
                 context=OperationContext.REPOSITORY_ACCESS,
             )
             if not pygithub_repo:
-                return ''
+                return ""
 
             content = self._retry_handler.execute_with_retry(
                 pygithub_repo.get_contents,
@@ -296,7 +296,7 @@ class GitHubAPIClient(GitHubAPIServiceInterface):
 
             if isinstance(content, list):
                 self._logger.warning(f"Expected single file but got directory for path '{file_path}' in branch '{branch}'. Found {len(content)} items.")
-                file_content = ''
+                file_content = ""
             else:
                 file_content = self._extract_file_content(content)
 
@@ -310,7 +310,7 @@ class GitHubAPIClient(GitHubAPIServiceInterface):
                 f"Failed to get content for file '{file_path}' in branch '{branch}'",
                 extra=sanitized,
             )
-            file_content = ''
+            file_content = ""
             self._cache_set(cache_key, file_content)
             return file_content
 
@@ -335,7 +335,7 @@ class GitHubAPIClient(GitHubAPIServiceInterface):
     async def _get_file_content_async(self, repo_full_name: str, file_path: str, branch: str) -> str:
         if not self._github_client:
             raise PRDifferException(
-                'GitHub client not initialized. Call initialize_client() before using _get_file_content_async().',
+                "GitHub client not initialized. Call initialize_client() before using _get_file_content_async().",
                 error_code=E5009_CONFIGURATION_ERROR,
             )
 
@@ -360,7 +360,7 @@ class GitHubAPIClient(GitHubAPIServiceInterface):
 
             pygithub_repo = await get_repo_async()
             if not pygithub_repo:
-                return ''
+                return ""
 
             async def get_contents_async():
                 return await to_thread.run_sync(
@@ -376,7 +376,7 @@ class GitHubAPIClient(GitHubAPIServiceInterface):
 
             if isinstance(content, list):
                 self._logger.warning(f"Expected single file but got directory for path '{file_path}' in branch '{branch}'. Found {len(content)} items.")
-                file_content = ''
+                file_content = ""
             else:
                 file_content = self._extract_file_content(content)
 
@@ -390,7 +390,7 @@ class GitHubAPIClient(GitHubAPIServiceInterface):
                 f"Failed to get content for file '{file_path}' in branch '{branch}'",
                 extra=sanitized,
             )
-            file_content = ''
+            file_content = ""
             self._cache_set(cache_key, file_content)
             return file_content
 
@@ -425,14 +425,14 @@ class GitHubAPIClient(GitHubAPIServiceInterface):
             results[file_path] = content
 
         elapsed = time.time() - start_time
-        self._logger.debug(f'Async parallel batch fetch: {len(files_to_fetch)} files in {elapsed:.2f}s ({elapsed / len(files_to_fetch) * 1000:.1f}ms/file avg)')
+        self._logger.debug(f"Async parallel batch fetch: {len(files_to_fetch)} files in {elapsed:.2f}s ({elapsed / len(files_to_fetch) * 1000:.1f}ms/file avg)")
 
         return results
 
     def _extract_file_content(self, content: ContentFile) -> str:
-        if content and hasattr(content, 'decoded_content') and content.decoded_content:
+        if content and hasattr(content, "decoded_content") and content.decoded_content:
             return str(content.decoded_content.decode())
-        return ''
+        return ""
 
     def get_etag_stats(self) -> dict[str, Any]:
         return self._etag_request_adapter.get_stats()
@@ -448,8 +448,8 @@ def get_github_api_client(
     retry_on_404: bool = False,
     retry_on_403: bool = True,
     retry_on_500: bool = True,
-    retry_log_level: str = 'DEBUG',
-    permanent_failure_log_level: str = 'INFO',
+    retry_log_level: str = "DEBUG",
+    permanent_failure_log_level: str = "INFO",
     circuit_breaker_enabled: bool = True,
     circuit_breaker_failure_threshold: int = 5,
     circuit_breaker_timeout: float = 60.0,
@@ -467,11 +467,11 @@ def get_github_api_client(
 
         settings_service = get_settings_service()
         if rate_limit_remaining_threshold is None:
-            rate_limit_remaining_threshold = int(settings_service.get('github.retry.rate_limit_remaining_threshold', 1))
+            rate_limit_remaining_threshold = int(settings_service.get("github.retry.rate_limit_remaining_threshold", 1))
         if rate_limit_reset_buffer is None:
-            rate_limit_reset_buffer = float(settings_service.get('github.retry.rate_limit_reset_buffer', 1.0))
+            rate_limit_reset_buffer = float(settings_service.get("github.retry.rate_limit_reset_buffer", 1.0))
         if secondary_rate_limit_backoff is None:
-            secondary_rate_limit_backoff = float(settings_service.get('github.retry.secondary_rate_limit_backoff', 60.0))
+            secondary_rate_limit_backoff = float(settings_service.get("github.retry.secondary_rate_limit_backoff", 60.0))
 
     return GitHubAPIClient(
         max_retries=max_retries,

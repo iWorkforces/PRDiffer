@@ -5,11 +5,11 @@ from enum import StrEnum
 class LogLevel(StrEnum):
     """Log levels for the logging service."""
 
-    DEBUG = 'DEBUG'
-    INFO = 'INFO'
-    WARNING = 'WARNING'
-    ERROR = 'ERROR'
-    CRITICAL = 'CRITICAL'
+    DEBUG = "DEBUG"
+    INFO = "INFO"
+    WARNING = "WARNING"
+    ERROR = "ERROR"
+    CRITICAL = "CRITICAL"
 
 
 class LoggerServiceInterface(ABC):

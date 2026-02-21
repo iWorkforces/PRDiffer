@@ -26,7 +26,7 @@ class TestInfrastructureFactoryLayerIsolation:
     def test_no_application_imports_at_top_level(self):
         """Test that infrastructure_factory.py has NO top-level imports from prdiffer.application."""
         # Parse the infrastructure_factory.py file
-        with open('prdiffer/infrastructure/factories/infrastructure_factory.py', 'r') as f:
+        with open("prdiffer/infrastructure/factories/infrastructure_factory.py", "r") as f:
             tree = ast.parse(f.read())
 
         # Collect all top-level imports
@@ -35,15 +35,15 @@ class TestInfrastructureFactoryLayerIsolation:
             if isinstance(node, (ast.Import, ast.ImportFrom)):
                 # Check if it's an import from prdiffer.application
                 if isinstance(node, ast.ImportFrom) and node.module:
-                    if node.module.startswith('prdiffer.application'):
-                        application_imports.append(f'from {node.module} import {[alias.name for alias in node.names]}')
+                    if node.module.startswith("prdiffer.application"):
+                        application_imports.append(f"from {node.module} import {[alias.name for alias in node.names]}")
                 elif isinstance(node, ast.Import):
                     for alias in node.names:
-                        if alias.name.startswith('prdiffer.application'):
-                            application_imports.append(f'import {alias.name}')
+                        if alias.name.startswith("prdiffer.application"):
+                            application_imports.append(f"import {alias.name}")
 
         # Assert that NO application-layer imports exist at top level
-        assert len(application_imports) == 0, f'Found top-level application-layer imports: {application_imports}'
+        assert len(application_imports) == 0, f"Found top-level application-layer imports: {application_imports}"
 
     def test_creates_settings_service(self):
         """Test that create_settings_service returns SettingsServiceInterface."""

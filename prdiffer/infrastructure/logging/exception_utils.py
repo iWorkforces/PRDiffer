@@ -22,12 +22,12 @@ class ExceptionSanitizer:
     # Patterns for detecting and redacting sensitive information
     # GitHub personal access token pattern (ghp_, gho_, ghu_, ghs_)
     GITHUB_TOKEN_PATTERNS = [
-        r'(ghp_[a-zA-Z0-9]{36})',  # GitHub personal access token
-        r'(gho_[a-zA-Z0-9]{36})',  # GitHub OAuth token
-        r'(ghu_[a-zA-Z0-9]{36})',  # GitHub user token
-        r'(ghs_[a-zA-Z0-9]{36})',  # GitHub server token
-        r'(ghr_[a-zA-Z0-9]{36})',  # GitHub refresh token
-        r'(github_pat_[a-zA-Z0-9_]{82})',  # GitHub fine-grained token
+        r"(ghp_[a-zA-Z0-9]{36})",  # GitHub personal access token
+        r"(gho_[a-zA-Z0-9]{36})",  # GitHub OAuth token
+        r"(ghu_[a-zA-Z0-9]{36})",  # GitHub user token
+        r"(ghs_[a-zA-Z0-9]{36})",  # GitHub server token
+        r"(ghr_[a-zA-Z0-9]{36})",  # GitHub refresh token
+        r"(github_pat_[a-zA-Z0-9_]{82})",  # GitHub fine-grained token
     ]
 
     # Generic token patterns (alphanumeric strings that look like tokens)
@@ -35,7 +35,7 @@ class ExceptionSanitizer:
         r'(["\']?token["\']?\s*[:=]\s*["\'])([a-zA-Z0-9_\-]{20,})(["\'])',  # token: "xxx" or token='xxx'
         r'(["\']?api_key["\']?\s*[:=]\s*["\'])([a-zA-Z0-9_\-]{20,})(["\'])',  # api_key: "xxx"
         r'(["\']?authorization["\']?\s*[:=]\s*["\'])([a-zA-Z0-9_\-]{20,})(["\'])',  # authorization: "xxx"
-        r'(Bearer\s+)([a-zA-Z0-9_\-\.]{20,})',  # Bearer xxx
+        r"(Bearer\s+)([a-zA-Z0-9_\-\.]{20,})",  # Bearer xxx
     ]
 
     # Password patterns
@@ -46,13 +46,13 @@ class ExceptionSanitizer:
     ]
 
     # Email patterns (partially redact)
-    EMAIL_PATTERN = r'([a-zA-Z0-9._%+-]+)@([a-zA-Z0-9.-]+\.[a-zA-Z]{2,})'
+    EMAIL_PATTERN = r"([a-zA-Z0-9._%+-]+)@([a-zA-Z0-9.-]+\.[a-zA-Z]{2,})"
 
     # IP address patterns (partially redact)
-    IP_PATTERN = r'(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})'
+    IP_PATTERN = r"(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})"
 
     # API key/secret in headers or URLs
-    API_KEY_IN_URL = r'([&?](api_key|token|access_token|secret|password)[=][^&\s]{8,})'
+    API_KEY_IN_URL = r"([&?](api_key|token|access_token|secret|password)[=][^&\s]{8,})"
 
     @classmethod
     def sanitize_exception_message(cls, exception: Exception, max_length: int = 500) -> str:
@@ -66,7 +66,7 @@ class ExceptionSanitizer:
             Sanitized exception message safe for logging
         """
         if not exception:
-            return ''
+            return ""
 
         # Get the exception message
         message = str(exception)
@@ -76,7 +76,7 @@ class ExceptionSanitizer:
 
         # Truncate if necessary
         if len(sanitized) > max_length:
-            sanitized = sanitized[:max_length] + '...'
+            sanitized = sanitized[:max_length] + "..."
 
         return sanitized
 
@@ -100,7 +100,7 @@ class ExceptionSanitizer:
             Sanitized traceback string safe for logging
         """
         if exc_value is None:
-            return ''
+            return ""
 
         # Format the traceback using the exception object
         tb_lines = traceback.format_exception(exc_value)
@@ -110,12 +110,12 @@ class ExceptionSanitizer:
             # Keep header and a subset of frames
             header = tb_lines[:2]
             frames = tb_lines[2 : max_frames * 2 + 2]
-            tb_lines = header + frames + ['... (truncated)\n']
+            tb_lines = header + frames + ["... (truncated)\n"]
 
         # Sanitize each line
         sanitized_lines = [cls._sanitize_string(line) for line in tb_lines]
 
-        return ''.join(sanitized_lines)
+        return "".join(sanitized_lines)
 
     @classmethod
     def sanitize_exception_for_logging(
@@ -139,13 +139,13 @@ class ExceptionSanitizer:
         exc_traceback = exception.__traceback__
 
         result = {
-            'type': exc_type.__name__,
-            'module': exc_type.__module__,
-            'message': cls.sanitize_exception_message(exc_value, max_length),
+            "type": exc_type.__name__,
+            "module": exc_type.__module__,
+            "message": cls.sanitize_exception_message(exc_value, max_length),
         }
 
         if include_traceback and exc_traceback is not None:
-            result['traceback'] = cls.sanitize_traceback(exc_type, exc_value, exc_traceback)[:max_length]
+            result["traceback"] = cls.sanitize_traceback(exc_type, exc_value, exc_traceback)[:max_length]
 
         return result
 
@@ -168,7 +168,7 @@ class ExceptionSanitizer:
         for pattern in cls.GITHUB_TOKEN_PATTERNS:
             sanitized = re.sub(
                 pattern,
-                lambda m: m.group(1)[:8] + '*' * (len(m.group(1)) - 8) if m.group(1) else m.group(0),
+                lambda m: m.group(1)[:8] + "*" * (len(m.group(1)) - 8) if m.group(1) else m.group(0),
                 sanitized,
                 flags=re.IGNORECASE,
             )
@@ -177,7 +177,7 @@ class ExceptionSanitizer:
         for pattern in cls.GENERIC_TOKEN_PATTERNS:
             sanitized = re.sub(
                 pattern,
-                lambda m: m.group(1) + m.group(2)[:4] + '*' * (len(m.group(2)) - 4) + m.group(3),
+                lambda m: m.group(1) + m.group(2)[:4] + "*" * (len(m.group(2)) - 4) + m.group(3),
                 sanitized,
                 flags=re.IGNORECASE,
             )
@@ -186,7 +186,7 @@ class ExceptionSanitizer:
         for pattern in cls.PASSWORD_PATTERNS:
             sanitized = re.sub(
                 pattern,
-                lambda m: m.group(1) + '*' * 8 + m.group(3),
+                lambda m: m.group(1) + "*" * 8 + m.group(3),
                 sanitized,
                 flags=re.IGNORECASE,
             )
@@ -194,21 +194,21 @@ class ExceptionSanitizer:
         # Partially redact emails (username is ok, domain should be preserved)
         sanitized = re.sub(
             cls.EMAIL_PATTERN,
-            lambda m: m.group(1)[:3] + '***@' + m.group(2),
+            lambda m: m.group(1)[:3] + "***@" + m.group(2),
             sanitized,
         )
 
         # Partially redact IPs (first and last octet)
         sanitized = re.sub(
             cls.IP_PATTERN,
-            lambda m: m.group(1) + '.*.' + m.group(4),
+            lambda m: m.group(1) + ".*." + m.group(4),
             sanitized,
         )
 
         # Redact API keys in URLs/headers
         sanitized = re.sub(
             cls.API_KEY_IN_URL,
-            lambda m: m.group(1)[:8] + '***',
+            lambda m: m.group(1)[:8] + "***",
             sanitized,
         )
 
@@ -225,31 +225,31 @@ class ExceptionSanitizer:
             Redacted header value
         """
         if not header_value:
-            return ''
+            return ""
 
         header_lower = header_value.lower()
 
         # Bearer token
-        if header_lower.startswith('bearer '):
+        if header_lower.startswith("bearer "):
             token = header_value[7:].strip()
             if len(token) > 10:
-                return f'Bearer {token[:4]}...{token[-4:]}'
-            return 'Bearer ****'
+                return f"Bearer {token[:4]}...{token[-4:]}"
+            return "Bearer ****"
 
         # Basic auth
-        if header_lower.startswith('basic '):
-            return 'Basic ****'
+        if header_lower.startswith("basic "):
+            return "Basic ****"
 
         # Token type patterns
-        for prefix in ['token ', 'apikey ', 'api-key ']:
+        for prefix in ["token ", "apikey ", "api-key "]:
             if header_lower.startswith(prefix):
-                return f'{prefix.title()}****'
+                return f"{prefix.title()}****"
 
         # Fallback: show first and last few chars
         if len(header_value) > 10:
-            return f'{header_value[:4]}...{header_value[-4:]}'
+            return f"{header_value[:4]}...{header_value[-4:]}"
 
-        return '****'
+        return "****"
 
 
 # Global instance for convenience

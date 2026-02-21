@@ -39,7 +39,7 @@ class SecurityPatterns:
     sql_injection: list[str]
 
     @classmethod
-    def from_settings(cls, settings_service: 'SettingsService | None') -> 'SecurityPatterns':
+    def from_settings(cls, settings_service: "SettingsService | None") -> "SecurityPatterns":
         """Load patterns from settings service.
 
         Args:
@@ -51,24 +51,24 @@ class SecurityPatterns:
         # Default patterns
         defaults = cls(
             command_injection=[
-                r'[;&|`$]',  # Shell metacharacters
-                r'\$\(',  # Command substitution
-                r'`',  # Backticks
+                r"[;&|`$]",  # Shell metacharacters
+                r"\$\(",  # Command substitution
+                r"`",  # Backticks
             ],
             path_traversal=[
-                r'\.\.',  # Parent directory (Unix)
-                r'~/',  # Home directory (Unix)
-                r'/etc/',  # System directories (Unix)
-                r'/var/',
-                r'/usr/',
-                r'[a-zA-Z]:\\',  # Windows absolute paths
-                r'\.\.\\',  # Windows parent directory
-                r'\\\\',  # UNC paths
+                r"\.\.",  # Parent directory (Unix)
+                r"~/",  # Home directory (Unix)
+                r"/etc/",  # System directories (Unix)
+                r"/var/",
+                r"/usr/",
+                r"[a-zA-Z]:\\",  # Windows absolute paths
+                r"\.\.\\",  # Windows parent directory
+                r"\\\\",  # UNC paths
             ],
             sql_injection=[
-                r'(?:--|#|/\*|\*/)',  # SQL comments
-                r'\b(?:union|select|insert|update|delete|drop|create|alter)\b',
-                r'(?:exec|execute|xp_)',
+                r"(?:--|#|/\*|\*/)",  # SQL comments
+                r"\b(?:union|select|insert|update|delete|drop|create|alter)\b",
+                r"(?:exec|execute|xp_)",
             ],
         )
 
@@ -76,9 +76,9 @@ class SecurityPatterns:
             return defaults
 
         try:
-            command = settings_service.get('security.command_injection_patterns', [])
-            path = settings_service.get('security.path_traversal_patterns', [])
-            sql = settings_service.get('security.sql_injection_patterns', [])
+            command = settings_service.get("security.command_injection_patterns", [])
+            path = settings_service.get("security.path_traversal_patterns", [])
+            sql = settings_service.get("security.sql_injection_patterns", [])
 
             if command or path or sql:
                 return cls(
@@ -88,10 +88,10 @@ class SecurityPatterns:
                 )
         except (KeyError, ValueError, TypeError) as e:
             logger.warning(
-                'Failed to load security patterns from settings, using defaults',
+                "Failed to load security patterns from settings, using defaults",
                 extra={
-                    'error': str(e),
-                    'error_type': type(e).__name__,
+                    "error": str(e),
+                    "error_type": type(e).__name__,
                 },
             )
 
@@ -103,7 +103,7 @@ class SecurityPatterns:
         Returns:
             Compiled regex pattern
         """
-        return re.compile('|'.join(self.command_injection), re.IGNORECASE)
+        return re.compile("|".join(self.command_injection), re.IGNORECASE)
 
     def compile_path_traversal(self) -> Pattern:
         """Compile path traversal patterns into a single regex.
@@ -111,7 +111,7 @@ class SecurityPatterns:
         Returns:
             Compiled regex pattern
         """
-        return re.compile('|'.join(self.path_traversal), re.IGNORECASE)
+        return re.compile("|".join(self.path_traversal), re.IGNORECASE)
 
     def compile_sql_injection(self) -> Pattern:
         """Compile SQL injection patterns into a single regex.
@@ -119,7 +119,7 @@ class SecurityPatterns:
         Returns:
             Compiled regex pattern
         """
-        return re.compile('|'.join(self.sql_injection), re.IGNORECASE)
+        return re.compile("|".join(self.sql_injection), re.IGNORECASE)
 
 
 class InjectionDetector:
@@ -142,33 +142,33 @@ class InjectionDetector:
 
     # Class-level patterns (fallback when settings not available)
     _COMMAND_INJECTION_PATTERNS = [
-        r'[;&|`$]',  # Shell metacharacters
-        r'\$\(',  # Command substitution
-        r'`',  # Backticks
+        r"[;&|`$]",  # Shell metacharacters
+        r"\$\(",  # Command substitution
+        r"`",  # Backticks
     ]
 
     _PATH_TRAVERSAL_PATTERNS = [
-        r'\.\.',  # Parent directory (Unix)
-        r'~/',  # Home directory (Unix)
-        r'/etc/',  # System directories (Unix)
-        r'/var/',
-        r'/usr/',
-        r'[a-zA-Z]:\\',  # Windows absolute paths
-        r'\.\.\\',  # Windows parent directory
-        r'\\\\',  # UNC paths
+        r"\.\.",  # Parent directory (Unix)
+        r"~/",  # Home directory (Unix)
+        r"/etc/",  # System directories (Unix)
+        r"/var/",
+        r"/usr/",
+        r"[a-zA-Z]:\\",  # Windows absolute paths
+        r"\.\.\\",  # Windows parent directory
+        r"\\\\",  # UNC paths
     ]
 
     _SQL_INJECTION_PATTERNS = [
-        r'(?:--|#|/\*|\*/)',  # SQL comments
-        r'\b(?:union|select|insert|update|delete|drop|create|alter)\b',  # SQL keywords
-        r'(?:exec|execute|xp_)',  # Stored procedures
+        r"(?:--|#|/\*|\*/)",  # SQL comments
+        r"\b(?:union|select|insert|update|delete|drop|create|alter)\b",  # SQL keywords
+        r"(?:exec|execute|xp_)",  # Stored procedures
     ]
 
     # Pre-compiled combined patterns for performance
-    _COMMAND_INJECTION_COMPILED = re.compile(r'[;&|`$]|\$\(|`', re.IGNORECASE)
-    _PATH_TRAVERSAL_COMPILED = re.compile(r'\.\.|~/|/etc/|/var/|/usr/|[a-zA-Z]:\\|\.\\|\\\\', re.IGNORECASE)
+    _COMMAND_INJECTION_COMPILED = re.compile(r"[;&|`$]|\$\(|`", re.IGNORECASE)
+    _PATH_TRAVERSAL_COMPILED = re.compile(r"\.\.|~/|/etc/|/var/|/usr/|[a-zA-Z]:\\|\.\\|\\\\", re.IGNORECASE)
     _SQL_INJECTION_COMPILED = re.compile(
-        r'(?:--|#|/\*|\*/)|\b(?:union|select|insert|update|delete|drop|create|alter)\b|(?:exec|execute|xp_)',
+        r"(?:--|#|/\*|\*/)|\b(?:union|select|insert|update|delete|drop|create|alter)\b|(?:exec|execute|xp_)",
         re.IGNORECASE,
     )
 

@@ -8,15 +8,15 @@ from dataclasses import dataclass
 
 
 # Pre-defined error code sets for efficient lookups
-PERMANENT_ERROR_CODES = {'404', '401', '403'}
-SERVER_ERROR_CODES = {'500', '501', '502', '503', '504'}
-TRANSIENT_ERROR_PATTERNS = {'timeout', 'connection', 'network', '503', '502', '504'}
+PERMANENT_ERROR_CODES = {"404", "401", "403"}
+SERVER_ERROR_CODES = {"500", "501", "502", "503", "504"}
+TRANSIENT_ERROR_PATTERNS = {"timeout", "connection", "network", "503", "502", "504"}
 SECONDARY_RATE_LIMIT_PATTERNS = {
-    'secondary rate limit',
-    'abuse detection',
-    'abuse detection mechanism',
-    'api abuse',
-    'temporarily blocked',
+    "secondary rate limit",
+    "abuse detection",
+    "abuse detection mechanism",
+    "api abuse",
+    "temporarily blocked",
 }
 
 
@@ -80,13 +80,13 @@ def get_error_message(error: Exception) -> str:
         str: Combined error message (base message + data message if available)
     """
     base_message = str(error)
-    data_message = ''
-    data = getattr(error, 'data', None)
+    data_message = ""
+    data = getattr(error, "data", None)
     if isinstance(data, dict):
-        data_message = str(data.get('message', ''))
+        data_message = str(data.get("message", ""))
     elif isinstance(data, str):
         data_message = data
-    return f'{base_message} {data_message}'.strip().lower()
+    return f"{base_message} {data_message}".strip().lower()
 
 
 def categorize_error(error: Exception) -> str:
@@ -100,20 +100,20 @@ def categorize_error(error: Exception) -> str:
     """
     error_str = str(error).lower()
 
-    if '404' in error_str:
-        return 'not_found'
-    elif '403' in error_str or '401' in error_str:
-        return 'authentication'
-    elif '429' in error_str or 'rate limit' in error_str:
-        return 'rate_limit'
-    elif any(f'{code}' in error_str for code in [500, 502, 503, 504]):
-        return 'server_error'
-    elif 'timeout' in error_str:
-        return 'timeout'
-    elif 'connection' in error_str or 'network' in error_str:
-        return 'network'
+    if "404" in error_str:
+        return "not_found"
+    elif "403" in error_str or "401" in error_str:
+        return "authentication"
+    elif "429" in error_str or "rate limit" in error_str:
+        return "rate_limit"
+    elif any(f"{code}" in error_str for code in [500, 502, 503, 504]):
+        return "server_error"
+    elif "timeout" in error_str:
+        return "timeout"
+    elif "connection" in error_str or "network" in error_str:
+        return "network"
     else:
-        return 'unknown'
+        return "unknown"
 
 
 def should_retry_by_error_code(
@@ -133,9 +133,9 @@ def should_retry_by_error_code(
     Returns:
         bool: True if this error should be retried based on code
     """
-    if '404' in error_message and not retry_on_404:
+    if "404" in error_message and not retry_on_404:
         return False
-    if '403' in error_message and not retry_on_403:
+    if "403" in error_message and not retry_on_403:
         return False
     if any(code in error_message for code in SERVER_ERROR_CODES) and not retry_on_500:
         return False
@@ -155,7 +155,7 @@ def is_rate_limit_error(error: Exception) -> bool:
     if is_secondary_rate_limit_error(error):
         return True
 
-    if 'rate limit' in error_str or '429' in str(error):
+    if "rate limit" in error_str or "429" in str(error):
         return True
 
     return False
@@ -191,18 +191,18 @@ def classify_error_for_retry(
     error_message = str(error).lower()
 
     # Check for permanent errors
-    if '404' in error_message and not retry_on_404:
+    if "404" in error_message and not retry_on_404:
         return RetryDecision(
             should_retry=False,
-            reason='404 Not Found (not configured for retry)',
+            reason="404 Not Found (not configured for retry)",
             is_rate_limit=False,
             is_permanent=True,
         )
 
-    if '403' in error_message and not retry_on_403:
+    if "403" in error_message and not retry_on_403:
         return RetryDecision(
             should_retry=False,
-            reason='403 Forbidden (not configured for retry)',
+            reason="403 Forbidden (not configured for retry)",
             is_rate_limit=False,
             is_permanent=True,
         )
@@ -210,7 +210,7 @@ def classify_error_for_retry(
     if any(code in error_message for code in SERVER_ERROR_CODES) and not retry_on_500:
         return RetryDecision(
             should_retry=False,
-            reason='Server error (not configured for retry)',
+            reason="Server error (not configured for retry)",
             is_rate_limit=False,
             is_permanent=True,
         )
@@ -224,14 +224,14 @@ def classify_error_for_retry(
     if is_transient or is_rate_limit:
         return RetryDecision(
             should_retry=True,
-            reason='Transient error detected' if is_transient else 'Rate limit detected',
+            reason="Transient error detected" if is_transient else "Rate limit detected",
             is_rate_limit=is_rate_limit,
             is_permanent=False,
         )
 
     return RetryDecision(
         should_retry=False,
-        reason='Error not classified as retryable',
+        reason="Error not classified as retryable",
         is_rate_limit=False,
         is_permanent=True,
     )

@@ -54,7 +54,7 @@ class RequestCoalescingService:
 
         if max_waiters is None:
             settings_service = get_settings_service()
-            max_waiters = settings_service.get('request_coalescing.max_waiters', DEFAULT_MAX_WAITERS)
+            max_waiters = settings_service.get("request_coalescing.max_waiters", DEFAULT_MAX_WAITERS)
         if max_waiters is None:
             max_waiters = DEFAULT_MAX_WAITERS
 
@@ -127,7 +127,7 @@ class RequestCoalescingService:
         if new_request is None:
             raise PRDifferException(
                 f"Internal error: Request for key '{key}' should be owned by this task "
-                'but new_request is None. This indicates a logic error in request coalescing.',
+                "but new_request is None. This indicates a logic error in request coalescing.",
                 error_code=E5001_INTERNAL_ERROR,
             )
 
@@ -185,7 +185,7 @@ class RequestCoalescingService:
 
         except TimeoutError:
             await self._cleanup_on_failure(key, new_request, cleanup_done)
-            exc = TimeoutError(f'Request timed out after {timeout} seconds')
+            exc = TimeoutError(f"Request timed out after {timeout} seconds")
             new_request.exception = exc
             new_request.event.set()
             self._logger.error(f"Request timed out for key '{key}' after {timeout} seconds")
@@ -223,7 +223,7 @@ class RequestCoalescingService:
         """Clear all pending requests."""
         async with self._lock:
             self._pending_requests.clear()
-            self._logger.info('Cleared all pending requests')
+            self._logger.info("Cleared all pending requests")
 
     async def get_stats(self) -> dict[str, Any]:
         """Get statistics about pending requests."""
@@ -233,9 +233,9 @@ class RequestCoalescingService:
             total_waiters = sum(req.request_count for req in self._pending_requests.values())
 
         return {
-            'pending_count': pending_count,
-            'pending_keys': pending_keys,
-            'total_waiters': total_waiters,
+            "pending_count": pending_count,
+            "pending_keys": pending_keys,
+            "total_waiters": total_waiters,
         }
 
 

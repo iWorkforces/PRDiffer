@@ -13,8 +13,8 @@ class UnsupportedProviderError(PRDifferException):
 
     def __init__(self, url: str):
         self.url = url
-        message = f'Unsupported provider for repository URL: {url}'
-        super().__init__(message, details={'url': url})
+        message = f"Unsupported provider for repository URL: {url}"
+        super().__init__(message, details={"url": url})
 
 
 class VCSProviderRegistry:
