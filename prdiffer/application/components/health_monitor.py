@@ -7,6 +7,7 @@ from prdiffer.domain.interfaces.protocols import (
     MetricsTrackerProtocol,
     RateLimiterProtocol,
 )
+from prdiffer.domain.services.logger import LoggerServiceInterface
 
 
 class HealthMonitor(HealthMonitorProtocol):
@@ -16,7 +17,7 @@ class HealthMonitor(HealthMonitorProtocol):
         self,
         metrics_tracker: MetricsTrackerProtocol,
         rate_limiter: RateLimiterProtocol,
-        logger: Any | None = None,
+        logger: logging.Logger | LoggerServiceInterface | None = None,
     ):
         """Initialize health monitor.
 

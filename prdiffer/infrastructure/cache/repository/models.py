@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass
 from functools import wraps
-from typing import Callable
+from collections.abc import Callable
 
 from prdiffer.infrastructure.github_repository import GitHubPRDiffRepository
 

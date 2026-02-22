@@ -2,7 +2,8 @@
 
 import time
 from abc import abstractmethod
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 from prdiffer.domain.services import RetryServiceInterface
 from prdiffer.infrastructure.utils.logger_factory import LazyLoggerMixin

@@ -5,7 +5,8 @@ to prevent duplicate API calls for the same resource.
 """
 
 import anyio
-from typing import Any, Callable, Awaitable
+from collections.abc import Callable, Awaitable
+from typing import Any
 from dataclasses import dataclass, field
 
 from prdiffer.infrastructure.logging.console_logger import get_logger

@@ -8,7 +8,10 @@ import time
 import hashlib
 import json
 from dataclasses import asdict
-from typing import Callable, NoReturn
+from collections.abc import Callable
+from typing import NoReturn
+
+from fastmcp import FastMCP
 
 from prdiffer.domain.entities.pr_diff import PRDiff
 from prdiffer.domain.usecases.pr_diff_usecases import GetPRDiffUseCase
@@ -388,7 +391,7 @@ class ToolRegistry:
             error_code=E5002_GITHUB_API_ERROR,
         )
 
-    def register_tools(self, mcp):
+    def register_tools(self, mcp: FastMCP) -> None:
         """Register FastMCP tools with the server instance.
 
         This method registers the get_pr_diff, approve_pr, and describe_pr tools.

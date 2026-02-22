@@ -5,7 +5,8 @@ import logging
 import threading
 import time
 from collections import OrderedDict
-from typing import Any, Callable, TypeVar, cast
+from collections.abc import Callable
+from typing import Any, TypeVar, cast
 
 from prdiffer.infrastructure.cache.decorators.utils import _generate_cache_key
 

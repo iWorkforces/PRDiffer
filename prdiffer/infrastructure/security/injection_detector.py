@@ -12,7 +12,7 @@ Patterns can be loaded from settings or use default values.
 import logging
 import re
 from dataclasses import dataclass
-from typing import Pattern, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from prdiffer.infrastructure.settings import SettingsService
@@ -97,7 +97,7 @@ class SecurityPatterns:
 
         return defaults
 
-    def compile_command_injection(self) -> Pattern:
+    def compile_command_injection(self) -> re.Pattern[str]:
         """Compile command injection patterns into a single regex.
 
         Returns:
@@ -105,7 +105,7 @@ class SecurityPatterns:
         """
         return re.compile("|".join(self.command_injection), re.IGNORECASE)
 
-    def compile_path_traversal(self) -> Pattern:
+    def compile_path_traversal(self) -> re.Pattern[str]:
         """Compile path traversal patterns into a single regex.
 
         Returns:
@@ -113,7 +113,7 @@ class SecurityPatterns:
         """
         return re.compile("|".join(self.path_traversal), re.IGNORECASE)
 
-    def compile_sql_injection(self) -> Pattern:
+    def compile_sql_injection(self) -> re.Pattern[str]:
         """Compile SQL injection patterns into a single regex.
 
         Returns:

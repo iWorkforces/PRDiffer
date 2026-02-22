@@ -4,6 +4,7 @@ import logging
 from typing import Any, TypedDict
 from prdiffer.domain.interfaces.protocols import ServerConfigurationProtocol
 from prdiffer.version import __version__
+from prdiffer.domain.services.logger import LoggerServiceInterface
 
 
 class ValidationResult(TypedDict):
@@ -20,7 +21,7 @@ class ServerConfiguration(ServerConfigurationProtocol):
     def __init__(
         self,
         settings_service,  # SettingsServiceInterface
-        logger: Any | None = None,
+        logger: logging.Logger | LoggerServiceInterface | None = None,
     ):
         """Initialize server configuration.
 

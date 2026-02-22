@@ -30,6 +30,7 @@ from prdiffer.domain.interfaces.protocols import AuthenticationProtocol
 from prdiffer.infrastructure.security.input_validator import InputValidator
 from prdiffer.domain.exceptions import AuthenticationError
 from prdiffer.domain.errors import E2002_AUTH_FAILED
+from prdiffer.domain.services.logger import LoggerServiceInterface
 
 
 @dataclass
@@ -60,7 +61,7 @@ class AuthenticationMiddleware(AuthenticationProtocol):
 
     def __init__(
         self,
-        logger: Any | None = None,
+        logger: logging.Logger | LoggerServiceInterface | None = None,
         max_failures_per_minute: int = DEFAULT_MAX_FAILURES_PER_MINUTE,
         lockout_duration: int = DEFAULT_LOCKOUT_DURATION,
         failure_window: int = DEFAULT_FAILURE_WINDOW,

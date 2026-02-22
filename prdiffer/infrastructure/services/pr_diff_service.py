@@ -5,10 +5,14 @@ using GitHub API operations.
 """
 
 import os
-from typing import cast
+from typing import cast, TYPE_CHECKING
 
 import asyncer
 from github import GithubException
+
+if TYPE_CHECKING:
+    from github.Repository import Repository
+    from github.PullRequest import PullRequest
 from prdiffer.domain.services.pr_diff_service import PRDiffServiceInterface
 from prdiffer.domain.services.logger import LoggerServiceInterface
 from prdiffer.domain.entities.pr_diff import PRDiff
@@ -187,7 +191,7 @@ class GitHubPRDiffService(CachingMixin, PRDiffServiceInterface):
             )
             return None
 
-    async def _generate_diff_content_async(self, repository, pull_request) -> tuple[str, list[FilePatchInfo]]:
+    async def _generate_diff_content_async(self, repository: Repository, pull_request: PullRequest) -> tuple[str, list[FilePatchInfo]]:
         """Generate diff content for the pull request using async parallel processing.
 
         This method uses the async file processor for parallel content fetching,
@@ -369,7 +373,7 @@ class GitHubPRDiffService(CachingMixin, PRDiffServiceInterface):
             )
             return None
 
-    def _convert_github_files_to_file_patch_info(self, github_files):
+    def _convert_github_files_to_file_patch_info(self, github_files) -> list[FilePatchInfo]:
         """Convert GitHub File objects to FilePatchInfo domain entities.
 
         Args:
@@ -446,7 +450,7 @@ class GitHubPRDiffService(CachingMixin, PRDiffServiceInterface):
             diff=file_patch.patch or "",
         )
 
-    def _generate_diff_content(self, repository, pull_request) -> list[FilePatchInfo]:
+    def _generate_diff_content(self, repository: Repository, pull_request: PullRequest) -> list[FilePatchInfo]:
         """Generate diff content for a pull request.
 
         Returns FilePatchInfo list instead of concatenated string.
@@ -492,7 +496,7 @@ class GitHubPRDiffService(CachingMixin, PRDiffServiceInterface):
             self._logger.error("Failed to generate diff content", extra=sanitized)
             return []
 
-    def _get_base_commit_sha(self, repository, pull_request) -> str | None:
+    def _get_base_commit_sha(self, repository: Repository, pull_request: PullRequest) -> str | None:
         """Get the base commit SHA for the pull request.
 
         Args:

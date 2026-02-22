@@ -94,7 +94,8 @@ class LazyLoggerMixin:
                 if not self._logger_fetched:
                     self._logger = get_logger(self._logger_name)
                     self._logger_fetched = True
-        return self._logger  # type: ignore[return-value]
+        assert self._logger is not None
+        return self._logger
 
 
 def get_null_logger(name: str | None = None) -> logging.Logger:

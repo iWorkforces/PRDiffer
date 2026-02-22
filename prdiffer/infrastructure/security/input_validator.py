@@ -10,7 +10,6 @@ This module provides comprehensive input validation to prevent:
 """
 
 import re
-from typing import Pattern
 
 from prdiffer.domain.exceptions import (
     InvalidURLError,
@@ -48,10 +47,10 @@ class InputValidator:
     """
 
     # Regex patterns for validation
-    GITHUB_URL_PATTERN: Pattern = re.compile(r"^https://github\.com/([a-zA-Z0-9_-]+)/([a-zA-Z0-9._-]+)/pull/(\d+)/?$")
-    GITHUB_REPO_PATTERN: Pattern = re.compile(r"^[a-zA-Z0-9_-]+/[a-zA-Z0-9._-]+$")
-    SAFE_USERNAME_PATTERN: Pattern = re.compile(r"^[a-zA-Z0-9_-]+$")
-    SAFE_REPO_NAME_PATTERN: Pattern = re.compile(r"^[a-zA-Z0-9._-]+$")
+    GITHUB_URL_PATTERN: re.Pattern[str] = re.compile(r"^https://github\.com/([a-zA-Z0-9_-]+)/([a-zA-Z0-9._-]+)/pull/(\d+)/?$")
+    GITHUB_REPO_PATTERN: re.Pattern[str] = re.compile(r"^[a-zA-Z0-9_-]+/[a-zA-Z0-9._-]+$")
+    SAFE_USERNAME_PATTERN: re.Pattern[str] = re.compile(r"^[a-zA-Z0-9_-]+$")
+    SAFE_REPO_NAME_PATTERN: re.Pattern[str] = re.compile(r"^[a-zA-Z0-9._-]+$")
     # Git branch/reference name validation
     # Based on Git ref naming rules:
     # - Can contain alphanumeric, hyphens, underscores, dots, and forward slashes
@@ -59,7 +58,7 @@ class InputValidator:
     # - Cannot have consecutive slashes
     # - Cannot start with dot
     # - Max length for Git refs is typically around 255 characters
-    BRANCH_NAME_PATTERN: Pattern = re.compile(r"^[a-zA-Z0-9]([a-zA-Z0-9_\-./]*[a-zA-Z0-9])?$")
+    BRANCH_NAME_PATTERN: re.Pattern[str] = re.compile(r"^[a-zA-Z0-9]([a-zA-Z0-9_\-./]*[a-zA-Z0-9])?$")
 
     def __init__(self, security_patterns: SecurityPatterns | None = None):
         """Initialize the InputValidator with optional custom security patterns.
