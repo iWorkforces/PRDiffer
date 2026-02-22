@@ -4,6 +4,7 @@ import inspect
 import time
 import logging
 import anyio
+import asyncer
 from typing import cast
 from github.File import File
 from github.PaginatedList import PaginatedList
@@ -111,7 +112,7 @@ class FileProcessor:
                 return self._pr_files_cache
 
             # Cache is stale or uninitialized - update it
-            self._pr_files_cache = pull_request.get_files()
+            self._pr_files_cache = await asyncer.asyncify(pull_request.get_files)()
             self._pr_cache_timestamp = current_time
 
         return self._pr_files_cache

@@ -534,7 +534,7 @@ class TestGitHubPRDiffRepositoryUpdatePRDescription:
 class TestGitHubPRDiffRepositoryGetMergeBaseCommits:
     """Tests for _get_merge_base_commits method."""
 
-    def test_get_merge_base_commits_success(self, repository):
+    async def test_get_merge_base_commits_success(self, repository):
         """Test getting merge base commits successfully."""
         mock_repo = Mock()
         mock_pr = Mock()
@@ -549,12 +549,12 @@ class TestGitHubPRDiffRepositoryGetMergeBaseCommits:
         repository._pull_request = mock_pr
         repository._initialized = True
 
-        base_sha, head_sha = repository._get_merge_base_commits()
+        base_sha, head_sha = await repository._get_merge_base_commits()
 
         assert base_sha == "merge123"
         assert head_sha == "head123"
 
-    def test_get_merge_base_commits_fallback_on_exception(self, repository):
+    async def test_get_merge_base_commits_fallback_on_exception(self, repository):
         """Test fallback to base commit when compare fails."""
         mock_repo = Mock()
         mock_pr = Mock()
@@ -567,7 +567,7 @@ class TestGitHubPRDiffRepositoryGetMergeBaseCommits:
         repository._pull_request = mock_pr
         repository._initialized = True
 
-        base_sha, head_sha = repository._get_merge_base_commits()
+        base_sha, head_sha = await repository._get_merge_base_commits()
 
         assert base_sha == "base123"
         assert head_sha == "head123"

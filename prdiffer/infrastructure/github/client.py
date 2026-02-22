@@ -1,7 +1,7 @@
 """GitHub API client implementation."""
 
 import time
-from anyio import to_thread
+import asyncer
 from collections import OrderedDict
 from typing import Any, cast
 
@@ -350,27 +350,27 @@ class GitHubAPIClient(GitHubAPIServiceInterface):
         try:
 
             async def get_repo_async():
-                return await to_thread.run_sync(
+                return await asyncer.asyncify(
                     lambda: self._retry_handler.execute_with_retry(
                         github_client.get_repo,
                         repo_full_name,
                         context=OperationContext.REPOSITORY_ACCESS,
                     )
-                )
+                )()
 
             pygithub_repo = await get_repo_async()
             if not pygithub_repo:
                 return ""
 
             async def get_contents_async():
-                return await to_thread.run_sync(
+                return await asyncer.asyncify(
                     lambda: self._retry_handler.execute_with_retry(
                         pygithub_repo.get_contents,
                         file_path,
                         ref=branch,
                         context=OperationContext.FILE_CONTENT,
                     )
-                )
+                )()
 
             content = await get_contents_async()
 

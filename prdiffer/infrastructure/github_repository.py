@@ -183,7 +183,7 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
         Raises:
             RuntimeError: If the repository is not accessible
         """
-        self._initialize_github_objects()
+        await self._initialize_github_objects()
         if not self._initialized:
             raise PRDifferException(
                 f"Failed to initialize repository {self._repo_owner}/{self._repo_name}",
@@ -205,7 +205,7 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
         """Pull request number."""
         return self._pr_number
 
-    def _initialize_github_objects(self):
+    async def _initialize_github_objects(self):
         """Lazy initialization of GitHub client, repository, and PR objects."""
         if self._initialized:
             return
@@ -217,7 +217,7 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
         repo_full_name = f"{self._repo_owner}/{self._repo_name}"
 
         try:
-            self._repository = self._github_api_client._get_pygithub_repository(repo_full_name)
+            self._repository = await asyncer.asyncify(self._github_api_client._get_pygithub_repository)(repo_full_name)
         except (UnknownObjectException, RateLimitExceededException) as e:
             sanitized = sanitize_exception_for_logging(e)
             self._logger.warning(f"Repository not accessible: {repo_full_name}", extra=sanitized)
@@ -244,7 +244,7 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
                     f"Repository {repo_full_name} is not initialized",
                     error_code=E5009_CONFIGURATION_ERROR,
                 )
-            self._pull_request = self._github_api_client._get_pygithub_pull_request(self._repository, self._pr_number)
+            self._pull_request = await asyncer.asyncify(self._github_api_client._get_pygithub_pull_request)(self._repository, self._pr_number)
         except (UnknownObjectException, RateLimitExceededException) as e:
             sanitized = sanitize_exception_for_logging(e)
             self._logger.warning(
@@ -277,7 +277,7 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
             RuntimeError: If GitHub objects failed to initialize
             ValueError: If pull request cannot be refreshed
         """
-        return await asyncer.asyncify(self._get_latest_commit_sha_sync)()
+        return await self._get_latest_commit_sha_sync()
 
     async def get_pr_diff(self) -> PRDiff:
         """Fetch PR diff information from GitHub.
@@ -351,7 +351,7 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
         )
 
         # Initialize GitHub objects if not already initialized
-        self._initialize_github_objects()
+        await self._initialize_github_objects()
 
         # Verify PR exists and is accessible
         if self._pull_request is None:
@@ -362,7 +362,8 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
         try:
             # Call create_review() with APPROVE event and compliment as body
             # This single call both approves the PR and posts the comment
-            review = self._pull_request.create_review(
+            pull_request = self._pull_request
+            review = await asyncer.asyncify(pull_request.create_review)(
                 event="APPROVE",
                 body=compliment,
             )
@@ -465,7 +466,7 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
         )
 
         # Initialize GitHub objects if not already initialized
-        self._initialize_github_objects()
+        await self._initialize_github_objects()
 
         # Verify PR exists and is accessible
         if self._pull_request is None:
@@ -475,7 +476,8 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
 
         try:
             # Call edit() with body parameter to update PR description
-            self._pull_request.edit(body=description)
+            pull_request = self._pull_request
+            await asyncer.asyncify(pull_request.edit)(body=description)
 
             self._logger.info(
                 f"Successfully updated description for PR #{pr_number}",
@@ -518,15 +520,16 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
             )
             raise RuntimeError(f"GitHub API error while updating description for PR #{pr_number}") from e
 
-    def _get_latest_commit_sha_sync(self) -> str:
-        self._initialize_github_objects()
+    async def _get_latest_commit_sha_sync(self) -> str:
+        await self._initialize_github_objects()
 
         if self._repository is None:
             raise RuntimeError(f"Failed to initialize repository {self._repo_owner}/{self._repo_name} - GitHub objects may not have been properly initialized")
         if self._pull_request is None:
             raise RuntimeError(f"Failed to initialize pull request #{self._pr_number} - GitHub objects may not have been properly initialized")
 
-        self._pull_request = self._github_api_client._get_pygithub_pull_request(self._repository, self._pr_number)
+        repository = self._repository
+        self._pull_request = await asyncer.asyncify(self._github_api_client._get_pygithub_pull_request)(repository, self._pr_number)
 
         if self._pull_request is None:
             raise ValueError(f"Failed to refresh pull request #{self._pr_number} - it may have been deleted or become inaccessible")
@@ -534,14 +537,14 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
         return self._pull_request.head.sha
 
     async def _get_pr_diff_sync(self) -> PRDiff:
-        self._initialize_github_objects()
+        await self._initialize_github_objects()
 
         if self._repository is None:
             raise RuntimeError(f"Failed to initialize repository {self._repo_owner}/{self._repo_name} - GitHub objects may not have been properly initialized")
         if self._pull_request is None:
             raise RuntimeError(f"Failed to initialize pull request #{self._pr_number} - GitHub objects may not have been properly initialized")
 
-        base_sha, head_sha = self._get_merge_base_commits()
+        base_sha, head_sha = await self._get_merge_base_commits()
 
         pr_files = await self._file_processor.get_pr_files(self._pull_request)
         filtered_files = self._file_processor.filter_files(pr_files)
@@ -573,7 +576,7 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
 
         return PRDiff(files=tuple(file_responses))
 
-    def _get_merge_base_commits(self) -> tuple[str, str]:
+    async def _get_merge_base_commits(self) -> tuple[str, str]:
         """Get base and head commit SHAs, using merge base for accurate comparison.
 
         Returns:
@@ -588,8 +591,12 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
         if self._pull_request is None:
             raise RuntimeError(f"Pull request #{self._pr_number} not initialized")
 
+        repository = self._repository
+        base_sha_ref = self._pull_request.base.sha
+        head_sha_ref = self._pull_request.head.sha
+
         try:
-            compare = self._repository.compare(self._pull_request.base.sha, self._pull_request.head.sha)
+            compare = await asyncer.asyncify(repository.compare)(base_sha_ref, head_sha_ref)
             merge_base_commit = compare.merge_base_commit
             base_sha = merge_base_commit.sha
         except (UnknownObjectException, RateLimitExceededException) as e:
