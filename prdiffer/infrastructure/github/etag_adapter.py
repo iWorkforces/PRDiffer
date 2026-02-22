@@ -9,10 +9,11 @@ when content hasn't changed, which saves on data transfer for large responses.
 """
 
 import time
+import logging
 from collections import OrderedDict
 from typing import Any
 
-from prdiffer.infrastructure.logging.console_logger import get_logger
+from prdiffer.infrastructure.logging.console_logger import get_logger, ConsoleLogger
 
 
 class ETagRequestAdapter:
@@ -36,8 +37,8 @@ class ETagRequestAdapter:
         enabled: bool = True,
         etag_ttl: int = 600,
         etag_cache_size: int = 1000,
-        logger=None,
-    ):
+        logger: logging.Logger | ConsoleLogger | None = None,
+    ) -> None:
         """Initialize the ETag request adapter.
 
         Args:
@@ -92,7 +93,7 @@ class ETagRequestAdapter:
             dict[str, Any]: Statistics including cache size, hits, misses
         """
         total_requests = self._etag_hits + self._etag_misses
-        hit_rate = (self._etag_hits / total_requests * 100) if total_requests > 0 else 0
+        hit_rate = self._etag_hits * 100 / total_requests if total_requests else 0.0
 
         return {
             "enabled": self._enabled,
@@ -121,10 +122,7 @@ class ETagRequestAdapter:
         etag = self._get_etag(url)
         if etag:
             headers["If-None-Match"] = etag
-            self._logger.debug(
-                f"Added If-None-Match header for {url[:60]}...",
-                etag=etag,
-            )
+            self._logger.debug(f"Added If-None-Match header for {url[:60]}... (etag={etag})")
         return headers
 
     def handle_etag_response(self, url: str, status_code: int, headers: dict[str, str], content: str) -> str:
@@ -149,24 +147,15 @@ class ETagRequestAdapter:
             cached_content = self._cache_service.get(url) if self._cache_service else None
 
             if cached_content is not None:
-                self._logger.info(
-                    f"304 Not Modified - returning cached content for {url[:60]}...",
-                    etag=etag,
-                )
+                self._logger.info(f"304 Not Modified - returning cached content for {url[:60]}... (etag={etag})")
                 return cached_content
             else:
-                self._logger.warning(
-                    f"304 response but no cached content for {url[:60]}...",
-                    url=url,
-                )
+                self._logger.warning(f"304 response but no cached content for {url[:60]}...")
                 return ""
 
         if etag:
             self._store_etag(url, etag, content)
         elif status_code == 200:
-            self._logger.debug(
-                f"200 response without ETag for {url[:60]}...",
-                url=url,
-            )
+            self._logger.debug(f"200 response without ETag for {url[:60]}...")
 
         return content

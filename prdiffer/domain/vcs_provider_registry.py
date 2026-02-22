@@ -11,7 +11,7 @@ from prdiffer.domain.exceptions import PRDifferException
 class UnsupportedProviderError(PRDifferException):
     """Raised when no provider supports the given repository URL."""
 
-    def __init__(self, url: str):
+    def __init__(self, url: str) -> None:
         self.url = url
         message = f"Unsupported provider for repository URL: {url}"
         super().__init__(message, details={"url": url})
@@ -28,7 +28,7 @@ class VCSProviderRegistry:
     Thread-safe for concurrent provider lookups.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._providers: dict[str, VCSDiffRepositoryInterface] = {}
 
     def register_provider(self, provider: VCSDiffRepositoryInterface) -> None:

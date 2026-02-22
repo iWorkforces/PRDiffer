@@ -2,6 +2,7 @@
 
 import re
 import time
+import logging
 from prdiffer.domain.entities.file_patch import FilePatchInfo
 from prdiffer.domain.services import DiffServiceInterface
 from prdiffer.infrastructure.logging.console_logger import get_logger
@@ -25,8 +26,8 @@ class DiffGenerator:
         parallel_executor=None,
         parallel_enabled: bool = True,
         parallel_threshold: int = 3,
-        logger=None,
-    ):
+        logger: logging.Logger | None = None,
+    ) -> None:
         """Initialize the diff generator.
 
         Args:

@@ -2,6 +2,7 @@
 
 import inspect
 import time
+import logging
 import anyio
 from typing import cast
 from github.File import File
@@ -49,8 +50,8 @@ class FileProcessor:
         max_files_allowed: int = 50,
         parallel_fetch_threshold: int = 10,
         max_parallel_workers: int = 4,
-        logger=None,
-    ):
+        logger: logging.Logger | None = None,
+    ) -> None:
         """Initialize the file processor.
 
         Args:

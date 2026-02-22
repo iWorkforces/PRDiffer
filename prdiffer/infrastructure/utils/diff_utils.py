@@ -2,6 +2,7 @@
 
 import difflib
 import re
+import logging
 from dataclasses import dataclass
 from prdiffer.domain.services import DiffServiceInterface
 from prdiffer.infrastructure.utils.logger_factory import LazyLoggerMixin
@@ -49,7 +50,7 @@ class DiffUtils(LazyLoggerMixin, DiffServiceInterface):
 
     RE_HUNK_HEADER = re.compile(r"^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@[ ]?(.*)")
 
-    def __init__(self, logger=None, config: DiffProcessingConfig | None = None):
+    def __init__(self, logger: logging.Logger | None = None, config: DiffProcessingConfig | None = None) -> None:
         """Initialize the diff utility.
 
         Args:

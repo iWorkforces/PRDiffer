@@ -45,11 +45,11 @@ class UnifiedRetryHandler(BaseUnifiedRetryHandler):
 
     def execute_with_retry(
         self,
-        func: Callable,
+        func: Callable[..., T],
         *args,
         context: OperationContext | None = None,
         **kwargs,
-    ) -> Any:
+    ) -> T:
         return self._execute_with_retry_base(func, args, kwargs, context)
 
     async def execute_with_retry_async(

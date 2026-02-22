@@ -4,11 +4,12 @@ This module provides a native async parallel executor that replaces
 ThreadPoolExecutor with anyio's structured concurrency primitives.
 """
 
+import logging
 from collections.abc import Callable, Awaitable
 from typing import Any, TypeVar, cast
 
 import anyio
-from prdiffer.infrastructure.logging.console_logger import get_logger
+from prdiffer.infrastructure.logging.console_logger import get_logger, ConsoleLogger
 from prdiffer.infrastructure.utils.parallel.results import BatchResult, ErrorStrategy
 
 # Exceptions to catch in parallel execution
@@ -65,7 +66,7 @@ class AsyncParallelExecutor:
         max_concurrent: int = 10,
         timeout: float | None = None,
         error_strategy: ErrorStrategy = ErrorStrategy.IGNORE,
-        logger: Any | None = None,
+        logger: logging.Logger | ConsoleLogger | None = None,
     ):
         """Initialize the async parallel executor.
 

@@ -5,6 +5,7 @@ to prevent duplicate API calls for the same resource.
 """
 
 import anyio
+import logging
 from collections.abc import Callable, Awaitable
 from typing import Any
 from dataclasses import dataclass, field
@@ -42,7 +43,7 @@ class RequestCoalescingService:
     - Atomic state management with anyio.Lock
     """
 
-    def __init__(self, logger=None, max_waiters: int | None = None):
+    def __init__(self, logger: logging.Logger | None = None, max_waiters: int | None = None) -> None:
         """Initialize the request coalescing service.
 
         Args:
