@@ -39,6 +39,8 @@ github.max_concurrent = 4  # Maximum concurrent GitHub API operations
 
 # File filtering patterns
 github.ignore_patterns = [
+    # Hidden files and directories (matches .* and */.* patterns)
+    "(^\\..*|.*/\\..*)",
     "*.lock",
     "package-lock.json",
     "*.log",
