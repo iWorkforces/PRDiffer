@@ -51,9 +51,7 @@ class TestGenerateDiffContentReturnsFilePatchList:
             file_patch_1,
             file_patch_2,
         ]
-        mock_file_processor.process_files_to_patches_async = AsyncMock(
-            return_value=[file_patch_1, file_patch_2]
-        )
+        mock_file_processor.process_files_to_patches_async = AsyncMock(return_value=[file_patch_1, file_patch_2])
 
         # Setup diff generator to return list of strings
         mock_diff_generator.generate_extended_diff.return_value = [
@@ -80,9 +78,7 @@ class TestGenerateDiffContentReturnsFilePatchList:
         mock_github_api_client.get_pull_request.return_value = mock_pull_request
 
         # Act
-        result = await service._generate_diff_content_async(
-            mock_repository, mock_pull_request
-        )
+        result = await service._generate_diff_content_async(mock_repository, mock_pull_request)
 
         # Assert - expecting tuple[str, list[FilePatchInfo]] after breaking change
         assert isinstance(result, tuple)

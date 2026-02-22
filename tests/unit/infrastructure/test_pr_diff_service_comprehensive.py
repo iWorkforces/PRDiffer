@@ -87,9 +87,7 @@ class TestGitHubPRDiffServiceInit:
             assert service._diff_generator is None
             assert service._file_processor is None
 
-    def test_init_with_custom_components(
-        self, mock_github_api, mock_diff_generator, mock_file_processor, mock_logger
-    ):
+    def test_init_with_custom_components(self, mock_github_api, mock_diff_generator, mock_file_processor, mock_logger):
         """Test initialization with custom components."""
         service = GitHubPRDiffService(
             github_api_client=mock_github_api,
@@ -115,9 +113,7 @@ class TestGetPrDiff:
     """Tests for get_pr_diff method."""
 
     @pytest.mark.anyio
-    async def test_get_pr_diff_async_path(
-        self, mock_github_api, mock_file_processor, mock_logger
-    ):
+    async def test_get_pr_diff_async_path(self, mock_github_api, mock_file_processor, mock_logger):
         """Test async path when file processor has async method."""
         mock_file_processor.process_files_to_patches_async = AsyncMock(
             return_value=[
@@ -207,9 +203,7 @@ class TestGetPrDiff:
     @pytest.mark.anyio
     async def test_get_pr_diff_exception_handling(self, mock_github_api, mock_logger):
         """Test exception handling in get_pr_diff."""
-        mock_github_api._get_pygithub_repository.side_effect = GithubException(
-            500, "Error", {}
-        )
+        mock_github_api._get_pygithub_repository.side_effect = GithubException(500, "Error", {})
 
         service = GitHubPRDiffService(
             github_api_client=mock_github_api,
@@ -224,9 +218,7 @@ class TestGetPrDiff:
 class TestGetPrDiffSync:
     """Tests for _get_pr_diff_sync method."""
 
-    def test_get_pr_diff_sync_success(
-        self, mock_github_api, mock_logger, sample_file_patch
-    ):
+    def test_get_pr_diff_sync_success(self, mock_github_api, mock_logger, sample_file_patch):
         """Test successful sync diff retrieval."""
         mock_repo = MagicMock()
         mock_pr = MagicMock()
@@ -242,9 +234,7 @@ class TestGetPrDiffSync:
             logger=mock_logger,
         )
 
-        with patch.object(
-            service, "_generate_diff_content", return_value=[sample_file_patch]
-        ):
+        with patch.object(service, "_generate_diff_content", return_value=[sample_file_patch]):
             result = service._get_pr_diff_sync("owner", "repo", 1)
 
             assert result is not None
@@ -315,9 +305,7 @@ class TestGetLatestCommitSha:
         assert result == "abc123"
 
     @pytest.mark.anyio
-    async def test_get_latest_commit_sha_repository_none(
-        self, mock_github_api, mock_logger
-    ):
+    async def test_get_latest_commit_sha_repository_none(self, mock_github_api, mock_logger):
         """Test when repository is None."""
         mock_github_api._get_pygithub_repository.return_value = None
 
@@ -514,9 +502,7 @@ class TestConvertFilePatchInfoToResponse:
 class TestGenerateDiffContent:
     """Tests for _generate_diff_content method."""
 
-    def test_generate_diff_with_file_processor(
-        self, mock_github_api, mock_file_processor, mock_logger
-    ):
+    def test_generate_diff_with_file_processor(self, mock_github_api, mock_file_processor, mock_logger):
         """Test diff generation with file processor."""
         mock_repo = MagicMock()
         mock_pr = MagicMock()

@@ -93,9 +93,7 @@ class TestRepositoryCreation:
 
     def test_repository_with_different_default_branches(self):
         """Test Repository with various default branch names."""
-        repo_main = Repository(
-            name="repo1", owner="owner", full_name="owner/repo1", default_branch="main"
-        )
+        repo_main = Repository(name="repo1", owner="owner", full_name="owner/repo1", default_branch="main")
         repo_master = Repository(
             name="repo2",
             owner="owner",
@@ -144,23 +142,15 @@ class TestRepositoryEquality:
 
     def test_repository_equality_minimal_fields(self):
         """Test equality with minimal required fields."""
-        repo1 = Repository(
-            name="myrepo", owner="acme", full_name="acme/myrepo", default_branch="main"
-        )
-        repo2 = Repository(
-            name="myrepo", owner="acme", full_name="acme/myrepo", default_branch="main"
-        )
+        repo1 = Repository(name="myrepo", owner="acme", full_name="acme/myrepo", default_branch="main")
+        repo2 = Repository(name="myrepo", owner="acme", full_name="acme/myrepo", default_branch="main")
 
         assert repo1 == repo2
 
     def test_repository_inequality_different_name(self):
         """Test that Repository instances with different names are not equal."""
-        repo1 = Repository(
-            name="repo1", owner="acme", full_name="acme/repo1", default_branch="main"
-        )
-        repo2 = Repository(
-            name="repo2", owner="acme", full_name="acme/repo2", default_branch="main"
-        )
+        repo1 = Repository(name="repo1", owner="acme", full_name="acme/repo1", default_branch="main")
+        repo2 = Repository(name="repo2", owner="acme", full_name="acme/repo2", default_branch="main")
 
         assert repo1 != repo2
 
@@ -206,9 +196,7 @@ class TestRepositoryAttributes:
 
     def test_repository_has_required_attributes(self):
         """Test that Repository has all required attributes."""
-        repo = Repository(
-            name="myrepo", owner="acme", full_name="acme/myrepo", default_branch="main"
-        )
+        repo = Repository(name="myrepo", owner="acme", full_name="acme/myrepo", default_branch="main")
 
         assert hasattr(repo, "name")
         assert hasattr(repo, "owner")
@@ -243,9 +231,7 @@ class TestRepositoryAttributes:
 
     def test_repository_none_attributes_types(self):
         """Test that None attributes are properly None."""
-        repo = Repository(
-            name="myrepo", owner="acme", full_name="acme/myrepo", default_branch="main"
-        )
+        repo = Repository(name="myrepo", owner="acme", full_name="acme/myrepo", default_branch="main")
 
         assert repo.description is None
         assert repo.clone_url is None
@@ -253,18 +239,14 @@ class TestRepositoryAttributes:
 
     def test_repository_string_representation(self):
         """Test Repository string representation includes key fields."""
-        repo = Repository(
-            name="myrepo", owner="acme", full_name="acme/myrepo", default_branch="main"
-        )
+        repo = Repository(name="myrepo", owner="acme", full_name="acme/myrepo", default_branch="main")
 
         repo_str = str(repo)
         assert "myrepo" in repo_str or "acme/myrepo" in repo_str
 
     def test_repository_repr(self):
         """Test Repository repr includes class name and key attributes."""
-        repo = Repository(
-            name="myrepo", owner="acme", full_name="acme/myrepo", default_branch="main"
-        )
+        repo = Repository(name="myrepo", owner="acme", full_name="acme/myrepo", default_branch="main")
 
         repo_repr = repr(repo)
         assert "Repository" in repo_repr

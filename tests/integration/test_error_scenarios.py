@@ -101,9 +101,7 @@ class TestAPIErrorScenarios:
     def test_rate_limit_exceeded_error(self, server, mock_pr_diff_service):
         """Test handling of GitHub API rate limit exceeded error."""
         # Arrange: Mock rate limit exception
-        mock_pr_diff_service.get_pr_diff.side_effect = RateLimitExceededException(
-            403, {"message": "API rate limit exceeded"}, {"remaining": 0}
-        )
+        mock_pr_diff_service.get_pr_diff.side_effect = RateLimitExceededException(403, {"message": "API rate limit exceeded"}, {"remaining": 0})
 
         # Act & Assert: Server should handle this gracefully
         # The error should be caught and transformed
@@ -115,9 +113,7 @@ class TestAPIErrorScenarios:
     def test_repository_not_found_error(self, server, mock_pr_diff_service):
         """Test handling of repository not found error."""
         # Arrange: Mock unknown object exception
-        mock_pr_diff_service.get_pr_diff.side_effect = UnknownObjectException(
-            404, {"message": "Repository not found"}, {}
-        )
+        mock_pr_diff_service.get_pr_diff.side_effect = UnknownObjectException(404, {"message": "Repository not found"}, {})
 
         # Act & Assert: Should handle gracefully
         with pytest.raises(Exception):
@@ -126,9 +122,7 @@ class TestAPIErrorScenarios:
     def test_generic_github_exception(self, server, mock_pr_diff_service):
         """Test handling of generic GitHub exception."""
         # Arrange: Mock generic GitHub exception
-        mock_pr_diff_service.get_pr_diff.side_effect = GithubException(
-            500, {"message": "Internal server error"}, {}
-        )
+        mock_pr_diff_service.get_pr_diff.side_effect = GithubException(500, {"message": "Internal server error"}, {})
 
         # Act & Assert: Should handle gracefully
         with pytest.raises(Exception):
@@ -139,9 +133,7 @@ class TestAPIErrorScenarios:
         # Arrange: Mock timeout error
         import asyncio
 
-        mock_pr_diff_service.get_pr_diff.side_effect = asyncio.TimeoutError(
-            "Request timed out"
-        )
+        mock_pr_diff_service.get_pr_diff.side_effect = asyncio.TimeoutError("Request timed out")
 
         # Act & Assert: Should handle gracefully
         with pytest.raises(asyncio.TimeoutError):
@@ -150,9 +142,7 @@ class TestAPIErrorScenarios:
     def test_connection_error(self, server, mock_pr_diff_service):
         """Test handling of connection errors."""
         # Arrange: Mock connection error
-        mock_pr_diff_service.get_pr_diff.side_effect = ConnectionError(
-            "Failed to connect to GitHub"
-        )
+        mock_pr_diff_service.get_pr_diff.side_effect = ConnectionError("Failed to connect to GitHub")
 
         # Act & Assert: Should handle gracefully
         with pytest.raises(ConnectionError):
@@ -264,9 +254,7 @@ class TestValidationErrorScenarios:
         malicious_url = "https://github.com/owner/../etc/passwd/pull/123"
 
         # Act & Assert: Should raise SuspiciousOperationError or InvalidRepositoryError
-        with pytest.raises(
-            (SuspiciousOperationError, InvalidRepositoryError, InvalidURLError)
-        ):
+        with pytest.raises((SuspiciousOperationError, InvalidRepositoryError, InvalidURLError)):
             parse_pr_url(malicious_url)
 
     def test_empty_url(self, server):

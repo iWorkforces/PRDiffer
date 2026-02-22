@@ -113,9 +113,7 @@ class TestGetRepository:
 
     def test_get_repository_success(self, api_client):
         """Test successful repository retrieval."""
-        with patch.object(
-            api_client._retry_handler, "execute_with_retry"
-        ) as mock_retry:
+        with patch.object(api_client._retry_handler, "execute_with_retry") as mock_retry:
             mock_repo = MagicMock()
             mock_repo.full_name = "owner/repo"
             mock_repo.name = "repo"
@@ -130,9 +128,7 @@ class TestGetRepository:
 
     def test_get_repository_not_found(self, api_client):
         """Test repository not found."""
-        with patch.object(
-            api_client._retry_handler, "execute_with_retry"
-        ) as mock_retry:
+        with patch.object(api_client._retry_handler, "execute_with_retry") as mock_retry:
             mock_retry.side_effect = GithubException(404, "Not Found", {})
 
             result = api_client.get_repository("owner/nonexistent")
@@ -141,9 +137,7 @@ class TestGetRepository:
 
     def test_get_repository_github_exception(self, api_client):
         """Test handling of GitHub exception."""
-        with patch.object(
-            api_client._retry_handler, "execute_with_retry"
-        ) as mock_retry:
+        with patch.object(api_client._retry_handler, "execute_with_retry") as mock_retry:
             mock_retry.side_effect = GithubException(500, "Server Error", {})
 
             result = api_client.get_repository("owner/repo")
@@ -161,9 +155,7 @@ class TestGetPullRequest:
 
     def test_get_pull_request_success(self, api_client):
         """Test successful PR retrieval."""
-        with patch.object(
-            api_client._retry_handler, "execute_with_retry"
-        ) as mock_retry:
+        with patch.object(api_client._retry_handler, "execute_with_retry") as mock_retry:
             mock_repo = MagicMock()
             mock_pr = MagicMock()
             mock_pr.number = 123
@@ -177,9 +169,7 @@ class TestGetPullRequest:
 
     def test_get_pull_request_not_found(self, api_client):
         """Test PR not found."""
-        with patch.object(
-            api_client._retry_handler, "execute_with_retry"
-        ) as mock_retry:
+        with patch.object(api_client._retry_handler, "execute_with_retry") as mock_retry:
             mock_retry.side_effect = GithubException(404, "Not Found", {})
 
             result = api_client.get_pull_request("owner/repo", 999)
@@ -188,9 +178,7 @@ class TestGetPullRequest:
 
     def test_get_pull_request_repo_not_found(self, api_client):
         """Test when repository not found."""
-        with patch.object(
-            api_client._retry_handler, "execute_with_retry"
-        ) as mock_retry:
+        with patch.object(api_client._retry_handler, "execute_with_retry") as mock_retry:
             mock_retry.return_value = None
 
             result = api_client.get_pull_request("owner/nonexistent", 123)
@@ -208,9 +196,7 @@ class TestGetPyGithubRepository:
 
     def test_internal_get_repository_success(self, api_client):
         """Test internal repository retrieval."""
-        with patch.object(
-            api_client._retry_handler, "execute_with_retry"
-        ) as mock_retry:
+        with patch.object(api_client._retry_handler, "execute_with_retry") as mock_retry:
             mock_repo = MagicMock()
             mock_retry.return_value = mock_repo
 
@@ -220,9 +206,7 @@ class TestGetPyGithubRepository:
 
     def test_internal_get_repository_error(self, api_client):
         """Test internal repository retrieval error."""
-        with patch.object(
-            api_client._retry_handler, "execute_with_retry"
-        ) as mock_retry:
+        with patch.object(api_client._retry_handler, "execute_with_retry") as mock_retry:
             mock_retry.side_effect = GithubException(403, "Forbidden", {})
 
             result = api_client._get_pygithub_repository("owner/repo")
@@ -236,9 +220,7 @@ class TestGetPyGithubPullRequest:
     def test_internal_get_pr_success(self, api_client):
         """Test internal PR retrieval."""
         mock_repo = MagicMock()
-        with patch.object(
-            api_client._retry_handler, "execute_with_retry"
-        ) as mock_retry:
+        with patch.object(api_client._retry_handler, "execute_with_retry") as mock_retry:
             mock_pr = MagicMock()
             mock_retry.return_value = mock_pr
 
@@ -249,9 +231,7 @@ class TestGetPyGithubPullRequest:
     def test_internal_get_pr_error(self, api_client):
         """Test internal PR retrieval error."""
         mock_repo = MagicMock()
-        with patch.object(
-            api_client._retry_handler, "execute_with_retry"
-        ) as mock_retry:
+        with patch.object(api_client._retry_handler, "execute_with_retry") as mock_retry:
             mock_retry.side_effect = GithubException(404, "Not Found", {})
 
             result = api_client._get_pygithub_pull_request(mock_repo, 999)
@@ -377,9 +357,7 @@ class TestGetFileContent:
 
     def test_get_file_content_from_api(self, api_client):
         """Test getting file content from API."""
-        with patch.object(
-            api_client._retry_handler, "execute_with_retry"
-        ) as mock_retry:
+        with patch.object(api_client._retry_handler, "execute_with_retry") as mock_retry:
             mock_repo = MagicMock()
             mock_content = MagicMock()
             mock_content.decoded_content = b"file content from api"
@@ -391,9 +369,7 @@ class TestGetFileContent:
 
     def test_get_file_content_directory(self, api_client):
         """Test getting directory instead of file."""
-        with patch.object(
-            api_client._retry_handler, "execute_with_retry"
-        ) as mock_retry:
+        with patch.object(api_client._retry_handler, "execute_with_retry") as mock_retry:
             mock_repo = MagicMock()
             mock_retry.side_effect = [mock_repo, [MagicMock(), MagicMock()]]
 
@@ -403,9 +379,7 @@ class TestGetFileContent:
 
     def test_get_file_content_error(self, api_client):
         """Test handling error when getting file content."""
-        with patch.object(
-            api_client._retry_handler, "execute_with_retry"
-        ) as mock_retry:
+        with patch.object(api_client._retry_handler, "execute_with_retry") as mock_retry:
             mock_retry.side_effect = GithubException(404, "Not Found", {})
 
             result = api_client.get_file_content("owner/repo", "file.py", "main")
@@ -414,9 +388,7 @@ class TestGetFileContent:
 
     def test_get_file_content_repo_not_found(self, api_client):
         """Test when repository not found."""
-        with patch.object(
-            api_client._retry_handler, "execute_with_retry"
-        ) as mock_retry:
+        with patch.object(api_client._retry_handler, "execute_with_retry") as mock_retry:
             mock_retry.return_value = None
 
             result = api_client.get_file_content("owner/repo", "file.py", "main")
@@ -433,9 +405,7 @@ class TestGetFilesContentBatch:
         api_client._cache_set(("file2.py", "main"), "content2")
 
         with patch.object(api_client, "get_file_content") as mock_get:
-            result = api_client.get_files_content_batch(
-                "owner/repo", ["file1.py", "file2.py"], "main"
-            )
+            result = api_client.get_files_content_batch("owner/repo", ["file1.py", "file2.py"], "main")
 
             assert result["file1.py"] == "content1"
             assert result["file2.py"] == "content2"
@@ -445,12 +415,8 @@ class TestGetFilesContentBatch:
         """Test batch retrieval with partial cache."""
         api_client._cache_set(("file1.py", "main"), "cached content")
 
-        with patch.object(
-            api_client, "get_file_content", return_value="api content"
-        ) as mock_get:
-            result = api_client.get_files_content_batch(
-                "owner/repo", ["file1.py", "file2.py"], "main"
-            )
+        with patch.object(api_client, "get_file_content", return_value="api content") as mock_get:
+            result = api_client.get_files_content_batch("owner/repo", ["file1.py", "file2.py"], "main")
 
             assert result["file1.py"] == "cached content"
             assert result["file2.py"] == "api content"
@@ -585,36 +551,28 @@ class TestAsyncFileContentMethods:
         cache_key = ("file.py", "main")
         api_client._cache_set(cache_key, "cached content")
 
-        result = await api_client._get_file_content_async(
-            "owner/repo", "file.py", "main"
-        )
+        result = await api_client._get_file_content_async("owner/repo", "file.py", "main")
 
         assert result == "cached content"
 
     async def test_get_file_content_async_without_init_raises(self, api_client_no_init):
         """Test that async method raises without initialization."""
         with pytest.raises(PRDifferException, match="GitHub client not initialized"):
-            await api_client_no_init._get_file_content_async(
-                "owner/repo", "file.py", "main"
-            )
+            await api_client_no_init._get_file_content_async("owner/repo", "file.py", "main")
 
     async def test_get_files_content_batch_parallel_async(self, api_client):
         """Test async batch file content retrieval."""
         api_client._cache_set(("file1.py", "main"), "content1")
         api_client._cache_set(("file2.py", "main"), "content2")
 
-        result = await api_client._get_files_content_batch_parallel_async(
-            "owner/repo", ["file1.py", "file2.py"], "main"
-        )
+        result = await api_client._get_files_content_batch_parallel_async("owner/repo", ["file1.py", "file2.py"], "main")
 
         assert result["file1.py"] == "content1"
         assert result["file2.py"] == "content2"
 
     async def test_get_files_content_batch_parallel_empty(self, api_client):
         """Test async batch with empty file list."""
-        result = await api_client._get_files_content_batch_parallel_async(
-            "owner/repo", [], "main"
-        )
+        result = await api_client._get_files_content_batch_parallel_async("owner/repo", [], "main")
 
         assert result == {}
 

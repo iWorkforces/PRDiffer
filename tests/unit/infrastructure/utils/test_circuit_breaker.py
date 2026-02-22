@@ -516,9 +516,7 @@ class TestGlobalCircuitBreakerRegistry:
 
     def test_registry_initialization(self):
         """Test registry initializes with correct defaults."""
-        registry = get_global_circuit_breaker_registry(
-            default_failure_threshold=10, default_timeout=30.0
-        )
+        registry = get_global_circuit_breaker_registry(default_failure_threshold=10, default_timeout=30.0)
 
         stats = registry.get_all_stats()
         assert "global" in stats

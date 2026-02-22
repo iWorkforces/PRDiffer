@@ -32,14 +32,10 @@ from prdiffer.infrastructure.security.input_validator import InputValidator
 class ApplicationFactory(ApplicationFactoryInterface):
     """Concrete implementation of application factory for creating application-layer components."""
 
-    def create_rate_limiter(
-        self, logger: LoggerServiceInterface
-    ) -> RateLimiterProtocol:
+    def create_rate_limiter(self, logger: LoggerServiceInterface) -> RateLimiterProtocol:
         return RateLimiter(logger=logger)
 
-    def create_metrics_tracker(
-        self, logger: LoggerServiceInterface
-    ) -> MetricsTrackerProtocol:
+    def create_metrics_tracker(self, logger: LoggerServiceInterface) -> MetricsTrackerProtocol:
         return MetricsTracker(logger=logger)
 
     def create_pr_operation_handler(
@@ -85,9 +81,7 @@ class ApplicationFactory(ApplicationFactoryInterface):
             logger=logger,
         )
 
-    def create_authentication(
-        self, logger: LoggerServiceInterface
-    ) -> AuthenticationProtocol:
+    def create_authentication(self, logger: LoggerServiceInterface) -> AuthenticationProtocol:
         return AuthenticationMiddleware(logger=logger)
 
 

@@ -67,9 +67,7 @@ class TestRealGitHubAPI:
         assert commit_sha is not None
         assert len(commit_sha) == 40  # SHA-1 hash length
 
-    def test_pr_diff_retrieval(
-        self, github_token, test_repo_owner, test_repo_name, test_pr_number
-    ):
+    def test_pr_diff_retrieval(self, github_token, test_repo_owner, test_repo_name, test_pr_number):
         """Test retrieving PR diff from real GitHub repository."""
         if not github_token:
             pytest.skip("GITHUB_TOKEN not configured")
@@ -90,9 +88,7 @@ class TestRealGitHubAPI:
         # PRDiff should have diff_content or be empty if no files changed
         assert hasattr(pr_diff, "diff_content")
 
-    def test_caching_behavior(
-        self, github_token, test_repo_owner, test_repo_name, test_pr_number
-    ):
+    def test_caching_behavior(self, github_token, test_repo_owner, test_repo_name, test_pr_number):
         """Test that caching works with real API calls."""
         if not github_token:
             pytest.skip("GITHUB_TOKEN not configured")
@@ -168,9 +164,7 @@ class TestRealAuthentication:
 class TestRealInputValidation:
     """Integration tests for input validation with real data."""
 
-    def test_valid_github_pr_url(
-        self, github_token, test_repo_owner, test_repo_name, test_pr_number
-    ):
+    def test_valid_github_pr_url(self, github_token, test_repo_owner, test_repo_name, test_pr_number):
         """Test validation of a real GitHub PR URL."""
         if not github_token:
             pytest.skip("GITHUB_TOKEN not configured")
@@ -210,18 +204,12 @@ class TestTokenExpiration:
         import time
 
         # Header
-        header = (
-            base64.urlsafe_b64encode(b'{"alg":"HS256","typ":"JWT"}')
-            .rstrip(b"=")
-            .decode()
-        )
+        header = base64.urlsafe_b64encode(b'{"alg":"HS256","typ":"JWT"}').rstrip(b"=").decode()
 
         # Payload with future expiration
         future_exp = int(time.time()) + 3600  # 1 hour from now
         payload = {"sub": "user123", "exp": future_exp}
-        payload_b64 = (
-            base64.urlsafe_b64encode(json.dumps(payload).encode()).rstrip(b"=").decode()
-        )
+        payload_b64 = base64.urlsafe_b64encode(json.dumps(payload).encode()).rstrip(b"=").decode()
 
         # Signature (fake)
         signature = base64.urlsafe_b64encode(b"signature").rstrip(b"=").decode()
@@ -242,18 +230,12 @@ class TestTokenExpiration:
         import json
         import time
 
-        header = (
-            base64.urlsafe_b64encode(b'{"alg":"HS256","typ":"JWT"}')
-            .rstrip(b"=")
-            .decode()
-        )
+        header = base64.urlsafe_b64encode(b'{"alg":"HS256","typ":"JWT"}').rstrip(b"=").decode()
 
         # Payload with past expiration (1 hour ago)
         past_exp = int(time.time()) - 3600
         payload = {"sub": "user123", "exp": past_exp}
-        payload_b64 = (
-            base64.urlsafe_b64encode(json.dumps(payload).encode()).rstrip(b"=").decode()
-        )
+        payload_b64 = base64.urlsafe_b64encode(json.dumps(payload).encode()).rstrip(b"=").decode()
 
         signature = base64.urlsafe_b64encode(b"signature").rstrip(b"=").decode()
         token = f"{header}.{payload_b64}.{signature}"

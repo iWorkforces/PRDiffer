@@ -40,27 +40,21 @@ class TestSecurityPatterns:
     def test_from_settings_with_command_patterns(self):
         """Test from_settings loads command injection patterns."""
         mock_settings = Mock()
-        mock_settings.get.side_effect = lambda key, default: (
-            [r"custom_pattern"] if "command" in key else []
-        )
+        mock_settings.get.side_effect = lambda key, default: [r"custom_pattern"] if "command" in key else []
         patterns = SecurityPatterns.from_settings(mock_settings)
         assert r"custom_pattern" in patterns.command_injection
 
     def test_from_settings_with_path_patterns(self):
         """Test from_settings loads path traversal patterns."""
         mock_settings = Mock()
-        mock_settings.get.side_effect = lambda key, default: (
-            [r"custom_path"] if "path" in key else []
-        )
+        mock_settings.get.side_effect = lambda key, default: [r"custom_path"] if "path" in key else []
         patterns = SecurityPatterns.from_settings(mock_settings)
         assert r"custom_path" in patterns.path_traversal
 
     def test_from_settings_with_sql_patterns(self):
         """Test from_settings loads SQL injection patterns."""
         mock_settings = Mock()
-        mock_settings.get.side_effect = lambda key, default: (
-            [r"custom_sql"] if "sql" in key else []
-        )
+        mock_settings.get.side_effect = lambda key, default: [r"custom_sql"] if "sql" in key else []
         patterns = SecurityPatterns.from_settings(mock_settings)
         assert r"custom_sql" in patterns.sql_injection
 
@@ -312,9 +306,7 @@ class TestEdgeCases:
     def test_url_with_valid_chars(self):
         """Test valid URLs are not flagged."""
         detector = InjectionDetector()
-        result = detector.check_suspicious_patterns(
-            "https://github.com/owner/repo/pull/123"
-        )
+        result = detector.check_suspicious_patterns("https://github.com/owner/repo/pull/123")
         assert result is False
 
     def test_mixed_patterns(self):

@@ -4,6 +4,9 @@ This module extracts health and metrics endpoints from mcp_server.py,
 providing monitoring and observability functionality.
 """
 
+from collections.abc import Callable, Awaitable
+
+from starlette.requests import Request
 from starlette.responses import JSONResponse
 
 from prdiffer.domain.services.cache import CacheServiceInterface
@@ -75,7 +78,7 @@ class HealthEndpoints:
         health_status["request_coalescing"] = await self._request_coalescing.get_stats()
         return health_status
 
-    def get_health_handler(self):
+    def get_health_handler(self) -> Callable[[], Awaitable[dict]]:
         """Get health check handler function.
 
         This returns the actual health handler function that can be
@@ -104,7 +107,7 @@ class HealthEndpoints:
 
         return health
 
-    def get_metrics_handler(self):
+    def get_metrics_handler(self) -> Callable[[Request], Awaitable[JSONResponse]]:
         """Get metrics handler function.
 
         This returns the actual metrics handler function that can be
@@ -114,7 +117,7 @@ class HealthEndpoints:
             callable: Metrics handler function
         """
 
-        async def metrics_handler(request):
+        async def metrics_handler(request: Request) -> JSONResponse:
             """Handle metrics endpoint requests.
 
             Args:

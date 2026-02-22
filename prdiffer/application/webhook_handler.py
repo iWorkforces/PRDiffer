@@ -6,6 +6,9 @@ handling GitHub webhook events for cache invalidation.
 
 import hmac
 import json
+from collections.abc import Callable, Awaitable
+
+from starlette.requests import Request
 from starlette.responses import JSONResponse
 
 from prdiffer.domain.services.settings import SettingsServiceInterface
@@ -52,9 +55,7 @@ class WebhookHandler:
         self._logger = logger
         self._input_validator = input_validator
 
-    async def webhook_invalidate_cache(
-        self, payload_bytes: bytes, signature: str, github_event: str
-    ) -> dict:
+    async def webhook_invalidate_cache(self, payload_bytes: bytes, signature: str, github_event: str) -> dict:
         """Handle webhook events for cache invalidation with HMAC verification.
 
         Args:
@@ -143,7 +144,7 @@ class WebhookHandler:
 
         return {"status": "success", "message": "Cache invalidated"}
 
-    def get_webhook_handler(self):
+    def get_webhook_handler(self) -> Callable[[Request], Awaitable[JSONResponse]]:
         """Get the webhook handler function.
 
         This returns the actual handler function that can be registered with FastMCP.
@@ -152,7 +153,7 @@ class WebhookHandler:
             callable: Webhook handler function
         """
 
-        async def webhook_handler(request):
+        async def webhook_handler(request: Request) -> JSONResponse:
             """Handle GitHub webhook events for cache invalidation.
 
             GitHub sends webhook events to this endpoint, which triggers
@@ -173,9 +174,7 @@ class WebhookHandler:
 
                 payload_bytes = await request.body()
 
-                result = await self.webhook_invalidate_cache(
-                    payload_bytes, signature, github_event
-                )
+                result = await self.webhook_invalidate_cache(payload_bytes, signature, github_event)
 
                 if result["status"] == "error":
                     error_message = result.get("message", "")

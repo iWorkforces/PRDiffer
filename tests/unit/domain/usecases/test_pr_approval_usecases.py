@@ -35,9 +35,7 @@ class TestApprovePRUseCase:
         """Create use case with mocked dependencies."""
         return ApprovePRUseCase(pr_diff_repository=mock_repository, logger=mock_logger)
 
-    def test_execute_calls_repository_with_correct_params(
-        self, use_case, mock_repository
-    ):
+    def test_execute_calls_repository_with_correct_params(self, use_case, mock_repository):
         """Test execution delegates to repository with correct parameters."""
         # Arrange
         pr_url = "https://github.com/owner/repo/pull/123"

@@ -166,9 +166,7 @@ class TestGitHubAPIError:
 
     def test_github_api_error_with_status_code(self):
         """Test GitHubAPIError with status code."""
-        exc = GitHubAPIError(
-            "API error", status_code=404, error_code=E4001_REPO_NOT_FOUND
-        )
+        exc = GitHubAPIError("API error", status_code=404, error_code=E4001_REPO_NOT_FOUND)
         assert exc.error_code == E4001_REPO_NOT_FOUND
         assert exc.status_code == 404
 
@@ -215,9 +213,7 @@ class TestProcessingError:
 
     def test_processing_error_with_error_code(self):
         """Test ProcessingError with error code."""
-        exc = ProcessingError(
-            "Processing failed", error_code=E5012_FILE_PROCESSING_ERROR
-        )
+        exc = ProcessingError("Processing failed", error_code=E5012_FILE_PROCESSING_ERROR)
         assert exc.error_code == E5012_FILE_PROCESSING_ERROR
 
 

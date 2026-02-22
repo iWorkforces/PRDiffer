@@ -20,10 +20,7 @@ class TestDiffGenerator:
 
         return DiffGenerator(diff_utils=DiffUtils())
 
-    @pytest.mark.skip(
-        reason="Test patches non-existent _get_file_content method. "
-        "DiffGenerator does not have this method - test needs to be rewritten."
-    )
+    @pytest.mark.skip(reason="Test patches non-existent _get_file_content method. DiffGenerator does not have this method - test needs to be rewritten.")
     def test_generate_extended_diff(self, diff_generator):
         """Test basic extended diff generation."""
         with patch.object(diff_generator, "_get_file_content") as mock_content:

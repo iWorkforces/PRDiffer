@@ -203,9 +203,7 @@ class TestBuildFullFilePatchChunked:
         new_lines[50] = "modified"
         orig_content = "\n".join(orig_lines)
         new_content = "\n".join(new_lines)
-        result = diff_utils.build_full_file_patch_chunked(
-            orig_content, new_content, chunk_size=50, large_file_threshold=10
-        )
+        result = diff_utils.build_full_file_patch_chunked(orig_content, new_content, chunk_size=50, large_file_threshold=10)
         assert "-line50" in result or "+modified" in result
 
     def test_custom_large_file_threshold(self):
@@ -308,9 +306,7 @@ class TestDecodeIfBytes:
         with patch.object(
             type(diff_utils),
             "decode_if_bytes",
-            lambda self, content: (
-                "" if isinstance(content, (bytes, bytearray)) else content
-            ),
+            lambda self, content: "" if isinstance(content, (bytes, bytearray)) else content,
         ):
             pass
 

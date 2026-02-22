@@ -42,9 +42,7 @@ class DiffGenerator:
         self._parallel_threshold = parallel_threshold
         self._logger = logger or get_logger()
 
-    def generate_extended_diff(
-        self, diff_files: list[FilePatchInfo], add_line_numbers_to_hunks: bool = False
-    ) -> list[str]:
+    def generate_extended_diff(self, diff_files: list[FilePatchInfo], add_line_numbers_to_hunks: bool = False) -> list[str]:
         """Generate an extended diff for a pull request.
 
         Uses adaptive strategy: parallel processing for multiple files (>= threshold),
@@ -63,36 +61,17 @@ class DiffGenerator:
         # 1. Parallel processing is enabled
         # 2. Number of files meets or exceeds threshold
         # 3. Parallel executor is available
-        use_parallel = (
-            self._parallel_enabled
-            and num_files >= self._parallel_threshold
-            and self._parallel_executor is not None
-        )
+        use_parallel = self._parallel_enabled and num_files >= self._parallel_threshold and self._parallel_executor is not None
 
         if use_parallel:
-            self._logger.debug(
-                f"Using parallel processing for {num_files} files "
-                f"(threshold: {self._parallel_threshold})"
-            )
-            return self._generate_extended_diff_parallel(
-                diff_files, add_line_numbers_to_hunks
-            )
+            self._logger.debug(f"Using parallel processing for {num_files} files (threshold: {self._parallel_threshold})")
+            return self._generate_extended_diff_parallel(diff_files, add_line_numbers_to_hunks)
         else:
-            reason = (
-                "disabled"
-                if not self._parallel_enabled
-                else f"below threshold ({num_files} < {self._parallel_threshold})"
-            )
-            self._logger.debug(
-                f"Using sequential processing for {num_files} files (parallel {reason})"
-            )
-            return self._generate_extended_diff_sequential(
-                diff_files, add_line_numbers_to_hunks
-            )
+            reason = "disabled" if not self._parallel_enabled else f"below threshold ({num_files} < {self._parallel_threshold})"
+            self._logger.debug(f"Using sequential processing for {num_files} files (parallel {reason})")
+            return self._generate_extended_diff_sequential(diff_files, add_line_numbers_to_hunks)
 
-    def _decouple_and_convert_to_hunks_with_lines_numbers(
-        self, patch: str, file: FilePatchInfo, is_first_file: bool = False
-    ) -> str:
+    def _decouple_and_convert_to_hunks_with_lines_numbers(self, patch: str, file: FilePatchInfo, is_first_file: bool = False) -> str:
         """Convert a given patch string into a string with line numbers for each hunk.
 
         This method processes patch hunks to display new and old content sections
@@ -119,9 +98,7 @@ class DiffGenerator:
 
         return patch_with_lines_str.rstrip()
 
-    def _generate_file_header(
-        self, file: FilePatchInfo | None, is_first_file: bool
-    ) -> str:
+    def _generate_file_header(self, file: FilePatchInfo | None, is_first_file: bool) -> str:
         """Generate the file header for the patch output.
 
         Args:
@@ -163,9 +140,7 @@ class DiffGenerator:
                 # Start new hunk
                 match = RE_HUNK_HEADER.match(line)
                 if match:
-                    section_header, size1, size2, start1, start2 = (
-                        self._extract_hunk_headers(match)
-                    )
+                    section_header, size1, size2, start1, start2 = self._extract_hunk_headers(match)
                     current_hunk = {
                         "header": line,
                         "new_lines": [],
@@ -205,9 +180,7 @@ class DiffGenerator:
         else:
             # Skip empty lines before hunk headers or at end of patch
             if not line and line_i:
-                if line_i + 1 < len(patch_lines) and patch_lines[line_i + 1].startswith(
-                    "@@"
-                ):
+                if line_i + 1 < len(patch_lines) and patch_lines[line_i + 1].startswith("@@"):
                     return
                 elif line_i + 1 == len(patch_lines):
                     return
@@ -355,24 +328,16 @@ class DiffGenerator:
                 return None
 
             # Extend each patch with extra lines of context
-            extended_patch = self._diff_utils.extend_patch(
-                original_file_content_str, patch, new_file_str=new_file_content_str
-            )
+            extended_patch = self._diff_utils.extend_patch(original_file_content_str, patch, new_file_str=new_file_content_str)
 
             if not extended_patch:
-                self._logger.warning(
-                    f"Failed to extend patch for file: {file.filename}"
-                )
+                self._logger.warning(f"Failed to extend patch for file: {file.filename}")
                 return None
 
             is_first_file = i == 0
 
             if add_line_numbers_to_hunks:
-                full_extended_patch = (
-                    self._decouple_and_convert_to_hunks_with_lines_numbers(
-                        extended_patch, file, is_first_file=is_first_file
-                    )
-                )
+                full_extended_patch = self._decouple_and_convert_to_hunks_with_lines_numbers(extended_patch, file, is_first_file=is_first_file)
             else:
                 # Add separator and file header
                 separator = "" if is_first_file else "\n---"
@@ -384,14 +349,10 @@ class DiffGenerator:
 
         except Exception as e:
             sanitized = sanitize_exception_for_logging(e)
-            self._logger.error(
-                f"Error processing file {file.filename} in parallel", extra=sanitized
-            )
+            self._logger.error(f"Error processing file {file.filename} in parallel", extra=sanitized)
             return None
 
-    def _generate_extended_diff_sequential(
-        self, diff_files: list[FilePatchInfo], add_line_numbers_to_hunks: bool = False
-    ) -> list[str]:
+    def _generate_extended_diff_sequential(self, diff_files: list[FilePatchInfo], add_line_numbers_to_hunks: bool = False) -> list[str]:
         """Generate extended diff using sequential processing.
 
         This is the original implementation that processes files one by one.
@@ -412,21 +373,13 @@ class DiffGenerator:
                 continue
 
             # extend each patch with extra lines of context
-            extended_patch = self._diff_utils.extend_patch(
-                original_file_content_str, patch, new_file_str=new_file_content_str
-            )
+            extended_patch = self._diff_utils.extend_patch(original_file_content_str, patch, new_file_str=new_file_content_str)
             if not extended_patch:
-                self._logger.warning(
-                    f"Failed to extend patch for file: {file.filename}"
-                )
+                self._logger.warning(f"Failed to extend patch for file: {file.filename}")
                 continue
 
             if add_line_numbers_to_hunks:
-                full_extended_patch = (
-                    self._decouple_and_convert_to_hunks_with_lines_numbers(
-                        extended_patch, file, is_first_file=(i == 0)
-                    )
-                )
+                full_extended_patch = self._decouple_and_convert_to_hunks_with_lines_numbers(extended_patch, file, is_first_file=(i == 0))
             else:
                 # Add separator and file header
                 separator = "" if i == 0 else "\n---"
@@ -436,9 +389,7 @@ class DiffGenerator:
             extended_diffs.append(full_extended_patch)
         return extended_diffs
 
-    def _generate_extended_diff_parallel(
-        self, diff_files: list[FilePatchInfo], add_line_numbers_to_hunks: bool = False
-    ) -> list[str]:
+    def _generate_extended_diff_parallel(self, diff_files: list[FilePatchInfo], add_line_numbers_to_hunks: bool = False) -> list[str]:
         """Generate extended diff using parallel processing.
 
         This implementation uses ParallelExecutor to process files concurrently,
@@ -453,31 +404,19 @@ class DiffGenerator:
         """
         if not self._parallel_executor:
             # Fallback to sequential if no executor available
-            self._logger.warning(
-                "Parallel executor not available, falling back to sequential processing"
-            )
-            return self._generate_extended_diff_sequential(
-                diff_files, add_line_numbers_to_hunks
-            )
+            self._logger.warning("Parallel executor not available, falling back to sequential processing")
+            return self._generate_extended_diff_sequential(diff_files, add_line_numbers_to_hunks)
 
         start_time = time.time()
         total_files = len(diff_files)
 
         # Prepare data for parallel processing: (index, file, add_line_numbers, total_files)
-        indexed_files = [
-            (i, file, add_line_numbers_to_hunks, total_files)
-            for i, file in enumerate(diff_files)
-        ]
+        indexed_files = [(i, file, add_line_numbers_to_hunks, total_files) for i, file in enumerate(diff_files)]
 
-        self._logger.info(
-            f"Starting parallel diff generation for {total_files} files using "
-            f"{self._parallel_executor.max_workers} workers"
-        )
+        self._logger.info(f"Starting parallel diff generation for {total_files} files using {self._parallel_executor.max_workers} workers")
 
         # Process all files in parallel
-        results = self._parallel_executor.execute_batch(
-            self._process_single_file_for_diff, indexed_files
-        )
+        results = self._parallel_executor.execute_batch(self._process_single_file_for_diff, indexed_files)
 
         # Filter out None results and sort by index to preserve original order
         valid_results = [r for r in results if r is not None]

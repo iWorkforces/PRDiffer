@@ -233,9 +233,7 @@ class TestExecuteBatchWithContext:
         async def fake_func(item, context):
             return f"{item}-{context.get('suffix', '')}"
 
-        result = await executor.execute_batch_with_context(
-            fake_func, [], {"suffix": "test"}
-        )
+        result = await executor.execute_batch_with_context(fake_func, [], {"suffix": "test"})
 
         assert result == []
 
@@ -247,9 +245,7 @@ class TestExecuteBatchWithContext:
         async def fake_func(item, context):
             return f"{item}-{context['suffix']}"
 
-        result = await executor.execute_batch_with_context(
-            fake_func, [1, 2, 3], {"suffix": "test"}
-        )
+        result = await executor.execute_batch_with_context(fake_func, [1, 2, 3], {"suffix": "test"})
 
         assert set(result) == {"1-test", "2-test", "3-test"}
 
@@ -263,9 +259,7 @@ class TestExecuteBatchWithContext:
             context["counter"] += 1
             return f"{item}-{context['counter']}"
 
-        result = await executor.execute_batch_with_context(
-            fake_func, [1, 2, 3], context
-        )
+        result = await executor.execute_batch_with_context(fake_func, [1, 2, 3], context)
 
         # Check context was modified
         assert context["counter"] == 3
@@ -321,9 +315,7 @@ class TestExecuteMappedBatch:
 
         func_map = {"special": special_func}
 
-        result = await executor.execute_mapped_batch(
-            func_map, ["special", "other"], default_func=default_func
-        )
+        result = await executor.execute_mapped_batch(func_map, ["special", "other"], default_func=default_func)
 
         assert set(result) == {"special-special", "default-other"}
 
@@ -334,9 +326,7 @@ class TestExecuteMappedBatch:
 
         func_map = {"type1": AsyncMock(return_value="result1")}
 
-        result = await executor.execute_mapped_batch(
-            func_map, ["type2"], default_func=None
-        )
+        result = await executor.execute_mapped_batch(func_map, ["type2"], default_func=None)
 
         # No function for type2, so empty result
         assert result == []
@@ -378,9 +368,7 @@ class TestExecuteWithProgress:
         def progress_callback(completed, total):
             progress_calls.append((completed, total))
 
-        result = await executor.execute_with_progress(
-            fake_func, [1, 2, 3, 4, 5], progress_callback
-        )
+        result = await executor.execute_with_progress(fake_func, [1, 2, 3, 4, 5], progress_callback)
 
         # Check results
         assert set(result) == {2, 4, 6, 8, 10}
@@ -418,9 +406,7 @@ class TestExecuteWithProgress:
         def progress_callback(completed, total):
             progress_calls.append((completed, total))
 
-        _ = await executor.execute_with_progress(
-            fake_func, [1, 2, 3, 4, 5], progress_callback
-        )
+        _ = await executor.execute_with_progress(fake_func, [1, 2, 3, 4, 5], progress_callback)
 
         # Progress should still be reported for all items
         assert len(progress_calls) == 5
@@ -556,9 +542,7 @@ class TestTimeoutHandling:
     @pytest.mark.asyncio
     async def test_timeout_with_raise_strategy(self):
         """Test timeout with RAISE error strategy raises TimeoutError."""
-        executor = AsyncParallelExecutor(
-            timeout=0.1, error_strategy=ErrorStrategy.RAISE
-        )
+        executor = AsyncParallelExecutor(timeout=0.1, error_strategy=ErrorStrategy.RAISE)
 
         async def slow_func(item):
             await asyncio.sleep(0.5)
@@ -571,9 +555,7 @@ class TestTimeoutHandling:
     @pytest.mark.asyncio
     async def test_timeout_with_ignore_strategy(self):
         """Test timeout with IGNORE error strategy doesn't raise."""
-        executor = AsyncParallelExecutor(
-            timeout=0.1, error_strategy=ErrorStrategy.IGNORE
-        )
+        executor = AsyncParallelExecutor(timeout=0.1, error_strategy=ErrorStrategy.IGNORE)
 
         async def slow_func(item):
             await asyncio.sleep(0.5)

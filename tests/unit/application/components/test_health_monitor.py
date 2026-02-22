@@ -16,9 +16,7 @@ class TestHealthMonitorInitialization:
         mock_metrics = Mock()
         mock_rate_limiter = Mock()
 
-        monitor = HealthMonitor(
-            metrics_tracker=mock_metrics, rate_limiter=mock_rate_limiter
-        )
+        monitor = HealthMonitor(metrics_tracker=mock_metrics, rate_limiter=mock_rate_limiter)
 
         assert monitor is not None
         assert monitor._metrics_tracker == mock_metrics
@@ -43,9 +41,7 @@ class TestHealthMonitorInitialization:
         mock_metrics = Mock()
         mock_rate_limiter = Mock()
 
-        monitor = HealthMonitor(
-            metrics_tracker=mock_metrics, rate_limiter=mock_rate_limiter
-        )
+        monitor = HealthMonitor(metrics_tracker=mock_metrics, rate_limiter=mock_rate_limiter)
 
         assert monitor._logger is not None
 
@@ -74,9 +70,7 @@ class TestHealthMonitorCheckHealth:
             "remaining_requests": 95,
         }
 
-        monitor = HealthMonitor(
-            metrics_tracker=mock_metrics, rate_limiter=mock_rate_limiter
-        )
+        monitor = HealthMonitor(metrics_tracker=mock_metrics, rate_limiter=mock_rate_limiter)
 
         health = monitor.check_health()
 
@@ -106,9 +100,7 @@ class TestHealthMonitorCheckHealth:
             "remaining_requests": 90,
         }
 
-        monitor = HealthMonitor(
-            metrics_tracker=mock_metrics, rate_limiter=mock_rate_limiter
-        )
+        monitor = HealthMonitor(metrics_tracker=mock_metrics, rate_limiter=mock_rate_limiter)
 
         health = monitor.check_health()
 
@@ -135,9 +127,7 @@ class TestHealthMonitorCheckHealth:
             "remaining_requests": 5,  # Less than 10%
         }
 
-        monitor = HealthMonitor(
-            metrics_tracker=mock_metrics, rate_limiter=mock_rate_limiter
-        )
+        monitor = HealthMonitor(metrics_tracker=mock_metrics, rate_limiter=mock_rate_limiter)
 
         health = monitor.check_health()
 
@@ -150,9 +140,7 @@ class TestHealthMonitorCheckHealth:
 
         mock_rate_limiter = Mock()
 
-        monitor = HealthMonitor(
-            metrics_tracker=mock_metrics, rate_limiter=mock_rate_limiter
-        )
+        monitor = HealthMonitor(metrics_tracker=mock_metrics, rate_limiter=mock_rate_limiter)
 
         health = monitor.check_health()
 
@@ -181,9 +169,7 @@ class TestHealthMonitorCheckHealth:
             "remaining_requests": 95,
         }
 
-        monitor = HealthMonitor(
-            metrics_tracker=mock_metrics, rate_limiter=mock_rate_limiter
-        )
+        monitor = HealthMonitor(metrics_tracker=mock_metrics, rate_limiter=mock_rate_limiter)
 
         health = monitor.check_health()
 
@@ -231,9 +217,7 @@ class TestHealthMonitorCheckHealth:
             "remaining_requests": 95,
         }
 
-        monitor = HealthMonitor(
-            metrics_tracker=mock_metrics, rate_limiter=mock_rate_limiter
-        )
+        monitor = HealthMonitor(metrics_tracker=mock_metrics, rate_limiter=mock_rate_limiter)
 
         health = monitor.check_health()
 
@@ -264,9 +248,7 @@ class TestHealthMonitorGetDetailedStatus:
             "remaining_requests": 95,
         }
 
-        monitor = HealthMonitor(
-            metrics_tracker=mock_metrics, rate_limiter=mock_rate_limiter
-        )
+        monitor = HealthMonitor(metrics_tracker=mock_metrics, rate_limiter=mock_rate_limiter)
 
         status = monitor.get_detailed_status()
 
@@ -295,9 +277,7 @@ class TestHealthMonitorGetDetailedStatus:
             "remaining_requests": 95,
         }
 
-        monitor = HealthMonitor(
-            metrics_tracker=mock_metrics, rate_limiter=mock_rate_limiter
-        )
+        monitor = HealthMonitor(metrics_tracker=mock_metrics, rate_limiter=mock_rate_limiter)
 
         status = monitor.get_detailed_status()
 
@@ -330,9 +310,7 @@ class TestHealthMonitorGetDetailedStatus:
             "remaining_requests": 90,
         }
 
-        monitor = HealthMonitor(
-            metrics_tracker=mock_metrics, rate_limiter=mock_rate_limiter
-        )
+        monitor = HealthMonitor(metrics_tracker=mock_metrics, rate_limiter=mock_rate_limiter)
 
         status = monitor.get_detailed_status()
 
@@ -351,9 +329,7 @@ class TestHealthMonitorEdgeCases:
         mock_rate_limiter = Mock()
         mock_rate_limiter.get_rate_limit_info.return_value = {}
 
-        monitor = HealthMonitor(
-            metrics_tracker=mock_metrics, rate_limiter=mock_rate_limiter
-        )
+        monitor = HealthMonitor(metrics_tracker=mock_metrics, rate_limiter=mock_rate_limiter)
 
         health = monitor.check_health()
 
@@ -377,9 +353,7 @@ class TestHealthMonitorEdgeCases:
         mock_rate_limiter = Mock()
         mock_rate_limiter.get_rate_limit_info.return_value = {}
 
-        monitor = HealthMonitor(
-            metrics_tracker=mock_metrics, rate_limiter=mock_rate_limiter
-        )
+        monitor = HealthMonitor(metrics_tracker=mock_metrics, rate_limiter=mock_rate_limiter)
 
         health = monitor.check_health()
 
@@ -406,9 +380,7 @@ class TestHealthMonitorEdgeCases:
             "remaining_requests": 0,
         }
 
-        monitor = HealthMonitor(
-            metrics_tracker=mock_metrics, rate_limiter=mock_rate_limiter
-        )
+        monitor = HealthMonitor(metrics_tracker=mock_metrics, rate_limiter=mock_rate_limiter)
 
         # Should handle gracefully or raise error
         # Either behavior is acceptable
@@ -429,9 +401,7 @@ class TestHealthMonitorProtocolCompliance:
         mock_metrics = Mock()
         mock_rate_limiter = Mock()
 
-        monitor = HealthMonitor(
-            metrics_tracker=mock_metrics, rate_limiter=mock_rate_limiter
-        )
+        monitor = HealthMonitor(metrics_tracker=mock_metrics, rate_limiter=mock_rate_limiter)
 
         # Check all required methods exist
         assert hasattr(monitor, "check_health")

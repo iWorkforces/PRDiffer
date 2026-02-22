@@ -53,9 +53,7 @@ class TestAuthenticationMiddlewareInitialization:
 
         assert auth.is_authentication_enabled() is False
 
-    @patch.dict(
-        os.environ, {"MCP_AUTH_ENABLED": "true", "MCP_API_KEYS": "key1,key2,key3"}
-    )
+    @patch.dict(os.environ, {"MCP_AUTH_ENABLED": "true", "MCP_API_KEYS": "key1,key2,key3"})
     def test_authentication_loads_api_keys(self):
         """Test API keys are loaded from environment."""
         auth = AuthenticationMiddleware()
@@ -65,9 +63,7 @@ class TestAuthenticationMiddlewareInitialization:
         assert auth._hash_api_key("key2") in auth._hashed_api_keys
         assert auth._hash_api_key("key3") in auth._hashed_api_keys
 
-    @patch.dict(
-        os.environ, {"MCP_AUTH_ENABLED": "true", "MCP_API_KEYS": "key1 , key2 , key3 "}
-    )
+    @patch.dict(os.environ, {"MCP_AUTH_ENABLED": "true", "MCP_API_KEYS": "key1 , key2 , key3 "})
     def test_authentication_trims_whitespace(self):
         """Test API keys are trimmed of whitespace."""
         auth = AuthenticationMiddleware()
@@ -93,9 +89,7 @@ class TestAuthenticationMiddlewareInitialization:
         auth = AuthenticationMiddleware()
 
         assert auth._admin_api_key_hash is not None
-        assert auth._admin_api_key_hash == auth._hash_api_key(
-            "admin_secret_12345678901"
-        )
+        assert auth._admin_api_key_hash == auth._hash_api_key("admin_secret_12345678901")
 
     def test_authentication_with_logger(self):
         """Test AuthenticationMiddleware with custom logger."""
@@ -163,9 +157,7 @@ class TestAuthenticationMiddlewareAuthenticate:
         assert is_auth is False
         assert client_id is None
 
-    @patch.dict(
-        os.environ, {"MCP_AUTH_ENABLED": "true", "MCP_API_KEYS": "test_key_12345678901"}
-    )
+    @patch.dict(os.environ, {"MCP_AUTH_ENABLED": "true", "MCP_API_KEYS": "test_key_12345678901"})
     def test_authenticate_valid_key_succeeds(self):
         """Test authentication succeeds with valid key."""
         auth = AuthenticationMiddleware()
@@ -176,9 +168,7 @@ class TestAuthenticationMiddlewareAuthenticate:
         assert client_id is not None
         assert client_id.startswith("api_key_")
 
-    @patch.dict(
-        os.environ, {"MCP_AUTH_ENABLED": "true", "MCP_API_KEYS": "test_key_12345678901"}
-    )
+    @patch.dict(os.environ, {"MCP_AUTH_ENABLED": "true", "MCP_API_KEYS": "test_key_12345678901"})
     def test_authenticate_invalid_key_fails(self):
         """Test authentication fails with invalid key."""
         auth = AuthenticationMiddleware()
@@ -248,9 +238,7 @@ class TestAuthenticationMiddlewareExtractClientIdentifier:
         """Test extracting API key from Authorization Bearer header."""
         auth = AuthenticationMiddleware()
 
-        api_key, client_id = auth.extract_client_identifier(
-            {"authorization": "Bearer test_token"}
-        )
+        api_key, client_id = auth.extract_client_identifier({"authorization": "Bearer test_token"})
 
         assert api_key == "test_token"
         assert client_id is None
@@ -260,9 +248,7 @@ class TestAuthenticationMiddlewareExtractClientIdentifier:
         """Test extracting API key from Authorization Bearer header (capitalized)."""
         auth = AuthenticationMiddleware()
 
-        api_key, client_id = auth.extract_client_identifier(
-            {"Authorization": "Bearer test_token"}
-        )
+        api_key, client_id = auth.extract_client_identifier({"Authorization": "Bearer test_token"})
 
         assert api_key == "test_token"
         assert client_id is None
@@ -272,9 +258,7 @@ class TestAuthenticationMiddlewareExtractClientIdentifier:
         """Test extracting IP from X-Forwarded-For header."""
         auth = AuthenticationMiddleware()
 
-        api_key, client_id = auth.extract_client_identifier(
-            {"x-forwarded-for": "192.168.1.1"}
-        )
+        api_key, client_id = auth.extract_client_identifier({"x-forwarded-for": "192.168.1.1"})
 
         assert api_key is None
         assert client_id == "192.168.1.1"
@@ -294,9 +278,7 @@ class TestAuthenticationMiddlewareExtractClientIdentifier:
         """Test extracting first IP from X-Forwarded-For with multiple IPs."""
         auth = AuthenticationMiddleware()
 
-        api_key, client_id = auth.extract_client_identifier(
-            {"x-forwarded-for": "192.168.1.1, 10.0.0.1, 172.16.0.1"}
-        )
+        api_key, client_id = auth.extract_client_identifier({"x-forwarded-for": "192.168.1.1, 10.0.0.1, 172.16.0.1"})
 
         assert api_key is None
         assert client_id == "192.168.1.1"
@@ -316,9 +298,7 @@ class TestAuthenticationMiddlewareExtractClientIdentifier:
         """Test API key takes priority over IP address."""
         auth = AuthenticationMiddleware()
 
-        api_key, client_id = auth.extract_client_identifier(
-            {"x-api-key": "test_key", "x-forwarded-for": "192.168.1.1"}
-        )
+        api_key, client_id = auth.extract_client_identifier({"x-api-key": "test_key", "x-forwarded-for": "192.168.1.1"})
 
         assert api_key == "test_key"
         assert client_id is None
@@ -569,9 +549,7 @@ class TestAuthenticationMiddlewareEdgeCases:
         """Test Authorization header without Bearer prefix."""
         auth = AuthenticationMiddleware()
 
-        api_key, client_id = auth.extract_client_identifier(
-            {"authorization": "InvalidFormat token"}
-        )
+        api_key, client_id = auth.extract_client_identifier({"authorization": "InvalidFormat token"})
 
         assert api_key is None
         # Falls back to IP if available
@@ -582,9 +560,7 @@ class TestAuthenticationMiddlewareEdgeCases:
         """Test Bearer header with empty token results in no key."""
         auth = AuthenticationMiddleware()
 
-        api_key, client_id = auth.extract_client_identifier(
-            {"authorization": "Bearer "}
-        )
+        api_key, client_id = auth.extract_client_identifier({"authorization": "Bearer "})
 
         # Empty string after "Bearer " is falsy, so api_key is None
         assert api_key is None
@@ -613,9 +589,7 @@ class TestAuthenticationMiddlewareJWTVerification:
         payload = {"user": "testuser", "exp": int(time.time()) + 3600}
         token = jwt.encode(payload, secret, algorithm="HS256")
 
-        is_valid, verified_payload, error = AuthenticationMiddleware.verify_jwt_token(
-            token, secret
-        )
+        is_valid, verified_payload, error = AuthenticationMiddleware.verify_jwt_token(token, secret)
 
         assert is_valid is True
         assert verified_payload is not None
@@ -632,9 +606,7 @@ class TestAuthenticationMiddlewareJWTVerification:
         payload = {"user": "testuser", "exp": int(time.time()) + 3600}
         token = jwt.encode(payload, secret, algorithm="HS256")
 
-        is_valid, verified_payload, error = AuthenticationMiddleware.verify_jwt_token(
-            token, wrong_secret
-        )
+        is_valid, verified_payload, error = AuthenticationMiddleware.verify_jwt_token(token, wrong_secret)
 
         assert is_valid is False
         assert verified_payload is None
@@ -650,9 +622,7 @@ class TestAuthenticationMiddlewareJWTVerification:
         payload = {"user": "testuser", "exp": int(time.time()) - 3600}
         token = jwt.encode(payload, secret, algorithm="HS256")
 
-        is_valid, verified_payload, error = AuthenticationMiddleware.verify_jwt_token(
-            token, secret
-        )
+        is_valid, verified_payload, error = AuthenticationMiddleware.verify_jwt_token(token, secret)
 
         assert is_valid is False
         assert verified_payload is None
@@ -661,9 +631,7 @@ class TestAuthenticationMiddlewareJWTVerification:
     @patch.dict(os.environ, {"MCP_AUTH_ENABLED": "false"})
     def test_verify_jwt_malformed_token(self):
         """Test verification fails with malformed token."""
-        is_valid, verified_payload, error = AuthenticationMiddleware.verify_jwt_token(
-            "not.a.valid.jwt.token", "secret"
-        )
+        is_valid, verified_payload, error = AuthenticationMiddleware.verify_jwt_token("not.a.valid.jwt.token", "secret")
 
         assert is_valid is False
         assert verified_payload is None
@@ -683,15 +651,11 @@ class TestAuthenticationMiddlewareJWTVerification:
         token = jwt.encode(payload, secret, algorithm="HS256")
 
         # Valid audience
-        is_valid, verified_payload, error = AuthenticationMiddleware.verify_jwt_token(
-            token, secret, audience="test-audience"
-        )
+        is_valid, verified_payload, error = AuthenticationMiddleware.verify_jwt_token(token, secret, audience="test-audience")
         assert is_valid is True
 
         # Invalid audience
-        is_valid, verified_payload, error = AuthenticationMiddleware.verify_jwt_token(
-            token, secret, audience="wrong-audience"
-        )
+        is_valid, verified_payload, error = AuthenticationMiddleware.verify_jwt_token(token, secret, audience="wrong-audience")
         assert is_valid is False
         assert "audience" in error.lower()
 
@@ -709,15 +673,11 @@ class TestAuthenticationMiddlewareJWTVerification:
         token = jwt.encode(payload, secret, algorithm="HS256")
 
         # Valid issuer
-        is_valid, verified_payload, error = AuthenticationMiddleware.verify_jwt_token(
-            token, secret, issuer="test-issuer"
-        )
+        is_valid, verified_payload, error = AuthenticationMiddleware.verify_jwt_token(token, secret, issuer="test-issuer")
         assert is_valid is True
 
         # Invalid issuer
-        is_valid, verified_payload, error = AuthenticationMiddleware.verify_jwt_token(
-            token, secret, issuer="wrong-issuer"
-        )
+        is_valid, verified_payload, error = AuthenticationMiddleware.verify_jwt_token(token, secret, issuer="wrong-issuer")
         assert is_valid is False
         assert "issuer" in error.lower()
 
@@ -730,9 +690,7 @@ class TestAuthenticationMiddlewareJWTVerification:
         payload = {"user": "testuser", "exp": int(time.time()) + 3600}
         token = jwt.encode(payload, secret, algorithm="HS512")
 
-        is_valid, verified_payload, error = AuthenticationMiddleware.verify_jwt_token(
-            token, secret, algorithms=["HS512"]
-        )
+        is_valid, verified_payload, error = AuthenticationMiddleware.verify_jwt_token(token, secret, algorithms=["HS512"])
 
         assert is_valid is True
         assert verified_payload["user"] == "testuser"
@@ -747,9 +705,7 @@ class TestAuthenticationMiddlewareJWTVerification:
         token = jwt.encode(payload, secret, algorithm="HS256")
 
         # Try to verify with HS512 when token was signed with HS256
-        is_valid, verified_payload, error = AuthenticationMiddleware.verify_jwt_token(
-            token, secret, algorithms=["HS512"]
-        )
+        is_valid, verified_payload, error = AuthenticationMiddleware.verify_jwt_token(token, secret, algorithms=["HS512"])
 
         assert is_valid is False
         assert "algorithm" in error.lower()
@@ -827,9 +783,7 @@ class TestJWTSecurity:
         payload = {"user": "testuser", "exp": int(time.time()) + 3600}
         token = jwt.encode(payload, secret, algorithm="HS256")
 
-        is_valid, verified_payload, error = AuthenticationMiddleware.verify_jwt_token(
-            token, secret
-        )
+        is_valid, verified_payload, error = AuthenticationMiddleware.verify_jwt_token(token, secret)
 
         assert is_valid is True
         assert verified_payload is not None
@@ -845,9 +799,7 @@ class TestJWTSecurity:
         payload = {"user": "testuser", "exp": int(time.time()) + 7200}  # 2 hours
         token = jwt.encode(payload, secret, algorithm="HS256")
 
-        is_valid, verified_payload, error = AuthenticationMiddleware.verify_jwt_token(
-            token, secret
-        )
+        is_valid, verified_payload, error = AuthenticationMiddleware.verify_jwt_token(token, secret)
 
         assert is_valid is True
         assert verified_payload is not None
@@ -863,9 +815,7 @@ class TestJWTSecurity:
         payload = {"user": "testuser", "exp": int(time.time()) - 3600}
         token = jwt.encode(payload, secret, algorithm="HS256")
 
-        is_valid, verified_payload, error = AuthenticationMiddleware.verify_jwt_token(
-            token, secret
-        )
+        is_valid, verified_payload, error = AuthenticationMiddleware.verify_jwt_token(token, secret)
 
         assert is_valid is False
         assert verified_payload is None
@@ -883,9 +833,7 @@ class TestJWTSecurity:
         token = jwt.encode(payload, secret, algorithm="HS256")
 
         # Verify with wrong secret (simulates tampered signature)
-        is_valid, verified_payload, error = AuthenticationMiddleware.verify_jwt_token(
-            token, wrong_secret
-        )
+        is_valid, verified_payload, error = AuthenticationMiddleware.verify_jwt_token(token, wrong_secret)
 
         assert is_valid is False
         assert verified_payload is None
@@ -902,9 +850,7 @@ class TestJWTSecurity:
         token = jwt.encode(payload, secret, algorithm="HS256")
 
         # Try to verify with HS512 only (algorithm confusion)
-        is_valid, verified_payload, error = AuthenticationMiddleware.verify_jwt_token(
-            token, secret, algorithms=["HS512"]
-        )
+        is_valid, verified_payload, error = AuthenticationMiddleware.verify_jwt_token(token, secret, algorithms=["HS512"])
 
         assert is_valid is False
         assert verified_payload is None
@@ -920,21 +866,14 @@ class TestJWTSecurity:
         token = jwt.encode(payload, secret, algorithm="HS256")
 
         # Try to verify with empty secret
-        is_valid, verified_payload, error = AuthenticationMiddleware.verify_jwt_token(
-            token, ""
-        )
+        is_valid, verified_payload, error = AuthenticationMiddleware.verify_jwt_token(token, "")
 
         assert is_valid is False
         assert verified_payload is None
         assert error is not None
         # Type guard: after assert not None, error is str
         error_str: str = error
-        assert (
-            "Invalid token" in error_str
-            or "signature" in error_str.lower()
-            or "key" in error_str.lower()
-            or "failed" in error_str.lower()
-        )
+        assert "Invalid token" in error_str or "signature" in error_str.lower() or "key" in error_str.lower() or "failed" in error_str.lower()
 
     @pytest.mark.security
     def test_jwt_with_invalid_audience_rejected(self):
@@ -950,9 +889,7 @@ class TestJWTSecurity:
         token = jwt.encode(payload, secret, algorithm="HS256")
 
         # Verify with wrong audience
-        is_valid, verified_payload, error = AuthenticationMiddleware.verify_jwt_token(
-            token, secret, audience="wrong-audience"
-        )
+        is_valid, verified_payload, error = AuthenticationMiddleware.verify_jwt_token(token, secret, audience="wrong-audience")
 
         assert is_valid is False
         assert verified_payload is None
@@ -972,9 +909,7 @@ class TestJWTSecurity:
         token = jwt.encode(payload, secret, algorithm="HS256")
 
         # Verify with correct audience
-        is_valid, verified_payload, error = AuthenticationMiddleware.verify_jwt_token(
-            token, secret, audience="correct-audience"
-        )
+        is_valid, verified_payload, error = AuthenticationMiddleware.verify_jwt_token(token, secret, audience="correct-audience")
 
         assert is_valid is True
         assert verified_payload is not None
@@ -994,9 +929,7 @@ class TestJWTSecurity:
         token = jwt.encode(payload, secret, algorithm="HS256")
 
         # Verify with wrong issuer
-        is_valid, verified_payload, error = AuthenticationMiddleware.verify_jwt_token(
-            token, secret, issuer="wrong-issuer"
-        )
+        is_valid, verified_payload, error = AuthenticationMiddleware.verify_jwt_token(token, secret, issuer="wrong-issuer")
 
         assert is_valid is False
         assert verified_payload is None
@@ -1016,9 +949,7 @@ class TestJWTSecurity:
         token = jwt.encode(payload, secret, algorithm="HS256")
 
         # Verify with correct issuer
-        is_valid, verified_payload, error = AuthenticationMiddleware.verify_jwt_token(
-            token, secret, issuer="correct-issuer"
-        )
+        is_valid, verified_payload, error = AuthenticationMiddleware.verify_jwt_token(token, secret, issuer="correct-issuer")
 
         assert is_valid is True
         assert verified_payload is not None
@@ -1076,9 +1007,7 @@ class TestJWTSecurity:
 
         # If signature verification was disabled, wrong secret would still pass
         # Since verification is enabled, wrong secret should fail
-        is_valid, verified_payload, error = AuthenticationMiddleware.verify_jwt_token(
-            token, wrong_secret
-        )
+        is_valid, verified_payload, error = AuthenticationMiddleware.verify_jwt_token(token, wrong_secret)
 
         assert is_valid is False
         assert error == "Invalid token signature"
@@ -1095,9 +1024,7 @@ class TestJWTSecurity:
 
         # If exp verification was disabled, expired token would still pass
         # Since verification is enabled, expired token should fail
-        is_valid, verified_payload, error = AuthenticationMiddleware.verify_jwt_token(
-            token, secret
-        )
+        is_valid, verified_payload, error = AuthenticationMiddleware.verify_jwt_token(token, secret)
 
         assert is_valid is False
         assert error == "Token has expired"
@@ -1115,11 +1042,7 @@ class TestJWTSecurity:
             token = jwt.encode(payload, secret, algorithm="none")
 
             # Verify should reject 'none' algorithm when only HS256 is allowed
-            is_valid, verified_payload, error = (
-                AuthenticationMiddleware.verify_jwt_token(
-                    token, secret, algorithms=["HS256"]
-                )
-            )
+            is_valid, verified_payload, error = AuthenticationMiddleware.verify_jwt_token(token, secret, algorithms=["HS256"])
 
             assert is_valid is False
             assert "algorithm" in error.lower()
@@ -1141,9 +1064,7 @@ class TestJWTSecurity:
         ]
 
         for invalid_token in invalid_tokens:
-            is_valid, verified_payload, error = (
-                AuthenticationMiddleware.verify_jwt_token(invalid_token, "any_secret")
-            )
+            is_valid, verified_payload, error = AuthenticationMiddleware.verify_jwt_token(invalid_token, "any_secret")
 
             assert is_valid is False
             assert verified_payload is None
@@ -1190,9 +1111,7 @@ class TestJWTSecurity:
         token = jwt.encode(payload, secret, algorithm="HS256")
 
         # PyJWT may reject tokens without 'exp' when verify_exp is required
-        is_valid, verified_payload, error = AuthenticationMiddleware.verify_jwt_token(
-            token, secret
-        )
+        is_valid, verified_payload, error = AuthenticationMiddleware.verify_jwt_token(token, secret)
 
         # Either passes (if exp is optional) or fails with appropriate error
         if not is_valid:
@@ -1213,18 +1132,14 @@ class TestJWTSecurity:
         token = jwt.encode(payload, secret, algorithm="HS256")
 
         # Verify with HS256, HS384, HS512 allowed - should succeed
-        is_valid, verified_payload, error = AuthenticationMiddleware.verify_jwt_token(
-            token, secret, algorithms=["HS256", "HS384", "HS512"]
-        )
+        is_valid, verified_payload, error = AuthenticationMiddleware.verify_jwt_token(token, secret, algorithms=["HS256", "HS384", "HS512"])
 
         assert is_valid is True
         assert verified_payload is not None
         assert error is None
 
         # Now try with only HS384 and HS512 (exclude HS256) - should fail
-        is_valid, verified_payload, error = AuthenticationMiddleware.verify_jwt_token(
-            token, secret, algorithms=["HS384", "HS512"]
-        )
+        is_valid, verified_payload, error = AuthenticationMiddleware.verify_jwt_token(token, secret, algorithms=["HS384", "HS512"])
 
         assert is_valid is False
         assert "algorithm" in error.lower()

@@ -153,9 +153,7 @@ class TestTTLExpiration:
 
     @patch("prdiffer.infrastructure.settings.get_settings_service")
     @pytest.mark.asyncio
-    async def test_entry_not_expired_within_ttl(
-        self, mock_get_settings, sample_pr_diff
-    ):
+    async def test_entry_not_expired_within_ttl(self, mock_get_settings, sample_pr_diff):
         """Test that entries are valid within TTL."""
         from prdiffer.infrastructure.cache import CacheService
 
@@ -558,9 +556,7 @@ class TestErrorMessageSanitization:
 
         # Configure mock
         mock_dependencies["server_configuration"].setup_logging = Mock()
-        mock_dependencies["server_configuration"].get_mcp_instructions = Mock(
-            return_value=""
-        )
+        mock_dependencies["server_configuration"].get_mcp_instructions = Mock(return_value="")
 
         with patch("prdiffer.application.mcp_server.FastMCP"):
             server = FastMCPServer(**mock_dependencies)
@@ -581,9 +577,7 @@ class TestErrorMessageSanitization:
         from prdiffer.application.mcp_server import FastMCPServer
 
         mock_dependencies["server_configuration"].setup_logging = Mock()
-        mock_dependencies["server_configuration"].get_mcp_instructions = Mock(
-            return_value=""
-        )
+        mock_dependencies["server_configuration"].get_mcp_instructions = Mock(return_value="")
 
         with patch("prdiffer.application.mcp_server.FastMCP"):
             server = FastMCPServer(**mock_dependencies)
@@ -601,9 +595,7 @@ class TestErrorMessageSanitization:
         from prdiffer.application.mcp_server import FastMCPServer
 
         mock_dependencies["server_configuration"].setup_logging = Mock()
-        mock_dependencies["server_configuration"].get_mcp_instructions = Mock(
-            return_value=""
-        )
+        mock_dependencies["server_configuration"].get_mcp_instructions = Mock(return_value="")
 
         with patch("prdiffer.application.mcp_server.FastMCP"):
             server = FastMCPServer(**mock_dependencies)
@@ -611,9 +603,7 @@ class TestErrorMessageSanitization:
         class UnknownInternalError(Exception):
             pass
 
-        exc = UnknownInternalError(
-            "Internal: database connection string is postgres://user:pass@host"
-        )
+        exc = UnknownInternalError("Internal: database connection string is postgres://user:pass@host")
         safe_message = server._tool_registry._create_safe_error_message(exc)
 
         assert safe_message == "Request processing failed"
@@ -629,9 +619,7 @@ class TestErrorMessageSanitization:
         )
 
         mock_dependencies["server_configuration"].setup_logging = Mock()
-        mock_dependencies["server_configuration"].get_mcp_instructions = Mock(
-            return_value=""
-        )
+        mock_dependencies["server_configuration"].get_mcp_instructions = Mock(return_value="")
 
         with patch("prdiffer.application.mcp_server.FastMCP"):
             server = FastMCPServer(**mock_dependencies)
@@ -643,9 +631,7 @@ class TestErrorMessageSanitization:
         assert "whoami" not in safe_message
 
         # SuspiciousOperationError
-        suspicious_exc = SuspiciousOperationError(
-            "Detected SQL injection: DROP TABLE users"
-        )
+        suspicious_exc = SuspiciousOperationError("Detected SQL injection: DROP TABLE users")
         safe_message = server._tool_registry._create_safe_error_message(suspicious_exc)
         assert safe_message == "Request contains suspicious patterns"
         assert "DROP TABLE" not in safe_message

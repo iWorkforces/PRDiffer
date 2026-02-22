@@ -224,9 +224,7 @@ def classify_error_for_retry(
     if is_transient or is_rate_limit:
         return RetryDecision(
             should_retry=True,
-            reason="Transient error detected"
-            if is_transient
-            else "Rate limit detected",
+            reason="Transient error detected" if is_transient else "Rate limit detected",
             is_rate_limit=is_rate_limit,
             is_permanent=False,
         )

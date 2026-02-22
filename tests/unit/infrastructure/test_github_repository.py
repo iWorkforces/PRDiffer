@@ -84,9 +84,7 @@ def mock_logger():
 def mock_input_validator():
     """Create mock input validator."""
     validator = Mock()
-    validator.sanitize_for_logging.side_effect = lambda s, max_length=None: (
-        s[:max_length] if max_length else s
-    )
+    validator.sanitize_for_logging.side_effect = lambda s, max_length=None: s[:max_length] if max_length else s
     validator.validate_github_url.return_value = ("owner", "repo", 123)
     return validator
 
@@ -170,14 +168,10 @@ def repository(
 class TestGitHubPRDiffRepositoryInit:
     """Tests for repository initialization."""
 
-    def test_init_with_all_parameters(
-        self, mock_settings, mock_logger, mock_input_validator
-    ):
+    def test_init_with_all_parameters(self, mock_settings, mock_logger, mock_input_validator):
         """Test initialization with all parameters."""
         with (
-            patch(
-                "prdiffer.infrastructure.github_repository.get_github_api_client"
-            ) as mock_get_client,
+            patch("prdiffer.infrastructure.github_repository.get_github_api_client") as mock_get_client,
             patch("prdiffer.infrastructure.github_repository.get_file_processor"),
             patch("prdiffer.infrastructure.github_repository.get_diff_generator"),
             patch("prdiffer.infrastructure.github_repository.get_pattern_matcher"),
@@ -200,16 +194,12 @@ class TestGitHubPRDiffRepositoryInit:
             assert repo.pr_number == 456
             assert repo.github_token == "token123"
 
-    def test_init_uses_env_token_if_not_provided(
-        self, mock_settings, mock_logger, mock_input_validator, monkeypatch
-    ):
+    def test_init_uses_env_token_if_not_provided(self, mock_settings, mock_logger, mock_input_validator, monkeypatch):
         """Test that GITHUB_TOKEN env var is used if token not provided."""
         monkeypatch.setenv("GITHUB_TOKEN", "env-token")
 
         with (
-            patch(
-                "prdiffer.infrastructure.github_repository.get_github_api_client"
-            ) as mock_get_client,
+            patch("prdiffer.infrastructure.github_repository.get_github_api_client") as mock_get_client,
             patch("prdiffer.infrastructure.github_repository.get_file_processor"),
             patch("prdiffer.infrastructure.github_repository.get_diff_generator"),
             patch("prdiffer.infrastructure.github_repository.get_pattern_matcher"),
@@ -263,9 +253,7 @@ class TestGitHubPRDiffRepositoryInitialize:
     @pytest.mark.asyncio
     async def test_initialize_repository_not_found(self, repository):
         """Test initialization fails when repository not found."""
-        repository._mock_api_client._get_pygithub_repository.side_effect = (
-            UnknownObjectException(404, "Not found")
-        )
+        repository._mock_api_client._get_pygithub_repository.side_effect = UnknownObjectException(404, "Not found")
 
         with pytest.raises(PRDifferException) as exc_info:
             await repository.initialize()
@@ -275,9 +263,7 @@ class TestGitHubPRDiffRepositoryInitialize:
     @pytest.mark.asyncio
     async def test_initialize_rate_limit_exceeded(self, repository):
         """Test initialization fails when rate limit exceeded."""
-        repository._mock_api_client._get_pygithub_repository.side_effect = (
-            RateLimitExceededException(403, "Rate limit")
-        )
+        repository._mock_api_client._get_pygithub_repository.side_effect = RateLimitExceededException(403, "Rate limit")
 
         with pytest.raises(PRDifferException) as exc_info:
             await repository.initialize()
@@ -287,9 +273,7 @@ class TestGitHubPRDiffRepositoryInitialize:
     @pytest.mark.asyncio
     async def test_initialize_github_exception(self, repository):
         """Test initialization fails on generic GitHub exception."""
-        repository._mock_api_client._get_pygithub_repository.side_effect = (
-            GithubException(500, "Server error")
-        )
+        repository._mock_api_client._get_pygithub_repository.side_effect = GithubException(500, "Server error")
 
         with pytest.raises(PRDifferException) as exc_info:
             await repository.initialize()
@@ -301,9 +285,7 @@ class TestGitHubPRDiffRepositoryInitialize:
         """Test initialization fails when PR not found."""
         mock_repo = Mock()
         repository._mock_api_client._get_pygithub_repository.return_value = mock_repo
-        repository._mock_api_client._get_pygithub_pull_request.side_effect = (
-            UnknownObjectException(404, "PR not found")
-        )
+        repository._mock_api_client._get_pygithub_pull_request.side_effect = UnknownObjectException(404, "PR not found")
 
         with pytest.raises(PRDifferException) as exc_info:
             await repository.initialize()
@@ -330,9 +312,7 @@ class TestGitHubPRDiffRepositoryGetLatestCommitSha:
     @pytest.mark.asyncio
     async def test_get_latest_commit_sha_not_initialized(self, repository):
         """Test getting SHA fails when not initialized."""
-        repository._mock_api_client._get_pygithub_repository.side_effect = (
-            UnknownObjectException(404, "Not found")
-        )
+        repository._mock_api_client._get_pygithub_repository.side_effect = UnknownObjectException(404, "Not found")
 
         with pytest.raises(PRDifferException):
             await repository.get_latest_commit_sha()
@@ -368,9 +348,7 @@ class TestGitHubPRDiffRepositoryGetPRDiff:
             num_plus_lines=5,
             num_minus_lines=2,
         )
-        repository._mock_file_processor.process_files_to_patches.return_value = [
-            file_patch
-        ]
+        repository._mock_file_processor.process_files_to_patches.return_value = [file_patch]
 
         result = await repository.get_pr_diff()
 
@@ -380,9 +358,7 @@ class TestGitHubPRDiffRepositoryGetPRDiff:
     @pytest.mark.asyncio
     async def test_get_pr_diff_not_initialized(self, repository):
         """Test getting diff fails when not initialized."""
-        repository._mock_api_client._get_pygithub_repository.side_effect = (
-            UnknownObjectException(404, "Not found")
-        )
+        repository._mock_api_client._get_pygithub_repository.side_effect = UnknownObjectException(404, "Not found")
 
         with pytest.raises(PRDifferException):
             await repository.get_pr_diff()
@@ -403,30 +379,22 @@ class TestGitHubPRDiffRepositoryApprovePR:
         repository._mock_api_client._get_pygithub_repository.return_value = mock_repo
         repository._mock_api_client._get_pygithub_pull_request.return_value = mock_pr
 
-        result = await repository.approve_pr_with_comment(
-            "https://github.com/owner/repo/pull/123", "Great work!"
-        )
+        result = await repository.approve_pr_with_comment("https://github.com/owner/repo/pull/123", "Great work!")
 
         assert "Successfully approved PR" in result
-        mock_pr.create_review.assert_called_once_with(
-            event="APPROVE", body="Great work!"
-        )
+        mock_pr.create_review.assert_called_once_with(event="APPROVE", body="Great work!")
 
     @pytest.mark.asyncio
     async def test_approve_pr_empty_compliment(self, repository):
         """Test approving PR with empty compliment fails."""
         with pytest.raises(ValueError, match="Compliment cannot be empty"):
-            await repository.approve_pr_with_comment(
-                "https://github.com/owner/repo/pull/123", ""
-            )
+            await repository.approve_pr_with_comment("https://github.com/owner/repo/pull/123", "")
 
     @pytest.mark.asyncio
     async def test_approve_pr_non_string_compliment(self, repository):
         """Test approving PR with non-string compliment fails."""
         with pytest.raises(ValueError, match="Compliment must be a string"):
-            await repository.approve_pr_with_comment(
-                "https://github.com/owner/repo/pull/123", 123
-            )
+            await repository.approve_pr_with_comment("https://github.com/owner/repo/pull/123", 123)
 
     @pytest.mark.asyncio
     async def test_approve_pr_404_error(self, repository):
@@ -439,9 +407,7 @@ class TestGitHubPRDiffRepositoryApprovePR:
         repository._mock_api_client._get_pygithub_pull_request.return_value = mock_pr
 
         with pytest.raises(RuntimeError, match="not found"):
-            await repository.approve_pr_with_comment(
-                "https://github.com/owner/repo/pull/123", "Great!"
-            )
+            await repository.approve_pr_with_comment("https://github.com/owner/repo/pull/123", "Great!")
 
     @pytest.mark.asyncio
     async def test_approve_pr_403_error(self, repository):
@@ -454,9 +420,7 @@ class TestGitHubPRDiffRepositoryApprovePR:
         repository._mock_api_client._get_pygithub_pull_request.return_value = mock_pr
 
         with pytest.raises(RuntimeError, match="Insufficient permissions"):
-            await repository.approve_pr_with_comment(
-                "https://github.com/owner/repo/pull/123", "Great!"
-            )
+            await repository.approve_pr_with_comment("https://github.com/owner/repo/pull/123", "Great!")
 
     @pytest.mark.asyncio
     async def test_approve_pr_rate_limit_error(self, repository):
@@ -469,9 +433,7 @@ class TestGitHubPRDiffRepositoryApprovePR:
         repository._mock_api_client._get_pygithub_pull_request.return_value = mock_pr
 
         with pytest.raises(RuntimeError, match="rate limit exceeded"):
-            await repository.approve_pr_with_comment(
-                "https://github.com/owner/repo/pull/123", "Great!"
-            )
+            await repository.approve_pr_with_comment("https://github.com/owner/repo/pull/123", "Great!")
 
     @pytest.mark.asyncio
     async def test_approve_pr_generic_error(self, repository):
@@ -484,9 +446,7 @@ class TestGitHubPRDiffRepositoryApprovePR:
         repository._mock_api_client._get_pygithub_pull_request.return_value = mock_pr
 
         with pytest.raises(RuntimeError, match="GitHub API error"):
-            await repository.approve_pr_with_comment(
-                "https://github.com/owner/repo/pull/123", "Great!"
-            )
+            await repository.approve_pr_with_comment("https://github.com/owner/repo/pull/123", "Great!")
 
 
 class TestGitHubPRDiffRepositoryUpdatePRDescription:
@@ -501,9 +461,7 @@ class TestGitHubPRDiffRepositoryUpdatePRDescription:
         repository._mock_api_client._get_pygithub_repository.return_value = mock_repo
         repository._mock_api_client._get_pygithub_pull_request.return_value = mock_pr
 
-        result = await repository.update_pr_description(
-            "https://github.com/owner/repo/pull/123", "New description text"
-        )
+        result = await repository.update_pr_description("https://github.com/owner/repo/pull/123", "New description text")
 
         assert "Successfully updated description" in result
         mock_pr.edit.assert_called_once_with(body="New description text")
@@ -512,17 +470,13 @@ class TestGitHubPRDiffRepositoryUpdatePRDescription:
     async def test_update_pr_description_empty_description(self, repository):
         """Test updating PR description with empty description fails."""
         with pytest.raises(ValueError, match="Description cannot be empty"):
-            await repository.update_pr_description(
-                "https://github.com/owner/repo/pull/123", ""
-            )
+            await repository.update_pr_description("https://github.com/owner/repo/pull/123", "")
 
     @pytest.mark.asyncio
     async def test_update_pr_description_non_string_description(self, repository):
         """Test updating PR description with non-string description fails."""
         with pytest.raises(ValueError, match="Description must be a string"):
-            await repository.update_pr_description(
-                "https://github.com/owner/repo/pull/123", 123
-            )
+            await repository.update_pr_description("https://github.com/owner/repo/pull/123", 123)
 
     @pytest.mark.asyncio
     async def test_update_pr_description_404_error(self, repository):
@@ -535,9 +489,7 @@ class TestGitHubPRDiffRepositoryUpdatePRDescription:
         repository._mock_api_client._get_pygithub_pull_request.return_value = mock_pr
 
         with pytest.raises(RuntimeError, match="not found"):
-            await repository.update_pr_description(
-                "https://github.com/owner/repo/pull/123", "New description"
-            )
+            await repository.update_pr_description("https://github.com/owner/repo/pull/123", "New description")
 
     @pytest.mark.asyncio
     async def test_update_pr_description_403_error(self, repository):
@@ -550,9 +502,7 @@ class TestGitHubPRDiffRepositoryUpdatePRDescription:
         repository._mock_api_client._get_pygithub_pull_request.return_value = mock_pr
 
         with pytest.raises(RuntimeError, match="Insufficient permissions"):
-            await repository.update_pr_description(
-                "https://github.com/owner/repo/pull/123", "New description"
-            )
+            await repository.update_pr_description("https://github.com/owner/repo/pull/123", "New description")
 
     @pytest.mark.asyncio
     async def test_update_pr_description_rate_limit_error(self, repository):
@@ -565,9 +515,7 @@ class TestGitHubPRDiffRepositoryUpdatePRDescription:
         repository._mock_api_client._get_pygithub_pull_request.return_value = mock_pr
 
         with pytest.raises(RuntimeError, match="rate limit exceeded"):
-            await repository.update_pr_description(
-                "https://github.com/owner/repo/pull/123", "New description"
-            )
+            await repository.update_pr_description("https://github.com/owner/repo/pull/123", "New description")
 
     @pytest.mark.asyncio
     async def test_update_pr_description_generic_error(self, repository):
@@ -580,9 +528,7 @@ class TestGitHubPRDiffRepositoryUpdatePRDescription:
         repository._mock_api_client._get_pygithub_pull_request.return_value = mock_pr
 
         with pytest.raises(RuntimeError, match="GitHub API error"):
-            await repository.update_pr_description(
-                "https://github.com/owner/repo/pull/123", "New description"
-            )
+            await repository.update_pr_description("https://github.com/owner/repo/pull/123", "New description")
 
 
 class TestGitHubPRDiffRepositoryGetMergeBaseCommits:
@@ -652,14 +598,10 @@ class TestGitHubPRDiffRepositoryLogFilteredFiles:
 class TestGetGitHubRepository:
     """Tests for get_github_repository factory function."""
 
-    def test_get_github_repository_creates_singleton(
-        self, mock_settings, mock_logger, mock_input_validator
-    ):
+    def test_get_github_repository_creates_singleton(self, mock_settings, mock_logger, mock_input_validator):
         """Test that get_github_repository returns same instance for same params."""
         with (
-            patch(
-                "prdiffer.infrastructure.github_repository.get_github_api_client"
-            ) as mock_get_client,
+            patch("prdiffer.infrastructure.github_repository.get_github_api_client") as mock_get_client,
             patch("prdiffer.infrastructure.github_repository.get_file_processor"),
             patch("prdiffer.infrastructure.github_repository.get_diff_generator"),
             patch("prdiffer.infrastructure.github_repository.get_pattern_matcher"),
@@ -689,14 +631,10 @@ class TestGetGitHubRepository:
 
             assert repo1 is repo2
 
-    def test_get_github_repository_different_pr_different_instance(
-        self, mock_settings, mock_logger, mock_input_validator
-    ):
+    def test_get_github_repository_different_pr_different_instance(self, mock_settings, mock_logger, mock_input_validator):
         """Test that different PRs return different instances."""
         with (
-            patch(
-                "prdiffer.infrastructure.github_repository.get_github_api_client"
-            ) as mock_get_client,
+            patch("prdiffer.infrastructure.github_repository.get_github_api_client") as mock_get_client,
             patch("prdiffer.infrastructure.github_repository.get_file_processor"),
             patch("prdiffer.infrastructure.github_repository.get_diff_generator"),
             patch("prdiffer.infrastructure.github_repository.get_pattern_matcher"),

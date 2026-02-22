@@ -76,18 +76,14 @@ class TestUrlParser:
         """Test parsing URL without HTTPS."""
         url = "http://github.com/owner/repo/pull/123"
 
-        with pytest.raises(
-            InvalidURLError, match="must start with https://github.com/"
-        ):
+        with pytest.raises(InvalidURLError, match="must start with https://github.com/"):
             parse_github_pr_url(url)
 
     def test_parse_url_missing_github_com(self):
         """Test parsing URL with wrong domain."""
         url = "https://gitlab.com/owner/repo/pull/123"
 
-        with pytest.raises(
-            InvalidURLError, match="must start with https://github.com/"
-        ):
+        with pytest.raises(InvalidURLError, match="must start with https://github.com/"):
             parse_github_pr_url(url)
 
     def test_parse_url_missing_owner(self):

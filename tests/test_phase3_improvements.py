@@ -55,9 +55,7 @@ class TestFilePatchInfoExtensions:
                 num_plus_lines=5,
                 num_minus_lines=3,
             )
-            assert patch.calculate_review_priority() == "high", (
-                f"Expected high for {filename}"
-            )
+            assert patch.calculate_review_priority() == "high", f"Expected high for {filename}"
 
     def test_calculate_review_priority_high_for_large_changes(self):
         """Test high priority for large change sets."""
@@ -88,9 +86,7 @@ class TestFilePatchInfoExtensions:
                 num_plus_lines=5,
                 num_minus_lines=3,
             )
-            assert patch.calculate_review_priority() == "low", (
-                f"Expected low for {filename}"
-            )
+            assert patch.calculate_review_priority() == "low", f"Expected low for {filename}"
 
     def test_calculate_review_priority_low_for_tests(self):
         """Test low priority for test files."""
@@ -108,9 +104,7 @@ class TestFilePatchInfoExtensions:
                 num_plus_lines=10,
                 num_minus_lines=5,
             )
-            assert patch.calculate_review_priority() == "low", (
-                f"Expected low for {filename}"
-            )
+            assert patch.calculate_review_priority() == "low", f"Expected low for {filename}"
 
     def test_calculate_review_priority_normal_for_regular_files(self):
         """Test normal priority for regular source files."""
@@ -172,9 +166,7 @@ class TestFilePatchInfoExtensions:
         )
 
         smells = patch.detect_code_smells()
-        assert any("print" in s for s in smells) or any(
-            "console.log" in s for s in smells
-        )
+        assert any("print" in s for s in smells) or any("console.log" in s for s in smells)
 
     def test_detect_code_smells_large_changes(self):
         """Test detection of very large change sets."""
@@ -412,9 +404,7 @@ class TestMCPErrorException:
         """Test MCPError conversion to dictionary."""
         from prdiffer.domain.errors import MCPError, E1001_INVALID_URL
 
-        error = MCPError(
-            E1001_INVALID_URL, detail="Missing protocol", context={"url": "test"}
-        )
+        error = MCPError(E1001_INVALID_URL, detail="Missing protocol", context={"url": "test"})
 
         result = error.to_dict()
 
@@ -480,13 +470,8 @@ class TestErrorHandlingUtilities:
 
         # Note: We're testing the mapping by name, not actual exception types
         # because we don't want to import github exceptions
-        assert (
-            get_error_for_exception(ValueError("test")).code == E1001_INVALID_URL.code
-        )
-        assert (
-            get_error_for_exception(TimeoutError("test")).code
-            == E5004_TIMEOUT_ERROR.code
-        )
+        assert get_error_for_exception(ValueError("test")).code == E1001_INVALID_URL.code
+        assert get_error_for_exception(TimeoutError("test")).code == E5004_TIMEOUT_ERROR.code
 
     def test_get_error_for_exception_unknown_type(self):
         """Test mapping unknown exception types to internal error."""
@@ -515,9 +500,7 @@ class TestErrorHandlingUtilities:
         """Test creating error response with detail."""
         from prdiffer.domain.errors import create_error_response, E1001_INVALID_URL
 
-        response = create_error_response(
-            E1001_INVALID_URL, detail="Missing protocol in URL"
-        )
+        response = create_error_response(E1001_INVALID_URL, detail="Missing protocol in URL")
 
         assert response["error"]["detail"] == "Missing protocol in URL"
 
@@ -525,9 +508,7 @@ class TestErrorHandlingUtilities:
         """Test creating error response with context."""
         from prdiffer.domain.errors import create_error_response, E1001_INVALID_URL
 
-        response = create_error_response(
-            E1001_INVALID_URL, context={"provided_url": "invalid://url"}
-        )
+        response = create_error_response(E1001_INVALID_URL, context={"provided_url": "invalid://url"})
 
         assert "context" in response["error"]
         assert response["error"]["context"]["provided_url"] == "invalid://url"
@@ -600,9 +581,7 @@ class TestPhase3Integration:
         try:
             raise MCPError(E1001_INVALID_URL, detail="No PR number in URL")
         except MCPError as e:
-            response = create_error_response(
-                e.error_code, detail=e.detail, context=e.context
-            )
+            response = create_error_response(e.error_code, detail=e.detail, context=e.context)
 
         assert response["success"] is False
         assert response["error"]["detail"] == "No PR number in URL"

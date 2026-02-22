@@ -42,9 +42,7 @@ class GlobalCircuitBreakerRegistry:
                     cls._instance = instance
         # Type narrowing: instance is guaranteed to be initialized here
         if cls._instance is None:
-            raise PRDifferException(
-                "Singleton instance not initialized", error_code=E5001_INTERNAL_ERROR
-            )
+            raise PRDifferException("Singleton instance not initialized", error_code=E5001_INTERNAL_ERROR)
         return cls._instance
 
     def __init__(
@@ -69,8 +67,7 @@ class GlobalCircuitBreakerRegistry:
 
         # Global circuit breaker for system-wide protection
         self._global_breaker = CircuitBreaker(
-            failure_threshold=default_failure_threshold
-            * 2,  # Higher threshold for global
+            failure_threshold=default_failure_threshold * 2,  # Higher threshold for global
             timeout=default_timeout,
             logger=self._logger,
         )
@@ -260,10 +257,7 @@ def get_global_circuit_breaker_registry(
         try:
             # If the deprecated module's variable is None but our variable is not,
             # it means the test explicitly reset the singleton
-            if (
-                _global_circuit_breaker_registry is not None
-                and deprecated_module._global_circuit_breaker_registry is None
-            ):
+            if _global_circuit_breaker_registry is not None and deprecated_module._global_circuit_breaker_registry is None:
                 _global_circuit_breaker_registry = None
         except AttributeError:
             pass

@@ -8,7 +8,10 @@ import time
 import hashlib
 import json
 from dataclasses import asdict
-from typing import Callable, NoReturn
+from collections.abc import Callable
+from typing import NoReturn
+
+from fastmcp import FastMCP
 
 from prdiffer.domain.entities.pr_diff import PRDiff
 from prdiffer.domain.usecases.pr_diff_usecases import GetPRDiffUseCase
@@ -133,15 +136,12 @@ class ToolRegistry:
         if not self._rate_limiter.check_rate_limit(client_id):
             rate_info = self._rate_limiter.get_rate_limit_info()
             raise RateLimitError(
-                f"Rate limit exceeded for client '{client_id}'. Maximum {rate_info['max_requests']} "
-                f"requests per {rate_info['window_seconds']} seconds.",
+                f"Rate limit exceeded for client '{client_id}'. Maximum {rate_info['max_requests']} requests per {rate_info['window_seconds']} seconds.",
                 error_code=E3001_RATE_LIMITED,
             )
         self._rate_limiter.increment_rate_limit(client_id)
 
-    async def _authenticate_request(
-        self, request_id: str, start_time: float, api_key: str | None
-    ) -> str | None:
+    async def _authenticate_request(self, request_id: str, start_time: float, api_key: str | None) -> str | None:
         """Authenticate the incoming request using API key if authentication is enabled.
 
         Args:
@@ -237,9 +237,7 @@ class ToolRegistry:
 
         return parse_pr_url(pr_url, self._input_validator)
 
-    async def _execute_use_case_with_coalescing(
-        self, request_id: str, repo_owner: str, repo_name: str, pr_number: int
-    ) -> PRDiff:
+    async def _execute_use_case_with_coalescing(self, request_id: str, repo_owner: str, repo_name: str, pr_number: int) -> PRDiff:
         """Execute the PR diff use case with request coalescing for concurrent requests.
 
         Args:
@@ -262,9 +260,7 @@ class ToolRegistry:
                 pr_diff_service=self._pr_diff_service,
                 cache_service=self._cache_service,
             )
-            result = await use_case.execute(
-                repo_owner=repo_owner, repo_name=repo_name, pr_number=pr_number
-            )
+            result = await use_case.execute(repo_owner=repo_owner, repo_name=repo_name, pr_number=pr_number)
 
             if result is None:
                 self._logger.error(
@@ -283,9 +279,7 @@ class ToolRegistry:
 
         return await self._request_coalescing.coalesce(coalesce_key, fetch_pr_diff)
 
-    def _log_metrics_and_return_success(
-        self, start_time: float, pr_diff: PRDiff
-    ) -> PRDiff:
+    def _log_metrics_and_return_success(self, start_time: float, pr_diff: PRDiff) -> PRDiff:
         """Log successful request metrics and return PR diff result.
 
         Args:
@@ -301,18 +295,14 @@ class ToolRegistry:
         diff_size = len(pr_diff.files)
         diff_hash = hashlib.md5(str(pr_diff.files).encode()).hexdigest()[:8]
 
-        self._logger.info(
-            f"Successfully fetched PR diff - files: {diff_size}, hash: {diff_hash}..."
-        )
+        self._logger.info(f"Successfully fetched PR diff - files: {diff_size}, hash: {diff_hash}...")
 
         if self._logger.should_log(LogLevel.DEBUG):
             sanitized_preview = self._input_validator.sanitize_for_logging(
                 f"Files: {len(pr_diff.files)}, preview: {pr_diff.files[:2] if pr_diff.files else []}",
                 max_length=500,
             )
-            self._logger.debug(
-                f"PR diff content preview (sanitized): {sanitized_preview}"
-            )
+            self._logger.debug(f"PR diff content preview (sanitized): {sanitized_preview}")
             sanitized_json = self._input_validator.sanitize_for_logging(
                 json.dumps(asdict(pr_diff), indent=2),
                 max_length=2000,
@@ -321,9 +311,7 @@ class ToolRegistry:
 
         return pr_diff
 
-    def _handle_security_exception(
-        self, exception: Exception, start_time: float, request_id: str, pr_url: str
-    ) -> NoReturn:
+    def _handle_security_exception(self, exception: Exception, start_time: float, request_id: str, pr_url: str) -> NoReturn:
         """Handle security validation exceptions with appropriate logging and re-raising.
 
         Args:
@@ -341,21 +329,15 @@ class ToolRegistry:
         self._logger.warning(
             "Security validation error in PR diff request",
             request_id=request_id,
-            pr_url=self._input_validator.sanitize_for_logging(pr_url)
-            if pr_url
-            else None,
+            pr_url=self._input_validator.sanitize_for_logging(pr_url) if pr_url else None,
             error=str(exception),
             error_type=type(exception).__name__,
         )
 
         safe_message = self._create_safe_error_message(exception)
-        raise ValidationError(
-            f"Invalid request: {safe_message}", error_code=E1001_INVALID_URL
-        )
+        raise ValidationError(f"Invalid request: {safe_message}", error_code=E1001_INVALID_URL)
 
-    def _handle_validation_exception(
-        self, exception: Exception, start_time: float, request_id: str, pr_url: str
-    ) -> NoReturn:
+    def _handle_validation_exception(self, exception: Exception, start_time: float, request_id: str, pr_url: str) -> NoReturn:
         """Handle general validation exceptions with appropriate logging and re-raising.
 
         Args:
@@ -373,20 +355,14 @@ class ToolRegistry:
         self._logger.warning(
             "Validation error in PR diff request",
             request_id=request_id,
-            pr_url=self._input_validator.sanitize_for_logging(pr_url)
-            if pr_url
-            else None,
+            pr_url=self._input_validator.sanitize_for_logging(pr_url) if pr_url else None,
             error=str(exception),
         )
 
         safe_message = self._create_safe_error_message(exception)
-        raise ValidationError(
-            f"Invalid request: {safe_message}", error_code=E1001_INVALID_URL
-        )
+        raise ValidationError(f"Invalid request: {safe_message}", error_code=E1001_INVALID_URL)
 
-    def _handle_runtime_exception(
-        self, exception: Exception, start_time: float, request_id: str, pr_url: str
-    ) -> NoReturn:
+    def _handle_runtime_exception(self, exception: Exception, start_time: float, request_id: str, pr_url: str) -> NoReturn:
         """Handle runtime exceptions with logging and re-raising.
 
         Args:
@@ -404,9 +380,7 @@ class ToolRegistry:
         self._logger.error(
             "Failed to fetch PR diff",
             request_id=request_id,
-            pr_url=self._input_validator.sanitize_for_logging(pr_url)
-            if pr_url
-            else None,
+            pr_url=self._input_validator.sanitize_for_logging(pr_url) if pr_url else None,
             error=str(exception),
             error_type=type(exception).__name__,
         )
@@ -417,7 +391,7 @@ class ToolRegistry:
             error_code=E5002_GITHUB_API_ERROR,
         )
 
-    def register_tools(self, mcp):
+    def register_tools(self, mcp: FastMCP) -> None:
         """Register FastMCP tools with the server instance.
 
         This method registers the get_pr_diff, approve_pr, and describe_pr tools.
@@ -458,22 +432,16 @@ class ToolRegistry:
             )
 
             # Authenticate request
-            client_id = await self._authenticate_request(
-                request_id, start_time, api_key
-            )
+            client_id = await self._authenticate_request(request_id, start_time, api_key)
 
             rate_limit_client_id = client_id or "anonymous"
 
             try:
                 self._check_rate_limit(rate_limit_client_id)
 
-                repo_owner, repo_name, pr_number = self._validate_and_sanitize_params(
-                    pr_url
-                )
+                repo_owner, repo_name, pr_number = self._validate_and_sanitize_params(pr_url)
 
-                pr_diff = await self._execute_use_case_with_coalescing(
-                    request_id, repo_owner, repo_name, pr_number
-                )
+                pr_diff = await self._execute_use_case_with_coalescing(request_id, repo_owner, repo_name, pr_number)
 
                 return self._log_metrics_and_return_success(start_time, pr_diff)
 
@@ -499,9 +467,7 @@ class ToolRegistry:
                 self._handle_runtime_exception(e, start_time, request_id, pr_url)
 
         @mcp.tool()
-        async def approve_pr(
-            pr_url: str, compliment: str, api_key: str | None = None
-        ) -> str:
+        async def approve_pr(pr_url: str, compliment: str, api_key: str | None = None) -> str:
             """Approve a GitHub PR with a compliment comment.
 
             This method approves a pull request with a provided compliment text.
@@ -527,22 +493,16 @@ class ToolRegistry:
                 pr_url=pr_url[:100],
             )
 
-            client_id = await self._authenticate_request(
-                request_id, start_time, api_key
-            )
+            client_id = await self._authenticate_request(request_id, start_time, api_key)
 
             rate_limit_client_id = client_id or "anonymous"
 
             try:
                 self._check_rate_limit(rate_limit_client_id)
 
-                repo_owner, repo_name, pr_number = (
-                    self._input_validator.validate_github_url(pr_url)
-                )
+                repo_owner, repo_name, pr_number = self._input_validator.validate_github_url(pr_url)
 
-                repository = self._github_repository_class(
-                    repo_owner, repo_name, pr_number
-                )
+                repository = self._github_repository_class(repo_owner, repo_name, pr_number)
 
                 if not compliment or not isinstance(compliment, str):
                     raise ValidationError(
@@ -583,9 +543,7 @@ class ToolRegistry:
                 self._handle_runtime_exception(e, start_time, request_id, pr_url)
 
         @mcp.tool()
-        async def describe_pr(
-            pr_url: str, pr_description: str, api_key: str | None = None
-        ) -> str:
+        async def describe_pr(pr_url: str, pr_description: str, api_key: str | None = None) -> str:
             """Update a GitHub PR description/body.
 
             This method updates the description of a pull request with the provided text.
@@ -611,22 +569,16 @@ class ToolRegistry:
                 pr_url=pr_url[:100],
             )
 
-            client_id = await self._authenticate_request(
-                request_id, start_time, api_key
-            )
+            client_id = await self._authenticate_request(request_id, start_time, api_key)
 
             rate_limit_client_id = client_id or "anonymous"
 
             try:
                 self._check_rate_limit(rate_limit_client_id)
 
-                repo_owner, repo_name, pr_number = (
-                    self._input_validator.validate_github_url(pr_url)
-                )
+                repo_owner, repo_name, pr_number = self._input_validator.validate_github_url(pr_url)
 
-                repository = self._github_repository_class(
-                    repo_owner, repo_name, pr_number
-                )
+                repository = self._github_repository_class(repo_owner, repo_name, pr_number)
 
                 if not pr_description or not isinstance(pr_description, str):
                     raise ValidationError(

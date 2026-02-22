@@ -61,9 +61,7 @@ def file_processor(mock_github_api, mock_pattern_matcher, mock_diff_utils, mock_
 class TestFileProcessorInit:
     """Tests for FileProcessor initialization."""
 
-    def test_init_default_values(
-        self, mock_github_api, mock_pattern_matcher, mock_diff_utils
-    ):
+    def test_init_default_values(self, mock_github_api, mock_pattern_matcher, mock_diff_utils):
         """Test initialization with default values."""
         processor = FileProcessor(
             github_api_service=mock_github_api,
@@ -75,9 +73,7 @@ class TestFileProcessorInit:
         assert processor._parallel_fetch_threshold == 10
         assert processor._max_parallel_workers == 4
 
-    def test_init_custom_values(
-        self, mock_github_api, mock_pattern_matcher, mock_diff_utils
-    ):
+    def test_init_custom_values(self, mock_github_api, mock_pattern_matcher, mock_diff_utils):
         """Test initialization with custom values."""
         processor = FileProcessor(
             github_api_service=mock_github_api,
@@ -162,20 +158,14 @@ class TestFileProcessorProcessFilesToPatches:
         mock_repo = Mock()
         mock_repo.full_name = "owner/repo"
 
-        result = file_processor.process_files_to_patches(
-            [], mock_repo, "head123", "base123"
-        )
+        result = file_processor.process_files_to_patches([], mock_repo, "head123", "base123")
 
         assert result == []
 
-    def test_process_single_added_file(
-        self, file_processor, mock_github_api, mock_pattern_matcher
-    ):
+    def test_process_single_added_file(self, file_processor, mock_github_api, mock_pattern_matcher):
         """Test processing a single added file."""
         mock_pattern_matcher.is_valid_file.return_value = True
-        mock_github_api.get_files_content_batch.return_value = {
-            "test.py": "new content"
-        }
+        mock_github_api.get_files_content_batch.return_value = {"test.py": "new content"}
 
         mock_file = Mock()
         mock_file.filename = "test.py"
@@ -187,17 +177,13 @@ class TestFileProcessorProcessFilesToPatches:
         mock_repo = Mock()
         mock_repo.full_name = "owner/repo"
 
-        result = file_processor.process_files_to_patches(
-            [mock_file], mock_repo, "head123", "base123"
-        )
+        result = file_processor.process_files_to_patches([mock_file], mock_repo, "head123", "base123")
 
         assert len(result) == 1
         assert result[0].filename == "test.py"
         assert result[0].edit_type == EDIT_TYPE.ADDED
 
-    def test_process_removed_file_skipped(
-        self, file_processor, mock_github_api, mock_pattern_matcher
-    ):
+    def test_process_removed_file_skipped(self, file_processor, mock_github_api, mock_pattern_matcher):
         """Test that removed files are skipped."""
         mock_pattern_matcher.is_valid_file.return_value = True
 
@@ -208,15 +194,11 @@ class TestFileProcessorProcessFilesToPatches:
         mock_repo = Mock()
         mock_repo.full_name = "owner/repo"
 
-        result = file_processor.process_files_to_patches(
-            [mock_file], mock_repo, "head123", "base123"
-        )
+        result = file_processor.process_files_to_patches([mock_file], mock_repo, "head123", "base123")
 
         assert len(result) == 0
 
-    def test_process_max_files_limit(
-        self, mock_github_api, mock_pattern_matcher, mock_diff_utils, mock_logger
-    ):
+    def test_process_max_files_limit(self, mock_github_api, mock_pattern_matcher, mock_diff_utils, mock_logger):
         """Test that max files limit is enforced."""
         processor = FileProcessor(
             github_api_service=mock_github_api,
@@ -241,9 +223,7 @@ class TestFileProcessorProcessFilesToPatches:
         mock_repo = Mock()
         mock_repo.full_name = "owner/repo"
 
-        result = processor.process_files_to_patches(
-            files, mock_repo, "head123", "base123"
-        )
+        result = processor.process_files_to_patches(files, mock_repo, "head123", "base123")
 
         assert len(result) == 5
 
@@ -257,16 +237,12 @@ class TestFileProcessorProcessFilesToPatchesAsync:
         mock_repo = Mock()
         mock_repo.full_name = "owner/repo"
 
-        result = await file_processor.process_files_to_patches_async(
-            [], mock_repo, "head123", "base123"
-        )
+        result = await file_processor.process_files_to_patches_async([], mock_repo, "head123", "base123")
 
         assert result == []
 
     @pytest.mark.asyncio
-    async def test_process_async_single_file(
-        self, file_processor, mock_github_api, mock_pattern_matcher
-    ):
+    async def test_process_async_single_file(self, file_processor, mock_github_api, mock_pattern_matcher):
         """Test async processing a single file."""
         mock_pattern_matcher.is_valid_file.return_value = True
         mock_github_api.get_files_content_batch.return_value = {"test.py": "content"}
@@ -281,9 +257,7 @@ class TestFileProcessorProcessFilesToPatchesAsync:
         mock_repo = Mock()
         mock_repo.full_name = "owner/repo"
 
-        result = await file_processor.process_files_to_patches_async(
-            [mock_file], mock_repo, "head123", "base123"
-        )
+        result = await file_processor.process_files_to_patches_async([mock_file], mock_repo, "head123", "base123")
 
         assert len(result) == 1
 
@@ -316,9 +290,7 @@ class TestFileProcessorCreateFilePatch:
         mock_file.additions = 1
         mock_file.deletions = 0
 
-        result = file_processor._create_file_patch_with_content(
-            mock_file, "", "new content", "+new content"
-        )
+        result = file_processor._create_file_patch_with_content(mock_file, "", "new content", "+new content")
 
         assert result.filename == "test.py"
         assert result.edit_type == EDIT_TYPE.ADDED
@@ -479,9 +451,7 @@ class TestFileProcessorStatusMapping:
 class TestGetFileProcessor:
     """Tests for get_file_processor factory function."""
 
-    def test_get_file_processor_returns_instance(
-        self, mock_github_api, mock_pattern_matcher, mock_diff_utils
-    ):
+    def test_get_file_processor_returns_instance(self, mock_github_api, mock_pattern_matcher, mock_diff_utils):
         """Test factory returns FileProcessor instance."""
         processor = get_file_processor(
             github_api_service=mock_github_api,
@@ -491,9 +461,7 @@ class TestGetFileProcessor:
 
         assert isinstance(processor, FileProcessor)
 
-    def test_get_file_processor_with_custom_values(
-        self, mock_github_api, mock_pattern_matcher, mock_diff_utils
-    ):
+    def test_get_file_processor_with_custom_values(self, mock_github_api, mock_pattern_matcher, mock_diff_utils):
         """Test factory with custom configuration."""
         processor = get_file_processor(
             github_api_service=mock_github_api,
@@ -510,9 +478,7 @@ class TestGetFileProcessor:
 class TestFileProcessorRenamedFiles:
     """Tests for handling renamed files."""
 
-    def test_process_renamed_file(
-        self, file_processor, mock_github_api, mock_pattern_matcher
-    ):
+    def test_process_renamed_file(self, file_processor, mock_github_api, mock_pattern_matcher):
         """Test processing renamed file."""
         mock_pattern_matcher.is_valid_file.return_value = True
         mock_github_api.get_files_content_batch.side_effect = [
@@ -531,9 +497,7 @@ class TestFileProcessorRenamedFiles:
         mock_repo = Mock()
         mock_repo.full_name = "owner/repo"
 
-        result = file_processor.process_files_to_patches(
-            [mock_file], mock_repo, "head123", "base123"
-        )
+        result = file_processor.process_files_to_patches([mock_file], mock_repo, "head123", "base123")
 
         assert len(result) == 1
         assert result[0].filename == "new_name.py"
@@ -543,13 +507,9 @@ class TestFileProcessorRenamedFiles:
 class TestFileProcessorInvalidFiles:
     """Tests for handling invalid files."""
 
-    def test_process_filters_invalid_files(
-        self, file_processor, mock_github_api, mock_pattern_matcher
-    ):
+    def test_process_filters_invalid_files(self, file_processor, mock_github_api, mock_pattern_matcher):
         """Test that invalid files are filtered out."""
-        mock_pattern_matcher.is_valid_file.side_effect = lambda f: (
-            not f.endswith(".lock")
-        )
+        mock_pattern_matcher.is_valid_file.side_effect = lambda f: not f.endswith(".lock")
 
         mock_file1 = Mock()
         mock_file1.filename = "valid.py"
@@ -565,9 +525,7 @@ class TestFileProcessorInvalidFiles:
         mock_repo = Mock()
         mock_repo.full_name = "owner/repo"
 
-        result = file_processor.process_files_to_patches(
-            [mock_file1, mock_file2], mock_repo, "head123", "base123"
-        )
+        result = file_processor.process_files_to_patches([mock_file1, mock_file2], mock_repo, "head123", "base123")
 
         assert len(result) == 1
         assert result[0].filename == "valid.py"
@@ -576,9 +534,7 @@ class TestFileProcessorInvalidFiles:
 class TestFileProcessorUnknownStatus:
     """Tests for handling unknown file statuses."""
 
-    def test_process_unknown_status(
-        self, file_processor, mock_github_api, mock_pattern_matcher, mock_logger
-    ):
+    def test_process_unknown_status(self, file_processor, mock_github_api, mock_pattern_matcher, mock_logger):
         """Test processing file with unknown status."""
         mock_pattern_matcher.is_valid_file.return_value = True
         mock_github_api.get_files_content_batch.return_value = {}
@@ -593,9 +549,7 @@ class TestFileProcessorUnknownStatus:
         mock_repo = Mock()
         mock_repo.full_name = "owner/repo"
 
-        result = file_processor.process_files_to_patches(
-            [mock_file], mock_repo, "head123", "base123"
-        )
+        result = file_processor.process_files_to_patches([mock_file], mock_repo, "head123", "base123")
 
         assert len(result) == 1
         assert result[0].edit_type == EDIT_TYPE.UNKNOWN

@@ -39,9 +39,7 @@ class TestSettingsServiceInit:
         """Test initialization with custom settings files."""
         with patch("prdiffer.infrastructure.settings.Dynaconf") as MockDynaconf:
             custom_files = ["custom.toml"]
-            _ = SettingsService(
-                settings_files=custom_files
-            )  # service created for side effect
+            _ = SettingsService(settings_files=custom_files)  # service created for side effect
 
             call_kwargs = MockDynaconf.call_args[1]
             assert call_kwargs["settings_files"] == custom_files

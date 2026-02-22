@@ -410,9 +410,7 @@ class TestMetricsTrackerThreadSafety:
 
         def track_requests():
             for i in range(requests_per_thread):
-                tracker.track_request(
-                    f"op_{i % 5}", success=i % 2 == 0, execution_time=0.1
-                )
+                tracker.track_request(f"op_{i % 5}", success=i % 2 == 0, execution_time=0.1)
 
         threads = [threading.Thread(target=track_requests) for _ in range(num_threads)]
 

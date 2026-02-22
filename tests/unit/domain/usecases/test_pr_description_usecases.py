@@ -33,22 +33,16 @@ class TestUpdatePRDescriptionUseCase:
     @pytest.fixture
     def use_case(self, mock_repository, mock_logger):
         """Create use case with mocked dependencies."""
-        return UpdatePRDescriptionUseCase(
-            pr_diff_repository=mock_repository, logger=mock_logger
-        )
+        return UpdatePRDescriptionUseCase(pr_diff_repository=mock_repository, logger=mock_logger)
 
-    def test_execute_calls_repository_with_correct_params(
-        self, use_case, mock_repository
-    ):
+    def test_execute_calls_repository_with_correct_params(self, use_case, mock_repository):
         """Test execution delegates to repository with correct parameters."""
         pr_url = "https://github.com/owner/repo/pull/123"
         pr_description = "New PR description text"
 
         import asyncio
 
-        result = asyncio.run(
-            use_case.execute(pr_url=pr_url, pr_description=pr_description)
-        )
+        result = asyncio.run(use_case.execute(pr_url=pr_url, pr_description=pr_description))
 
         mock_repository.update_pr_description.assert_called_once_with(
             pr_url=pr_url,
@@ -126,9 +120,7 @@ class TestUpdatePRDescriptionUseCase:
 
         import asyncio
 
-        result = asyncio.run(
-            use_case.execute(pr_url=pr_url, pr_description=pr_description)
-        )
+        result = asyncio.run(use_case.execute(pr_url=pr_url, pr_description=pr_description))
 
         assert result == expected_result
 

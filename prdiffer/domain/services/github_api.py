@@ -13,9 +13,7 @@ class GitHubAPIServiceInterface(ABC):
     """
 
     @abstractmethod
-    def initialize_client(
-        self, github_token: str | None = None, timeout: int = 30
-    ) -> None:
+    def initialize_client(self, github_token: str | None = None, timeout: int = 30) -> None:
         """Initialize the GitHub client with authentication.
 
         Args:
@@ -37,9 +35,7 @@ class GitHubAPIServiceInterface(ABC):
         pass
 
     @abstractmethod
-    def get_pull_request(
-        self, repo_full_name: str, pr_number: int
-    ) -> PullRequest | None:
+    def get_pull_request(self, repo_full_name: str, pr_number: int) -> PullRequest | None:
         """Get a pull request instance.
 
         Args:
@@ -66,9 +62,7 @@ class GitHubAPIServiceInterface(ABC):
         pass
 
     @abstractmethod
-    def get_files_content_batch(
-        self, repo_full_name: str, file_paths: list[str], branch: str
-    ) -> dict[str, str]:
+    def get_files_content_batch(self, repo_full_name: str, file_paths: list[str], branch: str) -> dict[str, str]:
         """Batch retrieve file contents from a specific branch.
 
         Args:

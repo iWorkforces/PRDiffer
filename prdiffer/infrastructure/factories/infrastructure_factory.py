@@ -63,34 +63,20 @@ class InfrastructureFactory(InfrastructureFactoryInterface):
             retry_on_403=github_settings.get("retry_on_403", True),
             retry_on_500=github_settings.get("retry_on_500", True),
             retry_log_level=github_settings.get("retry_log_level", "DEBUG"),
-            permanent_failure_log_level=github_settings.get(
-                "permanent_failure_log_level", "INFO"
-            ),
-            circuit_breaker_enabled=github_settings.get(
-                "circuit_breaker_enabled", True
-            ),
-            circuit_breaker_failure_threshold=github_settings.get(
-                "circuit_breaker_failure_threshold", 5
-            ),
-            circuit_breaker_timeout=github_settings.get(
-                "circuit_breaker_timeout", 60.0
-            ),
+            permanent_failure_log_level=github_settings.get("permanent_failure_log_level", "INFO"),
+            circuit_breaker_enabled=github_settings.get("circuit_breaker_enabled", True),
+            circuit_breaker_failure_threshold=github_settings.get("circuit_breaker_failure_threshold", 5),
+            circuit_breaker_timeout=github_settings.get("circuit_breaker_timeout", 60.0),
             adaptive_retry_enabled=github_settings.get("adaptive_retry_enabled", True),
             max_adaptive_delay=github_settings.get("max_adaptive_delay", 30),
-            rate_limit_remaining_threshold=github_settings.get(
-                "rate_limit_remaining_threshold", 1
-            ),
+            rate_limit_remaining_threshold=github_settings.get("rate_limit_remaining_threshold", 1),
             rate_limit_reset_buffer=github_settings.get("rate_limit_reset_buffer", 1.0),
-            secondary_rate_limit_backoff=github_settings.get(
-                "secondary_rate_limit_backoff", 60.0
-            ),
+            secondary_rate_limit_backoff=github_settings.get("secondary_rate_limit_backoff", 60.0),
             api_health_tracking=github_settings.get("api_health_tracking", True),
             context_aware_retry=github_settings.get("context_aware_retry", True),
             use_advanced_retry=github_settings.get("use_advanced_retry", True),
             max_concurrent=github_settings.get("max_concurrent", 4),
-            file_content_cache_max_size=github_settings.get(
-                "file_content_cache_max_size", 1000
-            ),
+            file_content_cache_max_size=github_settings.get("file_content_cache_max_size", 1000),
             file_content_cache_ttl=github_settings.get("file_content_cache_ttl", 600),
         )
 
@@ -99,9 +85,7 @@ class InfrastructureFactory(InfrastructureFactoryInterface):
         settings_service = get_settings_service()
         # Read diff processing configuration from settings
         config = DiffProcessingConfig(
-            large_file_threshold=settings_service.get(
-                "diff.large_file_threshold", 5000
-            ),
+            large_file_threshold=settings_service.get("diff.large_file_threshold", 5000),
             chunk_size=settings_service.get("diff.chunk_size", 1000),
             max_diff_size=settings_service.get("diff.max_diff_size", 100000),
         )
@@ -139,12 +123,8 @@ class InfrastructureFactory(InfrastructureFactoryInterface):
             github_api_service=github_api_service,
             pattern_matcher=pattern_matching_service,
             diff_utils=diff_service,
-            parallel_fetch_threshold=settings_service.get(
-                "file_processing.parallel_fetch_threshold", 10
-            ),
-            max_parallel_workers=settings_service.get(
-                "file_processing.concurrent_downloads", 3
-            ),
+            parallel_fetch_threshold=settings_service.get("file_processing.parallel_fetch_threshold", 10),
+            max_parallel_workers=settings_service.get("file_processing.concurrent_downloads", 3),
         )
 
         # Create diff generator
@@ -155,9 +135,7 @@ class InfrastructureFactory(InfrastructureFactoryInterface):
         )
 
         return GitHubPRDiffService(
-            github_api_client=github_api_service
-            if isinstance(github_api_service, GitHubAPIClient)
-            else None,
+            github_api_client=github_api_service if isinstance(github_api_service, GitHubAPIClient) else None,
             diff_generator=diff_generator,
             file_processor=file_processor,
             logger=logger_service,
@@ -174,12 +152,8 @@ class InfrastructureFactory(InfrastructureFactoryInterface):
             github_api_service=github_api_service,
             pattern_matcher=pattern_matching_service,
             diff_utils=diff_service,
-            parallel_fetch_threshold=settings_service.get(
-                "file_processing.parallel_fetch_threshold", 10
-            ),
-            max_parallel_workers=settings_service.get(
-                "file_processing.concurrent_downloads", 3
-            ),
+            parallel_fetch_threshold=settings_service.get("file_processing.parallel_fetch_threshold", 10),
+            max_parallel_workers=settings_service.get("file_processing.concurrent_downloads", 3),
         )
 
     def create_diff_generator(self) -> DiffGenerator:

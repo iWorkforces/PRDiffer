@@ -30,6 +30,7 @@ from prdiffer.domain.interfaces.protocols import AuthenticationProtocol
 from prdiffer.infrastructure.security.input_validator import InputValidator
 from prdiffer.domain.exceptions import AuthenticationError
 from prdiffer.domain.errors import E2002_AUTH_FAILED
+from prdiffer.domain.services.logger import LoggerServiceInterface
 
 
 @dataclass
@@ -60,7 +61,7 @@ class AuthenticationMiddleware(AuthenticationProtocol):
 
     def __init__(
         self,
-        logger: Any | None = None,
+        logger: logging.Logger | LoggerServiceInterface | None = None,
         max_failures_per_minute: int = DEFAULT_MAX_FAILURES_PER_MINUTE,
         lockout_duration: int = DEFAULT_LOCKOUT_DURATION,
         failure_window: int = DEFAULT_FAILURE_WINDOW,
@@ -97,18 +98,14 @@ class AuthenticationMiddleware(AuthenticationProtocol):
 
         # Thread-safe failure tracking
         self._lock = RLock()
-        self._auth_failures: dict[str, AuthFailureRecord] = defaultdict(
-            AuthFailureRecord
-        )
+        self._auth_failures: dict[str, AuthFailureRecord] = defaultdict(AuthFailureRecord)
         self._locked_clients: dict[str, float] = {}  # client_id -> unlock_time
 
         # Parse API keys from environment and store ONLY hashes (no raw keys)
         self._hashed_api_keys: set[str] = set()
         self._api_key_count: int = 0
         if self._api_keys_env:
-            raw_keys = [
-                key.strip() for key in self._api_keys_env.split(",") if key.strip()
-            ]
+            raw_keys = [key.strip() for key in self._api_keys_env.split(",") if key.strip()]
             self._api_key_count = len(raw_keys)
             for key in raw_keys:
                 self._hashed_api_keys.add(self._hash_api_key(key))
@@ -259,9 +256,7 @@ class AuthenticationMiddleware(AuthenticationProtocol):
 
         # Check if client is locked out
         if self._is_locked_out(client_identifier):
-            self._logger.warning(
-                f"Authentication blocked: Client locked out: {client_identifier[:20]}..."
-            )
+            self._logger.warning(f"Authentication blocked: Client locked out: {client_identifier[:20]}...")
             raise AuthenticationError(
                 "Too many authentication failures. Please try again later.",
                 error_code=E2002_AUTH_FAILED,
@@ -285,35 +280,10 @@ class AuthenticationMiddleware(AuthenticationProtocol):
                 # API key: validate format and check against configured keys
                 if not self.validate_api_key_format(api_key):
                     self._record_failure(client_identifier)
-                    self._logger.warning(
-                        "Authentication failed: Invalid API key format"
-                    )
+                    self._logger.warning("Authentication failed: Invalid API key format")
                     return False, None
                 provided_hash = self._hash_api_key(api_key)
-                if (
-                    self._admin_api_key_hash
-                    and provided_hash == self._admin_api_key_hash
-                ):
-                    self._record_success(client_identifier)
-                    self._logger.debug("Admin authentication successful")
-                    return True, "admin"
-                if provided_hash in self._hashed_api_keys:
-                    client_id = f"api_key_{provided_hash[:16]}"
-                    self._record_success(client_identifier)
-                    self._logger.debug(
-                        "API key authentication successful",
-                        extra={"client_id": client_id},
-                    )
-                    return True, client_id
-                else:
-                    self._record_failure(client_identifier)
-                    self._logger.warning("Authentication failed: Invalid API key")
-                    return False, None
-                provided_hash = self._hash_api_key(api_key)
-                if (
-                    self._admin_api_key_hash
-                    and provided_hash == self._admin_api_key_hash
-                ):
+                if self._admin_api_key_hash and provided_hash == self._admin_api_key_hash:
                     self._record_success(client_identifier)
                     self._logger.debug("Admin authentication successful")
                     return True, "admin"
@@ -356,17 +326,11 @@ class AuthenticationMiddleware(AuthenticationProtocol):
         self._record_failure(client_identifier)
         self._logger.warning(
             "Authentication failed: Invalid API key",
-            extra={
-                "failures": self._auth_failures.get(
-                    client_identifier, AuthFailureRecord()
-                ).count
-            },
+            extra={"failures": self._auth_failures.get(client_identifier, AuthFailureRecord()).count},
         )
         return False, None
 
-    def extract_client_identifier(
-        self, headers: dict[str, str]
-    ) -> tuple[str | None, str | None]:
+    def extract_client_identifier(self, headers: dict[str, str]) -> tuple[str | None, str | None]:
         """Extract client identifier from request headers.
 
         This method extracts API keys from various header sources:
@@ -394,12 +358,7 @@ class AuthenticationMiddleware(AuthenticationProtocol):
                 api_key = auth_header[7:]  # Remove "Bearer " prefix
 
         # Extract IP address for fallback
-        client_ip = (
-            headers.get("x-forwarded-for")
-            or headers.get("X-Forwarded-For")
-            or headers.get("x-real-ip")
-            or headers.get("X-Real-IP")
-        )
+        client_ip = headers.get("x-forwarded-for") or headers.get("X-Forwarded-For") or headers.get("x-real-ip") or headers.get("X-Real-IP")
 
         # If X-Forwarded-For contains multiple IPs, take the first one
         if client_ip and "," in client_ip:
@@ -627,9 +586,7 @@ class AuthenticationMiddleware(AuthenticationProtocol):
         except Exception as e:
             return False, None, f"Token verification failed: {str(e)}"
 
-    def is_token_expired(
-        self, token: str, leeway_seconds: int = 60
-    ) -> tuple[bool, str | None]:
+    def is_token_expired(self, token: str, leeway_seconds: int = 60) -> tuple[bool, str | None]:
         """Check if a token is expired.
 
         Supports JWT tokens with 'exp' claim and GitHub fine-grained tokens

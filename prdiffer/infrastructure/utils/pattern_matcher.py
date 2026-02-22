@@ -12,9 +12,7 @@ class PatternMatcher(PatternMatchingServiceInterface):
     directory patterns.
     """
 
-    def __init__(
-        self, ignore_patterns: list[str], valid_extensions: list[str] | None = None
-    ):
+    def __init__(self, ignore_patterns: list[str], valid_extensions: list[str] | None = None):
         """Initialize the pattern matcher with configuration.
 
         Args:
@@ -25,9 +23,7 @@ class PatternMatcher(PatternMatchingServiceInterface):
         self.valid_extensions = valid_extensions or []
         self._compiled_patterns = self._compile_patterns(ignore_patterns)
 
-    def _compile_patterns(
-        self, patterns: list[str]
-    ) -> list[tuple[str, str | re.Pattern]]:
+    def _compile_patterns(self, patterns: list[str]) -> list[tuple[str, str | re.Pattern]]:
         """Pre-compile regex patterns for efficient matching.
 
         Args:
@@ -69,9 +65,7 @@ class PatternMatcher(PatternMatchingServiceInterface):
 
         # Check valid extensions if specified
         if self.valid_extensions:
-            has_valid_extension = any(
-                filename.endswith(ext) for ext in self.valid_extensions
-            )
+            has_valid_extension = any(filename.endswith(ext) for ext in self.valid_extensions)
             if not has_valid_extension:
                 return False
 
@@ -93,9 +87,7 @@ class PatternMatcher(PatternMatchingServiceInterface):
                     return True
             else:
                 # Handle string patterns (exact matches, directory patterns, *.ext)
-                if isinstance(pattern, str) and self._matches_string_pattern(
-                    filename, pattern
-                ):
+                if isinstance(pattern, str) and self._matches_string_pattern(filename, pattern):
                     return True
         return False
 
@@ -157,9 +149,7 @@ class PatternMatcher(PatternMatchingServiceInterface):
         return [filename for filename in filenames if self.is_valid_file(filename)]
 
 
-def get_pattern_matcher(
-    ignore_patterns: list[str], valid_extensions: list[str] | None = None
-) -> PatternMatcher:
+def get_pattern_matcher(ignore_patterns: list[str], valid_extensions: list[str] | None = None) -> PatternMatcher:
     """Get a configured pattern matcher instance.
 
     Args:

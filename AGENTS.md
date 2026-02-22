@@ -1,12 +1,12 @@
 # PROJECT KNOWLEDGE BASE
 
-**Generated:** 2026-02-14T12:05:00Z
-**Commit:** fe588c4
+**Generated:** 2026-02-22T04:06:33Z
+**Commit:** 544f89f
 **Branch:** upstream
 **Version:** 0.5.0
 
 ## OVERVIEW
-Python 3.14+ MCP server for GitHub PR diff analysis with Clean Architecture (Domain → Application → Infrastructure). FastMCP framework, Pydantic v2, anyio async. 378 files, 52K+ lines Python, 38 files >500 lines, 33 AGENTS.md files.
+Python 3.14+ MCP server for GitHub PR diff analysis with Clean Architecture (Domain → Application → Infrastructure). FastMCP framework, Pydantic v2, anyio async. 207 Python files (115 src + 92 tests), 49K+ lines, 41 AGENTS.md files.
 
 ## STRUCTURE
 ```
@@ -193,7 +193,7 @@ PRDifferMCP/
 - **Dual factory pattern**: Domain-level factories (`domain/factories/`) define interfaces, infrastructure implements them.
 - **VCS provider registry**: Auto-detection from URL patterns via `supports_repository()` method.
 - **Plugin system**: MCPToolPlugin interface with PluginManager discovery and execution.
-- **Layer-specific AGENTS.md**: Each layer has own AGENTS.md documenting conventions (33 files total).
+ **Layer-specific AGENTS.md**: Each layer has own AGENTS.md documenting conventions (41 files total).
 
 ## COMMANDS
 ```bash

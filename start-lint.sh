@@ -264,10 +264,10 @@ replace_triple_quotes() {
                 # Replace triple double quotes with triple single quotes
                 if [[ "${OSTYPE}" == "darwin"* ]]; then
                     # macOS sed syntax
-                    sed -i '' 's/"""'/"'''"/g "${file}"
+                    sed -i '' "s/\"\"\"/'''/g" "${file}"
                 else
                     # Linux sed syntax
-                    sed -i 's/"""'/"'''"/g "${file}"
+                    sed -i "s/\"\"\"/'''/g" "${file}"
                 fi
 
                 ((count++))

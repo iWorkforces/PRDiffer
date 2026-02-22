@@ -84,10 +84,7 @@ class CircuitBreaker:
 
             if self._state == CircuitState.OPEN:
                 # Check if timeout has elapsed
-                if (
-                    self._last_failure_time
-                    and time.time() - self._last_failure_time >= self.timeout
-                ):
+                if self._last_failure_time and time.time() - self._last_failure_time >= self.timeout:
                     self._transition_to_half_open_unlocked()
                     return True
                 return False
@@ -107,10 +104,7 @@ class CircuitBreaker:
 
             if self._state == CircuitState.OPEN:
                 # Check if timeout has elapsed
-                if (
-                    self._last_failure_time
-                    and time.time() - self._last_failure_time >= self.timeout
-                ):
+                if self._last_failure_time and time.time() - self._last_failure_time >= self.timeout:
                     self._transition_to_half_open_unlocked()
                     return True
                 return False
@@ -170,9 +164,7 @@ class CircuitBreaker:
     def _transition_to_open_unlocked(self):
         """Transition circuit to OPEN state (must be called with lock held)."""
         self._state = CircuitState.OPEN
-        self._logger.warning(
-            f"Circuit breaker OPENED: {self._failure_count} failures reached threshold {self.failure_threshold}"
-        )
+        self._logger.warning(f"Circuit breaker OPENED: {self._failure_count} failures reached threshold {self.failure_threshold}")
 
     def _transition_to_half_open(self):
         """Transition circuit to HALF_OPEN state (thread-safe)."""
@@ -183,9 +175,7 @@ class CircuitBreaker:
         """Transition circuit to HALF_OPEN state (must be called with lock held)."""
         self._state = CircuitState.HALF_OPEN
         self._successful_calls = 0
-        self._logger.info(
-            "Circuit breaker transitioned to HALF_OPEN: Testing service recovery"
-        )
+        self._logger.info("Circuit breaker transitioned to HALF_OPEN: Testing service recovery")
 
     def _transition_to_closed(self):
         """Transition circuit to CLOSED state (thread-safe)."""

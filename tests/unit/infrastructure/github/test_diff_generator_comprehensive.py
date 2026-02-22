@@ -121,9 +121,7 @@ class TestGenerateExtendedDiff:
 
         assert result == []
 
-    def test_sequential_processing_below_threshold(
-        self, mock_diff_utils, sample_file_patch
-    ):
+    def test_sequential_processing_below_threshold(self, mock_diff_utils, sample_file_patch):
         """Test sequential processing when below threshold."""
         generator = DiffGenerator(diff_utils=mock_diff_utils)
         result = generator.generate_extended_diff([sample_file_patch])
@@ -131,9 +129,7 @@ class TestGenerateExtendedDiff:
         assert len(result) == 1
         mock_diff_utils.extend_patch.assert_called_once()
 
-    def test_sequential_processing_parallel_disabled(
-        self, mock_diff_utils, mock_parallel_executor, sample_file_patches
-    ):
+    def test_sequential_processing_parallel_disabled(self, mock_diff_utils, mock_parallel_executor, sample_file_patches):
         """Test sequential processing when parallel is disabled."""
         generator = DiffGenerator(
             diff_utils=mock_diff_utils,
@@ -199,9 +195,7 @@ class TestGenerateExtendedDiff:
     def test_with_line_numbers(self, mock_diff_utils, sample_file_patch):
         """Test generation with line numbers."""
         generator = DiffGenerator(diff_utils=mock_diff_utils)
-        result = generator.generate_extended_diff(
-            [sample_file_patch], add_line_numbers_to_hunks=True
-        )
+        result = generator.generate_extended_diff([sample_file_patch], add_line_numbers_to_hunks=True)
 
         assert len(result) == 1
         assert "Full file path:" in result[0]
@@ -591,9 +585,7 @@ class TestGenerateExtendedDiffParallel:
 
         assert len(result) == 2
 
-    def test_parallel_processing_success(
-        self, mock_diff_utils, mock_parallel_executor, sample_file_patches
-    ):
+    def test_parallel_processing_success(self, mock_diff_utils, mock_parallel_executor, sample_file_patches):
         """Test successful parallel processing."""
         mock_parallel_executor.execute_batch.return_value = [
             (0, "diff_content_0"),
@@ -609,9 +601,7 @@ class TestGenerateExtendedDiffParallel:
 
         assert len(result) == 2
 
-    def test_parallel_processing_with_none_results(
-        self, mock_diff_utils, mock_parallel_executor
-    ):
+    def test_parallel_processing_with_none_results(self, mock_diff_utils, mock_parallel_executor):
         """Test parallel processing with some None results."""
         files = [
             FilePatchInfo(
@@ -654,9 +644,7 @@ class TestGetDiffGenerator:
         assert generator._diff_utils is mock_diff_utils
         assert generator._parallel_threshold == 3
 
-    def test_get_diff_generator_custom_params(
-        self, mock_diff_utils, mock_parallel_executor
-    ):
+    def test_get_diff_generator_custom_params(self, mock_diff_utils, mock_parallel_executor):
         """Test factory with custom parameters."""
         generator = get_diff_generator(
             diff_utils=mock_diff_utils,
@@ -701,9 +689,7 @@ class TestDecoupleAndConvertToHunksWithLineNumbers:
 class TestSequentialVsParallel:
     """Tests comparing sequential vs parallel processing."""
 
-    def test_below_threshold_always_sequential(
-        self, mock_diff_utils, mock_parallel_executor
-    ):
+    def test_below_threshold_always_sequential(self, mock_diff_utils, mock_parallel_executor):
         """Test that files below threshold always use sequential."""
         files = [
             FilePatchInfo(
@@ -743,9 +729,7 @@ class TestSequentialVsParallel:
             for i in range(3)
         ]
 
-        mock_parallel_executor.execute_batch.return_value = [
-            (i, f"diff{i}") for i in range(3)
-        ]
+        mock_parallel_executor.execute_batch.return_value = [(i, f"diff{i}") for i in range(3)]
 
         generator = DiffGenerator(
             diff_utils=mock_diff_utils,

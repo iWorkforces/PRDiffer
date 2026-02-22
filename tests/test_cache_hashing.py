@@ -90,9 +90,7 @@ class TestCacheKeyHashing:
         assert len(actual_hash) == 64  # SHA-256 produces 64 hex chars
 
     @patch("prdiffer.infrastructure.settings.get_settings_service")
-    def test_hash_key_unsupported_algorithm(
-        self, mock_get_settings, mock_settings_hashing_enabled
-    ):
+    def test_hash_key_unsupported_algorithm(self, mock_get_settings, mock_settings_hashing_enabled):
         """Test error handling for unsupported hash algorithm."""
         mock_settings = Mock()
         mock_settings.get.side_effect = lambda key, default: {
@@ -109,9 +107,7 @@ class TestCacheKeyHashing:
 
     @patch("prdiffer.infrastructure.settings.get_settings_service")
     @pytest.mark.asyncio
-    async def test_get_internal_key_with_hashing(
-        self, mock_get_settings, mock_settings_hashing_enabled
-    ):
+    async def test_get_internal_key_with_hashing(self, mock_get_settings, mock_settings_hashing_enabled):
         """Test internal key generation with hashing enabled."""
         mock_get_settings.return_value = mock_settings_hashing_enabled
         cache_service = CacheService()
@@ -129,9 +125,7 @@ class TestCacheKeyHashing:
 
     @patch("prdiffer.infrastructure.settings.get_settings_service")
     @pytest.mark.asyncio
-    async def test_get_internal_key_without_hashing(
-        self, mock_get_settings, mock_settings_hashing_disabled
-    ):
+    async def test_get_internal_key_without_hashing(self, mock_get_settings, mock_settings_hashing_disabled):
         """Test internal key generation with hashing disabled."""
         mock_get_settings.return_value = mock_settings_hashing_disabled
         cache_service = CacheService()
@@ -146,17 +140,13 @@ class TestCacheKeyHashing:
 
     @patch("prdiffer.infrastructure.settings.get_settings_service")
     @pytest.mark.asyncio
-    async def test_reverse_mapping_stored(
-        self, mock_get_settings, mock_settings_hashing_enabled
-    ):
+    async def test_reverse_mapping_stored(self, mock_get_settings, mock_settings_hashing_enabled):
         """Test that reverse mapping is stored when configured."""
         mock_get_settings.return_value = mock_settings_hashing_enabled
         cache_service = CacheService()
 
         original_key = "owner/repo/pr/123"
-        internal_key, _ = await cache_service._get_internal_key(
-            original_key, store_mapping=True
-        )
+        internal_key, _ = await cache_service._get_internal_key(original_key, store_mapping=True)
 
         # Reverse mapping should be stored
         assert internal_key in cache_service._key_mapping
@@ -164,9 +154,7 @@ class TestCacheKeyHashing:
 
     @patch("prdiffer.infrastructure.settings.get_settings_service")
     @pytest.mark.asyncio
-    async def test_reverse_mapping_not_stored(
-        self, mock_get_settings, mock_settings_no_mapping
-    ):
+    async def test_reverse_mapping_not_stored(self, mock_get_settings, mock_settings_no_mapping):
         """Test that reverse mapping is not stored when disabled."""
         mock_get_settings.return_value = mock_settings_no_mapping
         cache_service = CacheService()
@@ -179,17 +167,13 @@ class TestCacheKeyHashing:
 
     @patch("prdiffer.infrastructure.settings.get_settings_service")
     @pytest.mark.asyncio
-    async def test_get_original_key_with_mapping(
-        self, mock_get_settings, mock_settings_hashing_enabled
-    ):
+    async def test_get_original_key_with_mapping(self, mock_get_settings, mock_settings_hashing_enabled):
         """Test retrieving original key from hash using mapping."""
         mock_get_settings.return_value = mock_settings_hashing_enabled
         cache_service = CacheService()
 
         original_key = "owner/repo/pr/123"
-        internal_key, _ = await cache_service._get_internal_key(
-            original_key, store_mapping=True
-        )
+        internal_key, _ = await cache_service._get_internal_key(original_key, store_mapping=True)
 
         # Get original key back from hash
         retrieved_key = await cache_service._get_original_key(internal_key)
@@ -197,9 +181,7 @@ class TestCacheKeyHashing:
 
     @patch("prdiffer.infrastructure.settings.get_settings_service")
     @pytest.mark.asyncio
-    async def test_get_original_key_without_mapping(
-        self, mock_get_settings, mock_settings_no_mapping
-    ):
+    async def test_get_original_key_without_mapping(self, mock_get_settings, mock_settings_no_mapping):
         """Test getting original key when mapping is disabled."""
         mock_get_settings.return_value = mock_settings_no_mapping
         cache_service = CacheService()
@@ -216,9 +198,7 @@ class TestCacheOperationsWithHashing:
 
     @patch("prdiffer.infrastructure.settings.get_settings_service")
     @pytest.mark.asyncio
-    async def test_set_and_get_with_hashing(
-        self, mock_get_settings, mock_settings_hashing_enabled, sample_pr_diff
-    ):
+    async def test_set_and_get_with_hashing(self, mock_get_settings, mock_settings_hashing_enabled, sample_pr_diff):
         """Test setting and getting cache with hashed keys."""
         mock_get_settings.return_value = mock_settings_hashing_enabled
         cache_service = CacheService()
@@ -240,9 +220,7 @@ class TestCacheOperationsWithHashing:
 
     @patch("prdiffer.infrastructure.settings.get_settings_service")
     @pytest.mark.asyncio
-    async def test_set_and_get_without_hashing(
-        self, mock_get_settings, mock_settings_hashing_disabled, sample_pr_diff
-    ):
+    async def test_set_and_get_without_hashing(self, mock_get_settings, mock_settings_hashing_disabled, sample_pr_diff):
         """Test setting and getting cache without hashing."""
         mock_get_settings.return_value = mock_settings_hashing_disabled
         cache_service = CacheService()
@@ -262,9 +240,7 @@ class TestCacheOperationsWithHashing:
 
     @patch("prdiffer.infrastructure.settings.get_settings_service")
     @pytest.mark.asyncio
-    async def test_cache_miss_with_hashing(
-        self, mock_get_settings, mock_settings_hashing_enabled
-    ):
+    async def test_cache_miss_with_hashing(self, mock_get_settings, mock_settings_hashing_enabled):
         """Test cache miss with hashing enabled."""
         mock_get_settings.return_value = mock_settings_hashing_enabled
         cache_service = CacheService()
@@ -278,9 +254,7 @@ class TestCacheOperationsWithHashing:
 
     @patch("prdiffer.infrastructure.settings.get_settings_service")
     @pytest.mark.asyncio
-    async def test_invalidate_with_hashing(
-        self, mock_get_settings, mock_settings_hashing_enabled, sample_pr_diff
-    ):
+    async def test_invalidate_with_hashing(self, mock_get_settings, mock_settings_hashing_enabled, sample_pr_diff):
         """Test cache invalidation with hashing."""
         mock_get_settings.return_value = mock_settings_hashing_enabled
         cache_service = CacheService()
@@ -304,9 +278,7 @@ class TestCacheOperationsWithHashing:
 
     @patch("prdiffer.infrastructure.settings.get_settings_service")
     @pytest.mark.asyncio
-    async def test_clear_with_hashing(
-        self, mock_get_settings, mock_settings_hashing_enabled, sample_pr_diff
-    ):
+    async def test_clear_with_hashing(self, mock_get_settings, mock_settings_hashing_enabled, sample_pr_diff):
         """Test clearing cache with hashing."""
         mock_get_settings.return_value = mock_settings_hashing_enabled
         cache_service = CacheService()
@@ -329,9 +301,7 @@ class TestCacheOperationsWithHashing:
 
     @patch("prdiffer.infrastructure.settings.get_settings_service")
     @pytest.mark.asyncio
-    async def test_commit_sha_mismatch_with_hashing(
-        self, mock_get_settings, mock_settings_hashing_enabled, sample_pr_diff
-    ):
+    async def test_commit_sha_mismatch_with_hashing(self, mock_get_settings, mock_settings_hashing_enabled, sample_pr_diff):
         """Test cache invalidation when commit SHA changes."""
         mock_get_settings.return_value = mock_settings_hashing_enabled
         cache_service = CacheService()
@@ -353,9 +323,7 @@ class TestCacheStatsWithHashing:
 
     @patch("prdiffer.infrastructure.settings.get_settings_service")
     @pytest.mark.asyncio
-    async def test_stats_with_hashing_and_mapping(
-        self, mock_get_settings, mock_settings_hashing_enabled, sample_pr_diff
-    ):
+    async def test_stats_with_hashing_and_mapping(self, mock_get_settings, mock_settings_hashing_enabled, sample_pr_diff):
         """Test that stats return original keys when mapping is enabled."""
         mock_get_settings.return_value = mock_settings_hashing_enabled
         cache_service = CacheService()
@@ -378,9 +346,7 @@ class TestCacheStatsWithHashing:
 
     @patch("prdiffer.infrastructure.settings.get_settings_service")
     @pytest.mark.asyncio
-    async def test_stats_with_hashing_no_mapping(
-        self, mock_get_settings, mock_settings_no_mapping, sample_pr_diff
-    ):
+    async def test_stats_with_hashing_no_mapping(self, mock_get_settings, mock_settings_no_mapping, sample_pr_diff):
         """Test that stats return hashed keys when mapping is disabled."""
         mock_get_settings.return_value = mock_settings_no_mapping
         cache_service = CacheService()
@@ -399,9 +365,7 @@ class TestCacheStatsWithHashing:
 
     @patch("prdiffer.infrastructure.settings.get_settings_service")
     @pytest.mark.asyncio
-    async def test_stats_without_hashing(
-        self, mock_get_settings, mock_settings_hashing_disabled, sample_pr_diff
-    ):
+    async def test_stats_without_hashing(self, mock_get_settings, mock_settings_hashing_disabled, sample_pr_diff):
         """Test stats without hashing enabled."""
         mock_get_settings.return_value = mock_settings_hashing_disabled
         cache_service = CacheService()
@@ -422,9 +386,7 @@ class TestCacheKeyConsistency:
     """Test consistency of cache key generation and hashing."""
 
     @patch("prdiffer.infrastructure.settings.get_settings_service")
-    def test_same_key_produces_same_hash(
-        self, mock_get_settings, mock_settings_hashing_enabled
-    ):
+    def test_same_key_produces_same_hash(self, mock_get_settings, mock_settings_hashing_enabled):
         """Test that the same key always produces the same hash."""
         mock_get_settings.return_value = mock_settings_hashing_enabled
         cache_service = CacheService()
@@ -436,9 +398,7 @@ class TestCacheKeyConsistency:
         assert hash1 == hash2
 
     @patch("prdiffer.infrastructure.settings.get_settings_service")
-    def test_different_keys_produce_different_hashes(
-        self, mock_get_settings, mock_settings_hashing_enabled
-    ):
+    def test_different_keys_produce_different_hashes(self, mock_get_settings, mock_settings_hashing_enabled):
         """Test that different keys produce different hashes."""
         mock_get_settings.return_value = mock_settings_hashing_enabled
         cache_service = CacheService()
@@ -452,9 +412,7 @@ class TestCacheKeyConsistency:
         assert hash1 != hash2
 
     @patch("prdiffer.infrastructure.settings.get_settings_service")
-    def test_get_cache_key_returns_original_format(
-        self, mock_get_settings, mock_settings_hashing_enabled
-    ):
+    def test_get_cache_key_returns_original_format(self, mock_get_settings, mock_settings_hashing_enabled):
         """Test that get_cache_key always returns original format."""
         mock_get_settings.return_value = mock_settings_hashing_enabled
         cache_service = CacheService()

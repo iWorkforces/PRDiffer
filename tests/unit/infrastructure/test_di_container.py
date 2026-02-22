@@ -115,9 +115,7 @@ class TestServiceContainerRegisterSingleton:
         container.register_singleton(MockService, lambda: MockService())
 
         with pytest.raises(DependencyAlreadyRegisteredError) as exc_info:
-            container.register_singleton(
-                MockService, lambda: MockService(), force=False
-            )
+            container.register_singleton(MockService, lambda: MockService(), force=False)
 
         assert "MockService" in str(exc_info.value)
 
@@ -132,9 +130,7 @@ class TestServiceContainerRegisterSingleton:
         container.register_singleton(MockService, lambda: None, instance=instance1)
         assert container.get(MockService) is instance1
 
-        container.register_singleton(
-            MockService, lambda: None, instance=instance2, force=True
-        )
+        container.register_singleton(MockService, lambda: None, instance=instance2, force=True)
         assert container.get(MockService) is instance2
 
     def test_register_singleton_multiple(self):
@@ -241,9 +237,7 @@ class TestServiceContainerGet:
         container = ServiceContainer(logger)
 
         singleton_instance = MockService()
-        container.register_singleton(
-            MockService, lambda: None, instance=singleton_instance
-        )
+        container.register_singleton(MockService, lambda: None, instance=singleton_instance)
         container.register_transient(MockService, lambda: AnotherMockService())
 
         retrieved = container.get(MockService)
@@ -623,9 +617,7 @@ class TestServiceContainerEdgeCases:
         container.register_singleton(MockService, lambda: None, instance=instance1)
         assert container.get(MockService) is instance1
 
-        container.register_singleton(
-            MockService, lambda: None, instance=instance2, force=True
-        )
+        container.register_singleton(MockService, lambda: None, instance=instance2, force=True)
         assert container.get(MockService) is instance2
 
     def test_clear_all_preserves_lock(self):

@@ -139,9 +139,7 @@ class TestAPIHealthTracker:
 
         try:
             # Simulate time passing beyond the window
-            health_module.time.time = lambda: (
-                original_time() + 400.0
-            )  # 400 seconds later
+            health_module.time.time = lambda: original_time() + 400.0  # 400 seconds later
 
             # Record another call
             self.tracker.record_call(duration=0.5, success=True)
@@ -211,9 +209,7 @@ class TestAPIHealthTrackerEdgeCases:
             if i < 7:
                 self.tracker.record_call(duration=0.5, success=True)
             else:
-                self.tracker.record_call(
-                    duration=1.0, success=False, error_type="Error"
-                )
+                self.tracker.record_call(duration=1.0, success=False, error_type="Error")
 
         health_score = self.tracker.get_health_score()
         # Should be between 0 and 1

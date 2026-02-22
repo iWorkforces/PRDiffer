@@ -298,9 +298,7 @@ class TestPathTraversalPrevention:
         ]
 
         for url in malicious_urls:
-            with pytest.raises(
-                (SuspiciousOperationError, InvalidRepositoryError, InvalidURLError)
-            ):
+            with pytest.raises((SuspiciousOperationError, InvalidRepositoryError, InvalidURLError)):
                 parse_pr_url(url)
 
     def test_blocks_encoded_path_traversal(self, server):
@@ -311,9 +309,7 @@ class TestPathTraversalPrevention:
         ]
 
         for url in malicious_urls:
-            with pytest.raises(
-                (SuspiciousOperationError, InvalidRepositoryError, InvalidURLError)
-            ):
+            with pytest.raises((SuspiciousOperationError, InvalidRepositoryError, InvalidURLError)):
                 parse_pr_url(url)
 
     def test_blocks_absolute_path_traversal(self, server):
@@ -325,9 +321,7 @@ class TestPathTraversalPrevention:
         ]
 
         for url in malicious_urls:
-            with pytest.raises(
-                (SuspiciousOperationError, InvalidRepositoryError, InvalidURLError)
-            ):
+            with pytest.raises((SuspiciousOperationError, InvalidRepositoryError, InvalidURLError)):
                 parse_pr_url(url)
 
     def test_blocks_system_directory_access(self, server):
@@ -336,9 +330,7 @@ class TestPathTraversalPrevention:
 
         for system_dir in system_dirs:
             url = f"https://github.com/{system_dir}repo/pull/123"
-            with pytest.raises(
-                (SuspiciousOperationError, InvalidRepositoryError, InvalidURLError)
-            ):
+            with pytest.raises((SuspiciousOperationError, InvalidRepositoryError, InvalidURLError)):
                 parse_pr_url(url)
 
     def test_blocks_windows_path_traversal(self, server):
@@ -349,9 +341,7 @@ class TestPathTraversalPrevention:
         ]
 
         for url in malicious_urls:
-            with pytest.raises(
-                (SuspiciousOperationError, InvalidRepositoryError, InvalidURLError)
-            ):
+            with pytest.raises((SuspiciousOperationError, InvalidRepositoryError, InvalidURLError)):
                 parse_pr_url(url)
 
 
@@ -551,9 +541,7 @@ class TestRepositoryValidation:
 
         for invalid_owner in invalid_owners:
             url = f"https://github.com/{invalid_owner}/repo/pull/123"
-            with pytest.raises(
-                (SuspiciousOperationError, InvalidRepositoryError, InvalidURLError)
-            ):
+            with pytest.raises((SuspiciousOperationError, InvalidRepositoryError, InvalidURLError)):
                 parse_pr_url(url)
 
     def test_rejects_invalid_repo_names(self, server):
@@ -566,9 +554,7 @@ class TestRepositoryValidation:
 
         for invalid_repo in invalid_repos:
             url = f"https://github.com/owner/{invalid_repo}/pull/123"
-            with pytest.raises(
-                (SuspiciousOperationError, InvalidRepositoryError, InvalidURLError)
-            ):
+            with pytest.raises((SuspiciousOperationError, InvalidRepositoryError, InvalidURLError)):
                 parse_pr_url(url)
 
     def test_accepts_valid_names(self, server):

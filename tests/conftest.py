@@ -22,17 +22,11 @@ from prdiffer.domain.entities.file_patch import FilePatchInfo, EDIT_TYPE
 
 def pytest_configure(config):
     """Configure pytest with custom markers and settings."""
-    config.addinivalue_line(
-        "markers", "unit: Unit tests (isolated, fast, no external dependencies)"
-    )
-    config.addinivalue_line(
-        "markers", "integration: Integration tests (may use external services)"
-    )
+    config.addinivalue_line("markers", "unit: Unit tests (isolated, fast, no external dependencies)")
+    config.addinivalue_line("markers", "integration: Integration tests (may use external services)")
     config.addinivalue_line("markers", "slow: Slow-running tests")
     config.addinivalue_line("markers", "security: Security and vulnerability tests")
-    config.addinivalue_line(
-        "markers", "thread_safety: Thread safety and concurrency tests"
-    )
+    config.addinivalue_line("markers", "thread_safety: Thread safety and concurrency tests")
 
 
 # =============================================================================
@@ -242,9 +236,7 @@ def mock_github_pull_request():
 def mock_github_file():
     """Mock GitHub File object for PR files."""
 
-    def make_file(
-        filename: str, status: str = "modified", additions: int = 10, deletions: int = 5
-    ):
+    def make_file(filename: str, status: str = "modified", additions: int = 10, deletions: int = 5):
         mock = Mock()
         mock.filename = filename
         mock.status = status
@@ -376,9 +368,7 @@ def reset_singletons():
 def generate_pr_url():
     """Generate valid GitHub PR URLs for testing."""
 
-    def _generate(
-        owner: str = "test-owner", repo: str = "test-repo", pr_number: int = 123
-    ) -> str:
+    def _generate(owner: str = "test-owner", repo: str = "test-repo", pr_number: int = 123) -> str:
         return f"https://github.com/{owner}/{repo}/pull/{pr_number}"
 
     return _generate
@@ -425,9 +415,7 @@ def patch_settings():
     """Context manager to patch settings service."""
 
     def _patcher():
-        return patch(
-            "prdiffer.infrastructure.settings.get_settings_service", autospec=True
-        )
+        return patch("prdiffer.infrastructure.settings.get_settings_service", autospec=True)
 
     return _patcher
 

@@ -300,9 +300,7 @@ class TestPROperationHandlerGetPrDiff:
             async def get_latest_commit_sha(self):
                 return "abc123"
 
-            async def approve_pr_with_comment(
-                self, pr_url: str, compliment: str
-            ) -> str:
+            async def approve_pr_with_comment(self, pr_url: str, compliment: str) -> str:
                 return "Not approved"
 
             def supports_repository(self, url):
@@ -385,9 +383,7 @@ class TestPROperationHandlerErrorHandling:
             async def get_latest_commit_sha(self):
                 return "abc123"
 
-            async def approve_pr_with_comment(
-                self, pr_url: str, compliment: str
-            ) -> str:
+            async def approve_pr_with_comment(self, pr_url: str, compliment: str) -> str:
                 return "Not approved"
 
             def supports_repository(self, url):
@@ -419,15 +415,9 @@ class TestPROperationHandlerErrorHandling:
 
         logged_messages = []
         original_info = logger.info
-        logger.info = lambda message, **kwargs: (
-            logged_messages.append(("info", message))
-            or original_info(message, **kwargs)
-        )
+        logger.info = lambda message, **kwargs: logged_messages.append(("info", message)) or original_info(message, **kwargs)
         original_debug = logger.debug
-        logger.debug = lambda message, **kwargs: (
-            logged_messages.append(("debug", message))
-            or original_debug(message, **kwargs)
-        )
+        logger.debug = lambda message, **kwargs: logged_messages.append(("debug", message)) or original_debug(message, **kwargs)
 
         def mock_github_repo_class(repo_owner, repo_name, pr_number):
             return MockRepository(repo_owner, repo_name, pr_number)

@@ -45,9 +45,7 @@ def mcp_server(mock_cache_service, mock_repository_cache_service, mock_settings)
     mock_health_monitor = Mock()
     mock_server_configuration = Mock()
     mock_server_configuration.setup_logging = Mock()
-    mock_server_configuration.get_mcp_instructions = Mock(
-        return_value="Test instructions"
-    )
+    mock_server_configuration.get_mcp_instructions = Mock(return_value="Test instructions")
 
     server = FastMCPServer(
         settings_service=mock_settings,
@@ -70,9 +68,7 @@ class TestWebhookCacheInvalidation:
     """Test webhook cache invalidation functionality."""
 
     @pytest.mark.asyncio
-    async def test_webhook_invalidates_pr_on_opened_event(
-        self, mcp_server, mock_repository_cache_service
-    ):
+    async def test_webhook_invalidates_pr_on_opened_event(self, mcp_server, mock_repository_cache_service):
         """Test that PR cache is invalidated on opened event."""
 
         webhook_secret = "test_webhook_secret"
@@ -84,19 +80,13 @@ class TestWebhookCacheInvalidation:
         payload_bytes = json.dumps(payload).encode("utf-8")
         signature = f"sha256={hmac.new(webhook_secret.encode(), payload_bytes, 'sha256').hexdigest()}"
 
-        result = await mcp_server._webhook_handler.webhook_invalidate_cache(
-            payload_bytes, signature, "pull_request"
-        )
+        result = await mcp_server._webhook_handler.webhook_invalidate_cache(payload_bytes, signature, "pull_request")
 
         assert result["status"] == "success"
-        mock_repository_cache_service.invalidate.assert_called_once_with(
-            "owner/repo/pr/123"
-        )
+        mock_repository_cache_service.invalidate.assert_called_once_with("owner/repo/pr/123")
 
     @pytest.mark.asyncio
-    async def test_webhook_invalidates_pr_on_synchronize_event(
-        self, mcp_server, mock_repository_cache_service
-    ):
+    async def test_webhook_invalidates_pr_on_synchronize_event(self, mcp_server, mock_repository_cache_service):
         """Test that PR cache is invalidated on synchronize event."""
 
         webhook_secret = "test_webhook_secret"
@@ -108,19 +98,13 @@ class TestWebhookCacheInvalidation:
         payload_bytes = json.dumps(payload).encode("utf-8")
         signature = f"sha256={hmac.new(webhook_secret.encode(), payload_bytes, 'sha256').hexdigest()}"
 
-        result = await mcp_server._webhook_handler.webhook_invalidate_cache(
-            payload_bytes, signature, "pull_request"
-        )
+        result = await mcp_server._webhook_handler.webhook_invalidate_cache(payload_bytes, signature, "pull_request")
 
         assert result["status"] == "success"
-        mock_repository_cache_service.invalidate.assert_called_once_with(
-            "owner/repo/pr/456"
-        )
+        mock_repository_cache_service.invalidate.assert_called_once_with("owner/repo/pr/456")
 
     @pytest.mark.asyncio
-    async def test_webhook_invalidates_repo_on_push_event(
-        self, mcp_server, mock_cache_service, mock_repository_cache_service
-    ):
+    async def test_webhook_invalidates_repo_on_push_event(self, mcp_server, mock_cache_service, mock_repository_cache_service):
         """Test that both cache services are invalidated on push event."""
 
         webhook_secret = "test_webhook_secret"
@@ -131,35 +115,27 @@ class TestWebhookCacheInvalidation:
         payload_bytes = json.dumps(payload).encode("utf-8")
         signature = f"sha256={hmac.new(webhook_secret.encode(), payload_bytes, 'sha256').hexdigest()}"
 
-        result = await mcp_server._webhook_handler.webhook_invalidate_cache(
-            payload_bytes, signature, "push"
-        )
+        result = await mcp_server._webhook_handler.webhook_invalidate_cache(payload_bytes, signature, "push")
 
         assert result["status"] == "success"
         mock_repository_cache_service.invalidate.assert_called_once_with("owner/repo")
         mock_cache_service.invalidate.assert_called_once_with("owner/repo")
 
     @pytest.mark.asyncio
-    async def test_webhook_returns_error_for_missing_secret(
-        self, mcp_server, mock_repository_cache_service, mock_settings
-    ):
+    async def test_webhook_returns_error_for_missing_secret(self, mcp_server, mock_repository_cache_service, mock_settings):
         """Test that webhook returns error when secret not configured."""
         mock_settings.get = Mock(return_value="")
         payload = {"action": "opened", "repository": {"full_name": "owner/repo"}}
         payload_bytes = json.dumps(payload).encode("utf-8")
 
-        result = await mcp_server._webhook_handler.webhook_invalidate_cache(
-            payload_bytes, "sha256=valid", "pull_request"
-        )
+        result = await mcp_server._webhook_handler.webhook_invalidate_cache(payload_bytes, "sha256=valid", "pull_request")
 
         assert result["status"] == "error"
         assert result["message"] == "Webhook secret not configured"
         mock_repository_cache_service.invalidate.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_webhook_returns_error_for_missing_repository(
-        self, mcp_server, mock_repository_cache_service
-    ):
+    async def test_webhook_returns_error_for_missing_repository(self, mcp_server, mock_repository_cache_service):
         """Test that webhook returns error when repository info missing."""
 
         webhook_secret = "test_webhook_secret"
@@ -167,35 +143,27 @@ class TestWebhookCacheInvalidation:
         payload_bytes = json.dumps(payload).encode("utf-8")
         signature = f"sha256={hmac.new(webhook_secret.encode(), payload_bytes, 'sha256').hexdigest()}"
 
-        result = await mcp_server._webhook_handler.webhook_invalidate_cache(
-            payload_bytes, signature, "pull_request"
-        )
+        result = await mcp_server._webhook_handler.webhook_invalidate_cache(payload_bytes, signature, "pull_request")
 
         assert result["status"] == "error"
         assert result["message"] in ["Missing repository info", "Invalid signature"]
         mock_repository_cache_service.invalidate.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_webhook_returns_error_for_unsupported_event(
-        self, mcp_server, mock_repository_cache_service
-    ):
+    async def test_webhook_returns_error_for_unsupported_event(self, mcp_server, mock_repository_cache_service):
         """Test that webhook returns error for unsupported event types."""
         payload = {"action": "unknown_event", "repository": {"full_name": "owner/repo"}}
         payload_bytes = json.dumps(payload).encode("utf-8")
         signature = "sha256=valid_signature"
 
-        result = await mcp_server._webhook_handler.webhook_invalidate_cache(
-            payload_bytes, signature, "pull_request"
-        )
+        result = await mcp_server._webhook_handler.webhook_invalidate_cache(payload_bytes, signature, "pull_request")
 
         assert result["status"] == "error"
         assert result["message"] in ["Unsupported event type", "Invalid signature"]
         mock_repository_cache_service.invalidate.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_webhook_validates_hmac_signature(
-        self, mcp_server, mock_repository_cache_service
-    ):
+    async def test_webhook_validates_hmac_signature(self, mcp_server, mock_repository_cache_service):
         """Test that webhook validates HMAC signature."""
 
         webhook_secret = "test_webhook_secret"
@@ -207,16 +175,12 @@ class TestWebhookCacheInvalidation:
         with patch.object(mcp_server, "_settings_service") as mock_settings:
             mock_settings.get = Mock(return_value=webhook_secret)
 
-            result = await mcp_server._webhook_handler.webhook_invalidate_cache(
-                payload_bytes, expected_signature, "pull_request"
-            )
+            result = await mcp_server._webhook_handler.webhook_invalidate_cache(payload_bytes, expected_signature, "pull_request")
 
             assert result["status"] == "success"
 
     @pytest.mark.asyncio
-    async def test_webhook_rejects_invalid_signature(
-        self, mcp_server, mock_repository_cache_service
-    ):
+    async def test_webhook_rejects_invalid_signature(self, mcp_server, mock_repository_cache_service):
         """Test that webhook rejects invalid HMAC signature."""
 
         payload = {
@@ -227,9 +191,7 @@ class TestWebhookCacheInvalidation:
         payload_bytes = json.dumps(payload).encode("utf-8")
         invalid_signature = "sha256=invalid_signature_here"
 
-        result = await mcp_server._webhook_handler.webhook_invalidate_cache(
-            payload_bytes, invalid_signature, "pull_request"
-        )
+        result = await mcp_server._webhook_handler.webhook_invalidate_cache(payload_bytes, invalid_signature, "pull_request")
 
         assert result["status"] == "error"
         assert result["message"] == "Invalid signature"
@@ -241,9 +203,7 @@ class TestWebhookHTTPHandler:
     """Test webhook HTTP endpoint handler."""
 
     @pytest.mark.asyncio
-    async def test_webhook_http_endpoint_calls_invalidate(
-        self, mcp_server, mock_repository_cache_service
-    ):
+    async def test_webhook_http_endpoint_calls_invalidate(self, mcp_server, mock_repository_cache_service):
         """Test that HTTP endpoint calls invalidate cache method."""
 
         webhook_secret = "test_webhook_secret"
@@ -266,9 +226,7 @@ class TestWebhookHTTPHandler:
         response = await handler(mock_request)
 
         assert response.status_code == 200
-        mock_repository_cache_service.invalidate.assert_called_once_with(
-            "owner/repo/pr/123"
-        )
+        mock_repository_cache_service.invalidate.assert_called_once_with("owner/repo/pr/123")
 
     @pytest.mark.asyncio
     async def test_webhook_http_endpoint_handles_invalid_json(self, mcp_server):
@@ -291,9 +249,7 @@ class TestWebhookHTTPHandler:
         assert "Invalid" in response.body.decode()
 
     @pytest.mark.asyncio
-    async def test_webhook_http_endpoint_handles_exceptions(
-        self, mcp_server, mock_repository_cache_service
-    ):
+    async def test_webhook_http_endpoint_handles_exceptions(self, mcp_server, mock_repository_cache_service):
         """Test that HTTP endpoint handles general exceptions gracefully."""
         mock_request = Mock()
         mock_request.headers = {

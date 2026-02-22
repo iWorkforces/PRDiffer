@@ -58,9 +58,7 @@ class ApprovePRUseCase:
 
         # Validate inputs
         if not pr_url:
-            raise InvalidURLError(
-                "PR URL cannot be empty", error_code=E1001_INVALID_URL
-            )
+            raise InvalidURLError("PR URL cannot be empty", error_code=E1001_INVALID_URL)
 
         if not isinstance(pr_url, str):
             raise ValidationError(
@@ -69,9 +67,7 @@ class ApprovePRUseCase:
             )
 
         if not compliment:
-            raise ValidationError(
-                "Compliment cannot be empty", error_code=E1001_INVALID_URL
-            )
+            raise ValidationError("Compliment cannot be empty", error_code=E1001_INVALID_URL)
 
         if not isinstance(compliment, str):
             raise ValidationError(

@@ -38,9 +38,7 @@ class GitHubVCSRepository(PRDiffRepositoryInterface):
         self._pr_number = pr_number
         self._github_token = github_token or None
 
-        self._inner_repo = GitHubPRDiffRepository(
-            repo_owner, repo_name, pr_number, github_token
-        )
+        self._inner_repo = GitHubPRDiffRepository(repo_owner, repo_name, pr_number, github_token)
 
     @property
     def repo_owner(self) -> str:

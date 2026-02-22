@@ -5,12 +5,13 @@ import logging
 import threading
 from typing import Any
 from prdiffer.domain.interfaces.protocols import MetricsTrackerProtocol
+from prdiffer.domain.services.logger import LoggerServiceInterface
 
 
 class MetricsTracker(MetricsTrackerProtocol):
     """Component responsible for tracking metrics and request statistics."""
 
-    def __init__(self, logger: Any | None = None):
+    def __init__(self, logger: logging.Logger | LoggerServiceInterface | None = None):
         """Initialize metrics tracker.
 
         Args:
@@ -33,9 +34,7 @@ class MetricsTracker(MetricsTrackerProtocol):
         # Operation-specific metrics
         self._operation_metrics: dict[str, dict[str, Any]] = {}
 
-    def track_request(
-        self, operation: str, success: bool, execution_time: float
-    ) -> None:
+    def track_request(self, operation: str, success: bool, execution_time: float) -> None:
         """Track a request for metrics collection.
 
         Args:
@@ -71,12 +70,8 @@ class MetricsTracker(MetricsTrackerProtocol):
                 op_metrics["failed_requests"] += 1
 
             op_metrics["total_execution_time"] += execution_time
-            op_metrics["min_execution_time"] = min(
-                op_metrics["min_execution_time"], execution_time
-            )
-            op_metrics["max_execution_time"] = max(
-                op_metrics["max_execution_time"], execution_time
-            )
+            op_metrics["min_execution_time"] = min(op_metrics["min_execution_time"], execution_time)
+            op_metrics["max_execution_time"] = max(op_metrics["max_execution_time"], execution_time)
 
             total_requests = self._total_requests
 
@@ -121,15 +116,11 @@ class MetricsTracker(MetricsTrackerProtocol):
         for operation, op_metrics in operation_metrics_copy.items():
             avg_execution_time = 0.0
             if op_metrics["total_requests"] > 0:
-                avg_execution_time = (
-                    op_metrics["total_execution_time"] / op_metrics["total_requests"]
-                )
+                avg_execution_time = op_metrics["total_execution_time"] / op_metrics["total_requests"]
 
             success_rate = 0.0
             if op_metrics["total_requests"] > 0:
-                success_rate = (
-                    op_metrics["successful_requests"] / op_metrics["total_requests"]
-                ) * 100
+                success_rate = (op_metrics["successful_requests"] / op_metrics["total_requests"]) * 100
 
             operations_data[operation] = {
                 "total_requests": op_metrics["total_requests"],
@@ -137,9 +128,7 @@ class MetricsTracker(MetricsTrackerProtocol):
                 "failed_requests": op_metrics["failed_requests"],
                 "success_rate": round(success_rate, 2),
                 "avg_execution_time": round(avg_execution_time, 3),
-                "min_execution_time": round(op_metrics["min_execution_time"], 3)
-                if op_metrics["min_execution_time"] != float("inf")
-                else 0.0,
+                "min_execution_time": round(op_metrics["min_execution_time"], 3) if op_metrics["min_execution_time"] != float("inf") else 0.0,
                 "max_execution_time": round(op_metrics["max_execution_time"], 3),
             }
 
@@ -149,9 +138,7 @@ class MetricsTracker(MetricsTrackerProtocol):
             "total_requests": total_requests,
             "successful_requests": successful_requests,
             "failed_requests": failed_requests,
-            "success_rate": self._calculate_success_rate_safe(
-                successful_requests, total_requests
-            ),
+            "success_rate": self._calculate_success_rate_safe(successful_requests, total_requests),
             "operations": operations_data,
         }
 
@@ -191,9 +178,7 @@ class MetricsTracker(MetricsTrackerProtocol):
                 return 0.0
             return round((self._successful_requests / self._total_requests) * 100, 2)
 
-    def _calculate_success_rate_safe(
-        self, successful_requests: int, total_requests: int
-    ) -> float:
+    def _calculate_success_rate_safe(self, successful_requests: int, total_requests: int) -> float:
         """Calculate success rate percentage from provided values.
 
         Args:

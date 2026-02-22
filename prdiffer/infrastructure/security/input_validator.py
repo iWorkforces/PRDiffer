@@ -10,7 +10,6 @@ This module provides comprehensive input validation to prevent:
 """
 
 import re
-from typing import Pattern
 
 from prdiffer.domain.exceptions import (
     InvalidURLError,
@@ -48,12 +47,10 @@ class InputValidator:
     """
 
     # Regex patterns for validation
-    GITHUB_URL_PATTERN: Pattern = re.compile(
-        r"^https://github\.com/([a-zA-Z0-9_-]+)/([a-zA-Z0-9._-]+)/pull/(\d+)/?$"
-    )
-    GITHUB_REPO_PATTERN: Pattern = re.compile(r"^[a-zA-Z0-9_-]+/[a-zA-Z0-9._-]+$")
-    SAFE_USERNAME_PATTERN: Pattern = re.compile(r"^[a-zA-Z0-9_-]+$")
-    SAFE_REPO_NAME_PATTERN: Pattern = re.compile(r"^[a-zA-Z0-9._-]+$")
+    GITHUB_URL_PATTERN: re.Pattern[str] = re.compile(r"^https://github\.com/([a-zA-Z0-9_-]+)/([a-zA-Z0-9._-]+)/pull/(\d+)/?$")
+    GITHUB_REPO_PATTERN: re.Pattern[str] = re.compile(r"^[a-zA-Z0-9_-]+/[a-zA-Z0-9._-]+$")
+    SAFE_USERNAME_PATTERN: re.Pattern[str] = re.compile(r"^[a-zA-Z0-9_-]+$")
+    SAFE_REPO_NAME_PATTERN: re.Pattern[str] = re.compile(r"^[a-zA-Z0-9._-]+$")
     # Git branch/reference name validation
     # Based on Git ref naming rules:
     # - Can contain alphanumeric, hyphens, underscores, dots, and forward slashes
@@ -61,9 +58,7 @@ class InputValidator:
     # - Cannot have consecutive slashes
     # - Cannot start with dot
     # - Max length for Git refs is typically around 255 characters
-    BRANCH_NAME_PATTERN: Pattern = re.compile(
-        r"^[a-zA-Z0-9]([a-zA-Z0-9_\-./]*[a-zA-Z0-9])?$"
-    )
+    BRANCH_NAME_PATTERN: re.Pattern[str] = re.compile(r"^[a-zA-Z0-9]([a-zA-Z0-9_\-./]*[a-zA-Z0-9])?$")
 
     def __init__(self, security_patterns: SecurityPatterns | None = None):
         """Initialize the InputValidator with optional custom security patterns.
@@ -108,9 +103,7 @@ class InputValidator:
 
         # Check for suspicious patterns before parsing
         if self._detector.check_suspicious_patterns(url):
-            raise SuspiciousOperationError(
-                "URL contains suspicious patterns", details={"url": url[:100]}
-            )
+            raise SuspiciousOperationError("URL contains suspicious patterns", details={"url": url[:100]})
 
         # Delegate parsing and structural validation to URL parser
         return parse_github_pr_url(url)
@@ -187,14 +180,10 @@ class InputValidator:
             raise InvalidRepositoryError("Repository name cannot be empty")
 
         if len(repo) > 100:  # GitHub's max repo name length
-            raise InvalidRepositoryError(
-                "Repository name too long (max 100 characters)"
-            )
+            raise InvalidRepositoryError("Repository name too long (max 100 characters)")
 
         if not cls.SAFE_REPO_NAME_PATTERN.match(repo):
-            raise InvalidRepositoryError(
-                "Repository name contains invalid characters", details={"repo": repo}
-            )
+            raise InvalidRepositoryError("Repository name contains invalid characters", details={"repo": repo})
 
     @classmethod
     def sanitize_string(cls, value: str, max_length: int = 1000) -> str:
@@ -227,9 +216,7 @@ class InputValidator:
             InvalidPRNumberError: If PR number is invalid
         """
         if not isinstance(pr_number, int):
-            raise InvalidPRNumberError(
-                f"PR number must be integer, got {type(pr_number)}"
-            )
+            raise InvalidPRNumberError(f"PR number must be integer, got {type(pr_number)}")
 
         if pr_number <= 0:
             raise InvalidPRNumberError("PR number must be positive")
@@ -381,9 +368,7 @@ class InputValidator:
 
         # Allow alphanumeric, hyphens, underscores, @, and dots
         if not re.match(r"^[a-zA-Z0-9_\-@\.]+$", user_id):
-            raise InputSanitizationError(
-                "User ID contains invalid characters", details={"user_id": user_id[:50]}
-            )
+            raise InputSanitizationError("User ID contains invalid characters", details={"user_id": user_id[:50]})
 
         return user_id
 
@@ -434,9 +419,7 @@ class InputValidator:
 
         # Cannot have consecutive slashes
         if "//" in branch:
-            raise InputSanitizationError(
-                "Branch name cannot contain consecutive slashes"
-            )
+            raise InputSanitizationError("Branch name cannot contain consecutive slashes")
 
         # Cannot start with dot (hidden file/path)
         if branch.startswith("."):

@@ -34,18 +34,14 @@ class TestGitHubURLValidation:
 
     def test_validate_valid_github_url(self, validator: InputValidator):
         """Test validation of a properly formatted GitHub PR URL."""
-        owner, repo, pr_number = validator.validate_github_url(
-            "https://github.com/anthropics/claude-code/pull/123"
-        )
+        owner, repo, pr_number = validator.validate_github_url("https://github.com/anthropics/claude-code/pull/123")
         assert owner == "anthropics"
         assert repo == "claude-code"
         assert pr_number == 123
 
     def test_validate_github_url_with_trailing_slash(self, validator: InputValidator):
         """Test URL validation handles trailing slash."""
-        owner, repo, pr_number = validator.validate_github_url(
-            "https://github.com/owner/repo/pull/456/"
-        )
+        owner, repo, pr_number = validator.validate_github_url("https://github.com/owner/repo/pull/456/")
         assert owner == "owner"
         assert repo == "repo"
         assert pr_number == 456
@@ -70,9 +66,7 @@ class TestGitHubURLValidation:
             ),  # PR number too large
         ],
     )
-    def test_validate_invalid_github_urls(
-        self, validator: InputValidator, invalid_url, expected_exception
-    ):
+    def test_validate_invalid_github_urls(self, validator: InputValidator, invalid_url, expected_exception):
         """Test that invalid URL formats raise appropriate exceptions."""
         with pytest.raises(expected_exception):
             validator.validate_github_url(invalid_url)
@@ -103,23 +97,17 @@ class TestGitHubURLValidation:
     def test_validate_github_url_path_traversal(self, validator: InputValidator):
         """Test detection of path traversal attempts in URLs."""
         with pytest.raises(SuspiciousOperationError):
-            validator.validate_github_url(
-                "https://github.com/../../etc/passwd/pull/123"
-            )
+            validator.validate_github_url("https://github.com/../../etc/passwd/pull/123")
 
     def test_validate_github_url_sql_injection(self, validator: InputValidator):
         """Test detection of SQL injection attempts in URLs."""
         # Note: This URL fails pattern matching before SQL injection detection
         with pytest.raises(InvalidURLError):
-            validator.validate_github_url(
-                "https://github.com/owner/repo' OR '1'='1/pull/123"
-            )
+            validator.validate_github_url("https://github.com/owner/repo' OR '1'='1/pull/123")
 
     def test_validate_github_url_convenience_function(self):
         """Test the convenience function wrapper."""
-        owner, repo, pr_number = validate_github_url(
-            "https://github.com/test/repo/pull/789"
-        )
+        owner, repo, pr_number = validate_github_url("https://github.com/test/repo/pull/789")
         assert owner == "test"
         assert repo == "repo"
         assert pr_number == 789

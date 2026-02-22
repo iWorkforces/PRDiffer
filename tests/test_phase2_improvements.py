@@ -135,9 +135,7 @@ class TestChunkedProcessing:
         original = "line1\nline2"
         new = "line1\nmodified"
 
-        result = diff_utils.build_full_file_patch_chunked(
-            original, new, chunk_size=1000, large_file_threshold=5000
-        )
+        result = diff_utils.build_full_file_patch_chunked(original, new, chunk_size=1000, large_file_threshold=5000)
 
         # Should return a valid diff
         assert "@@ -" in result
@@ -152,9 +150,7 @@ class TestChunkedProcessing:
         original = "\n".join([f"original_line_{i}" for i in range(100)])
         new = "\n".join([f"new_line_{i}" for i in range(100)])
 
-        result = diff_utils.build_full_file_patch_chunked(
-            original, new, chunk_size=50, large_file_threshold=50
-        )
+        result = diff_utils.build_full_file_patch_chunked(original, new, chunk_size=50, large_file_threshold=50)
 
         # Should return a valid diff with multiple hunks
         assert result != ""
@@ -288,9 +284,7 @@ class TestLineNumberingEdgeCases:
         """Test header extraction for new file pattern."""
 
         match = diff_generator.RE_HUNK_HEADER.match("@@ -0,0 +1,3 @@")
-        section_header, size1, size2, start1, start2 = (
-            diff_generator._extract_hunk_headers(match)
-        )
+        section_header, size1, size2, start1, start2 = diff_generator._extract_hunk_headers(match)
 
         assert start1 == 0
         assert size1 == 0
@@ -301,9 +295,7 @@ class TestLineNumberingEdgeCases:
         """Test header extraction for deleted file pattern."""
 
         match = diff_generator.RE_HUNK_HEADER.match("@@ -1,3 +0,0 @@")
-        section_header, size1, size2, start1, start2 = (
-            diff_generator._extract_hunk_headers(match)
-        )
+        section_header, size1, size2, start1, start2 = diff_generator._extract_hunk_headers(match)
 
         assert start1 == 1
         assert size1 == 3
@@ -314,9 +306,7 @@ class TestLineNumberingEdgeCases:
         """Test header extraction when size is omitted (defaults to 1)."""
 
         match = diff_generator.RE_HUNK_HEADER.match("@@ -1 +1 @@")
-        section_header, size1, size2, start1, start2 = (
-            diff_generator._extract_hunk_headers(match)
-        )
+        section_header, size1, size2, start1, start2 = diff_generator._extract_hunk_headers(match)
 
         assert start1 == 1
         assert size1 == 1  # Default
@@ -326,12 +316,8 @@ class TestLineNumberingEdgeCases:
     def test_extract_hunk_headers_with_section_header(self, diff_generator):
         """Test header extraction with section header (function name)."""
 
-        match = diff_generator.RE_HUNK_HEADER.match(
-            "@@ -10,5 +10,7 @@ def my_function():"
-        )
-        section_header, size1, size2, start1, start2 = (
-            diff_generator._extract_hunk_headers(match)
-        )
+        match = diff_generator.RE_HUNK_HEADER.match("@@ -10,5 +10,7 @@ def my_function():")
+        section_header, size1, size2, start1, start2 = diff_generator._extract_hunk_headers(match)
 
         assert section_header == "def my_function():"
         assert start1 == 10
@@ -361,9 +347,7 @@ class TestPhase2Integration:
         original = "\n".join(original_lines)
         new = "\n".join(new_lines)
 
-        result = diff_utils.build_full_file_patch_chunked(
-            original, new, chunk_size=100, large_file_threshold=100
-        )
+        result = diff_utils.build_full_file_patch_chunked(original, new, chunk_size=100, large_file_threshold=100)
 
         # Should detect the modifications
         assert "-line_50" in result or "+modified_line_50" in result

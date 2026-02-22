@@ -77,15 +77,11 @@ class PROperationHandler(PROperationHandlerProtocol):
         try:
             # Validate input
             if not pr_url:
-                raise ValidationError(
-                    "PR URL parameter is required", error_code=E1001_INVALID_URL
-                )
+                raise ValidationError("PR URL parameter is required", error_code=E1001_INVALID_URL)
 
             # Parse URL to extract repository details
             try:
-                repo_owner, repo_name, pr_number = parse_pr_url(
-                    pr_url, self._input_validator
-                )
+                repo_owner, repo_name, pr_number = parse_pr_url(pr_url, self._input_validator)
             except (
                 InvalidURLError,
                 InvalidRepositoryError,
@@ -93,24 +89,17 @@ class PROperationHandler(PROperationHandlerProtocol):
                 SuspiciousOperationError,
             ) as exc:
                 raise ValidationError(
-                    f"Invalid GitHub PR URL format. Expected format: "
-                    f"https://github.com/owner/repo/pull/123, got: {pr_url}",
+                    f"Invalid GitHub PR URL format. Expected format: https://github.com/owner/repo/pull/123, got: {pr_url}",
                     error_code=E1001_INVALID_URL,
                 ) from exc
 
             # Try to get repository from cache first
-            cached_repository: PRDiffRepositoryInterface | None = (
-                self._repository_cache_service.retrieve(
-                    repo_owner, repo_name, pr_number
-                )
-            )
+            cached_repository: PRDiffRepositoryInterface | None = self._repository_cache_service.retrieve(repo_owner, repo_name, pr_number)
 
             repository: PRDiffRepositoryInterface
             if cached_repository is None:
                 # Create new repository instance
-                repository = self._github_repository_class(
-                    repo_owner, repo_name, pr_number
-                )
+                repository = self._github_repository_class(repo_owner, repo_name, pr_number)
                 self._logger.debug(
                     "Created new repository instance",
                     repo_owner=repo_owner,
@@ -145,9 +134,7 @@ class PROperationHandler(PROperationHandlerProtocol):
                 )
 
             # Cache the repository after it's been used (now it should be initialized)
-            if hasattr(repository, "_initialized") and getattr(
-                repository, "_initialized", False
-            ):
+            if hasattr(repository, "_initialized") and getattr(repository, "_initialized", False):
                 cache_success = self._repository_cache_service.insert(repository)
                 if cache_success:
                     self._logger.debug(
@@ -187,6 +174,4 @@ class PROperationHandler(PROperationHandlerProtocol):
                 error=str(e),
             )
             # Re-raise with consistent error format
-            raise GitHubAPIError(
-                f"Failed to fetch PR diff: {e}", error_code=E5002_GITHUB_API_ERROR
-            )
+            raise GitHubAPIError(f"Failed to fetch PR diff: {e}", error_code=E5002_GITHUB_API_ERROR)

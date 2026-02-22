@@ -404,9 +404,7 @@ class TestInterfaceStructure:
         ]
 
         for interface in interfaces:
-            assert issubclass(interface, ABC), (
-                f"{interface.__name__} should inherit from ABC"
-            )
+            assert issubclass(interface, ABC), f"{interface.__name__} should inherit from ABC"
 
     def test_all_interfaces_have_abstract_methods(self):
         """Test that all service interfaces have abstract methods."""
@@ -423,9 +421,7 @@ class TestInterfaceStructure:
         ]
 
         for interface in interfaces:
-            assert len(interface.__abstractmethods__) > 0, (
-                f"{interface.__name__} should have abstract methods"
-            )
+            assert len(interface.__abstractmethods__) > 0, f"{interface.__name__} should have abstract methods"
 
     def test_all_interfaces_cannot_be_instantiated(self):
         """Test that all service interfaces cannot be instantiated directly."""
@@ -460,9 +456,7 @@ class TestInterfaceStructure:
         ]
 
         for interface in interfaces:
-            assert interface.__name__.endswith("Interface"), (
-                f"{interface.__name__} should end with 'Interface' suffix"
-            )
+            assert interface.__name__.endswith("Interface"), f"{interface.__name__} should end with 'Interface' suffix"
 
     def test_interfaces_have_docstrings(self):
         """Test that all interfaces have docstrings."""
@@ -479,12 +473,8 @@ class TestInterfaceStructure:
         ]
 
         for interface in interfaces:
-            assert interface.__doc__ is not None, (
-                f"{interface.__name__} should have a docstring"
-            )
-            assert len(interface.__doc__.strip()) > 0, (
-                f"{interface.__name__} docstring should not be empty"
-            )
+            assert interface.__doc__ is not None, f"{interface.__name__} should have a docstring"
+            assert len(interface.__doc__.strip()) > 0, f"{interface.__name__} docstring should not be empty"
 
 
 class TestMockImplementationCompliance:
@@ -497,9 +487,7 @@ class TestMockImplementationCompliance:
             def __init__(self):
                 self._data = {}
 
-            def get_cache_key(
-                self, repo_owner: str, repo_name: str, pr_number: int
-            ) -> str:
+            def get_cache_key(self, repo_owner: str, repo_name: str, pr_number: int) -> str:
                 return f"{repo_owner}/{repo_name}/pr/{pr_number}"
 
             def get(self, cache_key: str, current_commit_sha: str):

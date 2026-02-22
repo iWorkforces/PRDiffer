@@ -4,6 +4,7 @@ import logging
 from typing import Any, TypedDict
 from prdiffer.domain.interfaces.protocols import ServerConfigurationProtocol
 from prdiffer.version import __version__
+from prdiffer.domain.services.logger import LoggerServiceInterface
 
 
 class ValidationResult(TypedDict):
@@ -20,7 +21,7 @@ class ServerConfiguration(ServerConfigurationProtocol):
     def __init__(
         self,
         settings_service,  # SettingsServiceInterface
-        logger: Any | None = None,
+        logger: logging.Logger | LoggerServiceInterface | None = None,
     ):
         """Initialize server configuration.
 
@@ -46,9 +47,7 @@ class ServerConfiguration(ServerConfigurationProtocol):
             if log_level in ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]:
                 root_logger.setLevel(getattr(logging, log_level))
 
-            self._logger.info(
-                f"Logging configuration completed with level: {log_level}"
-            )
+            self._logger.info(f"Logging configuration completed with level: {log_level}")
 
         except Exception as e:
             self._logger.error(f"Failed to setup logging: {str(e)}")
@@ -119,17 +118,13 @@ class ServerConfiguration(ServerConfigurationProtocol):
             # Check required settings
             transport = self._settings_service.get("mcp.transport", "http")
             if transport not in ["stdio", "sse", "http"]:
-                validation_results["warnings"].append(
-                    f"Unknown transport '{transport}', defaulting to stdio"
-                )
+                validation_results["warnings"].append(f"Unknown transport '{transport}', defaulting to stdio")
 
             # Check port configuration for non-stdio transports
             if transport != "stdio":
                 port = self._settings_service.get("mcp.port", 9102)
                 if not isinstance(port, int) or port < 1 or port > 65535:
-                    validation_results["errors"].append(
-                        f"Invalid port '{port}', must be between 1-65535"
-                    )
+                    validation_results["errors"].append(f"Invalid port '{port}', must be between 1-65535")
                     validation_results["valid"] = False
 
             # Check GitHub configuration if available
@@ -138,19 +133,14 @@ class ServerConfiguration(ServerConfigurationProtocol):
             github_token = os.getenv("GITHUB_TOKEN")
             if not github_token:
                 validation_results["warnings"].append(
-                    "No GITHUB_TOKEN environment variable set, API rate limits may apply. "
-                    "Set GITHUB_TOKEN=your_token or add to .env file"
+                    "No GITHUB_TOKEN environment variable set, API rate limits may apply. Set GITHUB_TOKEN=your_token or add to .env file"
                 )
 
-            self._logger.info(
-                f"Configuration validation completed: {validation_results}"
-            )
+            self._logger.info(f"Configuration validation completed: {validation_results}")
 
         except Exception as e:
             validation_results["valid"] = False
-            validation_results["errors"].append(
-                f"Configuration validation failed: {str(e)}"
-            )
+            validation_results["errors"].append(f"Configuration validation failed: {str(e)}")
             self._logger.error(f"Configuration validation failed: {str(e)}")
 
         return validation_results

@@ -25,9 +25,7 @@ class RepositoryCacheService(RepositoryCacheServiceInterface):
         self._lock = RLock()
         self._logger = get_logger()
 
-    def _get_cache_key(
-        self, repo_owner: str, repo_name: str, pr_number: int
-    ) -> tuple[str, str, int]:
+    def _get_cache_key(self, repo_owner: str, repo_name: str, pr_number: int) -> tuple[str, str, int]:
         """Generate a cache key from repository details."""
         return (repo_owner.lower(), repo_name.lower(), pr_number)
 
@@ -58,9 +56,7 @@ class RepositoryCacheService(RepositoryCacheServiceInterface):
 
         entries_list = list(self._cache.items())
         excess_count = len(entries_list) - self._max_size
-        entries_to_remove = sorted(entries_list, key=lambda x: x[1].timestamp)[
-            :excess_count
-        ]
+        entries_to_remove = sorted(entries_list, key=lambda x: x[1].timestamp)[:excess_count]
 
         for key, _ in entries_to_remove:
             del self._cache[key]
@@ -81,9 +77,7 @@ class RepositoryCacheService(RepositoryCacheServiceInterface):
 
         return True
 
-    def _get_valid_entry(
-        self, cache_key: tuple[str, str, int], extend_ttl: bool = False
-    ) -> CacheEntry | None:
+    def _get_valid_entry(self, cache_key: tuple[str, str, int], extend_ttl: bool = False) -> CacheEntry | None:
         """Retrieve and validate a cache entry."""
         if cache_key not in self._cache:
             return None
@@ -109,9 +103,7 @@ class RepositoryCacheService(RepositoryCacheServiceInterface):
     @with_lock()
     def insert(self, repository: GitHubPRDiffRepository) -> bool:
         """Insert a repository instance into the cache."""
-        cache_key = self._get_cache_key(
-            repository.repo_owner, repository.repo_name, repository.pr_number
-        )
+        cache_key = self._get_cache_key(repository.repo_owner, repository.repo_name, repository.pr_number)
 
         self._clean_expired_entries()
         self._evict_if_needed()
@@ -131,9 +123,7 @@ class RepositoryCacheService(RepositoryCacheServiceInterface):
         return True
 
     @with_lock()
-    def retrieve(
-        self, repo_owner: str, repo_name: str, pr_number: int
-    ) -> GitHubPRDiffRepository | None:
+    def retrieve(self, repo_owner: str, repo_name: str, pr_number: int) -> GitHubPRDiffRepository | None:
         """Retrieve a cached repository instance."""
         cache_key = self._get_cache_key(repo_owner, repo_name, pr_number)
 

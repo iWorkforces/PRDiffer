@@ -45,9 +45,7 @@ def parse_github_pr_url(pr_url: str) -> tuple[str, str, int]:
         )
 
     # Parse URL - supports both 'pull/' and 'pulls/'
-    pattern = re.compile(
-        r"^https://github\.com/([a-zA-Z0-9_-]+)/([a-zA-Z0-9._-]+)/pulls?/(\d+)/?$"
-    )
+    pattern = re.compile(r"^https://github\.com/([a-zA-Z0-9_-]+)/([a-zA-Z0-9._-]+)/pulls?/(\d+)/?$")
 
     match = pattern.match(pr_url)
 

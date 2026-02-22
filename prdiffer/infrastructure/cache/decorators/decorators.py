@@ -5,7 +5,8 @@ import logging
 import threading
 import time
 from collections import OrderedDict
-from typing import Any, Callable, TypeVar, cast
+from collections.abc import Callable
+from typing import Any, TypeVar, cast
 
 from prdiffer.infrastructure.cache.decorators.utils import _generate_cache_key
 
@@ -46,11 +47,7 @@ class CachingMixin:
         """
         with self._cache_lock:
             current_time = time.time()
-            expired_keys = [
-                key
-                for key, entry in self._method_cache.items()
-                if current_time > entry.get("expires_at", float("inf"))
-            ]
+            expired_keys = [key for key, entry in self._method_cache.items() if current_time > entry.get("expires_at", float("inf"))]
             for key in expired_keys:
                 del self._method_cache[key]
 
@@ -171,11 +168,7 @@ def cached_method(ttl: int | None = None, key_prefix: str | None = None):
                 method_name = f"{key_prefix}_{method_name}"
 
             with self._cache_lock:
-                keys_to_remove = [
-                    key
-                    for key in list(self._method_cache.keys())
-                    if key.startswith(f"{method_name}_")
-                ]
+                keys_to_remove = [key for key in list(self._method_cache.keys()) if key.startswith(f"{method_name}_")]
                 for key in keys_to_remove:
                     del self._method_cache[key]
 

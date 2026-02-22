@@ -56,9 +56,7 @@ class ConsoleLogger(LoggerServiceInterface):
         log_level_str = app_settings.get("log_level", "INFO").upper()
         self.log_level = getattr(LogLevel, log_level_str, LogLevel.INFO)
 
-        transport = os.getenv("MCP_TRANSPORT") or self.settings_service.get(
-            "mcp.transport", "stdio"
-        )
+        transport = os.getenv("MCP_TRANSPORT") or self.settings_service.get("mcp.transport", "stdio")
         self._force_stderr = transport == "stdio"
 
         # Get log format from settings (simple, json, structured)
@@ -203,9 +201,7 @@ class ConsoleLogger(LoggerServiceInterface):
         else:
             formatted_message = message
 
-        log_line = (
-            f"{color}{timestamp} - {level.value} - {formatted_message}{self.RESET}"
-        )
+        log_line = f"{color}{timestamp} - {level.value} - {formatted_message}{self.RESET}"
 
         # Use stderr for stdio mode or for error/critical messages
         stream = sys.stderr if self._force_stderr else sys.stdout
@@ -213,9 +209,7 @@ class ConsoleLogger(LoggerServiceInterface):
             stream = sys.stderr
         print(log_line, file=stream)
 
-    def _log_json(
-        self, level: LogLevel, message: str, context: dict[str, Any], timestamp: str
-    ) -> None:
+    def _log_json(self, level: LogLevel, message: str, context: dict[str, Any], timestamp: str) -> None:
         """Format and output log messages in JSON format.
 
         Args:

@@ -61,10 +61,7 @@ class CacheService(CacheServiceInterface):
         self._cache_evictions_size = 0
 
         if self._use_hashed_keys:
-            self.logger.info(
-                f"Cache key hashing enabled (algorithm={self._hash_algorithm}, "
-                f"mapping={self._store_key_mapping}, ttl={self._ttl}s)"
-            )
+            self.logger.info(f"Cache key hashing enabled (algorithm={self._hash_algorithm}, mapping={self._store_key_mapping}, ttl={self._ttl}s)")
 
     def get_cache_key(self, repo_owner: str, repo_name: str, pr_number: int) -> str:
         """Generate a cache key for the given repository and PR.
@@ -95,9 +92,7 @@ class CacheService(CacheServiceInterface):
                 error_code=E1010_INVALID_CONFIGURATION,
             )
 
-    async def _get_internal_key(
-        self, original_key: str, store_mapping: bool = False
-    ) -> tuple[str, str]:
+    async def _get_internal_key(self, original_key: str, store_mapping: bool = False) -> tuple[str, str]:
         """Get internal key for cache operations with optional hashing."""
         if not self._use_hashed_keys:
             return original_key, ""
@@ -142,20 +137,14 @@ class CacheService(CacheServiceInterface):
             self._cache_evictions_ttl += 1
 
         if expired_keys:
-            self.logger.debug(
-                f"Cache eviction (TTL): removed {len(expired_keys)} expired entries "
-                f"[size={len(self.cache)}/{self._cache_max_size}]"
-            )
+            self.logger.debug(f"Cache eviction (TTL): removed {len(expired_keys)} expired entries [size={len(self.cache)}/{self._cache_max_size}]")
 
         while len(self.cache) >= self._cache_max_size:
             evicted_key, _ = self.cache.popitem(last=False)
             self._key_mapping.pop(evicted_key, None)
             self._cache_evictions_size += 1
             original_key = await self._get_original_key(evicted_key)
-            self.logger.debug(
-                f"Cache eviction (LRU): {original_key[:50]}... "
-                f"[size={len(self.cache)}/{self._cache_max_size}]"
-            )
+            self.logger.debug(f"Cache eviction (LRU): {original_key[:50]}... [size={len(self.cache)}/{self._cache_max_size}]")
 
     async def get(self, cache_key: str, current_commit_sha: str) -> PRDiff | None:
         """Get cached PR diff data if it exists, commit SHA matches, and not expired."""
@@ -213,9 +202,7 @@ class CacheService(CacheServiceInterface):
 
     async def set(self, cache_key: str, commit_sha: str, data: PRDiff) -> None:
         """Cache PR diff data with associated commit SHA."""
-        internal_key, hash_display = await self._get_internal_key(
-            cache_key, store_mapping=True
-        )
+        internal_key, hash_display = await self._get_internal_key(cache_key, store_mapping=True)
 
         async with self._lock:
             if internal_key in self.cache:
@@ -295,9 +282,7 @@ class CacheService(CacheServiceInterface):
 
         if self._use_hashed_keys:
             if self._store_key_mapping:
-                base_stats["keys"] = [
-                    self._key_mapping.get(key, key) for key in self.cache.keys()
-                ]
+                base_stats["keys"] = [self._key_mapping.get(key, key) for key in self.cache.keys()]
             else:
                 base_stats["keys"] = list(self.cache.keys())
         else:

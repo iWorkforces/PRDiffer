@@ -96,9 +96,7 @@ class TestGitHubConfig:
 
         config = GitHubConfig(ignore_patterns=("*.lock", "node_modules/", "*.log"))
 
-        assert (
-            config.should_ignore_file("package-lock.json") is False
-        )  # *.lock != *-lock.json
+        assert config.should_ignore_file("package-lock.json") is False  # *.lock != *-lock.json
         assert config.should_ignore_file("yarn.lock") is True
         assert config.should_ignore_file("src/node_modules/lib.js") is True
         assert config.should_ignore_file("debug.log") is True
@@ -254,9 +252,7 @@ class TestAsyncParallelExecutor:
             return x * context["factor"]
 
         executor = AsyncParallelExecutor()
-        results = await executor.execute_batch_with_context(
-            multiply_by_factor, [1, 2, 3], {"factor": 10}
-        )
+        results = await executor.execute_batch_with_context(multiply_by_factor, [1, 2, 3], {"factor": 10})
 
         assert sorted(results) == [10, 20, 30]
 
@@ -275,12 +271,8 @@ class TestAsyncParallelExecutor:
         async def double(x: int) -> int:
             return x * 2
 
-        executor = AsyncParallelExecutor(
-            max_concurrent=1
-        )  # Sequential for predictable progress
-        results = await executor.execute_with_progress(
-            double, [1, 2, 3], progress_callback=track_progress
-        )
+        executor = AsyncParallelExecutor(max_concurrent=1)  # Sequential for predictable progress
+        results = await executor.execute_with_progress(double, [1, 2, 3], progress_callback=track_progress)
 
         assert sorted(results) == [2, 4, 6]
         assert len(progress_calls) == 3
@@ -693,6 +685,4 @@ class TestPhase4Integration:
 
         for filename, expected in test_cases:
             result = config.should_process_file(filename)
-            assert result == expected, (
-                f"Failed for {filename}: expected {expected}, got {result}"
-            )
+            assert result == expected, f"Failed for {filename}: expected {expected}, got {result}"

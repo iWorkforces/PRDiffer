@@ -2,7 +2,8 @@
 
 import time
 from abc import abstractmethod
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 from prdiffer.domain.services import RetryServiceInterface
 from prdiffer.infrastructure.utils.logger_factory import LazyLoggerMixin
@@ -152,9 +153,7 @@ class BaseUnifiedRetryHandler(LazyLoggerMixin, RetryServiceInterface):
                     CircuitBreakerOpenException,
                 )
 
-                raise CircuitBreakerOpenException(
-                    f"Circuit breaker is open. State: {self._circuit_breaker.state.value}"
-                )
+                raise CircuitBreakerOpenException(f"Circuit breaker is open. State: {self._circuit_breaker.state.value}")
 
         config = self._get_context_config(context)
         max_retries = config["max_retries"]
@@ -231,9 +230,7 @@ class BaseUnifiedRetryHandler(LazyLoggerMixin, RetryServiceInterface):
             "backoff_multiplier": 2.0,
         }
 
-    def _should_retry_error(
-        self, error: Exception, context: OperationContext | None = None
-    ) -> bool:
+    def _should_retry_error(self, error: Exception, context: OperationContext | None = None) -> bool:
         error_str = str(error).lower()
 
         decision = classify_error_for_retry(
@@ -310,9 +307,7 @@ class BaseUnifiedRetryHandler(LazyLoggerMixin, RetryServiceInterface):
         is_secondary_rate_limit: bool = False,
     ):
         is_rate_limit = self._is_rate_limit_error(error)
-        context_str = (
-            f" [{context.value}]" if context and self.context_aware_retry else ""
-        )
+        context_str = f" [{context.value}]" if context and self.context_aware_retry else ""
 
         if is_rate_limit:
             label = "Secondary rate limit" if is_secondary_rate_limit else "Rate limit"
@@ -338,33 +333,24 @@ class BaseUnifiedRetryHandler(LazyLoggerMixin, RetryServiceInterface):
         if rate_limit_info:
             self._log_rate_limit_headers(rate_limit_info, is_secondary_rate_limit)
 
-    def _log_rate_limit_headers(
-        self, rate_limit_info: RateLimitInfo, is_secondary_rate_limit: bool
-    ):
+    def _log_rate_limit_headers(self, rate_limit_info: RateLimitInfo, is_secondary_rate_limit: bool):
         level = "WARNING" if is_secondary_rate_limit else "INFO"
-        message = (
-            "Rate limit headers: remaining=%s limit=%s reset=%s retry_after=%s"
-            % (
-                rate_limit_info.remaining,
-                rate_limit_info.limit,
-                rate_limit_info.reset_at,
-                rate_limit_info.retry_after,
-            )
+        message = "Rate limit headers: remaining=%s limit=%s reset=%s retry_after=%s" % (
+            rate_limit_info.remaining,
+            rate_limit_info.limit,
+            rate_limit_info.reset_at,
+            rate_limit_info.retry_after,
         )
         self._log_at_level(message, level)
 
-        if is_rate_limit_remaining_below_threshold(
-            rate_limit_info, self.rate_limit_remaining_threshold
-        ):
+        if is_rate_limit_remaining_below_threshold(rate_limit_info, self.rate_limit_remaining_threshold):
             threshold_message = "Rate limit remaining below threshold: %d <= %d" % (
                 rate_limit_info.remaining,
                 self.rate_limit_remaining_threshold,
             )
             self._log_at_level(threshold_message, "WARNING")
 
-    def _log_permanent_failure(
-        self, error: Exception, should_retry: bool, is_last_attempt: bool
-    ):
+    def _log_permanent_failure(self, error: Exception, should_retry: bool, is_last_attempt: bool):
         if not should_retry:
             error_msg = str(error)
             if len(error_msg) > 150:

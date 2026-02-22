@@ -44,9 +44,7 @@ class GitLabVCSRepository(VCSDiffRepositoryInterface):
             gitlab_token: GitLab personal access token
         """
         self._gitlab_token = gitlab_token
-        self._headers = (
-            {"PRIVATE-TOKEN": self._gitlab_token} if self._gitlab_token else {}
-        )
+        self._headers = {"PRIVATE-TOKEN": self._gitlab_token} if self._gitlab_token else {}
 
     @property
     def provider_name(self) -> str:
@@ -69,9 +67,7 @@ class GitLabVCSRepository(VCSDiffRepositoryInterface):
         """
         if httpx:
             try:
-                async with httpx.AsyncClient(
-                    base_url="https://gitlab.com/api/v4", headers=self._headers
-                ) as client:
+                async with httpx.AsyncClient(base_url="https://gitlab.com/api/v4", headers=self._headers) as client:
                     response = await client.get("/user")
                     if response.status_code != 200:
                         raise PRDifferException(
@@ -79,9 +75,7 @@ class GitLabVCSRepository(VCSDiffRepositoryInterface):
                             error_code=E5019_CONNECTION_ERROR,
                         )
             except Exception as e:
-                raise PRDifferException(
-                    f"GitLab connection error: {e}", error_code=E5019_CONNECTION_ERROR
-                )
+                raise PRDifferException(f"GitLab connection error: {e}", error_code=E5019_CONNECTION_ERROR)
 
     async def get_pr_diff(self, owner: str, repo: str, pr: int) -> PRDiff:
         """Get merge request diff from GitLab.
@@ -102,9 +96,7 @@ class GitLabVCSRepository(VCSDiffRepositoryInterface):
         if httpx:
             try:
                 path = f"{owner}%2F{repo}"
-                async with httpx.AsyncClient(
-                    base_url="https://gitlab.com/api/v4", headers=self._headers
-                ) as client:
+                async with httpx.AsyncClient(base_url="https://gitlab.com/api/v4", headers=self._headers) as client:
                     url = f"/projects/{path}/merge_requests/{pr}"
                     response = await client.get(url)
 
@@ -126,9 +118,7 @@ class GitLabVCSRepository(VCSDiffRepositoryInterface):
                         "error_type": type(e).__name__,
                     },
                 )
-                raise PRDifferException(
-                    f"GitLab API error: {e}", error_code=E5002_GITHUB_API_ERROR
-                ) from e
+                raise PRDifferException(f"GitLab API error: {e}", error_code=E5002_GITHUB_API_ERROR) from e
             except Exception as e:
                 logger.error(
                     "Unexpected error when fetching GitLab MR diff",
@@ -140,9 +130,7 @@ class GitLabVCSRepository(VCSDiffRepositoryInterface):
                         "error_type": type(e).__name__,
                     },
                 )
-                raise PRDifferException(
-                    f"GitLab API error: {e}", error_code=E5002_GITHUB_API_ERROR
-                ) from e
+                raise PRDifferException(f"GitLab API error: {e}", error_code=E5002_GITHUB_API_ERROR) from e
         else:
             return PRDiff(files=())
 
@@ -164,9 +152,7 @@ class GitLabVCSRepository(VCSDiffRepositoryInterface):
         if httpx:
             try:
                 path = f"{owner}%2F{repo}"
-                async with httpx.AsyncClient(
-                    base_url="https://gitlab.com/api/v4", headers=self._headers
-                ) as client:
+                async with httpx.AsyncClient(base_url="https://gitlab.com/api/v4", headers=self._headers) as client:
                     url = f"/projects/{path}/merge_requests/{pr}"
                     response = await client.get(url)
 

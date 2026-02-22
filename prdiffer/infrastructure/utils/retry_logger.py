@@ -92,9 +92,7 @@ def log_rate_limit_headers(
     )
     log_at_level(logger, message, level)
 
-    if is_rate_limit_remaining_below_threshold(
-        rate_limit_info, rate_limit_remaining_threshold
-    ):
+    if is_rate_limit_remaining_below_threshold(rate_limit_info, rate_limit_remaining_threshold):
         threshold_message = "Rate limit remaining below threshold: %d <= %d" % (
             rate_limit_info.remaining,
             rate_limit_remaining_threshold,

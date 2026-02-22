@@ -150,9 +150,7 @@ class TestParsePRURL:
     def test_pr_url_with_custom_input_validator(self):
         """Test that custom InputValidator can be passed."""
         custom_validator = InputValidator()
-        result = parse_pr_url(
-            "https://github.com/owner/repo/pull/123", custom_validator
-        )
+        result = parse_pr_url("https://github.com/owner/repo/pull/123", custom_validator)
         assert result == ("owner", "repo", 123)
 
     def test_pr_url_with_custom_input_validator_none(self):

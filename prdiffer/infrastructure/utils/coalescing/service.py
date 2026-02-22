@@ -5,7 +5,8 @@ to prevent duplicate API calls for the same resource.
 """
 
 import anyio
-from typing import Any, Callable, Awaitable
+from collections.abc import Callable, Awaitable
+from typing import Any
 from dataclasses import dataclass, field
 
 from prdiffer.infrastructure.logging.console_logger import get_logger
@@ -54,9 +55,7 @@ class RequestCoalescingService:
 
         if max_waiters is None:
             settings_service = get_settings_service()
-            max_waiters = settings_service.get(
-                "request_coalescing.max_waiters", DEFAULT_MAX_WAITERS
-            )
+            max_waiters = settings_service.get("request_coalescing.max_waiters", DEFAULT_MAX_WAITERS)
         if max_waiters is None:
             max_waiters = DEFAULT_MAX_WAITERS
 
@@ -96,23 +95,15 @@ class RequestCoalescingService:
                 pending = self._pending_requests[key]
 
                 if pending.request_count >= self._max_waiters:
-                    self._logger.warning(
-                        f"Maximum waiters ({self._max_waiters}) reached for key '{key}', "
-                        "executing new request instead of waiting"
-                    )
+                    self._logger.warning(f"Maximum waiters ({self._max_waiters}) reached for key '{key}', executing new request instead of waiting")
                 else:
                     pending.request_count += 1
                     existing_request = pending
-                    self._logger.debug(
-                        f"Coalescing request for key '{key}' "
-                        f"(total waiting: {pending.request_count})"
-                    )
+                    self._logger.debug(f"Coalescing request for key '{key}' (total waiting: {pending.request_count})")
 
         if existing_request is not None:
             effective_timeout = timeout if timeout is not None else 30.0
-            return await self._wait_for_request(
-                existing_request, key, effective_timeout
-            )
+            return await self._wait_for_request(existing_request, key, effective_timeout)
 
         new_request: CoalescedRequest | None = None
         async with self._lock:
@@ -120,10 +111,7 @@ class RequestCoalescingService:
                 pending = self._pending_requests[key]
 
                 if pending.request_count >= self._max_waiters:
-                    self._logger.warning(
-                        f"Maximum waiters ({self._max_waiters}) reached for key '{key}', "
-                        "executing new request instead of waiting"
-                    )
+                    self._logger.warning(f"Maximum waiters ({self._max_waiters}) reached for key '{key}', executing new request instead of waiting")
                 else:
                     pending.request_count += 1
                     existing_request = pending
@@ -135,9 +123,7 @@ class RequestCoalescingService:
 
         if existing_request is not None:
             effective_timeout = timeout if timeout is not None else 30.0
-            return await self._wait_for_request(
-                existing_request, key, effective_timeout
-            )
+            return await self._wait_for_request(existing_request, key, effective_timeout)
 
         if new_request is None:
             raise PRDifferException(
@@ -147,13 +133,9 @@ class RequestCoalescingService:
             )
 
         effective_timeout = timeout if timeout is not None else 30.0
-        return await self._execute_request(
-            new_request, key, fetch_func, effective_timeout
-        )
+        return await self._execute_request(new_request, key, fetch_func, effective_timeout)
 
-    async def _wait_for_request(
-        self, existing_request: CoalescedRequest, key: str, timeout: float
-    ) -> Any:
+    async def _wait_for_request(self, existing_request: CoalescedRequest, key: str, timeout: float) -> Any:
         """Wait for an existing request to complete."""
         try:
             with anyio.fail_after(timeout):
@@ -162,9 +144,7 @@ class RequestCoalescingService:
             if existing_request.exception is not None:
                 raise existing_request.exception
 
-            self._logger.debug(
-                "Request coalesced for key '{key}' - returning cached result"
-            )
+            self._logger.debug("Request coalesced for key '{key}' - returning cached result")
             return existing_request.result
         except TimeoutError:
             self._logger.error(f"Coalesced request timed out for key '{key}'")
@@ -189,25 +169,18 @@ class RequestCoalescingService:
                 result = await fetch_func()
 
             async with self._lock:
-                if (
-                    key in self._pending_requests
-                    and self._pending_requests[key] is new_request
-                ):
+                if key in self._pending_requests and self._pending_requests[key] is new_request:
                     waiter_count = self._pending_requests[key].request_count
                     new_request.result = result
                     new_request.event.set()
                     del self._pending_requests[key]
                     cleanup_done = True
-                    self._logger.info(
-                        f"Request completed for key '{key}' (served {waiter_count} waiters)"
-                    )
+                    self._logger.info(f"Request completed for key '{key}' (served {waiter_count} waiters)")
                 else:
                     new_request.result = result
                     new_request.event.set()
                     cleanup_done = True
-                    self._logger.warning(
-                        f"Request completed for key '{key}' but state was modified"
-                    )
+                    self._logger.warning(f"Request completed for key '{key}' but state was modified")
 
             return result
 
@@ -216,9 +189,7 @@ class RequestCoalescingService:
             exc = TimeoutError(f"Request timed out after {timeout} seconds")
             new_request.exception = exc
             new_request.event.set()
-            self._logger.error(
-                f"Request timed out for key '{key}' after {timeout} seconds"
-            )
+            self._logger.error(f"Request timed out for key '{key}' after {timeout} seconds")
             raise exc
 
         except Exception as e:
@@ -237,13 +208,9 @@ class RequestCoalescingService:
 
                 if pending.request_count <= 0 and pending.event.is_set():
                     del self._pending_requests[key]
-                    self._logger.debug(
-                        f"Cleaned up request for key '{key}' (no more waiters)"
-                    )
+                    self._logger.debug(f"Cleaned up request for key '{key}' (no more waiters)")
 
-    async def _cleanup_on_failure(
-        self, key: str, request: CoalescedRequest, cleanup_done: bool
-    ) -> None:
+    async def _cleanup_on_failure(self, key: str, request: CoalescedRequest, cleanup_done: bool) -> None:
         """Clean up a request on failure or timeout."""
         if cleanup_done:
             return
@@ -264,9 +231,7 @@ class RequestCoalescingService:
         async with self._lock:
             pending_count = len(self._pending_requests)
             pending_keys = list(self._pending_requests.keys())
-            total_waiters = sum(
-                req.request_count for req in self._pending_requests.values()
-            )
+            total_waiters = sum(req.request_count for req in self._pending_requests.values())
 
         return {
             "pending_count": pending_count,

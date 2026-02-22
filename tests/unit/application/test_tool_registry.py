@@ -258,38 +258,28 @@ class TestValidateAndSanitizeParams:
 
     def test_validate_valid_url(self, tool_registry, mock_input_validator):
         """Test validating valid URL."""
-        mock_input_validator.sanitize_string.return_value = (
-            "https://github.com/owner/repo/pull/123"
-        )
+        mock_input_validator.sanitize_string.return_value = "https://github.com/owner/repo/pull/123"
 
         with patch("prdiffer.application.tool_registry.parse_pr_url") as mock_parse:
             mock_parse.return_value = ("owner", "repo", 123)
-            result = tool_registry._validate_and_sanitize_params(
-                "https://github.com/owner/repo/pull/123"
-            )
+            result = tool_registry._validate_and_sanitize_params("https://github.com/owner/repo/pull/123")
 
             assert result == ("owner", "repo", 123)
 
     def test_validate_empty_url(self, tool_registry):
         """Test validating empty URL."""
-        with pytest.raises(
-            InputSanitizationError, match="PR URL parameter is required"
-        ):
+        with pytest.raises(InputSanitizationError, match="PR URL parameter is required"):
             tool_registry._validate_and_sanitize_params("")
 
 
 class TestLogMetricsAndReturnSuccess:
     """Tests for _log_metrics_and_return_success method."""
 
-    def test_log_metrics(
-        self, tool_registry, mock_metrics_tracker, mock_logger, sample_pr_diff
-    ):
+    def test_log_metrics(self, tool_registry, mock_metrics_tracker, mock_logger, sample_pr_diff):
         """Test logging metrics."""
         start_time = 0.0
 
-        result = tool_registry._log_metrics_and_return_success(
-            start_time, sample_pr_diff
-        )
+        result = tool_registry._log_metrics_and_return_success(start_time, sample_pr_diff)
 
         mock_metrics_tracker.track_request.assert_called_once()
         mock_logger.info.assert_called()
@@ -299,16 +289,12 @@ class TestLogMetricsAndReturnSuccess:
 class TestHandleSecurityException:
     """Tests for _handle_security_exception method."""
 
-    def test_handle_security_exception(
-        self, tool_registry, mock_metrics_tracker, mock_logger
-    ):
+    def test_handle_security_exception(self, tool_registry, mock_metrics_tracker, mock_logger):
         """Test handling security exception."""
         error = InvalidURLError("Invalid URL")
 
         with pytest.raises(ValidationError):
-            tool_registry._handle_security_exception(
-                error, 0.0, "req-123", "https://github.com/owner/repo/pull/123"
-            )
+            tool_registry._handle_security_exception(error, 0.0, "req-123", "https://github.com/owner/repo/pull/123")
 
         mock_metrics_tracker.track_request.assert_called_once()
         mock_logger.warning.assert_called()
@@ -317,16 +303,12 @@ class TestHandleSecurityException:
 class TestHandleValidationException:
     """Tests for _handle_validation_exception method."""
 
-    def test_handle_validation_exception(
-        self, tool_registry, mock_metrics_tracker, mock_logger
-    ):
+    def test_handle_validation_exception(self, tool_registry, mock_metrics_tracker, mock_logger):
         """Test handling validation exception."""
         error = ValueError("Invalid value")
 
         with pytest.raises(ValidationError):
-            tool_registry._handle_validation_exception(
-                error, 0.0, "req-123", "https://github.com/owner/repo/pull/123"
-            )
+            tool_registry._handle_validation_exception(error, 0.0, "req-123", "https://github.com/owner/repo/pull/123")
 
         mock_metrics_tracker.track_request.assert_called_once()
         mock_logger.warning.assert_called()
@@ -335,16 +317,12 @@ class TestHandleValidationException:
 class TestHandleRuntimeException:
     """Tests for _handle_runtime_exception method."""
 
-    def test_handle_runtime_exception(
-        self, tool_registry, mock_metrics_tracker, mock_logger
-    ):
+    def test_handle_runtime_exception(self, tool_registry, mock_metrics_tracker, mock_logger):
         """Test handling runtime exception."""
         error = RuntimeError("Runtime error")
 
         with pytest.raises(GitHubAPIError):
-            tool_registry._handle_runtime_exception(
-                error, 0.0, "req-123", "https://github.com/owner/repo/pull/123"
-            )
+            tool_registry._handle_runtime_exception(error, 0.0, "req-123", "https://github.com/owner/repo/pull/123")
 
         mock_metrics_tracker.track_request.assert_called_once()
         mock_logger.error.assert_called()
@@ -356,9 +334,7 @@ class TestAuthenticateRequest:
     @pytest.mark.anyio
     async def test_authenticate_success(self, tool_registry, mock_authentication):
         """Test successful authentication."""
-        result = await tool_registry._authenticate_request(
-            "req-123", 0.0, "api-key-123"
-        )
+        result = await tool_registry._authenticate_request("req-123", 0.0, "api-key-123")
 
         mock_authentication.authenticate.assert_called_once_with("api-key-123")
         assert result == "client-123"
@@ -380,9 +356,7 @@ class TestAuthenticateRequest:
             await tool_registry._authenticate_request("req-123", 0.0, "api-key-123")
 
     @pytest.mark.anyio
-    async def test_authenticate_runtime_error(
-        self, tool_registry, mock_authentication, mock_metrics_tracker
-    ):
+    async def test_authenticate_runtime_error(self, tool_registry, mock_authentication, mock_metrics_tracker):
         """Test authentication with runtime error."""
         mock_authentication.authenticate.side_effect = RuntimeError("Rate limited")
 
@@ -396,33 +370,23 @@ class TestExecuteUseCaseWithCoalescing:
     """Tests for _execute_use_case_with_coalescing method."""
 
     @pytest.mark.anyio
-    async def test_execute_success(
-        self, tool_registry, mock_request_coalescing, sample_pr_diff
-    ):
+    async def test_execute_success(self, tool_registry, mock_request_coalescing, sample_pr_diff):
         """Test successful use case execution."""
         mock_request_coalescing.coalesce = AsyncMock(return_value=sample_pr_diff)
 
-        with patch(
-            "prdiffer.application.tool_registry.GetPRDiffUseCase"
-        ) as MockUseCase:
+        with patch("prdiffer.application.tool_registry.GetPRDiffUseCase") as MockUseCase:
             mock_use_case = MagicMock()
             mock_use_case.execute = AsyncMock(return_value=sample_pr_diff)
             MockUseCase.return_value = mock_use_case
 
-            result = await tool_registry._execute_use_case_with_coalescing(
-                "req-123", "owner", "repo", 123
-            )
+            result = await tool_registry._execute_use_case_with_coalescing("req-123", "owner", "repo", 123)
 
             assert result is sample_pr_diff
 
     @pytest.mark.anyio
-    async def test_execute_returns_none(
-        self, tool_registry, mock_request_coalescing, mock_logger
-    ):
+    async def test_execute_returns_none(self, tool_registry, mock_request_coalescing, mock_logger):
         """Test use case returns None."""
-        with patch(
-            "prdiffer.application.tool_registry.GetPRDiffUseCase"
-        ) as MockUseCase:
+        with patch("prdiffer.application.tool_registry.GetPRDiffUseCase") as MockUseCase:
             mock_use_case = MagicMock()
             mock_use_case.execute = AsyncMock(return_value=None)
             MockUseCase.return_value = mock_use_case
@@ -434,9 +398,7 @@ class TestExecuteUseCaseWithCoalescing:
             mock_request_coalescing.coalesce = AsyncMock(side_effect=side_effect)
 
             with pytest.raises(GitHubAPIError, match="use case returned None"):
-                await tool_registry._execute_use_case_with_coalescing(
-                    "req-123", "owner", "repo", 123
-                )
+                await tool_registry._execute_use_case_with_coalescing("req-123", "owner", "repo", 123)
 
 
 class TestRegisterTools:

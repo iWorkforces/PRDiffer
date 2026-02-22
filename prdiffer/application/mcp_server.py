@@ -203,15 +203,9 @@ class FastMCPServer:
         """
 
         # Get MCP settings from environment variables first, then fall back to settings service
-        transport_raw = os.getenv("MCP_TRANSPORT") or self._settings_service.get(
-            "mcp.transport", "http"
-        )
-        port = int(os.getenv("MCP_PORT", "0")) or self._settings_service.get(
-            "mcp.port", 9102
-        )
-        host = os.getenv("MCP_HOST") or self._settings_service.get(
-            "mcp.host", "127.0.0.1"
-        )
+        transport_raw = os.getenv("MCP_TRANSPORT") or self._settings_service.get("mcp.transport", "http")
+        port = int(os.getenv("MCP_PORT", "0")) or self._settings_service.get("mcp.port", 9102)
+        host = os.getenv("MCP_HOST") or self._settings_service.get("mcp.host", "127.0.0.1")
         path = os.getenv("MCP_PATH") or self._settings_service.get("mcp.path", "/mcp")
 
         # Validate and cast transport to the correct type
@@ -222,9 +216,7 @@ class FastMCPServer:
             "streamable-http",
         )
         if transport_raw not in valid_transports:
-            self._logger.warning(
-                f"Invalid transport '{transport_raw}', defaulting to 'stdio'"
-            )
+            self._logger.warning(f"Invalid transport '{transport_raw}', defaulting to 'stdio'")
             transport: TransportMode = "stdio"
         else:
             transport = cast(TransportMode, transport_raw)
@@ -233,7 +225,5 @@ class FastMCPServer:
             self._logger.info("Running MCP server with stdio transport")
             self.mcp.run(transport="stdio")
         else:
-            self._logger.info(
-                f"Running MCP server with {transport} transport on {host}:{port}{path}"
-            )
+            self._logger.info(f"Running MCP server with {transport} transport on {host}:{port}{path}")
             self.mcp.run(transport=transport, port=port, host=host, path=path)

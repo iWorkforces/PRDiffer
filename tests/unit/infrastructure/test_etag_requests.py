@@ -117,9 +117,7 @@ class TestETagStorage:
         url = "http://example.com/file.txt"
         etag = '"abc123"'
 
-        adapter = ETagRequestAdapter(
-            cache_service=mock_cache_service, enabled=True, etag_ttl=1
-        )
+        adapter = ETagRequestAdapter(cache_service=mock_cache_service, enabled=True, etag_ttl=1)
         adapter._store_etag(url, etag, "file content")
 
         time.sleep(1.5)

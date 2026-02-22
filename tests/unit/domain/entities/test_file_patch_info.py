@@ -273,9 +273,7 @@ class TestFilePatchInfoMethods:
 
     def test_calculate_review_priority_high_large_changes(self):
         """Test calculate_review_priority for large changes."""
-        patch = FilePatchInfo(
-            filename="src/main.py", num_plus_lines=101, num_minus_lines=0
-        )
+        patch = FilePatchInfo(filename="src/main.py", num_plus_lines=101, num_minus_lines=0)
 
         priority = patch.calculate_review_priority()
 
@@ -365,9 +363,7 @@ class TestFilePatchInfoMethods:
 
     def test_detect_code_smells_deleted_file(self):
         """Test detect_code_smells for deleted files."""
-        patch = FilePatchInfo(
-            filename="test.py", edit_type=EDIT_TYPE.DELETED, patch="@@ -1,5 +0,0 @@"
-        )
+        patch = FilePatchInfo(filename="test.py", edit_type=EDIT_TYPE.DELETED, patch="@@ -1,5 +0,0 @@")
 
         smells = patch.detect_code_smells()
 
@@ -406,9 +402,7 @@ class TestFilePatchInfoMethods:
 
     def test_validate_renamed_without_old_filename(self):
         """Test validate for renamed file without old filename."""
-        patch = FilePatchInfo(
-            filename="new.py", edit_type=EDIT_TYPE.RENAMED, old_filename=None
-        )
+        patch = FilePatchInfo(filename="new.py", edit_type=EDIT_TYPE.RENAMED, old_filename=None)
 
         errors = patch.validate()
 
@@ -590,9 +584,7 @@ class TestFilePatchInfoEdgeCases:
 
     def test_large_line_counts(self):
         """Test FilePatchInfo with large line counts."""
-        patch = FilePatchInfo(
-            filename="large.py", num_plus_lines=99999, num_minus_lines=99999
-        )
+        patch = FilePatchInfo(filename="large.py", num_plus_lines=99999, num_minus_lines=99999)
 
         assert patch.num_plus_lines == 99999
         assert patch.num_minus_lines == 99999

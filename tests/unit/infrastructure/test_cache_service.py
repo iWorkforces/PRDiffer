@@ -346,9 +346,7 @@ class TestCacheServiceTTL:
         assert result is not None
 
     @pytest.mark.anyio
-    async def test_expiration_increments_counter(
-        self, reset_cache_service, sample_pr_diff
-    ):
+    async def test_expiration_increments_counter(self, reset_cache_service, sample_pr_diff):
         """Test that expiration increments expiration counter."""
         service = CacheService()
         service._ttl = 0.1
@@ -418,9 +416,7 @@ class TestCacheServiceThreadSafety:
         async def mixed_ops():
             for _ in range(operations_per_task):
                 await service.get(cache_key, "abc123")  # Will be a hit
-                await service.get(
-                    cache_key, "wrong_sha"
-                )  # Will be a miss (SHA mismatch)
+                await service.get(cache_key, "wrong_sha")  # Will be a miss (SHA mismatch)
 
         async with anyio.create_task_group() as tg:
             for _ in range(num_tasks):
@@ -472,9 +468,7 @@ class TestCacheServiceGetInternalKey:
             service._key_mapping = {}
             service._lock = anyio.Lock()
 
-        internal_key, hash_display = await service._get_internal_key(
-            "test_key", store_mapping=True
-        )
+        internal_key, hash_display = await service._get_internal_key("test_key", store_mapping=True)
 
         assert "test_key" in service._key_mapping.values()
 

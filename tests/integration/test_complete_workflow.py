@@ -346,9 +346,7 @@ class TestWorkflowWithRealServices:
         mock_repo.get_pr_diff = AsyncMock()
         return mock_repo
 
-    def test_real_services_integration(
-        self, real_settings, real_logger, real_cache, mock_repository
-    ):
+    def test_real_services_integration(self, real_settings, real_logger, real_cache, mock_repository):
         """Test integration with real infrastructure services."""
         # This test uses real services (except GitHub repository)
         # to verify service compatibility

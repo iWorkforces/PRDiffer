@@ -35,12 +35,8 @@ class TestInputValidatorPerformance:
         elapsed = time.perf_counter() - start
 
         # Should be able to validate 10k URLs in under 1 second
-        assert elapsed < 1.0, (
-            f"URL validation too slow: {elapsed:.3f}s for {iterations} iterations"
-        )
-        print(
-            f"URL validation: {iterations} iterations in {elapsed:.3f}s ({iterations / elapsed:.0f} ops/sec)"
-        )
+        assert elapsed < 1.0, f"URL validation too slow: {elapsed:.3f}s for {iterations} iterations"
+        print(f"URL validation: {iterations} iterations in {elapsed:.3f}s ({iterations / elapsed:.0f} ops/sec)")
 
     def test_sanitization_performance(self):
         """Test that string sanitization is fast."""
@@ -58,12 +54,8 @@ class TestInputValidatorPerformance:
         elapsed = time.perf_counter() - start
 
         total_ops = iterations * len(test_strings)
-        assert elapsed < 2.0, (
-            f"Sanitization too slow: {elapsed:.3f}s for {total_ops} operations"
-        )
-        print(
-            f"Sanitization: {total_ops} operations in {elapsed:.3f}s ({total_ops / elapsed:.0f} ops/sec)"
-        )
+        assert elapsed < 2.0, f"Sanitization too slow: {elapsed:.3f}s for {total_ops} operations"
+        print(f"Sanitization: {total_ops} operations in {elapsed:.3f}s ({total_ops / elapsed:.0f} ops/sec)")
 
 
 class TestCachingPerformance:
@@ -92,9 +84,7 @@ class TestCachingPerformance:
         elapsed_cached = time.perf_counter() - start
 
         # Only first call should have been executed
-        assert call_count[0] == 1, (
-            f"Cache not working: {call_count[0]} calls instead of 1"
-        )
+        assert call_count[0] == 1, f"Cache not working: {call_count[0]} calls instead of 1"
 
         # Should be very fast (all cache hits)
         assert elapsed_cached < 0.1, f"Cached calls too slow: {elapsed_cached:.3f}s"
@@ -140,12 +130,8 @@ class TestAuthenticationPerformance:
             auth._hash_api_key(api_key)
         elapsed = time.perf_counter() - start
 
-        assert elapsed < 0.5, (
-            f"Hashing too slow: {elapsed:.3f}s for {iterations} operations"
-        )
-        print(
-            f"API key hashing: {iterations} operations in {elapsed:.3f}s ({iterations / elapsed:.0f} ops/sec)"
-        )
+        assert elapsed < 0.5, f"Hashing too slow: {elapsed:.3f}s for {iterations} operations"
+        print(f"API key hashing: {iterations} operations in {elapsed:.3f}s ({iterations / elapsed:.0f} ops/sec)")
 
     def test_authentication_performance(self):
         """Test that authentication is fast."""
@@ -167,12 +153,8 @@ class TestAuthenticationPerformance:
             auth.authenticate(api_key)
         elapsed = time.perf_counter() - start
 
-        assert elapsed < 1.0, (
-            f"Authentication too slow: {elapsed:.3f}s for {iterations} operations"
-        )
-        print(
-            f"Authentication: {iterations} operations in {elapsed:.3f}s ({iterations / elapsed:.0f} ops/sec)"
-        )
+        assert elapsed < 1.0, f"Authentication too slow: {elapsed:.3f}s for {iterations} operations"
+        print(f"Authentication: {iterations} operations in {elapsed:.3f}s ({iterations / elapsed:.0f} ops/sec)")
 
 
 class TestAPIHealthTrackerPerformance:
@@ -194,9 +176,7 @@ class TestAPIHealthTrackerPerformance:
 
         # Should be fast even with caching
         assert elapsed < 0.5, f"Health score calculation too slow: {elapsed:.3f}s"
-        print(
-            f"Health score: {iterations} calculations in {elapsed:.3f}s ({iterations / elapsed:.0f} ops/sec)"
-        )
+        print(f"Health score: {iterations} calculations in {elapsed:.3f}s ({iterations / elapsed:.0f} ops/sec)")
 
     def test_stats_collection_performance(self):
         """Test that stats collection is fast."""
@@ -236,12 +216,8 @@ class TestSecurityPatternMatchingPerformance:
         elapsed = time.perf_counter() - start
 
         total_ops = iterations * len(test_inputs)
-        assert elapsed < 2.0, (
-            f"Pattern matching too slow: {elapsed:.3f}s for {total_ops} operations"
-        )
-        print(
-            f"Pattern matching: {total_ops} operations in {elapsed:.3f}s ({total_ops / elapsed:.0f} ops/sec)"
-        )
+        assert elapsed < 2.0, f"Pattern matching too slow: {elapsed:.3f}s for {total_ops} operations"
+        print(f"Pattern matching: {total_ops} operations in {elapsed:.3f}s ({total_ops / elapsed:.0f} ops/sec)")
 
     def test_case_insensitive_matching_performance(self):
         """Test case-insensitive pattern matching performance."""
@@ -296,9 +272,7 @@ class TestConcurrencyPerformance:
 
         avg_time = sum(times) / len(times)
         # Should be close to 10ms (1 call) rather than 100ms (10 calls)
-        assert avg_time < 0.05, (
-            f"Coalescing not working: {avg_time:.3f}s (expected ~0.01s)"
-        )
+        assert avg_time < 0.05, f"Coalescing not working: {avg_time:.3f}s (expected ~0.01s)"
         print(f"Request coalescing: avg {avg_time:.3f}s for 10 concurrent requests")
 
 
@@ -316,9 +290,7 @@ class TestMemoryEfficiency:
         stats = tracker.get_stats()
 
         # Should only track recent calls within window
-        assert stats["total_calls"] <= 100, (
-            f"Tracker exceeded window size: {stats['total_calls']}"
-        )
+        assert stats["total_calls"] <= 100, f"Tracker exceeded window size: {stats['total_calls']}"
 
     def test_deque_memory_behavior(self):
         """Test that deque with maxlen properly limits memory."""
@@ -365,9 +337,7 @@ class TestBenchmark:
 
         total_ops = iterations * len(test_cases)
         assert elapsed < 3.0, f"Full pipeline too slow: {elapsed:.3f}s"
-        print(
-            f"Full validation pipeline: {total_ops} operations in {elapsed:.3f}s ({total_ops / elapsed:.0f} ops/sec)"
-        )
+        print(f"Full validation pipeline: {total_ops} operations in {elapsed:.3f}s ({total_ops / elapsed:.0f} ops/sec)")
 
 
 # Run performance benchmarks

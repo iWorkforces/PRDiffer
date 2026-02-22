@@ -55,9 +55,7 @@ class FilePatchInfo:
         """Initialize computed properties after dataclass creation."""
         object.__setattr__(self, "_file_extension", self._extract_file_extension())
         object.__setattr__(self, "_is_binary", self._detect_binary_file())
-        object.__setattr__(
-            self, "_change_percentage", self._calculate_change_percentage()
-        )
+        object.__setattr__(self, "_change_percentage", self._calculate_change_percentage())
 
     def _extract_file_extension(self) -> str | None:
         """Extract file extension from filename.

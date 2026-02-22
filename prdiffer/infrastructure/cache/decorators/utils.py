@@ -36,30 +36,21 @@ def _make_hashable(obj: Any, _seen: set[int] | None = None, _depth: int = 0) -> 
     if isinstance(obj, (list, tuple)):
         _seen.add(obj_id)
         try:
-            result = tuple(
-                _make_hashable(item, _seen.copy(), _depth + 1) for item in obj
-            )
+            result = tuple(_make_hashable(item, _seen.copy(), _depth + 1) for item in obj)
         finally:
             _seen.discard(obj_id)
         return result
     elif isinstance(obj, dict):
         _seen.add(obj_id)
         try:
-            result = tuple(
-                sorted(
-                    (k, _make_hashable(v, _seen.copy(), _depth + 1))
-                    for k, v in obj.items()
-                )
-            )
+            result = tuple(sorted((k, _make_hashable(v, _seen.copy(), _depth + 1)) for k, v in obj.items()))
         finally:
             _seen.discard(obj_id)
         return result
     elif isinstance(obj, set):
         _seen.add(obj_id)
         try:
-            hashable_items = [
-                _make_hashable(item, _seen.copy(), _depth + 1) for item in obj
-            ]
+            hashable_items = [_make_hashable(item, _seen.copy(), _depth + 1) for item in obj]
             try:
                 result = tuple(sorted(hashable_items))
             except TypeError as e:

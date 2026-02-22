@@ -49,9 +49,7 @@ class TestFileProcessor:
         mock_files = [mock_file1, mock_file2, mock_file3]
 
         # Mock pattern matcher to only accept .py files
-        file_processor._pattern_matcher.is_valid_file.side_effect = lambda fname: (
-            fname.endswith(".py")
-        )
+        file_processor._pattern_matcher.is_valid_file.side_effect = lambda fname: fname.endswith(".py")
 
         # Call filter_files (public method)
         filtered = file_processor.filter_files(mock_files)
@@ -164,17 +162,13 @@ class TestFileProcessorBatchProcessing:
 
         # Mock the get_files_content_batch method on the internal github_api_service
         # The method returns a dict mapping filename -> decoded content string
-        file_processor._github_api_service.get_files_content_batch = Mock(
-            return_value={"test.py": "def hello():\n    print('world')"}
-        )
+        file_processor._github_api_service.get_files_content_batch = Mock(return_value={"test.py": "def hello():\n    print('world')"})
 
         # Create mock repository
         mock_repo = Mock()
 
         # Process the file
-        result = file_processor.process_files_to_patches(
-            [mock_file], mock_repo, "head_sha", "base_sha"
-        )
+        result = file_processor.process_files_to_patches([mock_file], mock_repo, "head_sha", "base_sha")
 
         # Should return a list of FilePatchInfo objects
         assert isinstance(result, list)

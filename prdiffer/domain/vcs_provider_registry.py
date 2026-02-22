@@ -75,9 +75,7 @@ class VCSProviderRegistry:
 
         raise UnsupportedProviderError(url)
 
-    def get_provider_by_name(
-        self, provider_name: str
-    ) -> VCSDiffRepositoryInterface | None:
+    def get_provider_by_name(self, provider_name: str) -> VCSDiffRepositoryInterface | None:
         """Get provider by name (explicit selection).
 
         Args:

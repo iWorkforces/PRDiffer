@@ -67,9 +67,7 @@ def server_with_mock_logger(mock_logger: Mock) -> FastMCPServer:
 class TestLoggingSafety:
     """Ensure sensitive information is not logged at INFO level."""
 
-    def test_does_not_log_full_diff_at_info(
-        self, server_with_mock_logger: FastMCPServer, mock_logger: Mock
-    ) -> None:
+    def test_does_not_log_full_diff_at_info(self, server_with_mock_logger: FastMCPServer, mock_logger: Mock) -> None:
         """Verify that full diff content is not logged at INFO level.
 
         This test ensures that when PR diff is successfully fetched,
@@ -87,9 +85,7 @@ index 1234567..abcdefg 100644
 """
         pr_diff = _create_pr_diff_with_content(sample_diff_content)
 
-        result = server_with_mock_logger._tool_registry._log_metrics_and_return_success(
-            start_time=0.0, pr_diff=pr_diff
-        )
+        result = server_with_mock_logger._tool_registry._log_metrics_and_return_success(start_time=0.0, pr_diff=pr_diff)
 
         info_records = [r for r in mock_logger.records if r["level"] == "INFO"]
         for record in info_records:
@@ -99,9 +95,7 @@ index 1234567..abcdefg 100644
 
         assert result == pr_diff
 
-    def test_includes_size_hash_in_info(
-        self, server_with_mock_logger: FastMCPServer, mock_logger: Mock
-    ) -> None:
+    def test_includes_size_hash_in_info(self, server_with_mock_logger: FastMCPServer, mock_logger: Mock) -> None:
         """Verify that INFO log includes size/hash summary of diff.
 
         This test ensures that INFO level logs include summary information
@@ -110,24 +104,15 @@ index 1234567..abcdefg 100644
         sample_diff_content = "sample diff content for testing"
         pr_diff = _create_pr_diff_with_content(sample_diff_content)
 
-        server_with_mock_logger._tool_registry._log_metrics_and_return_success(
-            start_time=0.0, pr_diff=pr_diff
-        )
+        server_with_mock_logger._tool_registry._log_metrics_and_return_success(start_time=0.0, pr_diff=pr_diff)
 
         info_records = [r for r in mock_logger.records if r["level"] == "INFO"]
         assert len(info_records) > 0, "Should have INFO logs"
 
-        summary_found = any(
-            "size" in r["message"].lower()
-            or "hash" in r["message"].lower()
-            or "bytes" in r["message"].lower()
-            for r in info_records
-        )
+        summary_found = any("size" in r["message"].lower() or "hash" in r["message"].lower() or "bytes" in r["message"].lower() for r in info_records)
         assert summary_found, "INFO log should include size/hash summary"
 
-    def test_approve_pr_concise_info(
-        self, server_with_mock_logger: FastMCPServer, mock_logger: Mock
-    ) -> None:
+    def test_approve_pr_concise_info(self, server_with_mock_logger: FastMCPServer, mock_logger: Mock) -> None:
         """Verify that approve_pr result is not logged at INFO level with full content.
 
         This test ensures that when a PR is approved, the INFO log
@@ -136,9 +121,7 @@ index 1234567..abcdefg 100644
         """
         approval_result = "Successfully approved PR #123 with compliment: Great work!"
 
-        server_with_mock_logger._logger.info(
-            f"Successfully approved PR\n{approval_result}"
-        )
+        server_with_mock_logger._logger.info(f"Successfully approved PR\n{approval_result}")
 
         info_records = [r for r in mock_logger.records if r["level"] == "INFO"]
         assert len(info_records) > 0
@@ -147,9 +130,7 @@ index 1234567..abcdefg 100644
             if "approved PR" in record["message"].lower():
                 assert len(record["message"]) < 500, "Approval log should be concise"
 
-    def test_debug_no_large_blocks(
-        self, server_with_mock_logger: FastMCPServer, mock_logger: Mock
-    ) -> None:
+    def test_debug_no_large_blocks(self, server_with_mock_logger: FastMCPServer, mock_logger: Mock) -> None:
         """Verify that DEBUG level can include diff summary information.
 
         This test ensures that DEBUG logs can include summary information
@@ -158,9 +139,7 @@ index 1234567..abcdefg 100644
         sample_diff_content = "diff content for debug testing"
         pr_diff = _create_pr_diff_with_content(sample_diff_content)
 
-        server_with_mock_logger._tool_registry._log_metrics_and_return_success(
-            start_time=0.0, pr_diff=pr_diff
-        )
+        server_with_mock_logger._tool_registry._log_metrics_and_return_success(start_time=0.0, pr_diff=pr_diff)
 
         debug_records = [r for r in mock_logger.records if r["level"] == "DEBUG"]
         if debug_records:
@@ -169,13 +148,9 @@ index 1234567..abcdefg 100644
                     words = record["message"].split()
                     for word in words:
                         if len(word) > 200:
-                            assert False, (
-                                f"DEBUG log contains large text block: {word[:50]}..."
-                            )
+                            assert False, f"DEBUG log contains large text block: {word[:50]}..."
 
-    def test_no_tokens_or_secrets_logged(
-        self, server_with_mock_logger: FastMCPServer, mock_logger: Mock
-    ) -> None:
+    def test_no_tokens_or_secrets_logged(self, server_with_mock_logger: FastMCPServer, mock_logger: Mock) -> None:
         """Verify that tokens, passwords, and secrets are never logged.
 
         This test ensures that even in error cases, sensitive credentials
@@ -193,20 +168,12 @@ index 1234567..abcdefg 100644
 """
         pr_diff = _create_pr_diff_with_content(sensitive_diff)
 
-        result = server_with_mock_logger._tool_registry._log_metrics_and_return_success(
-            start_time=0.0, pr_diff=pr_diff
-        )
+        result = server_with_mock_logger._tool_registry._log_metrics_and_return_success(start_time=0.0, pr_diff=pr_diff)
 
         all_records = mock_logger.records
         for record in all_records:
-            assert "sk-" not in record["message"].lower(), (
-                "API keys should not be logged"
-            )
-            assert "secret123" not in record["message"].lower(), (
-                "Passwords should not be logged"
-            )
-            assert "password123" not in record["message"].lower(), (
-                "Passwords should not be logged"
-            )
+            assert "sk-" not in record["message"].lower(), "API keys should not be logged"
+            assert "secret123" not in record["message"].lower(), "Passwords should not be logged"
+            assert "password123" not in record["message"].lower(), "Passwords should not be logged"
 
         assert result == pr_diff

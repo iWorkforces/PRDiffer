@@ -19,9 +19,7 @@ async def test_github_client():
 
     # Test getting latest commit SHA
     try:
-        result = await service.get_latest_commit_sha(
-            "karcher-digital", "iotc-documentation", 42
-        )
+        result = await service.get_latest_commit_sha("karcher-digital", "iotc-documentation", 42)
 
         if result:
             print(f"✓ Successfully got commit SHA: {result}")
@@ -34,18 +32,12 @@ async def test_github_client():
 
     # Test getting PR diff
     try:
-        pr_diff_result: Optional[PRDiff] = await service.get_pr_diff(
-            "karcher-digital", "iotc-documentation", 42
-        )
+        pr_diff_result: Optional[PRDiff] = await service.get_pr_diff("karcher-digital", "iotc-documentation", 42)
 
         if pr_diff_result:
             print(f"✓ Successfully got PR diff: {type(pr_diff_result)}")
-            print(
-                f"  - Diff content length: {len(pr_diff_result.diff_content) if pr_diff_result.diff_content else 0}"
-            )
-            print(
-                f"  - Commit messages: {len(pr_diff_result.commit_messages) if pr_diff_result.commit_messages else 0}"
-            )
+            print(f"  - Diff content length: {len(pr_diff_result.diff_content) if pr_diff_result.diff_content else 0}")
+            print(f"  - Commit messages: {len(pr_diff_result.commit_messages) if pr_diff_result.commit_messages else 0}")
         else:
             print("✗ Failed to get PR diff (returned None)")
 

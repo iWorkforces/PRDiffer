@@ -4,7 +4,8 @@ This module provides a native async parallel executor that replaces
 ThreadPoolExecutor with anyio's structured concurrency primitives.
 """
 
-from typing import Callable, Any, TypeVar, Awaitable, cast
+from collections.abc import Callable, Awaitable
+from typing import Any, TypeVar, cast
 
 import anyio
 from prdiffer.infrastructure.logging.console_logger import get_logger
@@ -138,9 +139,7 @@ class AsyncParallelExecutor:
                 raise
 
         if errors:
-            self._logger.warning(
-                f"Failed to process {len(errors)} items out of {len(items)}"
-            )
+            self._logger.warning(f"Failed to process {len(errors)} items out of {len(items)}")
 
         return results
 
@@ -195,9 +194,7 @@ class AsyncParallelExecutor:
                 raise
 
         if errors:
-            self._logger.warning(
-                f"Failed to process {len(errors)} items out of {len(items)}"
-            )
+            self._logger.warning(f"Failed to process {len(errors)} items out of {len(items)}")
 
         return results
 
@@ -265,9 +262,7 @@ class AsyncParallelExecutor:
                 raise
 
         if errors:
-            self._logger.warning(
-                f"Failed to process {len(errors)} items out of {len(items)}"
-            )
+            self._logger.warning(f"Failed to process {len(errors)} items out of {len(items)}")
 
         return results
 
@@ -331,9 +326,7 @@ class AsyncParallelExecutor:
                 raise
 
         if errors:
-            self._logger.warning(
-                f"Failed to process {len(errors)} items out of {len(items)}"
-            )
+            self._logger.warning(f"Failed to process {len(errors)} items out of {len(items)}")
 
         return results
 

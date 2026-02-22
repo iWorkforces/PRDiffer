@@ -71,9 +71,7 @@ class ETagRequestAdapter:
             return self._cache_service.get_etag(cache_key)
         return None
 
-    def _store_etag(
-        self, cache_key: str, etag: str, commit_sha: str | None = None
-    ) -> None:
+    def _store_etag(self, cache_key: str, etag: str, commit_sha: str | None = None) -> None:
         """Store ETag in cache service."""
         if self._cache_service:
             self._cache_service.set_etag(cache_key, etag, commit_sha)
@@ -107,9 +105,7 @@ class ETagRequestAdapter:
             "hit_rate_percent": round(hit_rate, 2),
         }
 
-    def add_if_none_match_header(
-        self, url: str, headers: dict[str, str]
-    ) -> dict[str, str]:
+    def add_if_none_match_header(self, url: str, headers: dict[str, str]) -> dict[str, str]:
         """Add If-None-Match header to request headers if ETag is cached.
 
         Args:
@@ -131,9 +127,7 @@ class ETagRequestAdapter:
             )
         return headers
 
-    def handle_etag_response(
-        self, url: str, status_code: int, headers: dict[str, str], content: str
-    ) -> str:
+    def handle_etag_response(self, url: str, status_code: int, headers: dict[str, str], content: str) -> str:
         """Handle HTTP response, storing ETag and handling 304 responses.
 
         Args:
@@ -152,9 +146,7 @@ class ETagRequestAdapter:
 
         if status_code == self.HTTP_NOT_MODIFIED:
             self._not_modified_responses += 1
-            cached_content = (
-                self._cache_service.get(url) if self._cache_service else None
-            )
+            cached_content = self._cache_service.get(url) if self._cache_service else None
 
             if cached_content is not None:
                 self._logger.info(

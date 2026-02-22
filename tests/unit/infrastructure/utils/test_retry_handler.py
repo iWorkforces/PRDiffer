@@ -91,9 +91,7 @@ class TestRetryHandlerCircuitBreaker:
             circuit_breaker_timeout=1.0,
         )
 
-    def test_circuit_breaker_opens_on_threshold(
-        self, retry_handler_with_circuit_breaker
-    ):
+    def test_circuit_breaker_opens_on_threshold(self, retry_handler_with_circuit_breaker):
         """Test that circuit breaker opens after threshold failures."""
         call_count = [0]
 
@@ -114,10 +112,7 @@ class TestRetryHandlerCircuitBreaker:
         # Check the state using the enum value
         from prdiffer.infrastructure.utils.circuit_breaker.core import CircuitState
 
-        assert (
-            retry_handler_with_circuit_breaker._circuit_breaker.state
-            == CircuitState.OPEN
-        )
+        assert retry_handler_with_circuit_breaker._circuit_breaker.state == CircuitState.OPEN
 
 
 class TestRetryHandlerErrorClassification:
@@ -190,9 +185,7 @@ class TestRetryHandlerAsync:
             # Use "connection" in error message so it will be retried
             raise ConnectionError("Connection failed")
 
-        with patch(
-            "prdiffer.infrastructure.utils.retry.handler.anyio.sleep", mock_sleep
-        ):
+        with patch("prdiffer.infrastructure.utils.retry.handler.anyio.sleep", mock_sleep):
             with pytest.raises(ConnectionError):
                 await retry_handler.execute_with_retry_async(failing_func)
 

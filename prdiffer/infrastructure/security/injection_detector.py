@@ -12,7 +12,7 @@ Patterns can be loaded from settings or use default values.
 import logging
 import re
 from dataclasses import dataclass
-from typing import Pattern, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from prdiffer.infrastructure.settings import SettingsService
@@ -39,9 +39,7 @@ class SecurityPatterns:
     sql_injection: list[str]
 
     @classmethod
-    def from_settings(
-        cls, settings_service: "SettingsService | None"
-    ) -> "SecurityPatterns":
+    def from_settings(cls, settings_service: "SettingsService | None") -> "SecurityPatterns":
         """Load patterns from settings service.
 
         Args:
@@ -84,9 +82,7 @@ class SecurityPatterns:
 
             if command or path or sql:
                 return cls(
-                    command_injection=command
-                    if command
-                    else defaults.command_injection,
+                    command_injection=command if command else defaults.command_injection,
                     path_traversal=path if path else defaults.path_traversal,
                     sql_injection=sql if sql else defaults.sql_injection,
                 )
@@ -101,7 +97,7 @@ class SecurityPatterns:
 
         return defaults
 
-    def compile_command_injection(self) -> Pattern:
+    def compile_command_injection(self) -> re.Pattern[str]:
         """Compile command injection patterns into a single regex.
 
         Returns:
@@ -109,7 +105,7 @@ class SecurityPatterns:
         """
         return re.compile("|".join(self.command_injection), re.IGNORECASE)
 
-    def compile_path_traversal(self) -> Pattern:
+    def compile_path_traversal(self) -> re.Pattern[str]:
         """Compile path traversal patterns into a single regex.
 
         Returns:
@@ -117,7 +113,7 @@ class SecurityPatterns:
         """
         return re.compile("|".join(self.path_traversal), re.IGNORECASE)
 
-    def compile_sql_injection(self) -> Pattern:
+    def compile_sql_injection(self) -> re.Pattern[str]:
         """Compile SQL injection patterns into a single regex.
 
         Returns:
@@ -170,9 +166,7 @@ class InjectionDetector:
 
     # Pre-compiled combined patterns for performance
     _COMMAND_INJECTION_COMPILED = re.compile(r"[;&|`$]|\$\(|`", re.IGNORECASE)
-    _PATH_TRAVERSAL_COMPILED = re.compile(
-        r"\.\.|~/|/etc/|/var/|/usr/|[a-zA-Z]:\\|\.\\|\\\\", re.IGNORECASE
-    )
+    _PATH_TRAVERSAL_COMPILED = re.compile(r"\.\.|~/|/etc/|/var/|/usr/|[a-zA-Z]:\\|\.\\|\\\\", re.IGNORECASE)
     _SQL_INJECTION_COMPILED = re.compile(
         r"(?:--|#|/\*|\*/)|\b(?:union|select|insert|update|delete|drop|create|alter)\b|(?:exec|execute|xp_)",
         re.IGNORECASE,
@@ -198,9 +192,7 @@ class InjectionDetector:
         self._security_patterns = security_patterns
         if security_patterns is not None:
             # Compile custom patterns for instance use
-            self._command_injection_compiled = (
-                security_patterns.compile_command_injection()
-            )
+            self._command_injection_compiled = security_patterns.compile_command_injection()
             self._path_traversal_compiled = security_patterns.compile_path_traversal()
             self._sql_injection_compiled = security_patterns.compile_sql_injection()
         else:

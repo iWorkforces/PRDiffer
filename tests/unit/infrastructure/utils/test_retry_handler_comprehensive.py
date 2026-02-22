@@ -102,9 +102,7 @@ class TestContextAwareRetry:
             raise Exception("404 Not Found")
 
         with pytest.raises(Exception):
-            handler.execute_with_retry(
-                failing_func, context=OperationContext.FILE_CONTENT
-            )
+            handler.execute_with_retry(failing_func, context=OperationContext.FILE_CONTENT)
 
         assert call_count[0] == 1
 
@@ -123,9 +121,7 @@ class TestContextAwareRetry:
             raise Exception("401 Unauthorized")
 
         with pytest.raises(Exception):
-            handler.execute_with_retry(
-                failing_func, context=OperationContext.REPOSITORY_ACCESS
-            )
+            handler.execute_with_retry(failing_func, context=OperationContext.REPOSITORY_ACCESS)
 
         assert call_count[0] == 1
 
@@ -206,9 +202,7 @@ class TestLogging:
             mock_logger = Mock()
             mock_get_logger.return_value = mock_logger
             error = Exception("test error")
-            handler._log_permanent_failure(
-                error, should_retry=False, is_last_attempt=True
-            )
+            handler._log_permanent_failure(error, should_retry=False, is_last_attempt=True)
             mock_logger.info.assert_called()
 
     def test_log_permanent_failure_custom_level(self):
@@ -218,9 +212,7 @@ class TestLogging:
             mock_logger = Mock()
             mock_get_logger.return_value = mock_logger
             error = Exception("test error")
-            handler._log_permanent_failure(
-                error, should_retry=False, is_last_attempt=True
-            )
+            handler._log_permanent_failure(error, should_retry=False, is_last_attempt=True)
             mock_logger.warning.assert_called()
 
 
@@ -404,9 +396,7 @@ class TestAsyncRetryHandler:
                 raise ConnectionError("connection error")
             return "success"
 
-        with patch(
-            "prdiffer.infrastructure.utils.retry.handler.anyio.sleep"
-        ) as mock_sleep:
+        with patch("prdiffer.infrastructure.utils.retry.handler.anyio.sleep") as mock_sleep:
             mock_sleep.return_value = None
             result = await handler.execute_with_retry_async(transient_failure)
             assert result == "success"

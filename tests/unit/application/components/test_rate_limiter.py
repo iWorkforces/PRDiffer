@@ -117,9 +117,7 @@ class TestRateLimiterCheckRateLimit:
 
         # Set all timestamps to be outside the window
         current_time = time.time()
-        limiter._client_timestamps["client1"] = [
-            current_time - limiter._rate_limit_window - 1 for _ in range(100)
-        ]
+        limiter._client_timestamps["client1"] = [current_time - limiter._rate_limit_window - 1 for _ in range(100)]
 
         # Now the request should be allowed since all old requests expired
         # check_rate_limit will clean up old timestamps
@@ -390,9 +388,7 @@ class TestRateLimiterCleanup:
 
         # Simulate a client with old timestamps
         current_time = time.time()
-        limiter._client_timestamps["old_client"] = [
-            current_time - limiter._client_ttl - 1
-        ]
+        limiter._client_timestamps["old_client"] = [current_time - limiter._client_ttl - 1]
         limiter._last_access["old_client"] = current_time - limiter._client_ttl - 1
 
         # Manually trigger cleanup
@@ -413,9 +409,7 @@ class TestRateLimiterCleanup:
         limiter._last_access["active_client"] = current_time
 
         # Add an old client to trigger cleanup
-        limiter._client_timestamps["old_client"] = [
-            current_time - limiter._client_ttl - 1
-        ]
+        limiter._client_timestamps["old_client"] = [current_time - limiter._client_ttl - 1]
         limiter._last_access["old_client"] = current_time - limiter._client_ttl - 1
 
         # Manually trigger cleanup

@@ -35,15 +35,11 @@ class TestHealthEndpoints:
     @pytest.mark.anyio
     async def test_get_health_status_success(self, health_endpoints):
         """Test _get_health_status returns all component statuses."""
-        health_endpoints._health_monitor.check_health.return_value = {
-            "status": "healthy"
-        }
+        health_endpoints._health_monitor.check_health.return_value = {"status": "healthy"}
         health_endpoints._authentication.get_status.return_value = {"enabled": True}
         health_endpoints._cache_service.get_stats.return_value = {"size": 100}
         health_endpoints._repository_cache_service.stats.return_value = {"entries": 50}
-        health_endpoints._request_coalescing.get_stats = AsyncMock(
-            return_value={"active": 5}
-        )
+        health_endpoints._request_coalescing.get_stats = AsyncMock(return_value={"active": 5})
 
         status = await health_endpoints._get_health_status()
 
@@ -62,9 +58,7 @@ class TestHealthEndpoints:
     @pytest.mark.anyio
     async def test_health_handler_success(self, health_endpoints):
         """Test health handler returns health status."""
-        health_endpoints._health_monitor.check_health.return_value = {
-            "status": "healthy"
-        }
+        health_endpoints._health_monitor.check_health.return_value = {"status": "healthy"}
         health_endpoints._authentication.get_status.return_value = {"enabled": True}
         health_endpoints._cache_service.get_stats.return_value = {}
         health_endpoints._repository_cache_service.stats.return_value = {}
@@ -78,9 +72,7 @@ class TestHealthEndpoints:
     @pytest.mark.anyio
     async def test_health_handler_runtime_error(self, health_endpoints):
         """Test health handler handles RuntimeError."""
-        health_endpoints._health_monitor.check_health.side_effect = RuntimeError(
-            "test error"
-        )
+        health_endpoints._health_monitor.check_health.side_effect = RuntimeError("test error")
 
         handler = health_endpoints.get_health_handler()
         result = await handler()
@@ -103,9 +95,7 @@ class TestHealthEndpoints:
     @pytest.mark.anyio
     async def test_health_handler_attribute_error(self, health_endpoints):
         """Test health handler handles AttributeError."""
-        health_endpoints._health_monitor.check_health.side_effect = AttributeError(
-            "test attr"
-        )
+        health_endpoints._health_monitor.check_health.side_effect = AttributeError("test attr")
 
         handler = health_endpoints.get_health_handler()
         result = await handler()
@@ -136,9 +126,7 @@ class TestHealthEndpoints:
     @pytest.mark.anyio
     async def test_metrics_handler_runtime_error(self, health_endpoints):
         """Test metrics handler handles RuntimeError."""
-        health_endpoints._metrics_tracker.get_metrics_summary.side_effect = (
-            RuntimeError("test")
-        )
+        health_endpoints._metrics_tracker.get_metrics_summary.side_effect = RuntimeError("test")
 
         handler = health_endpoints.get_metrics_handler()
         mock_request = Mock()
@@ -150,9 +138,7 @@ class TestHealthEndpoints:
     @pytest.mark.anyio
     async def test_metrics_handler_key_error(self, health_endpoints):
         """Test metrics handler handles KeyError."""
-        health_endpoints._metrics_tracker.get_metrics_summary.side_effect = KeyError(
-            "test"
-        )
+        health_endpoints._metrics_tracker.get_metrics_summary.side_effect = KeyError("test")
 
         handler = health_endpoints.get_metrics_handler()
         mock_request = Mock()
@@ -163,9 +149,7 @@ class TestHealthEndpoints:
     @pytest.mark.anyio
     async def test_metrics_handler_attribute_error(self, health_endpoints):
         """Test metrics handler handles AttributeError."""
-        health_endpoints._metrics_tracker.get_metrics_summary.side_effect = (
-            AttributeError("test")
-        )
+        health_endpoints._metrics_tracker.get_metrics_summary.side_effect = AttributeError("test")
 
         handler = health_endpoints.get_metrics_handler()
         mock_request = Mock()

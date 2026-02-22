@@ -72,9 +72,7 @@ class InputSanitizer:
 
         # Check length
         if len(value) > max_length:
-            raise InputSanitizationError(
-                f"String too long (max {max_length} characters)"
-            )
+            raise InputSanitizationError(f"String too long (max {max_length} characters)")
 
         # Check for null bytes
         if "\x00" in value:
@@ -85,9 +83,7 @@ class InputSanitizer:
             raise SuspiciousOperationError("String contains suspicious patterns")
 
         # Remove control characters except common whitespace
-        sanitized = "".join(
-            char for char in value if char in "\t\n\r" or not (0 <= ord(char) < 32)
-        )
+        sanitized = "".join(char for char in value if char in "\t\n\r" or not (0 <= ord(char) < 32))
 
         return sanitized
 
@@ -110,9 +106,7 @@ class InputSanitizer:
             value = value[:max_length] + "..."
 
         # Remove control characters
-        sanitized = "".join(
-            char if char.isprintable() or char in "\t\n\r" else "?" for char in value
-        )
+        sanitized = "".join(char if char.isprintable() or char in "\t\n\r" else "?" for char in value)
 
         return sanitized
 

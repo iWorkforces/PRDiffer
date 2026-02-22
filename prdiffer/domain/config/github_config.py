@@ -120,13 +120,9 @@ class GitHubConfig(GitHubConfigInterface):
             retry_on_403=config.get("retry_on_403", True),
             retry_on_500=config.get("retry_on_500", True),
             retry_log_level=config.get("retry_log_level", "DEBUG"),
-            permanent_failure_log_level=config.get(
-                "permanent_failure_log_level", "INFO"
-            ),
+            permanent_failure_log_level=config.get("permanent_failure_log_level", "INFO"),
             circuit_breaker_enabled=config.get("circuit_breaker_enabled", True),
-            circuit_breaker_failure_threshold=config.get(
-                "circuit_breaker_failure_threshold", 5
-            ),
+            circuit_breaker_failure_threshold=config.get("circuit_breaker_failure_threshold", 5),
             circuit_breaker_timeout=config.get("circuit_breaker_timeout", 60),
             adaptive_retry_enabled=config.get("adaptive_retry_enabled", True),
             max_adaptive_delay=config.get("max_adaptive_delay", 30),
@@ -259,6 +255,4 @@ class GitHubConfig(GitHubConfigInterface):
         Returns:
             bool: True if file should be processed
         """
-        return not self.should_ignore_file(filename) and self.has_valid_extension(
-            filename
-        )
+        return not self.should_ignore_file(filename) and self.has_valid_extension(filename)

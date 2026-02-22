@@ -55,9 +55,7 @@ class ExceptionSanitizer:
     API_KEY_IN_URL = r"([&?](api_key|token|access_token|secret|password)[=][^&\s]{8,})"
 
     @classmethod
-    def sanitize_exception_message(
-        cls, exception: Exception, max_length: int = 500
-    ) -> str:
+    def sanitize_exception_message(cls, exception: Exception, max_length: int = 500) -> str:
         """Sanitize an exception message for safe logging.
 
         Args:
@@ -147,9 +145,7 @@ class ExceptionSanitizer:
         }
 
         if include_traceback and exc_traceback is not None:
-            result["traceback"] = cls.sanitize_traceback(
-                exc_type, exc_value, exc_traceback
-            )[:max_length]
+            result["traceback"] = cls.sanitize_traceback(exc_type, exc_value, exc_traceback)[:max_length]
 
         return result
 
@@ -172,11 +168,7 @@ class ExceptionSanitizer:
         for pattern in cls.GITHUB_TOKEN_PATTERNS:
             sanitized = re.sub(
                 pattern,
-                lambda m: (
-                    m.group(1)[:8] + "*" * (len(m.group(1)) - 8)
-                    if m.group(1)
-                    else m.group(0)
-                ),
+                lambda m: m.group(1)[:8] + "*" * (len(m.group(1)) - 8) if m.group(1) else m.group(0),
                 sanitized,
                 flags=re.IGNORECASE,
             )
@@ -185,12 +177,7 @@ class ExceptionSanitizer:
         for pattern in cls.GENERIC_TOKEN_PATTERNS:
             sanitized = re.sub(
                 pattern,
-                lambda m: (
-                    m.group(1)
-                    + m.group(2)[:4]
-                    + "*" * (len(m.group(2)) - 4)
-                    + m.group(3)
-                ),
+                lambda m: m.group(1) + m.group(2)[:4] + "*" * (len(m.group(2)) - 4) + m.group(3),
                 sanitized,
                 flags=re.IGNORECASE,
             )
@@ -317,9 +304,7 @@ def sanitize_exception_for_logging(
     Returns:
         Dictionary with sanitized exception information
     """
-    return _sanitizer.sanitize_exception_for_logging(
-        exception, include_traceback, max_length
-    )
+    return _sanitizer.sanitize_exception_for_logging(exception, include_traceback, max_length)
 
 
 def redact_auth_header(header_value: str) -> str:

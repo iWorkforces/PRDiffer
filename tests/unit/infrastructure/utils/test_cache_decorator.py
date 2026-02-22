@@ -155,47 +155,7 @@ class TestMakeHashable:
 
     def test_max_depth_exceeded(self):
         """Test max depth is handled."""
-        deep_obj = {
-            "a": {
-                "b": {
-                    "c": {
-                        "d": {
-                            "e": {
-                                "f": {
-                                    "g": {
-                                        "h": {
-                                            "i": {
-                                                "j": {
-                                                    "k": {
-                                                        "l": {
-                                                            "m": {
-                                                                "n": {
-                                                                    "o": {
-                                                                        "p": {
-                                                                            "q": {
-                                                                                "r": {
-                                                                                    "s": {
-                                                                                        "t": 1
-                                                                                    }
-                                                                                }
-                                                                            }
-                                                                        }
-                                                                    }
-                                                                }
-                                                            }
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
+        deep_obj = {"a": {"b": {"c": {"d": {"e": {"f": {"g": {"h": {"i": {"j": {"k": {"l": {"m": {"n": {"o": {"p": {"q": {"r": {"s": {"t": 1}}}}}}}}}}}}}}}}}}}}
 
         result = _make_hashable(deep_obj)
 

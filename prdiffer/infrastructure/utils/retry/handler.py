@@ -1,7 +1,8 @@
 """Unified retry handler implementation."""
 
 import time
-from typing import Any, Callable, Coroutine, TypeVar
+from collections.abc import Callable, Coroutine
+from typing import Any, TypeVar
 
 import anyio
 
@@ -64,9 +65,7 @@ class UnifiedRetryHandler(BaseUnifiedRetryHandler):
                     CircuitBreakerOpenException,
                 )
 
-                raise CircuitBreakerOpenException(
-                    f"Circuit breaker is open. State: {self._circuit_breaker.state.value}"
-                )
+                raise CircuitBreakerOpenException(f"Circuit breaker is open. State: {self._circuit_breaker.state.value}")
 
         config = self._get_context_config(context)
         max_retries = config["max_retries"]

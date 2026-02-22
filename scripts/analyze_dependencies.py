@@ -170,9 +170,7 @@ def print_violations(violations: list[tuple[str, str, str]]) -> None:
         print()
 
 
-def print_statistics(
-    dependencies: dict[str, set[str]], violations: list[tuple[str, str, str]]
-) -> None:
+def print_statistics(dependencies: dict[str, set[str]], violations: list[tuple[str, str, str]]) -> None:
     """Print architecture statistics.
 
     Args:
@@ -215,18 +213,14 @@ def main():
     """Main entry point."""
     import argparse
 
-    parser = argparse.ArgumentParser(
-        description="Generate dependency graph for PRDifferMCP"
-    )
+    parser = argparse.ArgumentParser(description="Generate dependency graph for PRDifferMCP")
     parser.add_argument(
         "--path",
         type=str,
         default="prdiffer",
         help="Path to prdiffer directory (default: prdiffer)",
     )
-    parser.add_argument(
-        "--output", type=str, help="Output file for DOT graph (requires graphviz)"
-    )
+    parser.add_argument("--output", type=str, help="Output file for DOT graph (requires graphviz)")
 
     args = parser.parse_args()
 
@@ -250,9 +244,7 @@ def main():
 
     # Exit with error code if violations found
     if violations:
-        print(
-            f"\n❌ Found {len(violations)} layer violation(s). Fix before proceeding."
-        )
+        print(f"\n❌ Found {len(violations)} layer violation(s). Fix before proceeding.")
         sys.exit(1)
     else:
         print("\n✅ Architecture is clean!")

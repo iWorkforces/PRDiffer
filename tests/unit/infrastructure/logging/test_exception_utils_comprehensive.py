@@ -44,9 +44,7 @@ class TestSanitizeExceptionMessage:
 
     def test_sanitize_github_token(self):
         """Test sanitizing GitHub token."""
-        exception = Exception(
-            "Error with token ghp_1234567890123456789012345678901234567890"
-        )
+        exception = Exception("Error with token ghp_1234567890123456789012345678901234567890")
 
         result = ExceptionSanitizer.sanitize_exception_message(exception)
 
@@ -83,9 +81,7 @@ class TestSanitizeExceptionMessage:
 
     def test_sanitize_api_key_in_url(self):
         """Test sanitizing API key in URL."""
-        exception = Exception(
-            "Request to https://api.example.com?api_key=secretkey12345678"
-        )
+        exception = Exception("Request to https://api.example.com?api_key=secretkey12345678")
 
         result = ExceptionSanitizer.sanitize_exception_message(exception)
 
@@ -96,9 +92,7 @@ class TestSanitizeExceptionMessage:
         long_message = "A" * 1000
         exception = Exception(long_message)
 
-        result = ExceptionSanitizer.sanitize_exception_message(
-            exception, max_length=100
-        )
+        result = ExceptionSanitizer.sanitize_exception_message(exception, max_length=100)
 
         assert len(result) <= 103  # max_length + "..."
         assert result.endswith("...")
@@ -135,9 +129,7 @@ class TestSanitizeTraceback:
     def test_sanitize_traceback_with_token(self):
         """Test sanitizing traceback with token."""
         try:
-            raise ValueError(
-                "Error with token ghp_1234567890123456789012345678901234567890"
-            )
+            raise ValueError("Error with token ghp_1234567890123456789012345678901234567890")
         except ValueError as e:
             result = ExceptionSanitizer.sanitize_traceback(exc_value=e)
 
@@ -162,9 +154,7 @@ class TestSanitizeExceptionForLogging:
         try:
             raise RuntimeError("Test runtime error")
         except RuntimeError as e:
-            result = ExceptionSanitizer.sanitize_exception_for_logging(
-                e, include_traceback=True
-            )
+            result = ExceptionSanitizer.sanitize_exception_for_logging(e, include_traceback=True)
 
             assert result["type"] == "RuntimeError"
             assert "traceback" in result
@@ -173,9 +163,7 @@ class TestSanitizeExceptionForLogging:
         """Test exception sanitization without traceback."""
         exception = TypeError("Test type error")
 
-        result = ExceptionSanitizer.sanitize_exception_for_logging(
-            exception, include_traceback=False
-        )
+        result = ExceptionSanitizer.sanitize_exception_for_logging(exception, include_traceback=False)
 
         assert "traceback" not in result
 
@@ -184,9 +172,7 @@ class TestSanitizeExceptionForLogging:
         long_message = "A" * 2000
         exception = ValueError(long_message)
 
-        result = ExceptionSanitizer.sanitize_exception_for_logging(
-            exception, max_length=100
-        )
+        result = ExceptionSanitizer.sanitize_exception_for_logging(exception, max_length=100)
 
         assert len(result["message"]) <= 103
 
@@ -325,9 +311,7 @@ class TestEdgeCases:
         """Test sanitizing exception with nested cause."""
         try:
             try:
-                raise ValueError(
-                    "Inner error with token ghp_inner12345678901234567890123456789012"
-                )
+                raise ValueError("Inner error with token ghp_inner12345678901234567890123456789012")
             except ValueError as inner:
                 raise RuntimeError("Outer error") from inner
         except RuntimeError as e:
