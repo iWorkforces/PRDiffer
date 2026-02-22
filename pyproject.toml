@@ -162,7 +162,8 @@ exclude = [
     "**/.mypy_cache",
     "**/.ruff_cache",
     "**/build",
-    "**/dist"
+    "**/dist",
+    "**/.*"
 ]
 ignore = [
     "**/__pycache__",
