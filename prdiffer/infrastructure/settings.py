@@ -62,6 +62,74 @@ class SettingsService(SettingsServiceInterface):
         """
         return self.settings.get(key, default)
 
+    def get_str(self, key: str, default: str = "") -> str:
+        """Get a string configuration value.
+
+        Args:
+            key: The configuration key to retrieve
+            default: Default value if key is not found or not a string
+
+        Returns:
+            str: The configuration value as string or default
+        """
+        value = self.settings.get(key, default)
+        if isinstance(value, str):
+            return value
+        return str(value) if value is not None else default
+
+    def get_int(self, key: str, default: int = 0) -> int:
+        """Get an integer configuration value.
+
+        Args:
+            key: The configuration key to retrieve
+            default: Default value if key is not found or not an integer
+
+        Returns:
+            int: The configuration value as integer or default
+        """
+        value = self.settings.get(key, default)
+        if isinstance(value, int) and not isinstance(value, bool):
+            return value
+        try:
+            return int(value) if value is not None else default
+        except ValueError, TypeError:
+            return default
+
+    def get_bool(self, key: str, default: bool = False) -> bool:
+        """Get a boolean configuration value.
+
+        Args:
+            key: The configuration key to retrieve
+            default: Default value if key is not found or not a boolean
+
+        Returns:
+            bool: The configuration value as boolean or default
+        """
+        value = self.settings.get(key, default)
+        if isinstance(value, bool):
+            return value
+        if isinstance(value, str):
+            return value.lower() in ("true", "1", "yes", "on")
+        return bool(value) if value is not None else default
+
+    def get_float(self, key: str, default: float = 0.0) -> float:
+        """Get a float configuration value.
+
+        Args:
+            key: The configuration key to retrieve
+            default: Default value if key is not found or not a float
+
+        Returns:
+            float: The configuration value as float or default
+        """
+        value = self.settings.get(key, default)
+        if isinstance(value, float):
+            return value
+        try:
+            return float(value) if value is not None else default
+        except ValueError, TypeError:
+            return default
+
     def get_github_settings(self) -> dict[str, Any]:
         """Get GitHub-related settings with caching.
 

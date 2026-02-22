@@ -5,11 +5,14 @@ enabling testability and proper dependency injection throughout the codebase.
 """
 
 from collections.abc import Callable
-from typing import Any
+from typing import Any, TypeVar
 from threading import Lock
 from prdiffer.domain.services.logger import LoggerServiceInterface
 from prdiffer.domain.exceptions import PRDifferException, ConfigurationError
 from prdiffer.domain.errors import E5009_CONFIGURATION_ERROR
+
+
+T = TypeVar("T")
 
 
 class DependencyAlreadyRegisteredError(PRDifferException):
@@ -113,8 +116,8 @@ class ServiceContainer:
 
     def get(
         self,
-        interface_type: type,
-    ) -> Any:
+        interface_type: type[T],
+    ) -> T:
         """Get service instance by interface type.
 
         Args:
@@ -167,10 +170,10 @@ class ServiceContainer:
 
     def create(
         self,
-        interface_type: type,
-        factory: Callable,
-        instance: Any | None = None,
-    ) -> Any:
+        interface_type: type[T],
+        factory: Callable[[], T],
+        instance: T | None = None,
+    ) -> T:
         """Create and register a service instance.
 
         Args:
@@ -264,7 +267,7 @@ def get_container(logger: LoggerServiceInterface | None = None) -> ServiceContai
     return _container
 
 
-def register_singleton_service(interface_type: type, factory: Callable, instance: Any | None = None) -> None:
+def register_singleton_service(interface_type: type[T], factory: Callable[[], T], instance: T | None = None) -> None:
     """Convenience function to register a singleton service.
 
     Args:
@@ -276,7 +279,7 @@ def register_singleton_service(interface_type: type, factory: Callable, instance
     container.register_singleton(interface_type, factory, instance=instance)
 
 
-def register_transient_factory(interface_type: type, factory: Callable) -> None:
+def register_transient_factory(interface_type: type[T], factory: Callable[[], T]) -> None:
     """Convenience function to register a transient factory.
 
     Args:

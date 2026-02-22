@@ -133,9 +133,16 @@ python-version = "3.14"
 exclude = [
     "tests/**",
     ".venv/**",
+    "scripts/**",
 ]
 
-# Relax type checking for test files
+[tool.ty.rules]
+# === Warnings (surface issues without blocking CI) ===
+division-by-zero = "warn"              # Detect potential division by zero
+redundant-cast = "warn"               # Detect unnecessary cast() calls
+deprecated = "warn"                   # Surface deprecated API usage
+
+# === Overrides for test files ===
 [[tool.ty.overrides]]
 include = ["tests/**"]
 
@@ -162,7 +169,6 @@ ignore = [
     "**/.venv",
     "**/venv"
 ]
-stubPath = "prdiffer/stubs"
 typeCheckingMode = "standard"
 pythonVersion = "3.14"
 pythonPlatform = "Darwin"
@@ -201,6 +207,11 @@ reportUnknownMemberType = "warning"
 reportUnknownParameterType = "warning"
 reportUnknownVariableType = "warning"
 
+# === Phase 2 targets (promote to warning) ===
+reportMissingReturnType = "warning"
+reportUnknownLambdaType = "warning"
+
+# === Disabled (keep at none) ===
 reportAny = "none"
 
 [tool.ruff]

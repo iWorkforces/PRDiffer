@@ -26,7 +26,7 @@ class CachingMixin:
     - Statistics counters are atomic within locked sections
     """
 
-    def __init__(self, max_cache_size: int = 1000, default_ttl: int = 300):
+    def __init__(self, max_cache_size: int = 1000, default_ttl: int = 300) -> None:
         """Initialize the caching mixin with size and TTL limits.
 
         Args:
@@ -40,7 +40,7 @@ class CachingMixin:
         self._max_cache_size = max_cache_size
         self._default_ttl = default_ttl
 
-    def _evict_expired_entries(self):
+    def _evict_expired_entries(self) -> None:
         """Remove expired cache entries.
 
         Thread-safe: Uses lock for all cache operations.
@@ -51,7 +51,7 @@ class CachingMixin:
             for key in expired_keys:
                 del self._method_cache[key]
 
-    def _enforce_size_limit(self):
+    def _enforce_size_limit(self) -> None:
         """Enforce cache size limit using LRU eviction.
 
         Thread-safe: Uses lock for all cache operations.
@@ -60,7 +60,7 @@ class CachingMixin:
             while len(self._method_cache) > self._max_cache_size:
                 self._method_cache.popitem(last=False)
 
-    def clear_cache(self):
+    def clear_cache(self) -> None:
         """Clear all cached method results.
 
         Thread-safe: Uses lock for all cache operations.
@@ -80,7 +80,7 @@ class CachingMixin:
         """
         with self._cache_lock:
             total_requests = self._cache_hits + self._cache_misses
-            hit_rate = self._cache_hits / total_requests if total_requests > 0 else 0
+            hit_rate = self._cache_hits / total_requests if total_requests else 0.0
 
             return {
                 "size": len(self._method_cache),
@@ -93,7 +93,7 @@ class CachingMixin:
             }
 
 
-def cached_method(ttl: int | None = None, key_prefix: str | None = None):
+def cached_method(ttl: int | None = None, key_prefix: str | None = None) -> Callable[[F], F]:
     """Decorator for caching method results with support for unhashable parameters.
 
     This decorator can be applied to methods of classes that inherit from CachingMixin.
@@ -161,7 +161,7 @@ def cached_method(ttl: int | None = None, key_prefix: str | None = None):
 
             return result
 
-        def clear_method_cache(self):
+        def clear_method_cache(self) -> None:
             """Clear cache entries for this specific method."""
             method_name = method.__name__
             if key_prefix:

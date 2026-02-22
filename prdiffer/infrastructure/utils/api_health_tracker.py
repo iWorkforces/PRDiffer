@@ -1,6 +1,7 @@
 """API health tracking for adaptive retry strategies."""
 
 import time
+import logging
 from dataclasses import dataclass
 from collections import deque
 from prdiffer.infrastructure.logging.console_logger import get_logger
@@ -27,8 +28,8 @@ class APIHealthTracker:
         self,
         window_size: int = 100,
         time_window: float = 300.0,  # 5 minutes
-        logger=None,
-    ):
+        logger: logging.Logger | None = None,
+    ) -> None:
         """Initialize the API health tracker.
 
         Args:

@@ -130,6 +130,23 @@ run_type_check() {
     fi
 }
 
+# Function to run ty type check in strict mode
+run_type_check_strict() {
+    echo -e "${BLUE}🔍 Running ty strict type check (warnings as errors)...${NC}"
+    echo ""
+
+    # Run ty with --error-on-warning flag
+    if uv run ty check --error-on-warning; then
+        echo ""
+        echo -e "${GREEN}✅ No type errors or warnings found!${NC}"
+        return 0
+    else
+        echo ""
+        echo -e "${YELLOW}⚠️  Type errors or warnings detected${NC}"
+        return 1
+    fi
+}
+
 # Function to show type check statistics
 show_stats() {
     echo -e "${BLUE}📊 Type Check Statistics:${NC}"
@@ -166,6 +183,7 @@ show_help() {
     echo ""
     echo "Options:"
     echo "  --check       Run type checking (default)"
+    echo "  --strict      Run type checking in strict mode (warnings as errors)"
     echo "  --stats       Show detailed type error statistics"
     echo "  --watch       Run in watch mode (re-check on file changes)"
     echo "  --config      Show ty configuration"
@@ -174,6 +192,7 @@ show_help() {
     echo ""
     echo "Examples:"
     echo "  $0                    # Run type check"
+    echo "  $0 --strict           # Run strict type check (warnings as errors)"
     echo "  $0 --stats           # Show statistics"
     echo "  $0 --watch           # Watch mode"
     echo ""
@@ -199,6 +218,10 @@ main() {
         case $1 in
             --check)
                 ACTION="check"
+                shift
+                ;;
+            --strict)
+                ACTION="strict"
                 shift
                 ;;
             --stats)
@@ -251,6 +274,21 @@ main() {
                 fi
                 echo ""
                 echo -e "${YELLOW}💡 Review the errors above and fix type issues${NC}"
+                exit 1
+            fi
+            ;;
+        "strict")
+            if run_type_check_strict; then
+                if [ "$SHOW_STATS" = true ]; then
+                    show_stats
+                fi
+                echo -e "${GREEN}🎉 Strict type checking completed successfully${NC}"
+            else
+                if [ "$SHOW_STATS" = true ]; then
+                    show_stats
+                fi
+                echo ""
+                echo -e "${YELLOW}💡 Review the errors/warnings above and fix type issues${NC}"
                 exit 1
             fi
             ;;

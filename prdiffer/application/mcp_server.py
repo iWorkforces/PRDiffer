@@ -137,7 +137,7 @@ class FastMCPServer:
         self._initialize_components()
         self._register_endpoints_and_tools()
 
-    def _initialize_components(self):
+    def _initialize_components(self) -> None:
         """Initialize component instances for tools, webhooks, and health endpoints."""
 
         # Initialize tool registry
@@ -173,7 +173,7 @@ class FastMCPServer:
             logger=self._logger,
         )
 
-    def _register_endpoints_and_tools(self):
+    def _register_endpoints_and_tools(self) -> None:
         """Register all FastMCP tools and endpoints with the server instance."""
 
         # Register tools (get_pr_diff, approve_pr)
@@ -191,7 +191,7 @@ class FastMCPServer:
         webhook_handler_func = self._webhook_handler.get_webhook_handler()
         self.mcp.custom_route("/webhook", methods=["POST"])(webhook_handler_func)
 
-    def run(self):
+    def run(self) -> None:
         """Start the FastMCP server with configured transport and port.
 
         Configuration priority (highest to lowest):
