@@ -140,6 +140,9 @@ class MockRepository(PRDiffRepositoryInterface):
     async def approve_pr_with_comment(self, pr_url: str, compliment: str) -> str:
         return "Approved"
 
+    async def update_pr_description(self, pr_url: str, description: str) -> str:
+        return "Updated"
+
     def supports_repository(self, url: str) -> bool:
         return "github.com" in url
 
