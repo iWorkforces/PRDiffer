@@ -22,7 +22,7 @@ from prdiffer.infrastructure.utils.retry import (
     get_advanced_retry_handler,
     OperationContext,
 )
-from prdiffer.infrastructure.logging.console_logger import get_logger
+from prdiffer.infrastructure.logging.console_logger import ConsoleLogger, get_logger
 from prdiffer.infrastructure.logging.exception_utils import (
     sanitize_exception_for_logging,
 )
@@ -65,7 +65,7 @@ class GitHubAPIClient(GitHubAPIServiceInterface):
         context_aware_retry: bool = True,
         use_advanced_retry: bool = True,
         max_concurrent: int = 4,
-        logger=None,
+        logger: "ConsoleLogger | None" = None,
         file_content_cache_max_size: int = DEFAULT_FILE_CONTENT_CACHE_MAX_SIZE,
         file_content_cache_ttl: int = DEFAULT_FILE_CONTENT_CACHE_TTL,
     ):
@@ -94,7 +94,7 @@ class GitHubAPIClient(GitHubAPIServiceInterface):
                 secondary_rate_limit_backoff=secondary_rate_limit_backoff,
                 api_health_tracking=api_health_tracking,
                 context_aware_retry=context_aware_retry,
-                logger=self._logger,
+                logger=None,
             )
         else:
             self._retry_handler = get_retry_handler(
@@ -110,7 +110,7 @@ class GitHubAPIClient(GitHubAPIServiceInterface):
                 secondary_rate_limit_backoff=secondary_rate_limit_backoff,
             )
 
-        self._file_content_cache: OrderedDict[tuple, dict[str, Any]] = OrderedDict()
+        self._file_content_cache: OrderedDict[tuple[str, str], dict[str, Any]] = OrderedDict()
         self._cache_hits = 0
         self._cache_misses = 0
         self._cache_evictions = 0
@@ -213,7 +213,7 @@ class GitHubAPIClient(GitHubAPIServiceInterface):
             self._logger.error(f"Failed to get pull request #{pr_number}", extra=sanitized)
             return None
 
-    def _is_cache_entry_valid(self, cache_key: tuple) -> bool:
+    def _is_cache_entry_valid(self, cache_key: tuple[str, str]) -> bool:
         if cache_key not in self._file_content_cache:
             return False
         entry = self._file_content_cache[cache_key]
@@ -223,7 +223,7 @@ class GitHubAPIClient(GitHubAPIServiceInterface):
     def _evict_oldest_entries(self) -> None:
         current_time = time.time()
 
-        expired_keys = []
+        expired_keys: list[tuple[str, str]] = []
         for key, entry in self._file_content_cache.items():
             age = current_time - float(entry["timestamp"])
             if age >= self._cache_ttl:
@@ -244,7 +244,7 @@ class GitHubAPIClient(GitHubAPIServiceInterface):
             self._cache_evictions += 1
             self._logger.debug(f"Cache eviction (LRU): {evicted_key[0][:50]}... [size={len(self._file_content_cache)}/{self._cache_max_size}]")
 
-    def _cache_set(self, cache_key: tuple, content: str) -> None:
+    def _cache_set(self, cache_key: tuple[str, str], content: str) -> None:
         if cache_key in self._file_content_cache:
             del self._file_content_cache[cache_key]
         else:
@@ -255,7 +255,7 @@ class GitHubAPIClient(GitHubAPIServiceInterface):
             "timestamp": time.time(),
         }
 
-    def _cache_get(self, cache_key: tuple) -> str | None:
+    def _cache_get(self, cache_key: tuple[str, str]) -> str | None:
         if not self._is_cache_entry_valid(cache_key):
             if cache_key in self._file_content_cache:
                 del self._file_content_cache[cache_key]
@@ -316,7 +316,7 @@ class GitHubAPIClient(GitHubAPIServiceInterface):
 
     def get_files_content_batch(self, repo_full_name: str, file_paths: list[str], branch: str) -> dict[str, str]:
         results: dict[str, str] = {}
-        files_to_fetch = []
+        files_to_fetch: list[str] = []
 
         for file_path in file_paths:
             cache_key = (file_path, branch)
@@ -402,7 +402,7 @@ class GitHubAPIClient(GitHubAPIServiceInterface):
         max_workers: int = 4,
     ) -> dict[str, str]:
         results: dict[str, str] = {}
-        files_to_fetch = []
+        files_to_fetch: list[str] = []
 
         for file_path in file_paths:
             cache_key = (file_path, branch)

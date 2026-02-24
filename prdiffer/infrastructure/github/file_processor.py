@@ -2,19 +2,19 @@
 
 import inspect
 import time
-import logging
 import anyio
 import asyncer
-from typing import cast
+from typing import Any, cast
 from github.File import File
 from github.PaginatedList import PaginatedList
+from github.PullRequest import PullRequest as PyGithubPullRequest
 from github.Repository import Repository
 
 from prdiffer.domain.entities.file_patch import FilePatchInfo, EDIT_TYPE
 from prdiffer.domain.services import GitHubAPIServiceInterface
 from prdiffer.domain.services import PatternMatchingServiceInterface
 from prdiffer.domain.services import DiffServiceInterface
-from prdiffer.infrastructure.logging.console_logger import get_logger
+from prdiffer.infrastructure.logging.console_logger import ConsoleLogger, get_logger
 from prdiffer.infrastructure.utils.parallel import (
     AsyncParallelExecutor,
     ErrorStrategy,
@@ -51,7 +51,7 @@ class FileProcessor:
         max_files_allowed: int = 50,
         parallel_fetch_threshold: int = 10,
         max_parallel_workers: int = 4,
-        logger: logging.Logger | None = None,
+        logger: ConsoleLogger | None = None,
     ) -> None:
         """Initialize the file processor.
 
@@ -86,7 +86,7 @@ class FileProcessor:
             logger=logger,
         )
 
-    async def get_pr_files(self, pull_request) -> PaginatedList[File]:
+    async def get_pr_files(self, pull_request: PyGithubPullRequest) -> PaginatedList[File]:
         """Get all files from the pull request with caching.
 
         Thread-safe: Uses double-check locking pattern for cache initialization.
@@ -148,7 +148,7 @@ class FileProcessor:
         invalid_files_names: list[str] = []
 
         counter_valid = 0
-        files_to_load = []
+        files_to_load: list[File] = []
 
         # First pass: identify files for batch processing
         for file in files:
@@ -201,7 +201,7 @@ class FileProcessor:
         invalid_files_names: list[str] = []
 
         counter_valid = 0
-        files_to_load = []
+        files_to_load: list[File] = []
 
         # First pass: identify files for batch processing
         for file in files:
@@ -264,11 +264,11 @@ class FileProcessor:
             List of FilePatchInfo objects with content loaded
         """
         start_time = time.time()
-        diff_files = []
+        diff_files: list[FilePatchInfo] = []
 
         # Separate files by status to optimize API calls
-        head_files = []  # Files to fetch from head commit
-        base_files = []  # Files to fetch from base commit
+        head_files: list[str] = []  # Files to fetch from head commit
+        base_files: list[str] = []  # Files to fetch from base commit
         renamed_file_mapping: dict[str, str] = {}
 
         for file in files:
@@ -285,7 +285,7 @@ class FileProcessor:
                     base_files.append(file.filename)
 
         # Fetch head and base contents in parallel using async tasks
-        fetch_tasks = []
+        fetch_tasks: list[Any] = []
         if head_files:
             fetch_tasks.append(self._github_api_service.get_files_content_batch(repository.full_name, head_files, head_sha))
         else:
@@ -301,13 +301,13 @@ class FileProcessor:
         head_contents: dict[str, str] = {}
         base_contents: dict[str, str] = {}
         try:
-            head_result = fetch_tasks[0] if head_files else {}
+            head_result: Any = fetch_tasks[0] if head_files else {}
             if inspect.iscoroutine(head_result):
                 head_result = await head_result
             if isinstance(head_result, dict):
                 head_contents = cast(dict[str, str], head_result)
 
-            base_result = fetch_tasks[1] if base_files else {}
+            base_result: Any = fetch_tasks[1] if base_files else {}
             if inspect.iscoroutine(base_result):
                 base_result = await base_result
             if isinstance(base_result, dict):
@@ -375,11 +375,11 @@ class FileProcessor:
         Returns:
             List of FilePatchInfo objects with content loaded
         """
-        diff_files = []
+        diff_files: list[FilePatchInfo] = []
 
         # Separate files by status to optimize API calls
-        head_files = []  # Files to fetch from head commit
-        base_files = []  # Files to fetch from base commit
+        head_files: list[str] = []  # Files to fetch from head commit
+        base_files: list[str] = []  # Files to fetch from base commit
         renamed_file_mapping: dict[str, str] = {}
 
         for file in files:

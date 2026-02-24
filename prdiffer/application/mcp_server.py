@@ -1,5 +1,5 @@
 import os
-from typing import Literal, TypeAlias, cast, Callable
+from typing import Literal, TypeAlias, Callable, Any, cast
 
 from fastmcp import FastMCP
 from prdiffer.version import __version__
@@ -49,7 +49,7 @@ class FastMCPServer:
         repository_cache_service: RepositoryCacheServiceInterface,
         pr_diff_service: PRDiffServiceInterface,
         logger: LoggerServiceInterface,
-        github_repository_class: Callable,
+        github_repository_class: Callable[..., Any],
         # Infrastructure dependencies injected via factory
         rate_limiter: RateLimiterProtocol,
         metrics_tracker: MetricsTrackerProtocol,
@@ -84,7 +84,7 @@ class FastMCPServer:
         self._repository_cache_service = repository_cache_service
         self._pr_diff_service = pr_diff_service
         self._logger = logger
-        self._github_repository_class = github_repository_class
+        self._github_repository_class: Callable[..., Any] = github_repository_class
 
         # Infrastructure dependencies injected via factory
         self._rate_limiter = rate_limiter

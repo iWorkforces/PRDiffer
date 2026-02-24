@@ -2,6 +2,8 @@
 
 import time
 import logging
+from typing import Any
+
 from dataclasses import dataclass
 from collections import deque
 from prdiffer.infrastructure.logging.console_logger import get_logger
@@ -149,7 +151,7 @@ class APIHealthTracker:
         cutoff_time = current_time - self.time_window
         return [call for call in self._calls if call.timestamp >= cutoff_time]
 
-    def get_stats(self) -> dict:
+    def get_stats(self) -> dict[str, Any]:
         """Get comprehensive health statistics.
 
         Returns:

@@ -13,6 +13,8 @@ from github import GithubException
 if TYPE_CHECKING:
     from github.Repository import Repository
     from github.PullRequest import PullRequest
+    from github.File import File
+    from github.PaginatedList import PaginatedList
 from prdiffer.domain.services.pr_diff_service import PRDiffServiceInterface
 from prdiffer.domain.services.logger import LoggerServiceInterface
 from prdiffer.domain.entities.pr_diff import PRDiff
@@ -244,7 +246,7 @@ class GitHubPRDiffService(CachingMixin, PRDiffServiceInterface):
                 return "\n".join(extended_diffs), diff_files
             else:
                 # Fallback: create simple diff from patches
-                diff_content_parts = []
+                diff_content_parts: list[str] = []
                 for file_patch in diff_files:
                     if file_patch.patch:
                         diff_content_parts.append(f"## File: {file_patch.filename}\n{file_patch.patch}")
@@ -373,7 +375,7 @@ class GitHubPRDiffService(CachingMixin, PRDiffServiceInterface):
             )
             return None
 
-    def _convert_github_files_to_file_patch_info(self, github_files) -> list[FilePatchInfo]:
+    def _convert_github_files_to_file_patch_info(self, github_files: "PaginatedList[File]") -> list[FilePatchInfo]:
         """Convert GitHub File objects to FilePatchInfo domain entities.
 
         Args:
@@ -382,7 +384,7 @@ class GitHubPRDiffService(CachingMixin, PRDiffServiceInterface):
         Returns:
             List of FilePatchInfo objects
         """
-        file_patch_infos = []
+        file_patch_infos: list[FilePatchInfo] = []
 
         for github_file in github_files:
             # Map GitHub file status to EDIT_TYPE

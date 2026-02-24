@@ -7,6 +7,8 @@ handling GitHub webhook events for cache invalidation.
 import hmac
 import json
 from collections.abc import Callable, Awaitable
+from typing import Any
+
 
 from starlette.requests import Request
 from starlette.responses import JSONResponse
@@ -55,7 +57,7 @@ class WebhookHandler:
         self._logger = logger
         self._input_validator = input_validator
 
-    async def webhook_invalidate_cache(self, payload_bytes: bytes, signature: str, github_event: str) -> dict:
+    async def webhook_invalidate_cache(self, payload_bytes: bytes, signature: str, github_event: str) -> dict[str, Any]:
         """Handle webhook events for cache invalidation with HMAC verification.
 
         Args:

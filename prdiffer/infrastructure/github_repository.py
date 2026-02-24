@@ -3,6 +3,14 @@
 This is the refactored version using composition with extracted components.
 """
 
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from github.PaginatedList import PaginatedList
+    from github.File import File
+
 import os
 from github.Repository import Repository
 from github.PullRequest import PullRequest
@@ -54,7 +62,7 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
         settings_service: SettingsService | None = None,
         logger: LoggerServiceInterface | None = None,
         input_validator: InputValidator | None = None,
-    ):
+    ) -> None:
         """Initialize GitHub repository with repository details and optional authentication.
 
         Args:
@@ -320,9 +328,6 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
         if not compliment:
             raise ValueError("Compliment cannot be empty")
 
-        if not isinstance(compliment, str):
-            raise ValueError(f"Compliment must be a string, got {type(compliment).__name__}")
-
         # Sanitize compliment for logging
         safe_compliment = self._input_validator.sanitize_for_logging(compliment, max_length=500)
 
@@ -435,9 +440,6 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
         if not description:
             raise ValueError("Description cannot be empty")
 
-        if not isinstance(description, str):
-            raise ValueError(f"Description must be a string, got {type(description).__name__}")
-
         # Sanitize description for logging
         safe_description = self._input_validator.sanitize_for_logging(description, max_length=500)
 
@@ -549,11 +551,9 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
         pr_files = await self._file_processor.get_pr_files(self._pull_request)
         filtered_files = self._file_processor.filter_files(pr_files)
 
-        if pr_files != filtered_files:
+        if len(filtered_files) != len(list(pr_files)):
             self._log_filtered_files(pr_files, filtered_files)
 
-        if self._repository is None:
-            raise RuntimeError(f"Repository {self._repo_owner}/{self._repo_name} became invalid during processing")
         diff_files = self._file_processor.process_files_to_patches(filtered_files, self._repository, head_sha, base_sha)
 
         service = GitHubPRDiffService(
@@ -612,8 +612,6 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
             base_sha = self._pull_request.base.sha
 
         # Check pull request again after exception handling
-        if self._pull_request is None:
-            raise RuntimeError(f"Pull request #{self._pr_number} became invalid during merge base calculation")
 
         if base_sha != self._pull_request.base.sha:
             self._logger.info(f"Using merge base commit {base_sha} instead of base commit {self._pull_request.base.sha}")
@@ -634,7 +632,7 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
         """
         return self._input_validator.sanitize_for_logging(filename, max_length=200)
 
-    def _log_filtered_files(self, original_files, filtered_files):
+    def _log_filtered_files(self, original_files: PaginatedList[File], filtered_files: list[File]) -> None:
         """Log information about filtered files with sanitized names."""
         try:
             # Sanitize file names before logging to prevent log injection

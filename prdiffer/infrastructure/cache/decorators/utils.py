@@ -3,9 +3,11 @@
 import hashlib
 import json
 import logging
-from typing import Any
+from typing import Any, cast
 
 logger = logging.getLogger(__name__)
+
+__all__ = ["_make_hashable", "_generate_cache_key"]
 
 
 def _make_hashable(obj: Any, _seen: set[int] | None = None, _depth: int = 0) -> Any:
@@ -36,21 +38,25 @@ def _make_hashable(obj: Any, _seen: set[int] | None = None, _depth: int = 0) -> 
     if isinstance(obj, (list, tuple)):
         _seen.add(obj_id)
         try:
-            result = tuple(_make_hashable(item, _seen.copy(), _depth + 1) for item in obj)
+            seq = cast("list[Any] | tuple[Any, ...]", obj)
+            result: tuple[Any, ...] = tuple(_make_hashable(item, _seen.copy(), _depth + 1) for item in seq)
         finally:
             _seen.discard(obj_id)
         return result
     elif isinstance(obj, dict):
         _seen.add(obj_id)
         try:
-            result = tuple(sorted((k, _make_hashable(v, _seen.copy(), _depth + 1)) for k, v in obj.items()))
+            d = cast("dict[Any, Any]", obj)
+            pairs: list[tuple[Any, Any]] = [(k, _make_hashable(v, _seen.copy(), _depth + 1)) for k, v in d.items()]
+            result = tuple(sorted(pairs))
         finally:
             _seen.discard(obj_id)
         return result
     elif isinstance(obj, set):
         _seen.add(obj_id)
         try:
-            hashable_items = [_make_hashable(item, _seen.copy(), _depth + 1) for item in obj]
+            s = cast("set[Any]", obj)
+            hashable_items: list[Any] = [_make_hashable(item, _seen.copy(), _depth + 1) for item in s]
             try:
                 result = tuple(sorted(hashable_items))
             except TypeError as e:
@@ -67,10 +73,12 @@ def _make_hashable(obj: Any, _seen: set[int] | None = None, _depth: int = 0) -> 
             _seen.discard(obj_id)
         return result
     else:
-        return f"<{type(obj).__name__}:{id(type(obj))}>"
+        obj_as_object: object = obj
+        obj_type = type(obj_as_object)
+        return f"<{obj_type.__name__}:{id(obj_type)}>"
 
 
-def _generate_cache_key(method_name: str, args: tuple, kwargs: dict) -> str:
+def _generate_cache_key(method_name: str, args: tuple[Any, ...], kwargs: dict[str, Any]) -> str:
     """Generate a cache key from method name and arguments.
 
     Args:
@@ -84,7 +92,7 @@ def _generate_cache_key(method_name: str, args: tuple, kwargs: dict) -> str:
     hashable_args = _make_hashable(args)
     hashable_kwargs = _make_hashable(kwargs)
 
-    key_data = {"method": method_name, "args": hashable_args, "kwargs": hashable_kwargs}
+    key_data: dict[str, Any] = {"method": method_name, "args": hashable_args, "kwargs": hashable_kwargs}
 
     key_json = json.dumps(key_data, sort_keys=True)
     key_hash = hashlib.md5(key_json.encode()).hexdigest()

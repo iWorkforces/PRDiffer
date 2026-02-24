@@ -43,7 +43,7 @@ class ServiceContainer:
     """
 
     _singleton_instances: dict[str, Any] = {}
-    _transient_factories: dict[str, Callable] = {}
+    _transient_factories: dict[str, Callable[[], Any]] = {}
     _lock: Lock
     _logger: LoggerServiceInterface
 
@@ -56,12 +56,12 @@ class ServiceContainer:
         self._lock = Lock()
         self._logger = logger
         self._singleton_instances: dict[str, Any] = {}
-        self._transient_factories: dict[str, Callable] = {}
+        self._transient_factories: dict[str, Callable[[], Any]] = {}
 
     def register_singleton(
         self,
         interface_type: type,
-        factory: Callable,
+        factory: Callable[[], Any],
         force: bool = False,
         instance: Any | None = None,
     ) -> None:
@@ -80,7 +80,7 @@ class ServiceContainer:
             Container tracks singletons that should persist for application lifetime
             Singletons should be created once and reused
         """
-        type_name = interface_type.__name__ if hasattr(interface_type, "__name__") else interface_type.__class__.__name__
+        type_name = interface_type.__name__
 
         with self._lock:
             if type_name in self._singleton_instances and not force:
@@ -96,7 +96,7 @@ class ServiceContainer:
     def register_transient(
         self,
         interface_type: type,
-        factory: Callable,
+        factory: Callable[[], Any],
     ) -> None:
         """Register a transient service.
 
@@ -109,7 +109,7 @@ class ServiceContainer:
             Transients don't persist between calls
             Ideal for stateless services or caches
         """
-        type_name = interface_type.__name__ if hasattr(interface_type, "__name__") else interface_type.__class__.__name__
+        type_name = interface_type.__name__
 
         self._transient_factories[type_name] = factory
         self._logger.debug(f"Registered transient factory: {type_name}")
@@ -129,7 +129,7 @@ class ServiceContainer:
         Raises:
             ValueError: If interface_type not registered
         """
-        type_name = interface_type.__name__ if hasattr(interface_type, "__name__") else interface_type.__class__.__name__
+        type_name = interface_type.__name__
 
         if type_name in self._singleton_instances:
             return self._singleton_instances[type_name]
@@ -151,7 +151,7 @@ class ServiceContainer:
         Returns:
             bool: True if registered as singleton or transient
         """
-        type_name = interface_type.__name__ if hasattr(interface_type, "__name__") else interface_type.__class__.__name__
+        type_name = interface_type.__name__
 
         return type_name in self._singleton_instances or type_name in self._transient_factories
 
@@ -164,7 +164,7 @@ class ServiceContainer:
         Returns:
             bool: True if registered as singleton only
         """
-        type_name = interface_type.__name__ if hasattr(interface_type, "__name__") else interface_type.__class__.__name__
+        type_name = interface_type.__name__
 
         return type_name in self._singleton_instances and type_name not in self._transient_factories
 
@@ -187,7 +187,7 @@ class ServiceContainer:
         Usage:
             Similar to get() but allows specifying instance
         """
-        type_name = interface_type.__name__ if hasattr(interface_type, "__name__") else interface_type.__class__.__name__
+        type_name = interface_type.__name__
 
         if instance is not None:
             self._singleton_instances[type_name] = instance
@@ -227,7 +227,7 @@ class ServiceContainer:
         Returns:
             int: Total registered instances (1 if singleton, 1 if transient, 0 if not registered)
         """
-        type_name = interface_type.__name__ if hasattr(interface_type, "__name__") else interface_type.__class__.__name__
+        type_name = interface_type.__name__
 
         count = 0
         if type_name in self._singleton_instances:

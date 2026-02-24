@@ -111,13 +111,12 @@ def cached_method(ttl: int | None = None, key_prefix: str | None = None) -> Call
 
     def decorator(method: F) -> F:
         @functools.wraps(method)
-        def wrapper(self, *args, **kwargs):
-            if not isinstance(self, CachingMixin):
-                raise TypeError(
-                    f"@cached_method can only be used on methods of classes "
-                    f"that inherit from CachingMixin. {self.__class__.__name__} "
-                    f"does not inherit from CachingMixin."
-                )
+        def wrapper(self: object, *args: Any, **kwargs: Any) -> Any:
+            assert isinstance(self, CachingMixin), (
+                f"@cached_method can only be used on methods of classes "
+                f"that inherit from CachingMixin. {self.__class__.__name__} "
+                f"does not inherit from CachingMixin."
+            )
 
             method_name = method.__name__
             if key_prefix:
@@ -161,7 +160,7 @@ def cached_method(ttl: int | None = None, key_prefix: str | None = None) -> Call
 
             return result
 
-        def clear_method_cache(self) -> None:
+        def clear_method_cache(self: CachingMixin) -> None:
             """Clear cache entries for this specific method."""
             method_name = method.__name__
             if key_prefix:

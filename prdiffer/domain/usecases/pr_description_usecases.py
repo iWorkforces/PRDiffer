@@ -9,7 +9,6 @@ from prdiffer.domain.services.logger import LoggerServiceInterface
 from prdiffer.domain.exceptions import ValidationError, InvalidURLError
 from prdiffer.domain.errors import (
     E1001_INVALID_URL,
-    E1009_INVALID_FORMAT,
 )
 
 
@@ -60,20 +59,8 @@ class UpdatePRDescriptionUseCase:
         if not pr_url:
             raise InvalidURLError("PR URL cannot be empty", error_code=E1001_INVALID_URL)
 
-        if not isinstance(pr_url, str):
-            raise ValidationError(
-                f"PR URL must be a string, got {type(pr_url).__name__}",
-                error_code=E1009_INVALID_FORMAT,
-            )
-
         if not pr_description:
             raise ValidationError("PR description cannot be empty", error_code=E1001_INVALID_URL)
-
-        if not isinstance(pr_description, str):
-            raise ValidationError(
-                f"PR description must be a string, got {type(pr_description).__name__}",
-                error_code=E1009_INVALID_FORMAT,
-            )
 
         # Delegate to repository service for update
         # The repository handles all GitHub API interaction and error handling

@@ -7,13 +7,14 @@ from prdiffer.domain.services.settings import SettingsServiceInterface
 from prdiffer.domain.services.cache import CacheServiceInterface
 from prdiffer.domain.services.repository_cache import RepositoryCacheServiceInterface
 from prdiffer.domain.services.logger import LoggerServiceInterface
+from typing import Any
 
 from prdiffer.infrastructure.factories import get_infrastructure_factory
 from prdiffer.application.factories import get_application_factory
 
 
 def create_mcp_server(
-    github_repository_class,
+    github_repository_class: type[Any],
     settings_service: SettingsServiceInterface | None = None,
     cache_service: CacheServiceInterface | None = None,
     repository_cache_service: RepositoryCacheServiceInterface | None = None,

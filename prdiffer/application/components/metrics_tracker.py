@@ -105,7 +105,7 @@ class MetricsTracker(MetricsTrackerProtocol):
             successful_requests = self._successful_requests
             failed_requests = self._failed_requests
             # Deep copy operation metrics to avoid modification during iteration
-            operation_metrics_copy = {}
+            operation_metrics_copy: dict[str, dict[str, Any]] = {}
             for op, metrics in self._operation_metrics.items():
                 operation_metrics_copy[op] = metrics.copy()
 

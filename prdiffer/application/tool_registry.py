@@ -10,6 +10,7 @@ import json
 from dataclasses import asdict
 from collections.abc import Callable
 from typing import NoReturn
+from prdiffer.domain.repositories.pr_diff_repository import PRDiffRepositoryInterface
 
 from fastmcp import FastMCP
 
@@ -68,7 +69,7 @@ class ToolRegistry:
         pr_diff_service: PRDiffServiceInterface,
         cache_service: CacheServiceInterface,
         logger: LoggerServiceInterface,
-        github_repository_class: Callable,
+        github_repository_class: Callable[[str, str, int], PRDiffRepositoryInterface],
         rate_limiter: RateLimiterProtocol,
         metrics_tracker: MetricsTrackerProtocol,
         authentication: AuthenticationProtocol | None = None,
@@ -466,6 +467,8 @@ class ToolRegistry:
             ) as e:
                 self._handle_runtime_exception(e, start_time, request_id, pr_url)
 
+        _ = get_pr_diff  # registered via @mcp.tool() decorator
+
         @mcp.tool()
         async def approve_pr(pr_url: str, compliment: str, api_key: str | None = None) -> str:
             """Approve a GitHub PR with a compliment comment.
@@ -504,7 +507,7 @@ class ToolRegistry:
 
                 repository = self._github_repository_class(repo_owner, repo_name, pr_number)
 
-                if not compliment or not isinstance(compliment, str):
+                if not compliment:
                     raise ValidationError(
                         "Compliment must be a non-empty string",
                         error_code=E1001_INVALID_URL,
@@ -541,6 +544,8 @@ class ToolRegistry:
                 ConnectionError,
             ) as e:
                 self._handle_runtime_exception(e, start_time, request_id, pr_url)
+
+        _ = approve_pr  # registered via @mcp.tool() decorator
 
         @mcp.tool()
         async def describe_pr(pr_url: str, pr_description: str, api_key: str | None = None) -> str:
@@ -580,7 +585,7 @@ class ToolRegistry:
 
                 repository = self._github_repository_class(repo_owner, repo_name, pr_number)
 
-                if not pr_description or not isinstance(pr_description, str):
+                if not pr_description:
                     raise ValidationError(
                         "PR description must be a non-empty string",
                         error_code=E1001_INVALID_URL,
@@ -617,3 +622,5 @@ class ToolRegistry:
                 ConnectionError,
             ) as e:
                 self._handle_runtime_exception(e, start_time, request_id, pr_url)
+
+        _ = describe_pr  # registered via @mcp.tool() decorator

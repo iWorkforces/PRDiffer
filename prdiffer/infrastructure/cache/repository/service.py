@@ -2,9 +2,9 @@
 
 import time
 from threading import RLock
-
+from typing import Any
 from prdiffer.domain.services import RepositoryCacheServiceInterface
-from prdiffer.infrastructure.github_repository import GitHubPRDiffRepository
+from prdiffer.domain.repositories import PRDiffRepositoryInterface
 from prdiffer.infrastructure.logging.console_logger import get_logger
 from prdiffer.infrastructure.cache.repository.models import CacheEntry, with_lock
 
@@ -30,10 +30,10 @@ class RepositoryCacheService(RepositoryCacheServiceInterface):
         return (repo_owner.lower(), repo_name.lower(), pr_number)
 
     @with_lock()
-    def _clean_expired_entries(self):
+    def _clean_expired_entries(self) -> None:
         """Remove expired entries from the cache."""
         current_time = time.time()
-        expired_keys = []
+        expired_keys: list[tuple[str, str, int]] = []
 
         for key, entry in self._cache.items():
             if current_time - entry.timestamp > self._ttl_seconds:
@@ -49,7 +49,7 @@ class RepositoryCacheService(RepositoryCacheServiceInterface):
             )
 
     @with_lock()
-    def _evict_if_needed(self):
+    def _evict_if_needed(self) -> None:
         """Evict oldest entries if cache exceeds maximum size."""
         if len(self._cache) <= self._max_size:
             return
@@ -101,7 +101,7 @@ class RepositoryCacheService(RepositoryCacheServiceInterface):
         return entry
 
     @with_lock()
-    def insert(self, repository: GitHubPRDiffRepository) -> bool:
+    def insert(self, repository: PRDiffRepositoryInterface) -> bool:
         """Insert a repository instance into the cache."""
         cache_key = self._get_cache_key(repository.repo_owner, repository.repo_name, repository.pr_number)
 
@@ -111,7 +111,7 @@ class RepositoryCacheService(RepositoryCacheServiceInterface):
         self._cache[cache_key] = CacheEntry(
             repository=repository,
             timestamp=time.time(),
-            initialized=repository._initialized,
+            initialized=getattr(repository, "_initialized", False),
         )
 
         self._logger.debug(
@@ -123,7 +123,7 @@ class RepositoryCacheService(RepositoryCacheServiceInterface):
         return True
 
     @with_lock()
-    def retrieve(self, repo_owner: str, repo_name: str, pr_number: int) -> GitHubPRDiffRepository | None:
+    def retrieve(self, repo_owner: str, repo_name: str, pr_number: int) -> PRDiffRepositoryInterface | None:
         """Retrieve a cached repository instance."""
         cache_key = self._get_cache_key(repo_owner, repo_name, pr_number)
 
@@ -171,7 +171,7 @@ class RepositoryCacheService(RepositoryCacheServiceInterface):
         return False
 
     @with_lock()
-    def clear(self):
+    def clear(self) -> None:
         """Clear all entries from the cache."""
         cache_size = len(self._cache)
         self._cache.clear()
@@ -183,7 +183,7 @@ class RepositoryCacheService(RepositoryCacheServiceInterface):
         return len(self._cache)
 
     @with_lock()
-    def stats(self) -> dict:
+    def stats(self) -> dict[str, Any]:
         """Get cache statistics."""
         current_time = time.time()
         initialized_count = 0

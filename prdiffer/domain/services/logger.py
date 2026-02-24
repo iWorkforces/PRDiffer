@@ -21,7 +21,7 @@ class LoggerServiceInterface(ABC):
     """
 
     @abstractmethod
-    def debug(self, message: str, **kwargs) -> None:
+    def debug(self, message: str, **kwargs: object) -> None:
         """Log a debug level message.
 
         Args:
@@ -31,7 +31,7 @@ class LoggerServiceInterface(ABC):
         pass
 
     @abstractmethod
-    def info(self, message: str, **kwargs) -> None:
+    def info(self, message: str, **kwargs: object) -> None:
         """Log an info level message.
 
         Args:
@@ -41,7 +41,7 @@ class LoggerServiceInterface(ABC):
         pass
 
     @abstractmethod
-    def warning(self, message: str, **kwargs) -> None:
+    def warning(self, message: str, **kwargs: object) -> None:
         """Log a warning level message.
 
         Args:
@@ -51,7 +51,7 @@ class LoggerServiceInterface(ABC):
         pass
 
     @abstractmethod
-    def error(self, message: str, **kwargs) -> None:
+    def error(self, message: str, **kwargs: object) -> None:
         """Log an error level message.
 
         Args:
@@ -61,7 +61,7 @@ class LoggerServiceInterface(ABC):
         pass
 
     @abstractmethod
-    def critical(self, message: str, **kwargs) -> None:
+    def critical(self, message: str, **kwargs: object) -> None:
         """Log a critical level message.
 
         Args:

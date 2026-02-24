@@ -4,6 +4,9 @@ This module provides utilities for logging retry attempts,
 rate limit information, and failures.
 """
 
+import logging
+from collections.abc import Callable
+
 from prdiffer.infrastructure.utils.rate_limit_parser import (
     RateLimitInfo,
     is_rate_limit_remaining_below_threshold,
@@ -11,7 +14,7 @@ from prdiffer.infrastructure.utils.rate_limit_parser import (
 
 
 def log_retry_attempt(
-    logger,
+    logger: logging.Logger,
     attempt: int,
     delay: float,
     error: Exception,
@@ -19,8 +22,8 @@ def log_retry_attempt(
     context: str | None = None,
     rate_limit_info: RateLimitInfo | None = None,
     is_secondary_rate_limit: bool = False,
-    is_rate_limit_checker=lambda e: False,
-):
+    is_rate_limit_checker: Callable[[Exception], bool] = lambda e: False,
+) -> None:
     """Log retry attempt information at configured level.
 
     Args:
@@ -70,11 +73,11 @@ def log_retry_attempt(
 
 
 def log_rate_limit_headers(
-    logger,
+    logger: logging.Logger,
     rate_limit_info: RateLimitInfo,
     is_secondary_rate_limit: bool,
     rate_limit_remaining_threshold: int = 1,
-):
+) -> None:
     """Log rate limit header information.
 
     Args:
@@ -101,12 +104,12 @@ def log_rate_limit_headers(
 
 
 def log_permanent_failure(
-    logger,
+    logger: logging.Logger,
     error: Exception,
     permanent_failure_log_level: str,
     should_retry: bool,
     is_last_attempt: bool,
-):
+) -> None:
     """Log permanent failure or final attempt information.
 
     Args:
@@ -129,7 +132,7 @@ def log_permanent_failure(
         log_at_level(logger, message, "ERROR")
 
 
-def log_at_level(logger, message: str, level: str):
+def log_at_level(logger: logging.Logger, message: str, level: str) -> None:
     """Log message at specified level.
 
     Args:

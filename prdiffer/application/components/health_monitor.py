@@ -56,7 +56,7 @@ class HealthMonitor(HealthMonitorProtocol):
             if remaining_requests / max_requests < 0.1:  # Less than 10% remaining
                 status = "degraded"
 
-            health_data = {
+            health_data: dict[str, Any] = {
                 "status": status,
                 "uptime_seconds": metrics.get("uptime_seconds", 0),
                 "uptime_human": metrics.get("uptime_human", "0s"),

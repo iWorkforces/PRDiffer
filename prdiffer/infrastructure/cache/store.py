@@ -108,7 +108,7 @@ class CacheStore:
             List of evicted keys
         """
         current_time = time.time()
-        expired_keys = []
+        expired_keys: list[str] = []
 
         for key, entry in list(self._cache.items()):
             age = current_time - float(entry.get("timestamp", 0))

@@ -67,9 +67,6 @@ class InputSanitizer:
         if detector is None:
             detector = _detector
 
-        if not isinstance(value, str):
-            raise InputSanitizationError(f"Expected string, got {type(value)}")
-
         # Check length
         if len(value) > max_length:
             raise InputSanitizationError(f"String too long (max {max_length} characters)")
@@ -98,9 +95,6 @@ class InputSanitizer:
         Returns:
             Sanitized value safe for logging
         """
-        if not isinstance(value, str):
-            value = str(value)
-
         # Truncate long values
         if len(value) > max_length:
             value = value[:max_length] + "..."
