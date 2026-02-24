@@ -6,8 +6,9 @@ of individual parameters.
 """
 
 from dataclasses import dataclass, field
+from typing import Any, Unpack, cast
 
-from .github_config_interface import GitHubConfigInterface
+from .github_config_interface import GitHubConfigDict, GitHubConfigInterface
 
 
 @dataclass(frozen=True)
@@ -93,7 +94,7 @@ class GitHubConfig(GitHubConfigInterface):
     max_diff_size: int = 100000
 
     @classmethod
-    def from_dict(cls, config: dict) -> "GitHubConfig":
+    def from_dict(cls, config: dict[str, Any]) -> "GitHubConfig":
         """Create GitHubConfig from a dictionary.
 
         Args:
@@ -103,13 +104,21 @@ class GitHubConfig(GitHubConfigInterface):
             GitHubConfig: New configuration instance
         """
         # Convert lists to tuples for hashability
-        ignore_patterns = config.get("ignore_patterns", ())
-        if isinstance(ignore_patterns, list):
-            ignore_patterns = tuple(ignore_patterns)
+        raw_ignore_patterns = config.get("ignore_patterns")
+        if raw_ignore_patterns is None:
+            ignore_patterns: tuple[str, ...] = ()
+        elif isinstance(raw_ignore_patterns, list):
+            ignore_patterns = tuple(raw_ignore_patterns)
+        else:
+            ignore_patterns = raw_ignore_patterns
 
-        valid_extensions = config.get("valid_extensions", ())
-        if isinstance(valid_extensions, list):
-            valid_extensions = tuple(valid_extensions)
+        raw_valid_extensions = config.get("valid_extensions")
+        if raw_valid_extensions is None:
+            valid_extensions: tuple[str, ...] = ()
+        elif isinstance(raw_valid_extensions, list):
+            valid_extensions = tuple(raw_valid_extensions)
+        else:
+            valid_extensions = raw_valid_extensions
 
         return cls(
             rate_limit=config.get("rate_limit", 5000),
@@ -141,7 +150,7 @@ class GitHubConfig(GitHubConfigInterface):
             max_diff_size=config.get("max_diff_size", 100000),
         )
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> GitHubConfigDict:
         """Convert configuration to dictionary.
 
         Returns:
@@ -176,7 +185,7 @@ class GitHubConfig(GitHubConfigInterface):
             "max_diff_size": self.max_diff_size,
         }
 
-    def with_overrides(self, **kwargs) -> "GitHubConfig":
+    def with_overrides(self, **kwargs: Unpack[GitHubConfigDict]) -> "GitHubConfig":
         """Create new config with overridden values.
 
         Args:
@@ -185,9 +194,15 @@ class GitHubConfig(GitHubConfigInterface):
         Returns:
             GitHubConfig: New configuration with overrides applied
         """
-        current = self.to_dict()
-        current.update(kwargs)
-        return GitHubConfig.from_dict(current)
+        # Get current values and merge with overrides
+        current_dict: dict[str, Any] = dict(self.to_dict())
+        for key, value in kwargs.items():
+            if isinstance(value, list):
+                current_dict[key] = tuple(value)
+            else:
+                current_dict[key] = value
+        # Reconstruct config from merged dict
+        return self.__class__.from_dict(current_dict)
 
     @property
     def should_use_circuit_breaker(self) -> bool:

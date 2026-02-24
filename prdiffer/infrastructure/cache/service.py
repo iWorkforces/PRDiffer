@@ -271,7 +271,7 @@ class CacheService(CacheServiceInterface):
 
     def get_stats(self) -> dict[str, Any]:
         """Get cache statistics."""
-        base_stats = {
+        base_stats: dict[str, Any] = {
             "cache_size": len(self.cache),
             "cache_hits": self._cache_hits,
             "cache_misses": self._cache_misses,

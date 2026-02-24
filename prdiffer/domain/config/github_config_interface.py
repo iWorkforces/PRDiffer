@@ -7,7 +7,38 @@ Note: This interface uses Protocol-like typing rather than ABC to work
 better with dataclasses. Type checkers will verify compatibility.
 """
 
-from typing import Protocol, runtime_checkable
+from typing import Any, Protocol, TypedDict, Unpack, runtime_checkable
+
+
+class GitHubConfigDict(TypedDict, total=False):
+    """Typed dictionary for GitHub configuration."""
+
+    rate_limit: int
+    timeout: int
+    max_retries: int
+    retry_delay: float
+    retry_on_404: bool
+    retry_on_403: bool
+    retry_on_500: bool
+    retry_log_level: str
+    permanent_failure_log_level: str
+    circuit_breaker_enabled: bool
+    circuit_breaker_failure_threshold: int
+    circuit_breaker_timeout: int
+    adaptive_retry_enabled: bool
+    max_adaptive_delay: int
+    api_health_tracking: bool
+    context_aware_retry: bool
+    ignore_patterns: list[str] | tuple[str, ...]
+    valid_extensions: list[str] | tuple[str, ...]
+    diff_parallel_enabled: bool
+    diff_parallel_threshold: int
+    diff_max_workers: int
+    diff_worker_timeout: float
+    max_files_allowed: int
+    large_file_threshold: int
+    chunk_size: int
+    max_diff_size: int
 
 
 @runtime_checkable
@@ -41,14 +72,15 @@ class GitHubConfigInterface(Protocol):
 
     # Methods for configuration operations
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> "GitHubConfigDict":
         """Convert configuration to dictionary.
 
         Returns:
             dict: Dictionary representation of configuration
         """
+        ...
 
-    def with_overrides(self, **kwargs) -> "GitHubConfigInterface":
+    def with_overrides(self, **kwargs: Unpack["GitHubConfigDict"]) -> "GitHubConfigInterface":
         """Create new config with overridden values.
 
         Args:
@@ -57,16 +89,19 @@ class GitHubConfigInterface(Protocol):
         Returns:
             GitHubConfigInterface: New configuration with overrides applied
         """
+        ...
 
     # Properties for derived values
 
     @property
     def should_use_circuit_breaker(self) -> bool:
         """Check if circuit breaker should be used."""
+        ...
 
     @property
     def should_use_parallel_diff(self) -> bool:
         """Check if parallel diff processing should be used."""
+        ...
 
     # Methods for file validation
 
@@ -79,6 +114,7 @@ class GitHubConfigInterface(Protocol):
         Returns:
             bool: True if file should be ignored
         """
+        ...
 
     def has_valid_extension(self, filename: str) -> bool:
         """Check if a file has a valid extension.
@@ -89,6 +125,7 @@ class GitHubConfigInterface(Protocol):
         Returns:
             bool: True if file has valid extension
         """
+        ...
 
     def should_process_file(self, filename: str) -> bool:
         """Check if a file should be processed.
@@ -99,3 +136,4 @@ class GitHubConfigInterface(Protocol):
         Returns:
             bool: True if file should be processed
         """
+        ...
