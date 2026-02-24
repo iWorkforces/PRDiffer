@@ -33,7 +33,7 @@ class ETagRequestAdapter:
 
     def __init__(
         self,
-        cache_service,
+        cache_service: Any,
         enabled: bool = True,
         etag_ttl: int = 600,
         etag_cache_size: int = 1000,

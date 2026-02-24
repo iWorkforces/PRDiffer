@@ -13,7 +13,7 @@ class RetryServiceInterface(ABC):
     """
 
     @abstractmethod
-    def execute_with_retry(self, func: Callable, *args, **kwargs) -> Any:
+    def execute_with_retry(self, func: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
         """Execute a function with retry logic and exponential backoff.
 
         Args:

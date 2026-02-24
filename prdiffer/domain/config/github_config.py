@@ -6,7 +6,7 @@ of individual parameters.
 """
 
 from dataclasses import dataclass, field
-from typing import Any, Unpack
+from typing import Any, Unpack, cast
 
 from .github_config_interface import GitHubConfigDict, GitHubConfigInterface
 
@@ -108,7 +108,8 @@ class GitHubConfig(GitHubConfigInterface):
         if raw_ignore_patterns is None:
             ignore_patterns: tuple[str, ...] = ()
         elif isinstance(raw_ignore_patterns, list):
-            ignore_patterns = tuple(raw_ignore_patterns)
+            _patterns: list[str] = [str(p) for p in cast(list[object], raw_ignore_patterns)]
+            ignore_patterns = tuple(_patterns)
         else:
             ignore_patterns = raw_ignore_patterns
 
@@ -116,7 +117,8 @@ class GitHubConfig(GitHubConfigInterface):
         if raw_valid_extensions is None:
             valid_extensions: tuple[str, ...] = ()
         elif isinstance(raw_valid_extensions, list):
-            valid_extensions = tuple(raw_valid_extensions)
+            _extensions: list[str] = [str(e) for e in cast(list[object], raw_valid_extensions)]
+            valid_extensions = tuple(_extensions)
         else:
             valid_extensions = raw_valid_extensions
 
@@ -198,7 +200,7 @@ class GitHubConfig(GitHubConfigInterface):
         current_dict: dict[str, Any] = {**self.to_dict()}
         for key, value in kwargs.items():
             if isinstance(value, list):
-                current_dict[key] = tuple(value)
+                current_dict[key] = tuple(cast(list[str], value))
             else:
                 current_dict[key] = value
         # Reconstruct config from merged dict

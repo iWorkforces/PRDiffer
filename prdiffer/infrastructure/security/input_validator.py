@@ -94,9 +94,6 @@ class InputValidator:
         """
         from prdiffer.infrastructure.utils.url_parser import parse_github_pr_url
 
-        if not isinstance(url, str):
-            raise InvalidURLError(f"URL must be a string, got {type(url).__name__}")
-
         url = url.strip()
         if not url:
             raise InvalidURLError("URL cannot be empty")
@@ -215,8 +212,6 @@ class InputValidator:
         Raises:
             InvalidPRNumberError: If PR number is invalid
         """
-        if not isinstance(pr_number, int):
-            raise InvalidPRNumberError(f"PR number must be integer, got {type(pr_number)}")
 
         if pr_number <= 0:
             raise InvalidPRNumberError("PR number must be positive")
@@ -252,8 +247,6 @@ class InputValidator:
             >>> validate_file_path("data/backup.tar.gz")
             'data/backup.tar.gz'
         """
-        if not isinstance(file_path, str):
-            raise InputSanitizationError("File path must be a string")
 
         if not file_path:
             raise InputSanitizationError("File path cannot be empty")
@@ -322,8 +315,6 @@ class InputValidator:
         Raises:
             InputSanitizationError: If token format is invalid
         """
-        if not isinstance(token, str):
-            raise InputSanitizationError("Token must be a string")
 
         if not token:
             raise InputSanitizationError("Token cannot be empty")
@@ -357,8 +348,6 @@ class InputValidator:
         Raises:
             InputSanitizationError: If user ID is invalid
         """
-        if not isinstance(user_id, str):
-            raise InputSanitizationError("User ID must be a string")
 
         if not user_id:
             raise InputSanitizationError("User ID cannot be empty")
@@ -386,8 +375,6 @@ class InputValidator:
             InputSanitizationError: If branch name is invalid
             SuspiciousOperationError: If branch contains suspicious patterns
         """
-        if not isinstance(branch, str):
-            raise InputSanitizationError("Branch name must be a string")
 
         if not branch:
             raise InputSanitizationError("Branch name cannot be empty")

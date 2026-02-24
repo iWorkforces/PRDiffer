@@ -2,9 +2,9 @@
 
 import threading
 
+
 from prdiffer.infrastructure.logging.console_logger import get_logger
-from prdiffer.domain.exceptions import PRDifferException
-from prdiffer.domain.errors import E5001_INTERNAL_ERROR
+
 from prdiffer.infrastructure.utils.circuit_breaker.core import (
     CircuitBreaker,
     CircuitState,
@@ -41,8 +41,8 @@ class GlobalCircuitBreakerRegistry:
                     instance._initialized = False
                     cls._instance = instance
         # Type narrowing: instance is guaranteed to be initialized here
-        if cls._instance is None:
-            raise PRDifferException("Singleton instance not initialized", error_code=E5001_INTERNAL_ERROR)
+        assert cls._instance is not None  # guaranteed by __new__ double-check locking
+
         return cls._instance
 
     def __init__(
@@ -182,7 +182,7 @@ class GlobalCircuitBreakerRegistry:
         if endpoint:
             await self.get_breaker(endpoint).record_failure_async()
 
-    def get_all_stats(self) -> dict[str, dict]:
+    def get_all_stats(self) -> dict[str, dict[str, object]]:
         """Get statistics for all circuit breakers.
 
         Returns:
@@ -201,7 +201,7 @@ class GlobalCircuitBreakerRegistry:
             List of endpoint names with open circuits
         """
         with self._registry_lock:
-            open_breakers = []
+            open_breakers: list[str] = []
             if self._global_breaker.state == CircuitState.OPEN:
                 open_breakers.append("global")
             for endpoint, breaker in self._breakers.items():

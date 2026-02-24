@@ -3,12 +3,23 @@
 import re
 import time
 import logging
+from typing import Any, TypedDict
 from prdiffer.domain.entities.file_patch import FilePatchInfo
 from prdiffer.domain.services import DiffServiceInterface
 from prdiffer.infrastructure.logging.console_logger import get_logger
 from prdiffer.infrastructure.logging.exception_utils import (
     sanitize_exception_for_logging,
 )
+
+
+class HunkDict(TypedDict):
+    """Typed dictionary for a parsed patch hunk."""
+
+    header: str
+    new_lines: list[str]
+    old_lines: list[str]
+    start1: int
+    start2: int
 
 
 class DiffGenerator:
@@ -23,7 +34,7 @@ class DiffGenerator:
     def __init__(
         self,
         diff_utils: DiffServiceInterface,
-        parallel_executor=None,
+        parallel_executor: Any = None,
         parallel_enabled: bool = True,
         parallel_threshold: int = 3,
         logger: logging.Logger | None = None,
@@ -116,7 +127,7 @@ class DiffGenerator:
 
         return f"{separator}\n## Full file path: `{file.filename.strip()}`\n"
 
-    def _parse_hunks_from_patch(self, patch_lines: list[str]) -> list[dict]:
+    def _parse_hunks_from_patch(self, patch_lines: list[str]) -> list[HunkDict]:
         """Parse hunks from patch lines.
 
         Args:
@@ -125,8 +136,8 @@ class DiffGenerator:
         Returns:
             List of hunk dictionaries containing header, new_lines, old_lines, start positions
         """
-        hunks = []
-        current_hunk = None
+        hunks: list[HunkDict] = []
+        current_hunk: HunkDict | None = None
         RE_HUNK_HEADER = self.RE_HUNK_HEADER
 
         for line_i, line in enumerate(patch_lines):
@@ -141,7 +152,7 @@ class DiffGenerator:
                 # Start new hunk
                 match = RE_HUNK_HEADER.match(line)
                 if match:
-                    section_header, size1, size2, start1, start2 = self._extract_hunk_headers(match)
+                    _, _, _, start1, start2 = self._extract_hunk_headers(match)
                     current_hunk = {
                         "header": line,
                         "new_lines": [],
@@ -161,7 +172,7 @@ class DiffGenerator:
 
     def _add_line_to_hunk(
         self,
-        hunk: dict,
+        hunk: HunkDict,
         line: str,
         line_i: int,
         patch_lines: list[str],
@@ -190,7 +201,7 @@ class DiffGenerator:
             hunk["new_lines"].append(line)
             hunk["old_lines"].append(line)
 
-    def _format_hunk_with_line_numbers(self, hunk: dict) -> str:
+    def _format_hunk_with_line_numbers(self, hunk: HunkDict) -> str:
         """Format a hunk with line numbers.
 
         Handles edge cases:
@@ -225,7 +236,7 @@ class DiffGenerator:
         if not is_deletion_only:
             output = output.rstrip() + "\n__new hunk__\n"
             line_num = new_start_line
-            new_lines_output = []
+            new_lines_output: list[str] = []
             for line_new in hunk["new_lines"]:
                 # Skip deleted lines in new hunk display
                 if not line_new.startswith("-"):
@@ -238,7 +249,7 @@ class DiffGenerator:
             # Show context lines even for deletion-only hunks
             output = output.rstrip() + "\n__new hunk__\n"
             line_num = new_start_line
-            new_lines_output = []
+            new_lines_output: list[str] = []
             for line_new in hunk["new_lines"]:
                 if not line_new.startswith("-"):
                     new_lines_output.append(f"{line_num} {line_new}")
@@ -254,7 +265,7 @@ class DiffGenerator:
             # For new files, there's no old content to number
             old_start_line = max(1, hunk["start1"])
             line_num = old_start_line
-            old_lines_output = []
+            old_lines_output: list[str] = []
             for line_old in hunk["old_lines"]:
                 # Add line numbers to old hunk for better context
                 old_lines_output.append(f"{line_num} {line_old}")
@@ -265,7 +276,7 @@ class DiffGenerator:
 
         return output
 
-    def _extract_hunk_headers(self, match: re.Match) -> tuple:
+    def _extract_hunk_headers(self, match: re.Match[str]) -> tuple[str, int, int, int, int]:
         """Extract and parse hunk header information from regex match.
 
         Args:
@@ -286,7 +297,7 @@ class DiffGenerator:
             - '@@ -1,3 +1,3 @@' for standard modifications
             - Missing size values default to 1
         """
-        res = list(match.groups())
+        res: list[str | None] = list(match.groups())
 
         # Convert None values to appropriate defaults
         # Groups: (start1, size1, start2, size2, section_header)
@@ -297,19 +308,19 @@ class DiffGenerator:
                 res[i] = "1" if i in (1, 3) else "0"
 
         try:
-            start1 = int(res[0])
-            size1 = int(res[1])
-            start2 = int(res[2])
-            size2 = int(res[3])
+            start1 = int(res[0] or "0")
+            size1 = int(res[1] or "1")
+            start2 = int(res[2] or "0")
+            size2 = int(res[3] or "1")
         except (ValueError, IndexError) as e:
             # Fallback for unexpected formats
             self._logger.warning(f"Unexpected hunk header format: {e}")
             start1, size1, start2, size2 = 0, 0, 0, 0
 
-        section_header = res[4] if len(res) > 4 else ""
+        section_header: str = res[4] if len(res) > 4 and res[4] is not None else ""
         return section_header, size1, size2, start1, start2
 
-    def _process_single_file_for_diff(self, indexed_file_data: tuple) -> tuple | None:
+    def _process_single_file_for_diff(self, indexed_file_data: tuple[int, FilePatchInfo, bool, int]) -> tuple[int, str] | None:
         """Process a single file for diff generation (worker function for parallel processing).
 
         Args:
@@ -318,7 +329,7 @@ class DiffGenerator:
         Returns:
             tuple | None: (index, extended_patch_string) or None if processing fails
         """
-        i, file, add_line_numbers_to_hunks, total_files = indexed_file_data
+        i, file, add_line_numbers_to_hunks, _total_files = indexed_file_data
 
         try:
             original_file_content_str = file.base_file
@@ -365,7 +376,7 @@ class DiffGenerator:
         Returns:
             List of extended diff strings, one per file
         """
-        extended_diffs = []
+        extended_diffs: list[str] = []
         for i, file in enumerate(diff_files):
             original_file_content_str = file.base_file
             new_file_content_str = file.head_file
@@ -438,7 +449,7 @@ class DiffGenerator:
 
 def get_diff_generator(
     diff_utils: DiffServiceInterface,
-    parallel_executor=None,
+    parallel_executor: Any = None,
     parallel_enabled: bool = True,
     parallel_threshold: int = 3,
 ) -> DiffGenerator:

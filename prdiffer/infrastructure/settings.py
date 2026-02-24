@@ -26,8 +26,8 @@ class SettingsService(SettingsServiceInterface):
 
     def __init__(
         self,
-        settings_files: list | None = None,
-    ):
+        settings_files: list[str] | None = None,
+    ) -> None:
         """Initialize the settings service with configuration files.
 
         Args:
@@ -271,7 +271,7 @@ class SettingsService(SettingsServiceInterface):
         Returns:
             list[str]: List of configuration warnings
         """
-        warnings = []
+        warnings: list[str] = []
 
         try:
             # Check for common configuration issues

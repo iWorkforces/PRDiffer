@@ -5,6 +5,7 @@ providing monitoring and observability functionality.
 """
 
 from collections.abc import Callable, Awaitable
+from typing import Any
 
 from starlette.requests import Request
 from starlette.responses import JSONResponse
@@ -65,7 +66,7 @@ class HealthEndpoints:
         self._request_coalescing = request_coalescing
         self._logger = logger
 
-    async def _get_health_status(self) -> dict:
+    async def _get_health_status(self) -> dict[str, Any]:
         """Get health status and metrics for the MCP server.
 
         Returns:
@@ -78,7 +79,7 @@ class HealthEndpoints:
         health_status["request_coalescing"] = await self._request_coalescing.get_stats()
         return health_status
 
-    def get_health_handler(self) -> Callable[[], Awaitable[dict]]:
+    def get_health_handler(self) -> Callable[[], Awaitable[dict[str, Any]]]:
         """Get health check handler function.
 
         This returns the actual health handler function that can be
@@ -88,7 +89,7 @@ class HealthEndpoints:
             callable: Health check handler function
         """
 
-        async def health():
+        async def health() -> dict[str, Any]:
             """Get server health status and metrics.
 
             Returns:

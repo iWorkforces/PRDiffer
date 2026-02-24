@@ -118,20 +118,7 @@ class PROperationHandler(PROperationHandlerProtocol):
             await repository.initialize()
 
             # Execute the repository directly (since we don't have a PRDiffService)
-            pr_diff: PRDiff | None = await repository.get_pr_diff()
-
-            # Handle case where repository returns None
-            if pr_diff is None:
-                self._logger.error(
-                    "Repository returned None for PR diff",
-                    repo_owner=repo_owner,
-                    repo_name=repo_name,
-                    pr_number=pr_number,
-                )
-                raise GitHubAPIError(
-                    "Failed to get PR diff - repository returned None",
-                    error_code=E5002_GITHUB_API_ERROR,
-                )
+            pr_diff: PRDiff = await repository.get_pr_diff()
 
             # Cache the repository after it's been used (now it should be initialized)
             if hasattr(repository, "_initialized") and getattr(repository, "_initialized", False):

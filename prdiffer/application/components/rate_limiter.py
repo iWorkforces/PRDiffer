@@ -108,7 +108,7 @@ class RateLimiter(RateLimiterProtocol):
 
         return len(self._client_timestamps[identifier])
 
-    def get_rate_limit_info(self, identifier: str = "global") -> dict:
+    def get_rate_limit_info(self, identifier: str = "global") -> dict[str, Any]:
         """Get rate limit configuration and current status for a client.
 
         Args:
@@ -173,7 +173,7 @@ class RateLimiter(RateLimiterProtocol):
             Dictionary mapping client identifiers to their rate limit info
         """
         current_time = time.time()
-        result = {}
+        result: dict[str, dict[str, Any]] = {}
 
         for identifier, timestamps in self._client_timestamps.items():
             # Count requests within the window

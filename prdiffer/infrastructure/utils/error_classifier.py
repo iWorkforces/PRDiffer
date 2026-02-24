@@ -5,6 +5,7 @@ to determine retry behavior and categorization.
 """
 
 from dataclasses import dataclass
+from typing import Any, cast
 
 
 # Pre-defined error code sets for efficient lookups
@@ -83,7 +84,7 @@ def get_error_message(error: Exception) -> str:
     data_message = ""
     data = getattr(error, "data", None)
     if isinstance(data, dict):
-        data_message = str(data.get("message", ""))
+        data_message = str(cast(dict[str, Any], data).get("message", ""))
     elif isinstance(data, str):
         data_message = data
     return f"{base_message} {data_message}".strip().lower()

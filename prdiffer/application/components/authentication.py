@@ -275,7 +275,7 @@ class AuthenticationMiddleware(AuthenticationProtocol):
             # Check if api_key looks like a JWT token (dots, length, Bearer format)
             if self._looks_like_jwt_token(api_key):
                 # JWT token: check expiration without signature verification
-                is_expired, error_message = self.is_token_expired(api_key)
+                _, _ = self.is_token_expired(api_key)
             else:
                 # API key: validate format and check against configured keys
                 if not self.validate_api_key_format(api_key):

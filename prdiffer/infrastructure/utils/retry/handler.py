@@ -31,9 +31,9 @@ class UnifiedRetryHandler(BaseUnifiedRetryHandler):
 
     def _execute_and_sleep(
         self,
-        func: Callable,
-        args: tuple,
-        kwargs: dict,
+        func: Callable[..., Any],
+        args: tuple[Any, ...],
+        kwargs: dict[str, Any],
         delay: float,
     ) -> Any:
         result = func(*args, **kwargs)
@@ -46,18 +46,18 @@ class UnifiedRetryHandler(BaseUnifiedRetryHandler):
     def execute_with_retry(
         self,
         func: Callable[..., T],
-        *args,
+        *args: Any,
         context: OperationContext | None = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> T:
         return self._execute_with_retry_base(func, args, kwargs, context)
 
     async def execute_with_retry_async(
         self,
         func: Callable[..., Coroutine[Any, Any, T]],
-        *args,
+        *args: Any,
         context: OperationContext | None = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> T:
         if self._circuit_breaker and self.circuit_breaker_enabled:
             if not self._circuit_breaker.can_execute():

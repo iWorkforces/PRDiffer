@@ -79,7 +79,7 @@ class DiffUtils(LazyLoggerMixin, DiffServiceInterface):
         start1 = 0 if orig_count == 0 else 1
         start2 = 0 if new_count == 0 else 1
         header = f"@@ -{start1},{orig_count} +{start2},{new_count} @@"
-        body_lines = []
+        body_lines: list[str] = []
         sm = difflib.SequenceMatcher(None, orig_lines, new_lines)
         for tag, i1, i2, j1, j2 in sm.get_opcodes():
             if tag == "equal":
@@ -141,7 +141,7 @@ class DiffUtils(LazyLoggerMixin, DiffServiceInterface):
         # Chunked processing for large files
         self._get_logger().info(f"Using chunked diff processing for large file ({max_lines} lines)")
 
-        hunks = []
+        hunks: list[str] = []
         chunk_index = 0
 
         while chunk_index * chunk_size < max_lines:
@@ -186,7 +186,7 @@ class DiffUtils(LazyLoggerMixin, DiffServiceInterface):
         new_count = len(new_lines)
 
         header = f"@@ -{orig_start},{orig_count} +{new_start},{new_count} @@"
-        body_lines = []
+        body_lines: list[str] = []
 
         sm = difflib.SequenceMatcher(None, orig_lines, new_lines)
         for tag, i1, i2, j1, j2 in sm.get_opcodes():
@@ -301,7 +301,7 @@ class DiffUtils(LazyLoggerMixin, DiffServiceInterface):
         return False
 
 
-def get_diff_utils(logger=None, config: DiffProcessingConfig | None = None) -> DiffUtils:
+def get_diff_utils(logger: logging.Logger | None = None, config: DiffProcessingConfig | None = None) -> DiffUtils:
     """Get a diff utils instance.
 
     Args:

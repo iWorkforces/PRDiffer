@@ -5,6 +5,7 @@ that cache PRDiffRepositoryInterface instances to avoid repeated initialization.
 """
 
 from abc import ABC, abstractmethod
+from typing import Any
 
 from prdiffer.domain.repositories import PRDiffRepositoryInterface
 
@@ -85,7 +86,7 @@ class RepositoryCacheServiceInterface(ABC):
         pass
 
     @abstractmethod
-    def stats(self) -> dict:
+    def stats(self) -> dict[str, Any]:
         """Get cache statistics.
 
         Returns:

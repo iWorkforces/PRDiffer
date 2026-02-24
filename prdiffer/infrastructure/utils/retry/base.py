@@ -1,5 +1,6 @@
 """Base retry handler with common logic."""
 
+import logging
 import time
 from abc import abstractmethod
 from collections.abc import Callable
@@ -55,7 +56,7 @@ class BaseUnifiedRetryHandler(LazyLoggerMixin, RetryServiceInterface):
         secondary_rate_limit_backoff: float = 60.0,
         api_health_tracking: bool = False,
         context_aware_retry: bool = False,
-        logger=None,
+        logger: logging.Logger | None = None,
     ):
         self.max_retries = max_retries
         self.retry_delay = retry_delay
@@ -105,7 +106,7 @@ class BaseUnifiedRetryHandler(LazyLoggerMixin, RetryServiceInterface):
 
             self._health_tracker = APIHealthTracker(logger=self._get_logger())
 
-        self._context_configs: dict[OperationContext, dict] = {}
+        self._context_configs: dict[OperationContext, dict[str, Any]] = {}
         if self.context_aware_retry:
             self._context_configs = {
                 OperationContext.REPOSITORY_ACCESS: {
@@ -133,18 +134,18 @@ class BaseUnifiedRetryHandler(LazyLoggerMixin, RetryServiceInterface):
     @abstractmethod
     def _execute_and_sleep(
         self,
-        func: Callable,
-        args: tuple,
-        kwargs: dict,
+        func: Callable[..., Any],
+        args: tuple[Any, ...],
+        kwargs: dict[str, Any],
         delay: float,
     ) -> Any:
         pass
 
     def _execute_with_retry_base(
         self,
-        func: Callable,
-        args: tuple,
-        kwargs: dict,
+        func: Callable[..., Any],
+        args: tuple[Any, ...],
+        kwargs: dict[str, Any],
         context: OperationContext | None = None,
     ) -> Any:
         if self._circuit_breaker and self.circuit_breaker_enabled:
@@ -220,7 +221,7 @@ class BaseUnifiedRetryHandler(LazyLoggerMixin, RetryServiceInterface):
         if last_exception:
             raise last_exception
 
-    def _get_context_config(self, context: OperationContext | None) -> dict:
+    def _get_context_config(self, context: OperationContext | None) -> dict[str, Any]:
         if context and self.context_aware_retry and context in self._context_configs:
             return self._context_configs[context]
 

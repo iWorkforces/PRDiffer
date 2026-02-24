@@ -23,7 +23,7 @@ class PatternMatcher(PatternMatchingServiceInterface):
         self.valid_extensions = valid_extensions or []
         self._compiled_patterns = self._compile_patterns(ignore_patterns)
 
-    def _compile_patterns(self, patterns: list[str]) -> list[tuple[str, str | re.Pattern]]:
+    def _compile_patterns(self, patterns: list[str]) -> list[tuple[str, str | re.Pattern[str]]]:
         """Pre-compile regex patterns for efficient matching.
 
         Args:
@@ -34,7 +34,7 @@ class PatternMatcher(PatternMatchingServiceInterface):
             - pattern_type: 'regex' for compiled regex, 'string' for string patterns
             - pattern: The compiled regex or original string pattern
         """
-        compiled: list[tuple[str, str | re.Pattern]] = []
+        compiled: list[tuple[str, str | re.Pattern[str]]] = []
         for pattern in patterns:
             if "*" in pattern and not pattern.startswith("*."):
                 # Convert wildcard pattern to regex

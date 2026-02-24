@@ -125,7 +125,7 @@ class CacheService(CacheServiceInterface):
         """Evict oldest entries when cache exceeds max size (LRU eviction)."""
         current_time = time.time()
 
-        expired_keys = []
+        expired_keys: list[str] = []
         for key, entry in self.cache.items():
             age = current_time - float(entry["timestamp"])
             if age >= self._ttl:
@@ -251,7 +251,7 @@ class CacheService(CacheServiceInterface):
 
     def set_etag(self, cache_key: str, etag: str) -> None:
         """Cache ETag for a specific PR key."""
-        cache_entry = self.cache.get(cache_key)
+        cache_entry: dict[str, Any] | None = self.cache.get(cache_key)
         if cache_entry is None:
             cache_entry = {
                 "etag": etag,

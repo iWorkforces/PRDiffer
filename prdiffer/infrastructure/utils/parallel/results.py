@@ -21,8 +21,8 @@ class ErrorStrategy(str, Enum):
 class BatchResult(Generic[T]):
     """Result of a batch execution with success/failure tracking."""
 
-    successful: list[T] = field(default_factory=list)
-    failed: list[tuple[Any, Exception]] = field(default_factory=list)
+    successful: list[T] = field(default_factory=lambda: [])
+    failed: list[tuple[Any, Exception]] = field(default_factory=lambda: [])
 
     @property
     def total(self) -> int:

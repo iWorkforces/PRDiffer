@@ -189,7 +189,7 @@ class FilePatchInfo:
             EDIT_TYPE.RENAMED,
         )
 
-    def get_summary(self) -> dict:
+    def get_summary(self) -> dict[str, Any]:
         """Get a summary of the file change.
 
         Returns:
@@ -309,7 +309,7 @@ class FilePatchInfo:
         Returns:
             list[str]: List of validation errors (empty if valid)
         """
-        errors = []
+        errors: list[str] = []
 
         if not self.filename or not self.filename.strip():
             errors.append("Filename cannot be empty")
@@ -347,7 +347,7 @@ class FilePatchInfo:
 
         return False
 
-    def get_diff_statistics(self) -> dict:
+    def get_diff_statistics(self) -> dict[str, Any]:
         """Get detailed diff statistics.
 
         Returns:
@@ -367,7 +367,7 @@ class FilePatchInfo:
         context_lines = 0
         addition_lines = 0
         deletion_lines = 0
-        diff_lines = []
+        diff_lines: list[str] = []
 
         for line in self.patch.splitlines():
             diff_lines.append(line)
