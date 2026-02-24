@@ -20,7 +20,7 @@ classifiers = [
 dependencies = [
     "fastmcp>=3.0.2",
     "pydantic>=2.12.5",
-    "fastapi[standard]>=0.131.0",
+    "fastapi[standard]>=0.132.0",
     "uvicorn[standard]>=0.41.0",
     "pygithub>=2.8.1",
     "asyncer>=0.0.17",
@@ -151,12 +151,11 @@ possibly-unresolved-reference = "ignore"
 unresolved-import = "ignore"
 
 [tool.pyright]
-include = ["prdiffer"]
+include = ["prdiffer", "tests"]
 exclude = [
     "**/__pycache__",
     "**/.venv",
     "**/venv",
-    "**/tests",
     "**/node_modules",
     "**/.pytest_cache",
     "**/.mypy_cache",
@@ -170,15 +169,21 @@ ignore = [
     "**/.venv",
     "**/venv"
 ]
-typeCheckingMode = "standard"
+# === Phase 2: Upgraded to strict mode for better type safety ===
+typeCheckingMode = "strict"
 pythonVersion = "3.14"
 pythonPlatform = "Darwin"
+
+# === Error-level reports (critical issues) ===
 reportMissingImports = "error"
 reportMissingModuleSource = "error"
 reportMissingTypeStubs = "warning"
 reportUndefinedVariable = "error"
 reportInvalidTypeArguments = "error"
 reportGeneralTypeIssues = "error"
+reportMissingReturnType = "error"
+
+# === Warning-level reports (quality improvements) ===
 reportOptionalMemberAccess = "warning"
 reportOptionalCall = "warning"
 reportOptionalIterable = "warning"
@@ -190,9 +195,7 @@ reportUnusedFunction = "warning"
 reportUnusedVariable = "warning"
 reportDuplicateImport = "warning"
 reportWildcardImportFromLibrary = "warning"
-reportShadowedImports = "warning"
 reportPrivateImportUsage = "warning"
-reportPrivateUsage = "none"
 reportUnnecessaryIsInstance = "warning"
 reportUnnecessaryComparison = "warning"
 reportUnnecessaryCast = "warning"
@@ -207,13 +210,29 @@ reportUnknownArgumentType = "warning"
 reportUnknownMemberType = "warning"
 reportUnknownParameterType = "warning"
 reportUnknownVariableType = "warning"
-
-# === Phase 2 targets (promote to warning) ===
-reportMissingReturnType = "warning"
 reportUnknownLambdaType = "warning"
+reportExplicitAny = "warning"
 
-# === Disabled (keep at none) ===
-reportAny = "none"
+# === Disabled (intentional) ===
+reportPrivateUsage = "none"
+
+# === Strict mode additional settings ===
+strictListInference = true
+strictDictionaryInference = true
+strictParameterNoneValue = true
+analyzeUnannotatedFunctions = true
+
+# === Test-specific overrides (relaxed type checking) ===
+[[tool.pyright.overrides]]
+include = ["tests"]
+typeCheckingMode = "standard"
+reportUnknownArgumentType = "none"
+reportUnknownMemberType = "none"
+reportUnknownParameterType = "none"
+reportUnknownVariableType = "none"
+reportUnknownLambdaType = "none"
+reportMissingReturnType = "none"
+reportUntypedFunctionDecorator = "none"
 
 [tool.ruff]
 # Ruff configuration for linting and formatting

@@ -1,12 +1,12 @@
 # PROJECT KNOWLEDGE BASE
 
-**Generated:** 2026-02-22T04:06:33Z
-**Commit:** 544f89f
+**Generated:** 2026-02-23T15:30:00Z
+**Commit:** 4e52b58
 **Branch:** upstream
 **Version:** 0.5.0
 
 ## OVERVIEW
-Python 3.14+ MCP server for GitHub PR diff analysis with Clean Architecture (Domain → Application → Infrastructure). FastMCP framework, Pydantic v2, anyio async. 207 Python files (115 src + 92 tests), 49K+ lines, 41 AGENTS.md files.
+Python 3.14+ MCP server for GitHub PR diff analysis with Clean Architecture (Domain → Application → Infrastructure). FastMCP framework, Pydantic v2, anyio async. 210 Python files (118 src + 92 tests), 49K+ lines, 44 AGENTS.md files (depth 5 coverage).
 
 ## STRUCTURE
 ```
@@ -244,9 +244,9 @@ python scripts/analyze_dependencies.py --path prdiffer
 - **Retry logic**: 404/403/500 with smart retry, circuit breaker, exponential backoff.
 - **File filtering**: Pattern-based ignores, extension allowlist, max_files_allowed limit.
 - **Test markers for filtering**: `-m unit`, `-m integration`, `-m slow`, `-m security`.
-- **Complex files**: 38 files >500 lines, most in infrastructure (github_repository.py: 836 lines).
+- **Complex files**: 29 files >500 lines, most in tests (test_authentication.py: 1145 lines) and infrastructure (github_repository.py: 703 lines).
 - **Thread safety**: RLock for sync, anyio.Lock for async, double-check locking patterns.
-- **Maximum directory depth**: 3 levels (prdiffer/{layer}/{package}/{module}.py), actual max depth: 15.
+- **Maximum directory depth**: 3 levels (prdiffer/{layer}/{package}/{module}.py), actual max depth: 6.
 - **No CI/CD infrastructure**: Manual quality gates only; no GitHub Actions workflows exist.
 - **Type hint deviation**: Project uses old-style typing imports (`from typing import List`) instead of Python 3.14+ built-ins (63 files, documented deviation).
 - **Custom git hooks**: Pre-push hook enforces type checking + linting (bypass with `--no-verify`).
@@ -254,3 +254,4 @@ python scripts/analyze_dependencies.py --path prdiffer
 - **Python version**: 3.14.2+ (strict minimum), configured in `.python-version`.
 - **Primary type checker**: ty (Astral), not mypy/pyright.
 - **Architecture violations**: 14 Application → Infrastructure direct imports (documented, needs DI refactoring).
+- **AGENTS.md coverage**: 44 files across all layers (root + domain + infrastructure + application + tests + depth 4 subdirs).

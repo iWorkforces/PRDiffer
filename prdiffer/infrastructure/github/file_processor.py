@@ -114,8 +114,12 @@ class FileProcessor:
             # Cache is stale or uninitialized - update it
             self._pr_files_cache = await asyncer.asyncify(pull_request.get_files)()
             self._pr_cache_timestamp = current_time
+            # Type assertion: after await, cache should be populated
+            assert self._pr_files_cache is not None
+            return self._pr_files_cache
 
-        return self._pr_files_cache
+        # Unreachable - all code paths return inside the async context
+        assert False, "Unreachable code"
 
     def filter_files(self, files: PaginatedList[File]) -> list[File]:
         """Filter files based on pattern matching configuration.
