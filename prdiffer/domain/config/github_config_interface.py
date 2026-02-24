@@ -7,7 +7,7 @@ Note: This interface uses Protocol-like typing rather than ABC to work
 better with dataclasses. Type checkers will verify compatibility.
 """
 
-from typing import Any, Protocol, TypedDict, Unpack, runtime_checkable
+from typing import Protocol, TypedDict, Unpack, runtime_checkable
 
 
 class GitHubConfigDict(TypedDict, total=False):

@@ -6,7 +6,7 @@ of individual parameters.
 """
 
 from dataclasses import dataclass, field
-from typing import Any, Unpack, cast
+from typing import Any, Unpack
 
 from .github_config_interface import GitHubConfigDict, GitHubConfigInterface
 
@@ -194,8 +194,8 @@ class GitHubConfig(GitHubConfigInterface):
         Returns:
             GitHubConfig: New configuration with overrides applied
         """
-        # Get current values and merge with overrides
-        current_dict: dict[str, Any] = dict(self.to_dict())
+        # Get current values and merge with overrides using dict unpacking
+        current_dict: dict[str, Any] = {**self.to_dict()}
         for key, value in kwargs.items():
             if isinstance(value, list):
                 current_dict[key] = tuple(value)
