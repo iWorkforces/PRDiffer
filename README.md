@@ -101,14 +101,45 @@ uv install --dev
 # Run linting
 ./start-lint.sh --all
 
-# Run type checking
-./start-type-check.sh --check
+# Run type checking (strict mode)
+uv run pyright prdiffer
+
+# Run type checking for tests (relaxed mode)
+uv run pyright tests
 
 # Run tests
 ./start-unittest.sh --run
 
 # Run tests with coverage
 ./start-unittest.sh --coverage
+```
+
+### Type Checking Standards
+
+This project uses **Pyright** in strict mode for production code with the following standards:
+
+- **Production code** (`prdiffer/`): Strict type checking enabled
+- **Test code** (`tests/`): Standard type checking with relaxed unknown type warnings
+
+#### Type Annotation Guidelines
+
+1. **All functions must have return type annotations**
+2. **Use TypedDict for dictionary types** when the structure is known
+3. **Avoid `Any` type** - use proper types or `object` when truly generic
+4. **Use Protocol for interfaces** instead of ABC for better dataclass compatibility
+5. **Add type arguments to generic containers** (e.g., `dict[str, Any]` not just `dict`)
+
+#### Running Type Checks
+
+```bash
+# Check production code (strict mode)
+uv run pyright prdiffer
+
+# Check all code including tests
+uv run pyright
+
+# Generate type stubs (if needed)
+pyright --verifytypes prdiffer
 ```
 
 ### Project Structure

@@ -1,12 +1,12 @@
 # PROJECT KNOWLEDGE BASE
 
-**Generated:** 2026-02-23T08:30:00Z
-**Commit:** 625fa25
+**Generated:** 2026-02-23T15:30:00Z
+**Commit:** 4e52b58
 **Branch:** upstream
 **Version:** 0.5.0
 
 ## OVERVIEW
-Python 3.14+ MCP server for GitHub PR diff analysis with Clean Architecture (Domain → Application → Infrastructure). FastMCP framework, Pydantic v2, anyio async. 276 project files (115 src + 92 tests + 69 other), 49K+ lines, 44 AGENTS.md files (depth 4 coverage).
+Python 3.14+ MCP server for GitHub PR diff analysis with Clean Architecture (Domain → Application → Infrastructure). FastMCP framework, Pydantic v2, anyio async. 210 Python files (118 src + 92 tests), 49K+ lines, 44 AGENTS.md files (depth 5 coverage).
 
 ## STRUCTURE
 ```
