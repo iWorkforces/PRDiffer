@@ -20,7 +20,7 @@ classifiers = [
 dependencies = [
     "fastmcp>=3.0.2",
     "pydantic>=2.12.5",
-    "fastapi[standard]>=0.133.0",
+    "fastapi[standard]>=0.133.1",
     "uvicorn[standard]>=0.41.0",
     "pygithub>=2.8.1",
     "asyncer>=0.0.17",
@@ -65,12 +65,12 @@ packages = ["prdiffer"]
 
 [dependency-groups]
 dev = [
-    "ruff>=0.15.2",
+    "ruff>=0.15.4",
     "pytest>=9.0.2",
     "pytest-asyncio>=1.3.0",
     "pytest-cov>=7.0.0",
     "pytest-xdist>=3.8.0",
-    "ty>=0.0.18",
+    "ty>=0.0.19",
     "vulture>=2.14",
     "pyright>=1.1.408",
 ]
