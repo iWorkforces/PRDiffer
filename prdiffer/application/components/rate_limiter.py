@@ -3,7 +3,9 @@
 import time
 import logging
 from typing import Any
-from collections import defaultdict
+from collections import deque
+from prdiffer.domain.interfaces.protocols import RateLimiterProtocol
+from prdiffer.domain.services.logger import LoggerServiceInterface
 from prdiffer.domain.interfaces.protocols import RateLimiterProtocol
 from prdiffer.domain.services.logger import LoggerServiceInterface
 
@@ -27,8 +29,9 @@ class RateLimiter(RateLimiterProtocol):
         # Rate limiting configuration
         self._rate_limit_requests = 100  # Max requests per minute per client
         self._rate_limit_window = 60  # 60 second window
-        # Track request timestamps per client identifier
-        self._client_timestamps: dict[str, list[float]] = defaultdict(list)
+        self._max_timestamps_per_client = 200  # Maximum timestamps to track per client (DoS prevention)
+        # Track request timestamps per client identifier (bounded deque)
+        self._client_timestamps: dict[str, deque[float]] = {}
         # Track last access time for cleanup
         self._last_access: dict[str, float] = {}
 
@@ -51,11 +54,18 @@ class RateLimiter(RateLimiterProtocol):
         if current_time % self._cleanup_interval < 1:
             self._cleanup_old_entries(current_time)
 
-        # Get timestamps for this client
+        # Get timestamps for this client (create bounded deque if needed)
+        if identifier not in self._client_timestamps:
+            self._client_timestamps[identifier] = deque(maxlen=self._max_timestamps_per_client)
+        
         timestamps = self._client_timestamps[identifier]
-
+        
         # Remove timestamps outside the rate limit window
-        self._client_timestamps[identifier] = [ts for ts in timestamps if current_time - ts < self._rate_limit_window]
+        # Note: We create a new deque to ensure old entries are removed
+        self._client_timestamps[identifier] = deque(
+            [ts for ts in timestamps if current_time - ts < self._rate_limit_window],
+            maxlen=self._max_timestamps_per_client
+        )
 
         # Update last access time
         self._last_access[identifier] = current_time
@@ -79,9 +89,13 @@ class RateLimiter(RateLimiterProtocol):
             identifier: Unique identifier for rate limiting
         """
         current_time = time.time()
+        # Get or create deque for this client
+        if identifier not in self._client_timestamps:
+            self._client_timestamps[identifier] = deque(maxlen=self._max_timestamps_per_client)
+        
         self._client_timestamps[identifier].append(current_time)
 
-        current_count = len(self._client_timestamps[identifier])
+        current_count = len(self._client_timestamps.get(identifier, []))
         self._logger.debug(f"Rate limit incremented for client '{identifier}'. Current rate: {current_count}/{self._rate_limit_requests}")
 
     def get_current_rate(self, identifier: str = "global") -> int:
@@ -103,10 +117,14 @@ class RateLimiter(RateLimiterProtocol):
             )
 
         # Clean up old timestamps for this client
-        timestamps = self._client_timestamps.get(identifier, [])
-        self._client_timestamps[identifier] = [ts for ts in timestamps if current_time - ts < self._rate_limit_window]
-
-        return len(self._client_timestamps[identifier])
+        if identifier in self._client_timestamps:
+            timestamps = self._client_timestamps[identifier]
+            self._client_timestamps[identifier] = deque(
+                [ts for ts in timestamps if current_time - ts < self._rate_limit_window],
+                maxlen=self._max_timestamps_per_client
+            )
+        
+        return len(self._client_timestamps.get(identifier, []))
 
     def get_rate_limit_info(self, identifier: str = "global") -> dict[str, Any]:
         """Get rate limit configuration and current status for a client.
@@ -177,7 +195,7 @@ class RateLimiter(RateLimiterProtocol):
 
         for identifier, timestamps in self._client_timestamps.items():
             # Count requests within the window
-            valid_timestamps = [ts for ts in timestamps if current_time - ts < self._rate_limit_window]
+            valid_timestamps = [ts for ts in list(timestamps) if current_time - ts < self._rate_limit_window]
             result[identifier] = {
                 "current_requests": len(valid_timestamps),
                 "max_requests": self._rate_limit_requests,

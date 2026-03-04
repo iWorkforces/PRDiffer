@@ -59,8 +59,9 @@ class RequestCoalescingService:
             max_waiters = settings_service.get("request_coalescing.max_waiters", DEFAULT_MAX_WAITERS)
         if max_waiters is None:
             max_waiters = DEFAULT_MAX_WAITERS
-
+        
         self._max_waiters = int(max_waiters)
+        self._max_pending_requests = 1000  # Maximum concurrent unique requests (DoS prevention)
 
     async def coalesce(
         self,
@@ -118,9 +119,24 @@ class RequestCoalescingService:
                     existing_request = pending
 
             if existing_request is None:
+                # Check if we've reached max pending requests limit (DoS prevention)
+                if len(self._pending_requests) >= self._max_pending_requests:
+                    self._logger.warning(
+                        f"Maximum pending requests ({self._max_pending_requests}) reached, "
+                        f"evicting oldest request"
+                    )
+                    # Evict oldest pending request (first key in dict)
+                    if self._pending_requests:
+                        oldest_key = next(iter(self._pending_requests))
+                        oldest_request = self._pending_requests[oldest_key]
+                        oldest_request.event.set()  # Signal waiters to stop waiting
+                        oldest_request.exception = TimeoutError("Evicted due to pending request limit")
+                        del self._pending_requests[oldest_key]
+                        self._logger.info(f"Evicted pending request for key '{oldest_key}' to make room for new request")
+                
                 new_request = CoalescedRequest(key=key)
                 self._pending_requests[key] = new_request
-                self._logger.debug(f"Starting new request for key '{key}'")
+                self._logger.debug(f"Starting new request for key '{key}' (total pending: {len(self._pending_requests)})")
 
         if existing_request is not None:
             effective_timeout = timeout if timeout is not None else 30.0

@@ -18,7 +18,7 @@ import json
 import os
 import logging
 import time
-from collections import defaultdict
+from collections import OrderedDict
 from dataclasses import dataclass, field
 from typing import Any
 from threading import RLock
@@ -98,7 +98,8 @@ class AuthenticationMiddleware(AuthenticationProtocol):
 
         # Thread-safe failure tracking
         self._lock = RLock()
-        self._auth_failures: dict[str, AuthFailureRecord] = defaultdict(AuthFailureRecord)
+        self._max_auth_failure_records = 500  # DoS prevention: limit number of tracked clients
+        self._auth_failures: OrderedDict[str, AuthFailureRecord] = OrderedDict()
         self._locked_clients: dict[str, float] = {}  # client_id -> unlock_time
 
         # Parse API keys from environment and store ONLY hashes (no raw keys)
@@ -167,8 +168,27 @@ class AuthenticationMiddleware(AuthenticationProtocol):
         """Record an authentication failure for a client."""
         current_time = time.time()
         with self._lock:
-            record = self._auth_failures[client_identifier]
-
+            # Check if this is a new client and we need to evict oldest (DoS prevention)
+            if client_identifier not in self._auth_failures:
+                if len(self._auth_failures) >= self._max_auth_failure_records:
+                    # Evict oldest (first) entry
+                    oldest_client = next(iter(self._auth_failures))
+                    del self._auth_failures[oldest_client]
+                    self._logger.info(
+                        f"Evicted auth failure record for client '{oldest_client}' "
+                        f"to make room (max: {self._max_auth_failure_records})"
+                    )
+            
+            # Get or create record (OrderedDict maintains insertion order)
+            if client_identifier in self._auth_failures:
+                record = self._auth_failures[client_identifier]
+                # Move to end (most recently accessed)
+                self._auth_failures.move_to_end(client_identifier)
+            else:
+                # Create new record
+                record = AuthFailureRecord()
+                self._auth_failures[client_identifier] = record
+            
             # Clean up old failures outside of window
             time_elapsed = current_time - record.first_failure
             if time_elapsed <= 0:
@@ -179,7 +199,7 @@ class AuthenticationMiddleware(AuthenticationProtocol):
                 time_elapsed = 0.001
             else:
                 record.count += 1
-
+            
             record.last_failure = current_time
 
     def _record_success(self, client_identifier: str) -> None:

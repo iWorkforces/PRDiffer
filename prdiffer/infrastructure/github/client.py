@@ -68,7 +68,14 @@ class GitHubAPIClient(GitHubAPIServiceInterface):
         logger: "ConsoleLogger | None" = None,
         file_content_cache_max_size: int = DEFAULT_FILE_CONTENT_CACHE_MAX_SIZE,
         file_content_cache_ttl: int = DEFAULT_FILE_CONTENT_CACHE_TTL,
+        max_file_size_bytes: int = 10485760,  # 10MB default - DoS prevention
     ):
+        self._github_client: Github | None = None
+        self._logger = logger or get_logger()
+        
+        self._cache_max_size = file_content_cache_max_size
+        self._cache_ttl = file_content_cache_ttl
+        self._max_file_size_bytes = max_file_size_bytes
         self._github_client: Github | None = None
         self._logger = logger or get_logger()
 
@@ -430,7 +437,17 @@ class GitHubAPIClient(GitHubAPIServiceInterface):
         return results
 
     def _extract_file_content(self, content: ContentFile) -> str:
+        """Extract file content with size validation (DoS prevention)."""
         if content and hasattr(content, "decoded_content") and content.decoded_content:
+            # Check file size before loading into memory (DoS prevention)
+            if hasattr(content, "size") and content.size > self._max_file_size_bytes:
+                file_path = getattr(content, "path", "unknown")
+                self._logger.warning(
+                    f"File too large to load: {file_path} ({content.size} bytes > {self._max_file_size_bytes} bytes max). "
+                    f"Skipping file to prevent OOM."
+                )
+                return ""
+            
             return str(content.decoded_content.decode())
         return ""
 
