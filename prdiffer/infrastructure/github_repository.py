@@ -8,7 +8,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from github.PaginatedList import PaginatedList
     from github.File import File
 
 import os
@@ -651,6 +650,7 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
             str: A sanitized filename safe for logging
         """
         return self._input_validator.sanitize_for_logging(filename, max_length=200)
+
     def _log_filtered_files(self, original_files: list[File], filtered_files: list[File]) -> None:
         """Log information about filtered files with sanitized names."""
         """Log information about filtered files with sanitized names."""
