@@ -299,8 +299,8 @@ class TestPRNumberValidation:
             (0, "must be positive"),
             (-1, "must be positive"),
             (1000001, "too large"),
-            ("123", "must be integer"),
-            (12.5, "must be integer"),
+            ("123", "must be an integer"),
+            (12.5, "must be an integer"),
         ],
     )
     def test_validate_invalid_pr_numbers(self, invalid_pr, error_match):

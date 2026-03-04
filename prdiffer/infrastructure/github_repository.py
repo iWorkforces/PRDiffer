@@ -338,6 +338,9 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
             GithubException: If PR approval fails (404, 403, rate limit, etc.)
         """
         # Validate inputs
+        if not isinstance(compliment, str):
+            raise ValueError(f"Compliment must be a string, got {type(compliment).__name__}")
+
         if not compliment:
             raise ValueError("Compliment cannot be empty")
 
@@ -450,6 +453,9 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
             GithubException: If PR update fails (404, 403, rate limit, etc.)
         """
         # Validate inputs
+        if not isinstance(description, str):
+            raise ValueError(f"Description must be a string, got {type(description).__name__}")
+
         if not description:
             raise ValueError("Description cannot be empty")
 

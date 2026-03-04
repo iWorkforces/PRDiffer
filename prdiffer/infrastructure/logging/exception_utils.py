@@ -159,6 +159,9 @@ class ExceptionSanitizer:
         Returns:
             Sanitized string
         """
+        # Convert non-strings to string representation
+        if not isinstance(value, str):
+            value = str(value)
 
         sanitized = value
 

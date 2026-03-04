@@ -361,6 +361,7 @@ class TestGetFileContent:
             mock_repo = MagicMock()
             mock_content = MagicMock()
             mock_content.decoded_content = b"file content from api"
+            mock_content.size = 100  # Set size to avoid comparison error
             mock_retry.side_effect = [mock_repo, mock_content]
 
             result = api_client.get_file_content("owner/repo", "file.py", "main")
@@ -436,6 +437,7 @@ class TestExtractFileContent:
         """Test successful content extraction."""
         mock_content = MagicMock()
         mock_content.decoded_content = b"file content"
+        mock_content.size = 100  # Set size to avoid comparison error
 
         result = api_client._extract_file_content(mock_content)
 

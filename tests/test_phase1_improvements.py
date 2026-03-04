@@ -38,7 +38,7 @@ class TestLRUCacheEviction:
         """Create mock logger."""
         return Mock()
 
-    @patch("prdiffer.infrastructure.github.api_client.get_logger")
+    @patch("prdiffer.infrastructure.github.client.get_logger")
     def test_cache_eviction_when_max_size_reached(self, mock_get_logger):
         """Test that oldest entries are evicted when cache reaches max size."""
         from prdiffer.infrastructure.github.client import GitHubAPIClient
@@ -68,7 +68,7 @@ class TestLRUCacheEviction:
         assert ("file1.py", "branch1") not in client._file_content_cache
         assert ("file4.py", "branch1") in client._file_content_cache
 
-    @patch("prdiffer.infrastructure.github.api_client.get_logger")
+    @patch("prdiffer.infrastructure.github.client.get_logger")
     def test_cache_lru_ordering(self, mock_get_logger):
         """Test that accessing an entry moves it to the end (most recently used)."""
         from prdiffer.infrastructure.github.client import GitHubAPIClient
@@ -98,7 +98,7 @@ class TestLRUCacheEviction:
         assert ("file2.py", "branch1") not in client._file_content_cache
         assert ("file1.py", "branch1") in client._file_content_cache
 
-    @patch("prdiffer.infrastructure.github.api_client.get_logger")
+    @patch("prdiffer.infrastructure.github.client.get_logger")
     def test_cache_statistics_tracking(self, mock_get_logger):
         """Test that cache hits, misses, and evictions are tracked."""
         from prdiffer.infrastructure.github.client import GitHubAPIClient

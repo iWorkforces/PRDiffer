@@ -194,11 +194,12 @@ class InputValidator:
             Sanitized string
 
         Raises:
-            InputSanitizationError: If input is suspicious
+            InputSanitizationError: If input is not a string or is suspicious
             SuspiciousOperationError: If suspicious patterns detected
         """
+        if not isinstance(value, str):
+            raise InputSanitizationError(f"Expected string, got {type(value).__name__}")
         return InputSanitizer.sanitize_string(value, max_length)
-
     @classmethod
     def validate_pr_number(cls, pr_number: int) -> int:
         """Validate a PR number.
@@ -210,8 +211,11 @@ class InputValidator:
             Validated PR number
 
         Raises:
-            InvalidPRNumberError: If PR number is invalid
+            InvalidPRNumberError: If PR number is invalid (not an integer, negative, or too large)
         """
+        # Type check - must be an integer
+        if not isinstance(pr_number, int):
+            raise InvalidPRNumberError(f"PR number must be an integer, got {type(pr_number).__name__}")
 
         if pr_number <= 0:
             raise InvalidPRNumberError("PR number must be positive")
@@ -247,6 +251,10 @@ class InputValidator:
             >>> validate_file_path("data/backup.tar.gz")
             'data/backup.tar.gz'
         """
+
+        # Type check - must be a string
+        if not isinstance(file_path, str):
+            raise InputSanitizationError(f"File path must be a string, got {type(file_path).__name__}")
 
         if not file_path:
             raise InputSanitizationError("File path cannot be empty")
@@ -316,6 +324,10 @@ class InputValidator:
             InputSanitizationError: If token format is invalid
         """
 
+        # Type check - must be a string
+        if not isinstance(token, str):
+            raise InputSanitizationError(f"Token must be a string, got {type(token).__name__}")
+
         if not token:
             raise InputSanitizationError("Token cannot be empty")
 
@@ -348,6 +360,10 @@ class InputValidator:
         Raises:
             InputSanitizationError: If user ID is invalid
         """
+
+        # Type check - must be a string
+        if not isinstance(user_id, str):
+            raise InputSanitizationError(f"User ID must be a string, got {type(user_id).__name__}")
 
         if not user_id:
             raise InputSanitizationError("User ID cannot be empty")
