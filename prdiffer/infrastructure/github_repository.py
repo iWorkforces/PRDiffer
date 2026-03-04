@@ -175,7 +175,6 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
             self._parallel_executor = AsyncParallelExecutor(
                 max_concurrent=self.diff_max_workers,
                 error_strategy=ErrorStrategy.IGNORE,
-                logger=self._logger,
             )
             self._logger.info(f"Parallel diff generation enabled (max_concurrent={self.diff_max_workers}, threshold={self.diff_parallel_threshold} files)")
         else:
@@ -652,8 +651,8 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
             str: A sanitized filename safe for logging
         """
         return self._input_validator.sanitize_for_logging(filename, max_length=200)
-
-    def _log_filtered_files(self, original_files: PaginatedList[File], filtered_files: list[File]) -> None:
+    def _log_filtered_files(self, original_files: list[File], filtered_files: list[File]) -> None:
+        """Log information about filtered files with sanitized names."""
         """Log information about filtered files with sanitized names."""
         try:
             # Sanitize file names before logging to prevent log injection
