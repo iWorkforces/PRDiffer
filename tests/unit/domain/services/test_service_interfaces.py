@@ -511,6 +511,10 @@ class TestMockImplementationCompliance:
             def get_stats(self):
                 return {"size": len(self._data)}
 
+            async def get_optimistic(self, cache_key: str):
+                """Optimistic cache lookup without commit SHA."""
+                return None, None
+
         mock = MockCacheService()
         assert isinstance(mock, CacheServiceInterface)
 

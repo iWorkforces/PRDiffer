@@ -26,6 +26,7 @@ from prdiffer.infrastructure.logging.console_logger import ConsoleLogger, get_lo
 from prdiffer.infrastructure.logging.exception_utils import (
     sanitize_exception_for_logging,
 )
+from prdiffer.infrastructure.settings import get_settings_service
 from prdiffer.domain.exceptions import PRDifferException
 from prdiffer.domain.errors import E5009_CONFIGURATION_ERROR
 from prdiffer.infrastructure.utils.parallel import (
@@ -76,6 +77,10 @@ class GitHubAPIClient(GitHubAPIServiceInterface):
         self._cache_max_size = file_content_cache_max_size
         self._cache_ttl = file_content_cache_ttl
         self._max_file_size_bytes = max_file_size_bytes
+        
+        # Performance optimization feature flags
+        settings = get_settings_service()
+        self._parallel_file_fetch_enabled = settings.get("performance.parallel_file_fetch_enabled", False)
         self._github_client: Github | None = None
         self._logger = logger or get_logger()
 
@@ -322,6 +327,19 @@ class GitHubAPIClient(GitHubAPIServiceInterface):
             return file_content
 
     def get_files_content_batch(self, repo_full_name: str, file_paths: list[str], branch: str) -> dict[str, str]:
+        """Get content for multiple files with caching and optional parallel fetching."""
+        # Performance optimization: Use async parallel fetch when feature flag enabled
+        if self._parallel_file_fetch_enabled:
+            # Use anyio.run to call async method from sync context
+            import anyio
+            return anyio.run(
+                self._get_files_content_batch_parallel_async,
+                repo_full_name,
+                file_paths,
+                branch,
+            )
+        
+        # Legacy sequential path (default)
         results: dict[str, str] = {}
         files_to_fetch: list[str] = []
 

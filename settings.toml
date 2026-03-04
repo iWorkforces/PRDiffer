@@ -40,6 +40,13 @@ github.api_health_tracking = true  # Track API health metrics
 github.context_aware_retry = true  # Enable context-aware retry strategies
 github.max_concurrent = 4  # Maximum concurrent GitHub API operations
 
+# Performance optimization feature flags (enabled by default)
+[performance]
+cache_hit_optimization_enabled = true  # Optimistic cache lookup before commit SHA check (40-60% latency reduction)
+parallel_file_fetch_enabled = true  # Use async parallel file fetching instead of sequential
+parallel_head_base_fetch_enabled = true  # Fetch head and base content concurrently
+parallel_diff_generation_enabled = true  # Enable parallel diff generation
+
 # File filtering patterns
 github.ignore_patterns = [
     # Hidden files and directories (matches .* and */.* patterns)

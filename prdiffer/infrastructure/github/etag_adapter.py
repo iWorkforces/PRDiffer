@@ -10,9 +10,9 @@ when content hasn't changed, which saves on data transfer for large responses.
 
 import time
 import logging
+import threading
 from collections import OrderedDict
 from typing import Any
-
 from prdiffer.infrastructure.logging.console_logger import get_logger, ConsoleLogger
 
 
@@ -58,6 +58,9 @@ class ETagRequestAdapter:
 
         # ETag cache - stored as URL -> etag mapping for fast lookup
         self._etag_cache: dict[str, str] = OrderedDict()
+        
+        # Thread-safe stats counters
+        self._stats_lock = threading.Lock()
         self._etag_hits = 0
         self._etag_misses = 0
         self._not_modified_responses = 0
@@ -92,17 +95,23 @@ class ETagRequestAdapter:
         Returns:
             dict[str, Any]: Statistics including cache size, hits, misses
         """
-        total_requests = self._etag_hits + self._etag_misses
-        hit_rate = self._etag_hits * 100 / total_requests if total_requests else 0.0
-
+        with self._stats_lock:
+            total_requests = self._etag_hits + self._etag_misses
+            hit_rate = self._etag_hits * 100 / total_requests if total_requests else 0.0
+            
+            # Return copies of counter values to avoid race conditions
+            etag_hits = self._etag_hits
+            etag_misses = self._etag_misses
+            not_modified_responses = self._not_modified_responses
+        
         return {
             "enabled": self._enabled,
             "cache_size": len(self._etag_cache),
             "max_cache_size": self._etag_cache_size,
             "ttl_seconds": self._etag_ttl,
-            "etag_hits": self._etag_hits,
-            "etag_misses": self._etag_misses,
-            "not_modified_responses": self._not_modified_responses,
+            "etag_hits": etag_hits,
+            "etag_misses": etag_misses,
+            "not_modified_responses": not_modified_responses,
             "hit_rate_percent": round(hit_rate, 2),
         }
 
@@ -143,7 +152,9 @@ class ETagRequestAdapter:
         etag = headers.get("ETag")
 
         if status_code == self.HTTP_NOT_MODIFIED:
-            self._not_modified_responses += 1
+            with self._stats_lock:
+                self._not_modified_responses += 1
+                self._etag_hits += 1  # Cache hit
             cached_content = self._cache_service.get(url) if self._cache_service else None
 
             if cached_content is not None:
@@ -155,6 +166,8 @@ class ETagRequestAdapter:
 
         if etag:
             self._store_etag(url, etag, content)
+            with self._stats_lock:
+                self._etag_misses += 1  # Fresh content fetched
         elif status_code == 200:
             self._logger.debug(f"200 response without ETag for {url[:60]}...")
 

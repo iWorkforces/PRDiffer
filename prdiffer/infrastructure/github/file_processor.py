@@ -4,7 +4,7 @@ import inspect
 import time
 import anyio
 import asyncer
-from typing import Any, cast
+from typing import Any, Sequence, cast
 from github.File import File
 from github.PaginatedList import PaginatedList
 from github.PullRequest import PullRequest as PyGithubPullRequest
@@ -85,6 +85,11 @@ class FileProcessor:
             error_strategy=ErrorStrategy.IGNORE,
             logger=logger,
         )
+        
+        # Performance optimization feature flags
+        from prdiffer.infrastructure.settings import get_settings_service
+        settings = get_settings_service()
+        self._parallel_head_base_fetch_enabled = settings.get("performance.parallel_head_base_fetch_enabled", False)
 
     async def get_pr_files(self, pull_request: PyGithubPullRequest) -> PaginatedList[File]:
         """Get all files from the pull request with caching.
@@ -121,11 +126,11 @@ class FileProcessor:
         # Unreachable - all code paths return inside the async context
         assert False, "Unreachable code"
 
-    def filter_files(self, files: PaginatedList[File]) -> list[File]:
+    def filter_files(self, files: Sequence[File]) -> list[File]:
         """Filter files based on pattern matching configuration.
 
         Args:
-            files: PaginatedList of file objects to filter
+            files: Sequence of file objects to filter (PaginatedList or list)
 
         Returns:
             Filtered list of files
@@ -397,9 +402,16 @@ class FileProcessor:
                     # Fallback to current filename if previous_filename not available
                     base_files.append(file.filename)
 
-        # Batch load content - sequential processing to avoid blocking
+# Batch load content
+        # Note: For parallel fetching, use the async method _process_files_with_content_parallel_async
+        # This sync method always uses sequential fetching
+        # Note: For parallel fetching, use the async method _process_files_with_content_parallel_async
+        # This sync method always uses sequential fetching
+        head_contents: dict[str, str] = {}
+        base_contents: dict[str, str] = {}
+        
+        # Sequential path (always used in sync context)
         head_contents = self._github_api_service.get_files_content_batch(repository.full_name, head_files, head_sha) if head_files else {}
-
         base_contents = self._github_api_service.get_files_content_batch(repository.full_name, base_files, base_sha) if base_files else {}
 
         # Process each file with loaded content
