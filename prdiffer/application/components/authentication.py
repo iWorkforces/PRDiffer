@@ -174,11 +174,8 @@ class AuthenticationMiddleware(AuthenticationProtocol):
                     # Evict oldest (first) entry
                     oldest_client = next(iter(self._auth_failures))
                     del self._auth_failures[oldest_client]
-                    self._logger.info(
-                        f"Evicted auth failure record for client '{oldest_client}' "
-                        f"to make room (max: {self._max_auth_failure_records})"
-                    )
-            
+                    self._logger.info(f"Evicted auth failure record for client '{oldest_client}' to make room (max: {self._max_auth_failure_records})")
+
             # Get or create record (OrderedDict maintains insertion order)
             if client_identifier in self._auth_failures:
                 record = self._auth_failures[client_identifier]
@@ -188,7 +185,7 @@ class AuthenticationMiddleware(AuthenticationProtocol):
                 # Create new record
                 record = AuthFailureRecord()
                 self._auth_failures[client_identifier] = record
-            
+
             # Clean up old failures outside of window
             time_elapsed = current_time - record.first_failure
             if time_elapsed <= 0:
@@ -199,7 +196,7 @@ class AuthenticationMiddleware(AuthenticationProtocol):
                 time_elapsed = 0.001
             else:
                 record.count += 1
-            
+
             record.last_failure = current_time
 
     def _record_success(self, client_identifier: str) -> None:

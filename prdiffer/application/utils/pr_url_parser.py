@@ -45,7 +45,7 @@ def parse_pr_url(
     # Type check first - pr_url must be a string
     if not isinstance(pr_url, str):
         raise InvalidURLError(f"PR URL must be a string, got {type(pr_url).__name__}")
-    
+
     pr_url_stripped = pr_url.strip()
     if not pr_url_stripped:
         raise InvalidURLError("PR URL cannot be empty or whitespace-only")

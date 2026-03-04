@@ -4,11 +4,10 @@ Tracks cache performance, feature flag adoption, API calls, and latency.
 """
 
 import time
-import time
 import threading
 from typing import Any
 from collections import defaultdict
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 
 @dataclass

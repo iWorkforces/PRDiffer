@@ -200,6 +200,7 @@ class InputValidator:
         if not isinstance(value, str):
             raise InputSanitizationError(f"Expected string, got {type(value).__name__}")
         return InputSanitizer.sanitize_string(value, max_length)
+
     @classmethod
     def validate_pr_number(cls, pr_number: int) -> int:
         """Validate a PR number.

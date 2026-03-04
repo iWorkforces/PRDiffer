@@ -73,11 +73,11 @@ class GitHubAPIClient(GitHubAPIServiceInterface):
     ):
         self._github_client: Github | None = None
         self._logger = logger or get_logger()
-        
+
         self._cache_max_size = file_content_cache_max_size
         self._cache_ttl = file_content_cache_ttl
         self._max_file_size_bytes = max_file_size_bytes
-        
+
         # Performance optimization feature flags
         settings = get_settings_service()
         self._parallel_file_fetch_enabled = settings.get("performance.parallel_file_fetch_enabled", False)
@@ -332,13 +332,14 @@ class GitHubAPIClient(GitHubAPIServiceInterface):
         if self._parallel_file_fetch_enabled:
             # Use anyio.run to call async method from sync context
             import anyio
+
             return anyio.run(
                 self._get_files_content_batch_parallel_async,
                 repo_full_name,
                 file_paths,
                 branch,
             )
-        
+
         # Legacy sequential path (default)
         results: dict[str, str] = {}
         files_to_fetch: list[str] = []
@@ -461,11 +462,10 @@ class GitHubAPIClient(GitHubAPIServiceInterface):
             if hasattr(content, "size") and content.size > self._max_file_size_bytes:
                 file_path = getattr(content, "path", "unknown")
                 self._logger.warning(
-                    f"File too large to load: {file_path} ({content.size} bytes > {self._max_file_size_bytes} bytes max). "
-                    f"Skipping file to prevent OOM."
+                    f"File too large to load: {file_path} ({content.size} bytes > {self._max_file_size_bytes} bytes max). Skipping file to prevent OOM."
                 )
                 return ""
-            
+
             return str(content.decoded_content.decode())
         return ""
 

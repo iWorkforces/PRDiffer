@@ -89,7 +89,7 @@ class GlobalCircuitBreakerRegistry:
                 # Check if we need to evict an old breaker (DoS prevention)
                 if len(self._breakers) >= self._max_breakers:
                     self._evict_oldest_breaker()
-                
+
                 self._breakers[endpoint] = CircuitBreaker(
                     failure_threshold=self._default_failure_threshold,
                     timeout=self._default_timeout,
@@ -104,12 +104,9 @@ class GlobalCircuitBreakerRegistry:
         for endpoint, breaker in self._breakers.items():
             if breaker.state == CircuitState.CLOSED:
                 del self._breakers[endpoint]
-                self._logger.info(
-                    f"Evicted CLOSED circuit breaker for endpoint '{endpoint}' "
-                    f"to make room (max: {self._max_breakers})"
-                )
+                self._logger.info(f"Evicted CLOSED circuit breaker for endpoint '{endpoint}' to make room (max: {self._max_breakers})")
                 return
-        
+
         # If no CLOSED breakers, evict the first one (oldest)
         if self._breakers:
             oldest_endpoint = next(iter(self._breakers))
@@ -119,6 +116,7 @@ class GlobalCircuitBreakerRegistry:
                 f"Evicted {oldest_breaker.state.value} circuit breaker for endpoint '{oldest_endpoint}' "
                 f"to make room (no CLOSED breakers available, max: {self._max_breakers})"
             )
+
     @property
     def global_breaker(self) -> CircuitBreaker:
         """Get the global circuit breaker."""

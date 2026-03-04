@@ -125,7 +125,7 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
         # File processing parallel fetch configuration
         self.file_parallel_threshold = self.settings_service.get("file_processing.parallel_fetch_threshold", 10)
         self.file_parallel_workers = self.settings_service.get("file_processing.concurrent_downloads", 3)
-        
+
         # Performance optimization feature flag
         self._parallel_diff_generation_enabled = self.settings_service.get("performance.parallel_diff_generation_enabled", False)
         # Diff truncation configuration
@@ -171,15 +171,13 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
         # Enable when feature flag is set AND diff_parallel_enabled is true
         if self._parallel_diff_generation_enabled and self.diff_parallel_enabled:
             from prdiffer.infrastructure.utils.parallel import AsyncParallelExecutor, ErrorStrategy
+
             self._parallel_executor = AsyncParallelExecutor(
                 max_concurrent=self.diff_max_workers,
                 error_strategy=ErrorStrategy.IGNORE,
                 logger=self._logger,
             )
-            self._logger.info(
-                f"Parallel diff generation enabled (max_concurrent={self.diff_max_workers}, "
-                f"threshold={self.diff_parallel_threshold} files)"
-            )
+            self._logger.info(f"Parallel diff generation enabled (max_concurrent={self.diff_max_workers}, threshold={self.diff_parallel_threshold} files)")
         else:
             # Legacy: Parallel executor disabled
             self._parallel_executor = None
@@ -566,11 +564,11 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
             raise RuntimeError(f"Failed to initialize pull request #{self._pr_number} - GitHub objects may not have been properly initialized")
 
         base_sha, head_sha = await self._get_merge_base_commits()
-        
+
         # Materialize PaginatedList once to avoid duplicate API calls
         pr_files_paginated = await self._file_processor.get_pr_files(self._pull_request)
         pr_files = list(pr_files_paginated)  # Materialize once, reuse everywhere
-        
+
         # Pass materialized list to filter_files (not PaginatedList) to avoid double API calls
         filtered_files = self._file_processor.filter_files(pr_files)
 

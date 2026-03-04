@@ -85,9 +85,10 @@ class FileProcessor:
             error_strategy=ErrorStrategy.IGNORE,
             logger=logger,
         )
-        
+
         # Performance optimization feature flags
         from prdiffer.infrastructure.settings import get_settings_service
+
         settings = get_settings_service()
         self._parallel_head_base_fetch_enabled = settings.get("performance.parallel_head_base_fetch_enabled", False)
 
@@ -402,14 +403,14 @@ class FileProcessor:
                     # Fallback to current filename if previous_filename not available
                     base_files.append(file.filename)
 
-# Batch load content
+        # Batch load content
         # Note: For parallel fetching, use the async method _process_files_with_content_parallel_async
         # This sync method always uses sequential fetching
         # Note: For parallel fetching, use the async method _process_files_with_content_parallel_async
         # This sync method always uses sequential fetching
         head_contents: dict[str, str] = {}
         base_contents: dict[str, str] = {}
-        
+
         # Sequential path (always used in sync context)
         head_contents = self._github_api_service.get_files_content_batch(repository.full_name, head_files, head_sha) if head_files else {}
         base_contents = self._github_api_service.get_files_content_batch(repository.full_name, base_files, base_sha) if base_files else {}

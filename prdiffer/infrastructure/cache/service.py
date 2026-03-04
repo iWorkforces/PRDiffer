@@ -123,36 +123,36 @@ class CacheService(CacheServiceInterface):
 
     async def _evict_oldest_if_needed(self) -> None:
         """Evict entries when cache exceeds max size (optimized LRU eviction).
-        
+
         Optimizations:
         - O(1) LRU eviction using OrderedDict.popitem(last=False)
         - TTL eviction only every 10 calls to avoid O(n) scan on every set()
         """
         # Periodic TTL eviction (every 10 calls)
         # Periodic TTL eviction (every 10 calls)
-        if not hasattr(self, '_eviction_call_count'):
+        if not hasattr(self, "_eviction_call_count"):
             self._eviction_call_count = 0
-        
+
         self._eviction_call_count += 1
-        
+
         if self._eviction_call_count % 10 == 0:
             # O(n) TTL eviction - only every 10th call
             current_time = time.time()
             expired_keys: list[str] = []
-            
+
             for key, entry in self.cache.items():
                 age = current_time - float(entry["timestamp"])
                 if age >= self._ttl:
                     expired_keys.append(key)
-            
+
             for key in expired_keys:
                 self.cache.pop(key)
                 self._key_mapping.pop(key, None)
                 self._cache_evictions_ttl += 1
-            
+
             if expired_keys:
                 self.logger.debug(f"Cache eviction (TTL): removed {len(expired_keys)} expired entries [size={len(self.cache)}/{self._cache_max_size}]")
-        
+
         # O(1) LRU eviction - always when over size limit
         while len(self.cache) >= self._cache_max_size:
             evicted_key, _ = self.cache.popitem(last=False)
@@ -214,11 +214,11 @@ class CacheService(CacheServiceInterface):
                     current_sha=current_commit_sha,
                 )
                 return None
-    
+
     async def get_optimistic(self, cache_key: str) -> tuple[PRDiff | None, str | None]:
         """Get cached PR diff data without commit SHA validation (optimistic lookup).
-        
-        Performance optimization: Returns cached data and its commit SHA without 
+
+        Performance optimization: Returns cached data and its commit SHA without
         validation, allowing caller to decide whether the data is fresh enough.
         This avoids a GitHub API call for cache hits.
 
@@ -229,7 +229,7 @@ class CacheService(CacheServiceInterface):
             tuple: (cached_data, cached_commit_sha) - Both None if cache miss
         """
         internal_key, hash_display = await self._get_internal_key(cache_key)
-        
+
         async with self._lock:
             if internal_key not in self.cache:
                 self._cache_misses += 1
@@ -239,9 +239,9 @@ class CacheService(CacheServiceInterface):
                     hash=hash_display if self._use_hashed_keys else None,
                 )
                 return None, None
-            
+
             cached_data = self.cache[internal_key]
-            
+
             # Check expiration (but don't validate commit SHA)
             if self._is_entry_expired(cached_data):
                 self._cache_expirations += 1
@@ -256,11 +256,11 @@ class CacheService(CacheServiceInterface):
                     ttl_seconds=self._ttl,
                 )
                 return None, None
-            
+
             # Return data and commit SHA without validation
             cached_commit_sha = cached_data.get("commit_sha")
             cached_result = cached_data.get("data")
-            
+
             if cached_result:
                 self._cache_hits += 1
                 self.cache.move_to_end(internal_key)  # Update LRU

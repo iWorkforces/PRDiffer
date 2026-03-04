@@ -37,12 +37,12 @@ class CacheServiceInterface(ABC):
             Optional["PRDiff"]: Cached data if valid, None otherwise
         """
         pass
-    
+
     @abstractmethod
     async def get_optimistic(self, cache_key: str) -> tuple[PRDiff | None, str | None]:
         """Get cached PR diff data without commit SHA validation (optimistic lookup).
-        
-        Performance optimization: Returns cached data and its commit SHA without 
+
+        Performance optimization: Returns cached data and its commit SHA without
         validation, allowing caller to decide whether the data is fresh enough.
 
         Args:
