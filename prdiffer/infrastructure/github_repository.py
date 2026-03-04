@@ -8,7 +8,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from github.PaginatedList import PaginatedList
     from github.File import File
 
 import os
@@ -99,7 +98,7 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
         self.valid_extensions = github_settings.get("valid_extensions", [])
         self.max_files_allowed = app_settings.get("max_files_allowed", 50)
 
-        # Get smart retry configuration (Phase 2)
+        # Get smart retry configuration
         self.retry_on_404 = github_settings.get("retry_on_404", False)
         self.retry_on_403 = github_settings.get("retry_on_403", True)
         self.retry_on_500 = github_settings.get("retry_on_500", True)
@@ -126,6 +125,8 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
         self.file_parallel_threshold = self.settings_service.get("file_processing.parallel_fetch_threshold", 10)
         self.file_parallel_workers = self.settings_service.get("file_processing.concurrent_downloads", 3)
 
+        # Performance optimization feature flag
+        self._parallel_diff_generation_enabled = self.settings_service.get("performance.parallel_diff_generation_enabled", False)
         # Diff truncation configuration
         self._diff_truncate_enabled = self.settings_service.get("diff.truncate_enabled", False)
         self._diff_max_total_chars = int(self.settings_service.get("diff.max_total_chars", 200000))
@@ -165,11 +166,19 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
             max_parallel_workers=self.file_parallel_workers,
         )
 
-        # Note: Parallel executor disabled for simplicity.
-        # The async migration has moved parallel processing to FileProcessor and APIClient
-        # which use AsyncParallelExecutor internally.
-        # DiffGenerator will use sequential processing.
-        self._parallel_executor = None
+        # Performance optimization: Parallel executor for diff generation
+        # Enable when feature flag is set AND diff_parallel_enabled is true
+        if self._parallel_diff_generation_enabled and self.diff_parallel_enabled:
+            from prdiffer.infrastructure.utils.parallel import AsyncParallelExecutor, ErrorStrategy
+
+            self._parallel_executor = AsyncParallelExecutor(
+                max_concurrent=self.diff_max_workers,
+                error_strategy=ErrorStrategy.IGNORE,
+            )
+            self._logger.info(f"Parallel diff generation enabled (max_concurrent={self.diff_max_workers}, threshold={self.diff_parallel_threshold} files)")
+        else:
+            # Legacy: Parallel executor disabled
+            self._parallel_executor = None
 
         self._diff_generator = get_diff_generator(
             diff_utils=self._diff_utils,
@@ -325,6 +334,9 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
             GithubException: If PR approval fails (404, 403, rate limit, etc.)
         """
         # Validate inputs
+        if not isinstance(compliment, str):
+            raise ValueError(f"Compliment must be a string, got {type(compliment).__name__}")
+
         if not compliment:
             raise ValueError("Compliment cannot be empty")
 
@@ -437,6 +449,9 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
             GithubException: If PR update fails (404, 403, rate limit, etc.)
         """
         # Validate inputs
+        if not isinstance(description, str):
+            raise ValueError(f"Description must be a string, got {type(description).__name__}")
+
         if not description:
             raise ValueError("Description cannot be empty")
 
@@ -548,10 +563,14 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
 
         base_sha, head_sha = await self._get_merge_base_commits()
 
-        pr_files = await self._file_processor.get_pr_files(self._pull_request)
+        # Materialize PaginatedList once to avoid duplicate API calls
+        pr_files_paginated = await self._file_processor.get_pr_files(self._pull_request)
+        pr_files = list(pr_files_paginated)  # Materialize once, reuse everywhere
+
+        # Pass materialized list to filter_files (not PaginatedList) to avoid double API calls
         filtered_files = self._file_processor.filter_files(pr_files)
 
-        if len(filtered_files) != len(list(pr_files)):
+        if len(filtered_files) != len(pr_files):
             self._log_filtered_files(pr_files, filtered_files)
 
         diff_files = self._file_processor.process_files_to_patches(filtered_files, self._repository, head_sha, base_sha)
@@ -632,7 +651,8 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
         """
         return self._input_validator.sanitize_for_logging(filename, max_length=200)
 
-    def _log_filtered_files(self, original_files: PaginatedList[File], filtered_files: list[File]) -> None:
+    def _log_filtered_files(self, original_files: list[File], filtered_files: list[File]) -> None:
+        """Log information about filtered files with sanitized names."""
         """Log information about filtered files with sanitized names."""
         try:
             # Sanitize file names before logging to prevent log injection

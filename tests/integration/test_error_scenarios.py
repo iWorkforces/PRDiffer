@@ -272,7 +272,7 @@ class TestValidationErrorScenarios:
         none_url = None
 
         # Act & Assert: Should raise InvalidURLError
-        with pytest.raises(InvalidURLError, match="cannot be None"):
+        with pytest.raises(InvalidURLError, match="must be a string"):
             parse_pr_url(cast(str, none_url))
 
     def test_whitespace_only_url(self, server):

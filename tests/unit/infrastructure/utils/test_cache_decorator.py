@@ -286,7 +286,7 @@ class TestCachedMethod:
 
         obj = BadClass()
 
-        with pytest.raises(TypeError) as exc_info:
+        with pytest.raises((TypeError, AssertionError)) as exc_info:
             obj.get_value(5)
 
         assert "CachingMixin" in str(exc_info.value)

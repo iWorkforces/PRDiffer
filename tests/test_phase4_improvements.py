@@ -409,7 +409,7 @@ class TestGlobalCircuitBreakerRegistry:
 
     def test_singleton_pattern(self):
         """Test that registry is a singleton."""
-        from prdiffer.infrastructure.utils.circuit_breaker.core import (
+        from prdiffer.infrastructure.utils.circuit_breaker import (
             GlobalCircuitBreakerRegistry,
         )
 
@@ -423,7 +423,7 @@ class TestGlobalCircuitBreakerRegistry:
 
     def test_get_breaker_creates_new(self):
         """Test getting a breaker creates it if not exists."""
-        from prdiffer.infrastructure.utils.circuit_breaker.core import (
+        from prdiffer.infrastructure.utils.circuit_breaker import (
             get_global_circuit_breaker_registry,
         )
 
@@ -438,7 +438,7 @@ class TestGlobalCircuitBreakerRegistry:
 
     def test_get_breaker_returns_same(self):
         """Test getting same breaker returns same instance."""
-        from prdiffer.infrastructure.utils.circuit_breaker.core import (
+        from prdiffer.infrastructure.utils.circuit_breaker import (
             get_global_circuit_breaker_registry,
         )
 
@@ -453,7 +453,7 @@ class TestGlobalCircuitBreakerRegistry:
 
     def test_can_execute_checks_both_breakers(self):
         """Test can_execute checks both endpoint and global breakers."""
-        from prdiffer.infrastructure.utils.circuit_breaker.core import (
+        from prdiffer.infrastructure.utils.circuit_breaker import (
             get_global_circuit_breaker_registry,
         )
 
@@ -467,7 +467,7 @@ class TestGlobalCircuitBreakerRegistry:
 
     def test_record_success_updates_both(self):
         """Test record_success updates both endpoint and global breakers."""
-        from prdiffer.infrastructure.utils.circuit_breaker.core import (
+        from prdiffer.infrastructure.utils.circuit_breaker import (
             get_global_circuit_breaker_registry,
         )
 
@@ -484,7 +484,7 @@ class TestGlobalCircuitBreakerRegistry:
 
     def test_record_failure_updates_both(self):
         """Test record_failure updates both endpoint and global breakers."""
-        from prdiffer.infrastructure.utils.circuit_breaker.core import (
+        from prdiffer.infrastructure.utils.circuit_breaker import (
             get_global_circuit_breaker_registry,
         )
 
@@ -503,7 +503,7 @@ class TestGlobalCircuitBreakerRegistry:
 
     def test_get_all_stats(self):
         """Test getting statistics for all breakers."""
-        from prdiffer.infrastructure.utils.circuit_breaker.core import (
+        from prdiffer.infrastructure.utils.circuit_breaker import (
             get_global_circuit_breaker_registry,
         )
 
@@ -522,7 +522,7 @@ class TestGlobalCircuitBreakerRegistry:
 
     def test_get_open_breakers(self):
         """Test getting list of open breakers."""
-        from prdiffer.infrastructure.utils.circuit_breaker.core import (
+        from prdiffer.infrastructure.utils.circuit_breaker import (
             get_global_circuit_breaker_registry,
         )
 
@@ -548,7 +548,7 @@ class TestGlobalCircuitBreakerRegistry:
 
     def test_reset_all(self):
         """Test resetting all circuit breakers."""
-        from prdiffer.infrastructure.utils.circuit_breaker.core import (
+        from prdiffer.infrastructure.utils.circuit_breaker import (
             get_global_circuit_breaker_registry,
             CircuitState,
         )
@@ -573,7 +573,7 @@ class TestGlobalCircuitBreakerRegistry:
 
     def test_clear_endpoint(self):
         """Test removing a specific endpoint's breaker."""
-        from prdiffer.infrastructure.utils.circuit_breaker.core import (
+        from prdiffer.infrastructure.utils.circuit_breaker import (
             get_global_circuit_breaker_registry,
         )
 
@@ -595,7 +595,7 @@ class TestCircuitBreakerForEndpoint:
 
     def test_get_circuit_breaker_from_registry(self):
         """Test getting circuit breaker from global registry."""
-        from prdiffer.infrastructure.utils.circuit_breaker.core import (
+        from prdiffer.infrastructure.utils.circuit_breaker import (
             get_global_circuit_breaker_registry,
         )
 
@@ -635,7 +635,7 @@ class TestPhase4Integration:
         from prdiffer.infrastructure.utils.parallel import (
             AsyncParallelExecutor,
         )
-        from prdiffer.infrastructure.utils.circuit_breaker.core import (
+        from prdiffer.infrastructure.utils.circuit_breaker import (
             get_global_circuit_breaker_registry,
         )
 

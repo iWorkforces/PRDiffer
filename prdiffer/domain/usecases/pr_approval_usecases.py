@@ -59,6 +59,9 @@ class ApprovePRUseCase:
         if not pr_url:
             raise InvalidURLError("PR URL cannot be empty", error_code=E1001_INVALID_URL)
 
+        if not isinstance(compliment, str):
+            raise ValidationError(f"Compliment must be a string, got {type(compliment).__name__}", error_code=E1001_INVALID_URL)
+
         if not compliment:
             raise ValidationError("Compliment cannot be empty", error_code=E1001_INVALID_URL)
 

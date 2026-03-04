@@ -30,7 +30,7 @@ def parse_pr_url(
 
     Raises:
         InvalidURLError: If the URL format is invalid, contains invalid characters,
-            or is empty/whitespace-only
+            or is empty/whitespace-only, or not a string
         SuspiciousOperationError: If the URL contains suspicious patterns
         InvalidRepositoryError: If repository name is invalid
         InvalidPRNumberError: If PR number is invalid
@@ -42,6 +42,10 @@ def parse_pr_url(
         >>> parse_pr_url("https://github.com/owner/repo/pulls/456")
         ('owner', 'repo', 456)
     """
+    # Type check first - pr_url must be a string
+    if not isinstance(pr_url, str):
+        raise InvalidURLError(f"PR URL must be a string, got {type(pr_url).__name__}")
+
     pr_url_stripped = pr_url.strip()
     if not pr_url_stripped:
         raise InvalidURLError("PR URL cannot be empty or whitespace-only")

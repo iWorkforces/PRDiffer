@@ -62,7 +62,7 @@ class TestParsePRURL:
 
     def test_invalid_pr_url_none(self):
         """Test that None URL raises InvalidURLError."""
-        with pytest.raises(InvalidURLError, match="PR URL cannot be None"):
+        with pytest.raises(InvalidURLError, match="must be a string"):
             parse_pr_url(None)  # type: ignore[arg-type]
 
     def test_invalid_pr_url_empty_string(self):

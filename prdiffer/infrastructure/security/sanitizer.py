@@ -95,6 +95,10 @@ class InputSanitizer:
         Returns:
             Sanitized value safe for logging
         """
+        # Convert non-strings to string representation
+        if not isinstance(value, str):
+            value = str(value)
+
         # Truncate long values
         if len(value) > max_length:
             value = value[:max_length] + "..."

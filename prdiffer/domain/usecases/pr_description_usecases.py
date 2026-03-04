@@ -59,6 +59,9 @@ class UpdatePRDescriptionUseCase:
         if not pr_url:
             raise InvalidURLError("PR URL cannot be empty", error_code=E1001_INVALID_URL)
 
+        if not isinstance(pr_description, str):
+            raise ValidationError(f"PR description must be a string, got {type(pr_description).__name__}", error_code=E1001_INVALID_URL)
+
         if not pr_description:
             raise ValidationError("PR description cannot be empty", error_code=E1001_INVALID_URL)
 

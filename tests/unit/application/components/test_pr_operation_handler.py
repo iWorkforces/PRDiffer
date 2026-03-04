@@ -63,6 +63,11 @@ class MockCacheService(CacheServiceInterface):
     def get_stats(self):
         return {"size": 0, "keys": []}
 
+    async def get_optimistic(self, cache_key: str):
+        """Optimistic cache lookup without commit SHA."""
+        return None, None
+        return {"size": 0, "keys": []}
+
 
 class MockRepositoryCacheService(RepositoryCacheServiceInterface):
     """Mock repository cache service for testing."""

@@ -64,6 +64,7 @@ class GlobalCircuitBreakerRegistry:
         self._breakers: dict[str, CircuitBreaker] = {}
         self._registry_lock = threading.Lock()
         self._logger = get_logger()
+        self._max_breakers = 100  # DoS prevention: limit number of circuit breakers
 
         # Global circuit breaker for system-wide protection
         self._global_breaker = CircuitBreaker(
@@ -85,13 +86,36 @@ class GlobalCircuitBreakerRegistry:
         """
         with self._registry_lock:
             if endpoint not in self._breakers:
+                # Check if we need to evict an old breaker (DoS prevention)
+                if len(self._breakers) >= self._max_breakers:
+                    self._evict_oldest_breaker()
+
                 self._breakers[endpoint] = CircuitBreaker(
                     failure_threshold=self._default_failure_threshold,
                     timeout=self._default_timeout,
                     logger=self._logger,
                 )
-                self._logger.debug(f"Created circuit breaker for endpoint: {endpoint}")
+                self._logger.debug(f"Created circuit breaker for endpoint: {endpoint} (total: {len(self._breakers)})")
             return self._breakers[endpoint]
+
+    def _evict_oldest_breaker(self) -> None:
+        """Evict the oldest CLOSED circuit breaker to make room for a new one."""
+        # Prefer evicting CLOSED breakers (not actively protecting)
+        for endpoint, breaker in self._breakers.items():
+            if breaker.state == CircuitState.CLOSED:
+                del self._breakers[endpoint]
+                self._logger.info(f"Evicted CLOSED circuit breaker for endpoint '{endpoint}' to make room (max: {self._max_breakers})")
+                return
+
+        # If no CLOSED breakers, evict the first one (oldest)
+        if self._breakers:
+            oldest_endpoint = next(iter(self._breakers))
+            oldest_breaker = self._breakers[oldest_endpoint]
+            del self._breakers[oldest_endpoint]
+            self._logger.warning(
+                f"Evicted {oldest_breaker.state.value} circuit breaker for endpoint '{oldest_endpoint}' "
+                f"to make room (no CLOSED breakers available, max: {self._max_breakers})"
+            )
 
     @property
     def global_breaker(self) -> CircuitBreaker:
