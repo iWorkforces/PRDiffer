@@ -54,6 +54,11 @@ class SecurityPatterns:
                 r"[;&|`$]",  # Shell metacharacters
                 r"\$\(",  # Command substitution
                 r"`",  # Backticks
+                r"\|&",  # Bash pipe-and
+                r"\|\|",  # Logical OR
+                r"&&",  # Logical AND
+                r"%0[aAdD]",  # URL-encoded newlines (LF, CR)
+                r"\\x[0-9a-fA-F]{2}",  # Hex-encoded characters
             ],
             path_traversal=[
                 r"\.\.",  # Parent directory (Unix)
@@ -64,11 +69,19 @@ class SecurityPatterns:
                 r"[a-zA-Z]:\\",  # Windows absolute paths
                 r"\.\.\\",  # Windows parent directory
                 r"\\\\",  # UNC paths
+                r"\.\.%2[fF]",  # URL-encoded ../
+                r"\.\.%5[cC]",  # URL-encoded ..\
+                r"%2[eE]%2[eE]",  # URL-encoded ..
+                r"%252[eE]",  # Double URL-encoded .
             ],
             sql_injection=[
                 r"(?:--|#|/\*|\*/)",  # SQL comments
                 r"\b(?:union|select|insert|update|delete|drop|create|alter)\b",
                 r"(?:exec|execute|xp_)",
+                r"['\"]\s*(?:OR|AND)\s+['\"]?\d+['\"]?\s*=\s*['\"]?\d+",  # 'OR 1=1' patterns
+                r"['\"]\s*(?:OR|AND)\s+['\"][^'\"]+['\"]?\s*=\s*['\"]",  # 'OR ''=' patterns
+                r";\s*(?:DROP|DELETE|TRUNCATE|UPDATE)",  # Statement termination attacks
+                r"%",  # Wildcard (can be abused)
             ],
         )
 
@@ -145,6 +158,11 @@ class InjectionDetector:
         r"[;&|`$]",  # Shell metacharacters
         r"\$\(",  # Command substitution
         r"`",  # Backticks
+        r"\|&",  # Bash pipe-and
+        r"\|\|",  # Logical OR
+        r"&&",  # Logical AND
+        r"%0[aAdD]",  # URL-encoded newlines (LF, CR)
+        r"\\x[0-9a-fA-F]{2}",  # Hex-encoded characters
     ]
 
     _PATH_TRAVERSAL_PATTERNS = [
@@ -156,19 +174,33 @@ class InjectionDetector:
         r"[a-zA-Z]:\\",  # Windows absolute paths
         r"\.\.\\",  # Windows parent directory
         r"\\\\",  # UNC paths
+        r"\.\.%2[fF]",  # URL-encoded ../
+        r"\.\.%5[cC]",  # URL-encoded ..\
+        r"%2[eE]%2[eE]",  # URL-encoded ..
+        r"%252[eE]",  # Double URL-encoded .
     ]
 
     _SQL_INJECTION_PATTERNS = [
         r"(?:--|#|/\*|\*/)",  # SQL comments
         r"\b(?:union|select|insert|update|delete|drop|create|alter)\b",  # SQL keywords
         r"(?:exec|execute|xp_)",  # Stored procedures
+        r"['\"]\s*(?:OR|AND)\s+['\"]?\d+['\"]?\s*=\s*['\"]?\d+",  # 'OR 1=1' patterns
+        r"['\"]\s*(?:OR|AND)\s+['\"][^'\"]+['\"]?\s*=\s*['\"]",  # 'OR ''=' patterns
+        r";\s*(?:DROP|DELETE|TRUNCATE|UPDATE)",  # Statement termination attacks
+        r"%",  # Wildcard (can be abused)
     ]
 
     # Pre-compiled combined patterns for performance
-    _COMMAND_INJECTION_COMPILED = re.compile(r"[;&|`$]|\$\(|`", re.IGNORECASE)
-    _PATH_TRAVERSAL_COMPILED = re.compile(r"\.\.|~/|/etc/|/var/|/usr/|[a-zA-Z]:\\|\.\\|\\\\", re.IGNORECASE)
+    _COMMAND_INJECTION_COMPILED = re.compile(
+        r"[;&|`$]|\$\(|`|\|&|\|\||&&|%0[aAdD]|\\x[0-9a-fA-F]{2}",
+        re.IGNORECASE,
+    )
+    _PATH_TRAVERSAL_COMPILED = re.compile(
+        r"\.\.|~/|/etc/|/var/|/usr/|[a-zA-Z]:\\|\.\\|\\\\|\.\.%2[fF]|\.\.%5[cC]|%2[eE]%2[eE]|%252[eE]",
+        re.IGNORECASE,
+    )
     _SQL_INJECTION_COMPILED = re.compile(
-        r"(?:--|#|/\*|\*/)|\b(?:union|select|insert|update|delete|drop|create|alter)\b|(?:exec|execute|xp_)",
+        r"(?:--|#|/\*|\*/)|\b(?:union|select|insert|update|delete|drop|create|alter)\b|(?:exec|execute|xp_)|['\"]\s*(?:OR|AND)\s+['\"]?\d+['\"]?\s*=\s*['\"]?\d+|['\"]\s*(?:OR|AND)\s+['\"][^'\"]+['\"]?\s*=\s*['\"]|;\s*(?:DROP|DELETE|TRUNCATE|UPDATE)|%",
         re.IGNORECASE,
     )
 

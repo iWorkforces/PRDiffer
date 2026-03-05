@@ -81,11 +81,6 @@ class GitHubAPIClient(GitHubAPIServiceInterface):
         # Performance optimization feature flags
         settings = get_settings_service()
         self._parallel_file_fetch_enabled = settings.get("performance.parallel_file_fetch_enabled", False)
-        self._github_client: Github | None = None
-        self._logger = logger or get_logger()
-
-        self._cache_max_size = file_content_cache_max_size
-        self._cache_ttl = file_content_cache_ttl
 
         if use_advanced_retry:
             self._retry_handler = get_advanced_retry_handler(

@@ -208,7 +208,7 @@ class FastMCPServer:
         host = os.getenv("MCP_HOST") or self._settings_service.get("mcp.host", "127.0.0.1")
         path = os.getenv("MCP_PATH") or self._settings_service.get("mcp.path", "/mcp")
 
-        # Validate and cast transport to the correct type
+        # Validate transport to the correct type
         valid_transports: tuple[TransportMode, ...] = (
             "stdio",
             "http",
@@ -219,6 +219,7 @@ class FastMCPServer:
             self._logger.warning(f"Invalid transport '{transport_raw}', defaulting to 'stdio'")
             transport: TransportMode = "stdio"
         else:
+            # Cast needed for ty type checker (pyright can infer this but ty cannot)
             transport = cast(TransportMode, transport_raw)
 
         if transport == "stdio":

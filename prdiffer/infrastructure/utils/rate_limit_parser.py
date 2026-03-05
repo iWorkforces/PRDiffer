@@ -64,7 +64,7 @@ def parse_int_header(headers: dict[str, str], name: str) -> int | None:
         if key.lower() == name.lower():
             try:
                 return int(value)
-            except TypeError, ValueError:
+            except (TypeError, ValueError):
                 return None
     return None
 

@@ -35,7 +35,7 @@ class CacheStore:
         return self._ttl
 
     def get(self, key: str) -> dict[str, Any] | None:
-        """Get a cache entry.
+        """Get a cache entry and move it to the end (LRU access order).
 
         Args:
             key: The cache key
@@ -43,7 +43,11 @@ class CacheStore:
         Returns:
             The cached data or None if not found
         """
-        return self._cache.get(key)
+        if key in self._cache:
+            # Move to end for LRU ordering (most recently used at end)
+            self._cache.move_to_end(key)
+            return self._cache[key]
+        return None
 
     def set(self, key: str, data: dict[str, Any]) -> None:
         """Set a cache entry.
