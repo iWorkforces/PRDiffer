@@ -452,7 +452,7 @@ class GitHubAPIClient(GitHubAPIServiceInterface):
 
     def _extract_file_content(self, content: ContentFile) -> str:
         """Extract file content with size validation (DoS prevention).
-        
+
         Handles files with encoding: none (binary files, submodules, empty files)
         by returning empty string instead of crashing on decoded_content access.
         """
@@ -460,16 +460,14 @@ class GitHubAPIClient(GitHubAPIServiceInterface):
         # GitHub returns encoding: none for binary files, submodules, empty files
         if not content:
             return ""
-        
+
         encoding = getattr(content, "encoding", None)
         if encoding != "base64":
             # Log for debugging but don't crash - return empty content
             file_path = getattr(content, "path", "unknown")
-            self._logger.debug(
-                f"File '{file_path}' has non-base64 encoding '{encoding}'. Skipping content extraction."
-            )
+            self._logger.debug(f"File '{file_path}' has non-base64 encoding '{encoding}'. Skipping content extraction.")
             return ""
-        
+
         # Check file size before loading into memory (DoS prevention)
         if hasattr(content, "size") and content.size > self._max_file_size_bytes:
             file_path = getattr(content, "path", "unknown")
@@ -477,7 +475,7 @@ class GitHubAPIClient(GitHubAPIServiceInterface):
                 f"File too large to load: {file_path} ({content.size} bytes > {self._max_file_size_bytes} bytes max). Skipping file to prevent OOM."
             )
             return ""
-        
+
         # Now safe to access decoded_content - encoding is confirmed base64
         if content.decoded_content:
             return str(content.decoded_content.decode())
