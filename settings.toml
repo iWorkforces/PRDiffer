@@ -70,6 +70,19 @@ github.ignore_patterns = [
     ".pytest_cache/",
     "*package-lock.json",
     "*.html",
+    # Image files
+    *.png
+    *.jpg
+    *.jpeg
+    *.gif
+    *.bmp
+    *.ico
+    *.svg
+    *.webp
+    *.tiff
+    *.tif
+    *.avif
+    *.apng
 ]
 
 github.valid_extensions = [
