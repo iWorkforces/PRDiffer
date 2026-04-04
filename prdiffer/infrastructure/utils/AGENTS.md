@@ -93,7 +93,7 @@ def get_settings():
 import anyio
 
 class AsyncParallelExecutor:
-    '''509-line anyio-based parallel execution'''
+    '''443-line anyio-based parallel execution'''
     
     async def execute_parallel(self, tasks: list):
         async with anyio.create_task_group() as tg:
@@ -111,7 +111,7 @@ class AsyncParallelExecutor:
 
 ## Known Issues
 
-- **github_repository.py (836 lines)** - Largest file, uses composition with extracted components
+- **github_repository.py (676 lines)** - Largest file, uses composition with extracted components
 - **retry/ package refactored** - Previously 848-line monolith, now split into focused modules
 
 ## Files

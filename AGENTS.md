@@ -1,12 +1,12 @@
 # PROJECT KNOWLEDGE BASE
 
-**Generated:** 2026-02-23T15:30:00Z
-**Commit:** 4e52b58
+**Generated:** 2026-04-04T16:30:00Z
+**Commit:** fe5d140
 **Branch:** upstream
 **Version:** 0.5.0
 
 ## OVERVIEW
-Python 3.14+ MCP server for GitHub PR diff analysis with Clean Architecture (Domain → Application → Infrastructure). FastMCP framework, Pydantic v2, anyio async. 210 Python files (118 src + 92 tests), 49K+ lines, 44 AGENTS.md files (depth 5 coverage).
+Python 3.14+ MCP server for GitHub PR diff analysis with Clean Architecture (Domain → Application → Infrastructure). FastMCP framework, Pydantic v2, anyio async. 208 Python files (116 src + 92 tests), 33K+ lines, 44 AGENTS.md files (depth 5 coverage).
 
 ## STRUCTURE
 ```
@@ -30,10 +30,10 @@ PRDifferMCP/
 | **Modify DI** | `prdiffer/infrastructure/di_container.py`, `prdiffer/infrastructure/factories/infrastructure_factory.py` | Use ServiceContainer for singletons, ServiceFactory for creation |
 | **Add exception** | `prdiffer/domain/exceptions.py`, `prdiffer/domain/errors.py` | Follow E{category}{number}_{NAME} format |
 | **Config changes** | `settings.toml` | Dynaconf groups: mcp, auth, github, cache, diff, security |
-| **Retry logic** | `prdiffer/infrastructure/utils/retry_handler.py` | 848-line unified handler with exponential backoff, circuit breaker, context-aware configs |
+| **Retry logic** | `prdiffer/infrastructure/utils/retry/` package | Split: base.py (339), handler.py (135), models.py (29), factories.py (93) |
 | **Caching** | `prdiffer/infrastructure/cache_service.py`, `prdiffer/infrastructure/utils/cache_decorator.py` | Commit-based invalidation, LRU eviction, TTL support |
 | **Security** | `prdiffer/infrastructure/security/input_validator.py` | 571-line input validation with injection detection (command, path traversal, SQL) |
-| **Async patterns** | `prdiffer/infrastructure/async_parallel_executor.py` | 505-line anyio-based parallel execution |
+| **Async patterns** | `prdiffer/infrastructure/utils/parallel/executor.py` | 443-line anyio-based parallel execution |
 | **Large file refactoring** | `prdiffer/infrastructure/utils/retry/` (split into base.py 408, handler.py 136 lines) | Previously 848 lines, now refactored |
 
 ## CODE MAP
@@ -46,13 +46,12 @@ PRDifferMCP/
 | ServiceContainer | DI | `prdiffer/infrastructure/di_container.py` | - | Singleton/transient services |
 | UnifiedRetryHandler | Service | `prdiffer/infrastructure/utils/retry/handler.py` | - | Retry handler with context-aware config, circuit breaker |
 | CircuitBreaker | Service | `prdiffer/infrastructure/utils/circuit_breaker/core.py` | - | Fault tolerance with state machine (224 lines) |
-| AsyncParallelExecutor | Service | `prdiffer/infrastructure/async_parallel_executor.py` | - | anyio-based parallel execution |
-| PluginManager | Plugin | `prdiffer/application/plugin_manager.py` | - | MCP tool plugin discovery |
-| FastMCPServer | Application | `prdiffer/application/mcp_server.py` | - | 870-line MCP server orchestrator |
-| ToolRegistry | Application | `prdiffer/application/tool_registry.py` | - | 581-line MCP tool registration |
+| AsyncParallelExecutor | Service | `prdiffer/infrastructure/utils/parallel/executor.py` | - | 443-line anyio-based parallel execution |
+| FastMCPServer | Application | `prdiffer/application/mcp_server.py` | - | 184-line MCP server orchestrator |
+| ToolRegistry | Application | `prdiffer/application/tool_registry.py` | - | 479-line MCP tool registration |
 | WebhookHandler | Application | `prdiffer/application/webhook_handler.py` | - | 214-line GitHub webhook processing |
 | HealthEndpoints | Application | `prdiffer/application/health_endpoints.py` | - | 180-line health checks and metrics |
-| InputValidator | Security | `prdiffer/infrastructure/security/input_validator.py` | - | Input validation orchestrator (571 lines) |
+| InputValidator | Security | `prdiffer/infrastructure/security/input_validator.py` | - | 517-line input validation orchestrator |
 | InjectionDetector | Security | `prdiffer/infrastructure/security/injection_detector.py` | - | 267-line pattern-based threat detection |
 | Sanitizer | Security | `prdiffer/infrastructure/security/sanitizer.py` | - | 156-line input sanitization |
 | LazyLoggerMixin | Utility | `prdiffer/infrastructure/utils/logger_factory.py` | - | 66-line shared logger initialization pattern |
@@ -105,7 +104,7 @@ PRDifferMCP/
 ### Build/CI (Non-Standard)
 - **No GitHub Actions** workflows (intentional - manual quality gates only).
 - **No Makefile** - Custom shell scripts for all operations.
-- **Quality gate scripts**: start-lint.sh (537 lines), start-type-check.sh (268 lines), start-unittest.sh (528 lines).
+- **Quality gate scripts**: start-lint.sh (537 lines), start-type-check.sh (305 lines), start-unittest.sh (527 lines).
 - **Git hooks**: Manual distribution via setup-git-hooks.sh, pre-push enforces type-check + lint.
 - **Type checker**: ty (Astral), not mypy/pyright.
 
@@ -151,10 +150,10 @@ PRDifferMCP/
 - **NO git commands with -i flag** → Interactive commands not supported (e.g., `git rebase -i`, `git add -i`).
 
 ### Large File Anti-Patterns
-- **NO single files >500 lines** → Extract methods/classes into modules. (43 files >500 lines, documented as needing refactoring).
-- **PRIORITY1**: retry_handler.py (848 lines) - SRP violation with 12+ responsibilities.
-- **PRIORITY2**: api_client.py (771 lines) - GitHub API client with retry, circuit breaker, caching.
-- **PRIORITY3**: github_repository.py (709 lines) - Main repository implementation.
+- **NO single files >500 lines** → Extract methods/classes into modules. (30 files >500 lines, documented as needing refactoring).
+- **PRIORITY1**: github_repository.py (676 lines) - Main GitHub repository implementation.
+- **PRIORITY2**: authentication.py (581 lines) - AuthenticationMiddleware with brute-force protection.
+- **PRIORITY3**: errors.py (547 lines) - Structured error codes and exception hierarchy.
 
 ## UNIQUE STYLES
 
@@ -168,10 +167,10 @@ PRDifferMCP/
 - **Manual git hook distribution**: Custom `setup-git-hooks.sh` copies hooks from `scripts/git-hooks/` to `.git/hooks/` (version-controlled, team synchronization).
 - **Pre-push enforcement**: Type checking + linting before every push (blocks push on failure).
 - **Developer tool wrappers**: `start-cc-mmax.sh`, `start-cc-zai.sh`, `start-oc-zai.sh` for Claude Code with environment management.
-- **Comprehensive server startup script**: `start-prdiffer-mcp-server.sh` (388 lines) with auto uv installation, PID management, health checks, graceful shutdown.
+- **Comprehensive server startup script**: `start-prdiffer-mcp-server.sh` (387 lines) with auto uv installation, PID management, health checks, graceful shutdown.
 - **Architecture violation detection**: `scripts/analyze_dependencies.py` uses AST to detect Clean Architecture violations (exits with error code 1).
 - **No CI/CD infrastructure**: Manual quality gates only (no GitHub Actions, Makefile, pre-commit).
-- **Custom shell-script quality tools**: All quality tools are bash scripts (537-line lint.sh, 268-line type-check.sh, 528-line unittest.sh).
+- **Custom shell-script quality tools**: All quality tools are bash scripts (537-line lint.sh, 305-line type-check.sh, 527-line unittest.sh).
 - **Triple quote replacement**: `start-lint.sh --quotes` converts `"""` → `'''` (custom project style).
 
 ### Testing Patterns
@@ -192,7 +191,7 @@ PRDifferMCP/
 ### Organization Patterns
 - **Dual factory pattern**: Domain-level factories (`domain/factories/`) define interfaces, infrastructure implements them.
 - **VCS provider registry**: Auto-detection from URL patterns via `supports_repository()` method.
-- **Plugin system**: MCPToolPlugin interface with PluginManager discovery and execution.
+- **Plugin system**: MCPToolPlugin interface exists but not integrated. Production uses `@mcp.tool()` directly.
  **Layer-specific AGENTS.md**: Each layer has own AGENTS.md documenting conventions (41 files total).
 
 ## COMMANDS
@@ -244,7 +243,7 @@ python scripts/analyze_dependencies.py --path prdiffer
 - **Retry logic**: 404/403/500 with smart retry, circuit breaker, exponential backoff.
 - **File filtering**: Pattern-based ignores, extension allowlist, max_files_allowed limit.
 - **Test markers for filtering**: `-m unit`, `-m integration`, `-m slow`, `-m security`.
-- **Complex files**: 29 files >500 lines, most in tests (test_authentication.py: 1145 lines) and infrastructure (github_repository.py: 703 lines).
+- **Complex files**: 30 files >500 lines, most in tests (test_authentication.py: 1145 lines) and infrastructure (github_repository.py: 676 lines).
 - **Thread safety**: RLock for sync, anyio.Lock for async, double-check locking patterns.
 - **Maximum directory depth**: 3 levels (prdiffer/{layer}/{package}/{module}.py), actual max depth: 6.
 - **No CI/CD infrastructure**: Manual quality gates only; no GitHub Actions workflows exist.
@@ -254,4 +253,4 @@ python scripts/analyze_dependencies.py --path prdiffer
 - **Python version**: 3.14.2+ (strict minimum), configured in `.python-version`.
 - **Primary type checker**: ty (Astral), not mypy/pyright.
 - **Architecture violations**: 14 Application → Infrastructure direct imports (documented, needs DI refactoring).
-- **AGENTS.md coverage**: 44 files across all layers (root + domain + infrastructure + application + tests + depth 4 subdirs).
+- **AGENTS.md coverage**: 44 files across all layers (root + domain + infrastructure + application + tests + depth 4-5 subdirs).

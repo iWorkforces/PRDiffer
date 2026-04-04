@@ -1,4 +1,4 @@
-"""Server configuration component for setup and configuration management."""
+"""Server configuration component."""
 
 import logging
 
@@ -10,8 +10,6 @@ from prdiffer.domain.services.logger import LoggerServiceInterface
 
 
 class ValidationResult(TypedDict):
-    """Type definition for configuration validation results."""
-
     valid: bool
     warnings: list[str]
     errors: list[str]
@@ -25,26 +23,14 @@ class ServerConfiguration(ServerConfigurationProtocol):
         settings_service: SettingsServiceInterface,
         logger: logging.Logger | LoggerServiceInterface | None = None,
     ):
-        """Initialize server configuration.
-
-        Args:
-            settings_service: Settings service for configuration management
-            logger: Optional logger instance
-        """
         self._settings_service = settings_service
         self._logger = logger or logging.getLogger(__name__)
 
     def setup_logging(self) -> None:
-        """Set up logging configuration.
-
-        This method can be extended to configure logging based on settings
-        like log level, format, handlers, etc.
-        """
+        """Set up logging configuration."""
         try:
-            # Log level configuration
             log_level = self._settings_service.get("app.log_level", "INFO").upper()
 
-            # Configure root logger if needed
             root_logger = logging.getLogger()
             if log_level in ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]:
                 root_logger.setLevel(getattr(logging, log_level))
@@ -53,14 +39,9 @@ class ServerConfiguration(ServerConfigurationProtocol):
 
         except Exception as e:
             self._logger.error(f"Failed to setup logging: {str(e)}")
-            # Don't raise exception as logging issues shouldn't prevent server startup
 
     def get_server_info(self) -> dict[str, Any]:
-        """Get server information and configuration.
-
-        Returns:
-            Dictionary containing server information
-        """
+        """Get server information and configuration."""
         try:
             return {
                 "name": "prdiffer",
@@ -89,11 +70,7 @@ class ServerConfiguration(ServerConfigurationProtocol):
             }
 
     def get_mcp_instructions(self) -> str:
-        """Get MCP server instructions for clients.
-
-        Returns:
-            String containing MCP server instructions
-        """
+        """Get MCP server instructions for clients."""
         return """
         prdiffer MCP server - GitHub Pull Request Analysis Tools
 
@@ -105,11 +82,7 @@ class ServerConfiguration(ServerConfigurationProtocol):
         """
 
     def validate_configuration(self) -> ValidationResult:
-        """Validate server configuration.
-
-        Returns:
-            ValidationResult dictionary with validation results
-        """
+        """Validate server configuration."""
         validation_results: ValidationResult = {
             "valid": True,
             "warnings": [],
@@ -117,19 +90,16 @@ class ServerConfiguration(ServerConfigurationProtocol):
         }
 
         try:
-            # Check required settings
             transport = self._settings_service.get("mcp.transport", "http")
             if transport not in ["stdio", "sse", "http"]:
                 validation_results["warnings"].append(f"Unknown transport '{transport}', defaulting to stdio")
 
-            # Check port configuration for non-stdio transports
             if transport != "stdio":
                 port = self._settings_service.get("mcp.port", 9102)
                 if not isinstance(port, int) or port < 1 or port > 65535:
                     validation_results["errors"].append(f"Invalid port '{port}', must be between 1-65535")
                     validation_results["valid"] = False
 
-            # Check GitHub configuration if available
             import os
 
             github_token = os.getenv("GITHUB_TOKEN")

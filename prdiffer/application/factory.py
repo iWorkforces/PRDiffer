@@ -21,22 +21,7 @@ def create_mcp_server(
     pr_diff_service: PRDiffServiceInterface | None = None,
     logger: LoggerServiceInterface | None = None,
 ) -> FastMCPServer:
-    """Create FastMCPServer with all dependencies properly injected.
-
-    This factory function creates and wires all the necessary components
-    for the FastMCPServer using the infrastructure factory pattern,
-    ensuring proper dependency injection and Clean Architecture compliance.
-
-    Args:
-        github_repository_class: Class for creating GitHub repository instances
-        settings_service: Optional Settings service for configuration (created if None)
-        cache_service: Optional Cache service for storing PR data (created if None)
-        repository_cache_service: Optional Repository cache service (created if None)
-        logger: Optional LoggerServiceInterface instance (created if None)
-
-    Returns:
-        Fully configured FastMCPServer instance
-    """
+    """Create FastMCPServer with all dependencies properly injected."""
     infrastructure_factory = get_infrastructure_factory()
     application_factory = get_application_factory()
 

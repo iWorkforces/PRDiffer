@@ -33,15 +33,12 @@ class GlobalCircuitBreakerRegistry:
         default_failure_threshold: int = 5,
         default_timeout: float = 60.0,
     ) -> "GlobalCircuitBreakerRegistry":
-        """Singleton pattern implementation."""
         if cls._instance is None:
             with cls._lock:
                 if cls._instance is None:
                     instance = super().__new__(cls)
                     instance._initialized = False
                     cls._instance = instance
-        # Type narrowing: instance is guaranteed to be initialized here
-        assert cls._instance is not None  # guaranteed by __new__ double-check locking
 
         return cls._instance
 
@@ -66,7 +63,6 @@ class GlobalCircuitBreakerRegistry:
         self._logger = get_logger()
         self._max_breakers = 100  # DoS prevention: limit number of circuit breakers
 
-        # Global circuit breaker for system-wide protection
         self._global_breaker = CircuitBreaker(
             failure_threshold=default_failure_threshold * 2,  # Higher threshold for global
             timeout=default_timeout,
@@ -86,7 +82,6 @@ class GlobalCircuitBreakerRegistry:
         """
         with self._registry_lock:
             if endpoint not in self._breakers:
-                # Check if we need to evict an old breaker (DoS prevention)
                 if len(self._breakers) >= self._max_breakers:
                     self._evict_oldest_breaker()
 
@@ -100,14 +95,12 @@ class GlobalCircuitBreakerRegistry:
 
     def _evict_oldest_breaker(self) -> None:
         """Evict the oldest CLOSED circuit breaker to make room for a new one."""
-        # Prefer evicting CLOSED breakers (not actively protecting)
         for endpoint, breaker in self._breakers.items():
             if breaker.state == CircuitState.CLOSED:
                 del self._breakers[endpoint]
                 self._logger.info(f"Evicted CLOSED circuit breaker for endpoint '{endpoint}' to make room (max: {self._max_breakers})")
                 return
 
-        # If no CLOSED breakers, evict the first one (oldest)
         if self._breakers:
             oldest_endpoint = next(iter(self._breakers))
             oldest_breaker = self._breakers[oldest_endpoint]
@@ -119,7 +112,6 @@ class GlobalCircuitBreakerRegistry:
 
     @property
     def global_breaker(self) -> CircuitBreaker:
-        """Get the global circuit breaker."""
         return self._global_breaker
 
     def can_execute(self, endpoint: str | None = None) -> bool:
@@ -133,11 +125,9 @@ class GlobalCircuitBreakerRegistry:
         Returns:
             bool: True if execution is allowed
         """
-        # Check global breaker first
         if not self._global_breaker.can_execute():
             return False
 
-        # Check endpoint-specific breaker if provided
         if endpoint:
             breaker = self.get_breaker(endpoint)
             if not breaker.can_execute():
@@ -146,19 +136,10 @@ class GlobalCircuitBreakerRegistry:
         return True
 
     async def can_execute_async(self, endpoint: str | None = None) -> bool:
-        """Async version of can_execute.
-
-        Args:
-            endpoint: Specific endpoint to check (optional)
-
-        Returns:
-            bool: True if execution is allowed
-        """
-        # Check global breaker first
+        """Async version of can_execute."""
         if not await self._global_breaker.can_execute_async():
             return False
 
-        # Check endpoint-specific breaker if provided
         if endpoint:
             breaker = self.get_breaker(endpoint)
             if not await breaker.can_execute_async():
@@ -177,11 +158,7 @@ class GlobalCircuitBreakerRegistry:
             self.get_breaker(endpoint).record_success()
 
     async def record_success_async(self, endpoint: str | None = None) -> None:
-        """Async version of record_success.
-
-        Args:
-            endpoint: Specific endpoint that succeeded (optional)
-        """
+        """Async version of record_success."""
         await self._global_breaker.record_success_async()
         if endpoint:
             await self.get_breaker(endpoint).record_success_async()
@@ -197,11 +174,7 @@ class GlobalCircuitBreakerRegistry:
             self.get_breaker(endpoint).record_failure()
 
     async def record_failure_async(self, endpoint: str | None = None) -> None:
-        """Async version of record_failure.
-
-        Args:
-            endpoint: Specific endpoint that failed (optional)
-        """
+        """Async version of record_failure."""
         await self._global_breaker.record_failure_async()
         if endpoint:
             await self.get_breaker(endpoint).record_failure_async()
@@ -253,7 +226,6 @@ class GlobalCircuitBreakerRegistry:
                 self._logger.debug(f"Removed circuit breaker for endpoint: {endpoint}")
 
 
-# Global registry instance (singleton)
 _global_circuit_breaker_registry: GlobalCircuitBreakerRegistry | None = None
 
 

@@ -13,15 +13,12 @@ R = TypeVar("R")
 
 @dataclass
 class CacheEntry:
-    """Data class representing a cache entry."""
-
     repository: PRDiffRepositoryInterface
     timestamp: float
     initialized: bool
 
 
 def with_lock(lock_attr: str = "_lock") -> Callable[[Callable[P, R]], Callable[P, R]]:
-    """Decorator for automatic lock management."""
 
     def decorator(func: Callable[P, R]) -> Callable[P, R]:
         @wraps(func)

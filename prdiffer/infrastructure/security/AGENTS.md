@@ -17,7 +17,7 @@ Security utilities: input validation, sanitization, injection detection.
 from prdiffer.domain.exceptions import ValidationError
 
 class InputValidator:
-    '''765-line orchestrator for injection detection + sanitization'''
+    '''517-line orchestrator for injection detection + sanitization'''
     
     @staticmethod
     def validate_pr_url(url: str) -> None:
@@ -38,7 +38,7 @@ class InputValidator:
 import re
 
 class InjectionDetector:
-    '''267-line pattern-based threat detection'''
+    '''216-line pattern-based threat detection'''
     
     # Command injection patterns
     COMMAND_INJECTION_PATTERNS = [
@@ -81,7 +81,7 @@ class InjectionDetector:
 ### Sanitizer (156-line)
 ```python
 class Sanitizer:
-    '''156-line input sanitization'''
+    '''140-line input sanitization'''
     
     @staticmethod
     def sanitize(text: str) -> str:
@@ -121,6 +121,6 @@ sql_injection_patterns = ['--', '/*', 'UNION', 'SELECT']
 
 ## Files
 
-- `input_validator.py`: Input validation orchestrator (765 lines)
-- `injection_detector.py`: Pattern-based threat detection (267 lines)
-- `sanitizer.py`: Input sanitization (156 lines)
+- `input_validator.py`: Input validation orchestrator (517 lines)
+- `injection_detector.py`: Pattern-based threat detection (216 lines)
+- `sanitizer.py`: Input sanitization (140 lines)

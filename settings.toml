@@ -81,7 +81,8 @@ github.ignore_patterns = [
     "*.tiff",
     "*.tif",
     "*.avif",
-    "*.apng"
+    "*.apng",
+    "*.DS_Store",
 ]
 
 github.valid_extensions = [

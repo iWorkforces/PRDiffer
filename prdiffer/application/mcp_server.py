@@ -25,22 +25,11 @@ from prdiffer.application.webhook_handler import WebhookHandler
 from prdiffer.application.health_endpoints import HealthEndpoints
 
 
-# Type alias for valid MCP transport modes
 TransportMode: TypeAlias = Literal["stdio", "http", "sse", "streamable-http"]
 
 
 class FastMCPServer:
-    """FastMCP server for fetching GitHub PR diffs with detailed file change information.
-
-    This server provides tools for retrieving pull request information:
-    - get_pr_diff: Fetches PR diff information including file statistics
-    - approve_pr: Approves PR with compliment
-
-    Attributes:
-        mcp: The FastMCP instance for tool registration and server management
-        settings_service: Settings service for configuration
-        logger: Logger for logging messages
-    """
+    """FastMCP server for fetching GitHub PR diffs with detailed file change information."""
 
     def __init__(
         self,
@@ -50,35 +39,15 @@ class FastMCPServer:
         pr_diff_service: PRDiffServiceInterface,
         logger: LoggerServiceInterface,
         github_repository_class: Callable[..., Any],
-        # Infrastructure dependencies injected via factory
         rate_limiter: RateLimiterProtocol,
         metrics_tracker: MetricsTrackerProtocol,
         pr_operation_handler: PROperationHandlerProtocol,
         health_monitor: HealthMonitorProtocol,
         server_configuration: ServerConfigurationProtocol,
         authentication: AuthenticationProtocol | None = None,
-        # Security and request coalescing services from infrastructure
         input_validator: InputValidator | None = None,
         request_coalescing_service: RequestCoalescingService | None = None,
     ):
-        """Initialize the FastMCP server with dependency injection.
-
-        Args:
-            settings_service: Settings service instance implementing SettingsServiceInterface
-            cache_service: Cache service instance implementing CacheServiceInterface
-            repository_cache_service: Repository cache service instance implementing RepositoryCacheServiceInterface
-            pr_diff_service: PR diff service instance implementing PRDiffServiceInterface
-            logger: Logger instance implementing LoggerServiceInterface
-            github_repository_class: GitHub repository class callable that creates PRDiffRepositoryInterface instances
-            rate_limiter: Rate limiter component implementing RateLimiterProtocol
-            metrics_tracker: Metrics tracker component implementing MetricsTrackerProtocol
-            pr_operation_handler: PR operation handler component implementing PROperationHandlerProtocol
-            health_monitor: Health monitor component implementing HealthMonitorProtocol
-            server_configuration: Server configuration component implementing ServerConfigurationProtocol
-            authentication: Authentication middleware component implementing AuthenticationProtocol
-            input_validator: Optional input validator instance
-            request_coalescing_service: Optional request coalescing service instance
-        """
         self._settings_service = settings_service
         self._cache_service = cache_service
         self._repository_cache_service = repository_cache_service
@@ -86,14 +55,12 @@ class FastMCPServer:
         self._logger = logger
         self._github_repository_class: Callable[..., Any] = github_repository_class
 
-        # Infrastructure dependencies injected via factory
         self._rate_limiter = rate_limiter
         self._metrics_tracker = metrics_tracker
         self._pr_operation_handler = pr_operation_handler
         self._health_monitor = health_monitor
         self._server_configuration = server_configuration
 
-        # Initialize authentication - use injected or create default
         if authentication is None:
             from prdiffer.application.components.authentication import (
                 AuthenticationMiddleware,
@@ -103,7 +70,6 @@ class FastMCPServer:
         else:
             self._authentication = authentication
 
-        # Initialize security validator - use injected or create default
         if input_validator is None:
             from prdiffer.infrastructure.security.input_validator import (
                 InputValidator,
@@ -113,7 +79,6 @@ class FastMCPServer:
         else:
             self._input_validator = input_validator
 
-        # Initialize request coalescing service - use injected or create default
         if request_coalescing_service is None:
             from prdiffer.infrastructure.utils.coalescing import (
                 get_request_coalescing_service,
@@ -123,7 +88,6 @@ class FastMCPServer:
         else:
             self._request_coalescing = request_coalescing_service
 
-        # Initialize server configuration
         self._server_configuration.setup_logging()
 
         self._logger.info("Initializing FastMCP server", component="mcp_server")
@@ -138,9 +102,6 @@ class FastMCPServer:
         self._register_endpoints_and_tools()
 
     def _initialize_components(self) -> None:
-        """Initialize component instances for tools, webhooks, and health endpoints."""
-
-        # Initialize tool registry
         self._tool_registry = ToolRegistry(
             pr_diff_service=self._pr_diff_service,
             cache_service=self._cache_service,
@@ -153,7 +114,6 @@ class FastMCPServer:
             request_coalescing_service=self._request_coalescing,
         )
 
-        # Initialize webhook handler
         self._webhook_handler = WebhookHandler(
             settings_service=self._settings_service,
             cache_service=self._cache_service,
@@ -162,7 +122,6 @@ class FastMCPServer:
             input_validator=self._input_validator,
         )
 
-        # Initialize health endpoints
         self._health_endpoints = HealthEndpoints(
             health_monitor=self._health_monitor,
             metrics_tracker=self._metrics_tracker,
@@ -174,20 +133,16 @@ class FastMCPServer:
         )
 
     def _register_endpoints_and_tools(self) -> None:
-        """Register all FastMCP tools and endpoints with the server instance."""
 
         # Register tools (get_pr_diff, approve_pr)
         self._tool_registry.register_tools(self.mcp)
 
-        # Register health tool
         health_tool = self._health_endpoints.get_health_handler()
         self.mcp.tool()(health_tool)
 
-        # Register metrics endpoint
         metrics_handler = self._health_endpoints.get_metrics_handler()
         self.mcp.custom_route("/metrics", methods=["GET"])(metrics_handler)
 
-        # Register webhook endpoint
         webhook_handler_func = self._webhook_handler.get_webhook_handler()
         self.mcp.custom_route("/webhook", methods=["POST"])(webhook_handler_func)
 
@@ -208,7 +163,6 @@ class FastMCPServer:
         host = os.getenv("MCP_HOST") or self._settings_service.get("mcp.host", "127.0.0.1")
         path = os.getenv("MCP_PATH") or self._settings_service.get("mcp.path", "/mcp")
 
-        # Validate transport to the correct type
         valid_transports: tuple[TransportMode, ...] = (
             "stdio",
             "http",

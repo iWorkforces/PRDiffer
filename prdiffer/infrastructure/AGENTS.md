@@ -19,14 +19,14 @@ prdiffer/infrastructure/
 ## WHERE TO LOOK
 | Task | Location | Notes |
 |------|----------|-------|
-| **Retry logic** | `utils/retry/` package | Split into base.py (408), handler.py (136), models.py, factories.py |
+| **Retry logic** | `utils/retry/` package | Split into base.py (339), handler.py (135), models.py, factories.py |
 | **Circuit breaker** | `utils/circuit_breaker/core.py` | State machine: CLOSED → OPEN → HALF_OPEN, failure threshold, timeout |
 | **Caching** | `cache/` package | Commit-based MD5 invalidation, LRU eviction, TTL support |
 | **ETag handling** | `github/etag_adapter.py` | HTTP 304 conditional requests to reduce bandwidth |
-| **Async execution** | `utils/parallel/executor.py` | 449-line anyio task groups, Semaphore/Lock/Event primitives |
+| **Async execution** | `utils/parallel/executor.py` | 443-line anyio task groups, Semaphore/Lock/Event primitives |
 | **Request coalescing** | `utils/coalescing/` | Deduplicate concurrent requests for same resource |
-| **Security** | `security/input_validator.py` | 571-line injection detection: command, path traversal, SQL |
-| **GitHub API** | `github/client.py` | 545-line PyGithub wrapper with retry/circuit breaker integration |
+| **Security** | `security/input_validator.py` | 517-line injection detection: command, path traversal, SQL |
+| **GitHub API** | `github/client.py` | 537-line PyGithub wrapper with retry/circuit breaker integration |
 | **VCS providers** | `vcs_providers/{github,gitlab}_repository.py` | VCSDiffRepositoryInterface implementations |
 
 ## CONVENTIONS

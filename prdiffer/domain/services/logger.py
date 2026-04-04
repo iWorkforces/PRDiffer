@@ -3,8 +3,6 @@ from enum import StrEnum
 
 
 class LogLevel(StrEnum):
-    """Log levels for the logging service."""
-
     DEBUG = "DEBUG"
     INFO = "INFO"
     WARNING = "WARNING"
@@ -13,71 +11,22 @@ class LogLevel(StrEnum):
 
 
 class LoggerServiceInterface(ABC):
-    """Abstract base class for logging services.
-
-    This interface defines the contract for logging services that can be
-    implemented with different logging backends while following the
-    application's logging configuration.
-    """
+    """Logging service contract for different backends."""
 
     @abstractmethod
-    def debug(self, message: str, **kwargs: object) -> None:
-        """Log a debug level message.
-
-        Args:
-            message: The message to log
-            **kwargs: Additional context data
-        """
-        pass
+    def debug(self, message: str, **kwargs: object) -> None: ...
 
     @abstractmethod
-    def info(self, message: str, **kwargs: object) -> None:
-        """Log an info level message.
-
-        Args:
-            message: The message to log
-            **kwargs: Additional context data
-        """
-        pass
+    def info(self, message: str, **kwargs: object) -> None: ...
 
     @abstractmethod
-    def warning(self, message: str, **kwargs: object) -> None:
-        """Log a warning level message.
-
-        Args:
-            message: The message to log
-            **kwargs: Additional context data
-        """
-        pass
+    def warning(self, message: str, **kwargs: object) -> None: ...
 
     @abstractmethod
-    def error(self, message: str, **kwargs: object) -> None:
-        """Log an error level message.
-
-        Args:
-            message: The message to log
-            **kwargs: Additional context data
-        """
-        pass
+    def error(self, message: str, **kwargs: object) -> None: ...
 
     @abstractmethod
-    def critical(self, message: str, **kwargs: object) -> None:
-        """Log a critical level message.
-
-        Args:
-            message: The message to log
-            **kwargs: Additional context data
-        """
-        pass
+    def critical(self, message: str, **kwargs: object) -> None: ...
 
     @abstractmethod
-    def should_log(self, level: LogLevel) -> bool:
-        """Check if a message of the given level should be logged.
-
-        Args:
-            level: The log level to check
-
-        Returns:
-            bool: True if the level should be logged, False otherwise
-        """
-        pass
+    def should_log(self, level: LogLevel) -> bool: ...

@@ -18,8 +18,8 @@ F = TypeVar("F", bound=Callable[..., Any])
 class CachingMixin:
     """Mixin class that provides caching capabilities to any class.
 
-    This mixin provides a shared cache dictionary and cache management methods
-    that can be used by the @cached_method decorator.
+    Provides a shared cache dictionary and cache management methods
+    used by the @cached_method decorator.
 
     Thread Safety:
     - All cache operations are protected by a reentrant lock
@@ -27,12 +27,6 @@ class CachingMixin:
     """
 
     def __init__(self, max_cache_size: int = 1000, default_ttl: int = 300) -> None:
-        """Initialize the caching mixin with size and TTL limits.
-
-        Args:
-            max_cache_size: Maximum number of cache entries (default: 1000)
-            default_ttl: Default TTL in seconds (default: 300 = 5 minutes)
-        """
         self._cache_lock = threading.RLock()
         self._method_cache: OrderedDict[str, dict[str, Any]] = OrderedDict()
         self._cache_hits = 0
@@ -41,10 +35,7 @@ class CachingMixin:
         self._default_ttl = default_ttl
 
     def _evict_expired_entries(self) -> None:
-        """Remove expired cache entries.
-
-        Thread-safe: Uses lock for all cache operations.
-        """
+        """Remove expired cache entries."""
         with self._cache_lock:
             current_time = time.time()
             expired_keys = [key for key, entry in self._method_cache.items() if current_time > entry.get("expires_at", float("inf"))]
@@ -52,19 +43,13 @@ class CachingMixin:
                 del self._method_cache[key]
 
     def _enforce_size_limit(self) -> None:
-        """Enforce cache size limit using LRU eviction.
-
-        Thread-safe: Uses lock for all cache operations.
-        """
+        """Enforce cache size limit using LRU eviction."""
         with self._cache_lock:
             while len(self._method_cache) > self._max_cache_size:
                 self._method_cache.popitem(last=False)
 
     def clear_cache(self) -> None:
-        """Clear all cached method results.
-
-        Thread-safe: Uses lock for all cache operations.
-        """
+        """Clear all cached method results."""
         with self._cache_lock:
             self._method_cache.clear()
             self._cache_hits = 0
@@ -72,8 +57,6 @@ class CachingMixin:
 
     def get_cache_stats(self) -> dict[str, Any]:
         """Get cache statistics.
-
-        Thread-safe: Uses lock for all cache operations.
 
         Returns:
             Dict containing cache size, hit rate, and other statistics
@@ -96,10 +79,8 @@ class CachingMixin:
 def cached_method(ttl: int | None = None, key_prefix: str | None = None) -> Callable[[F], F]:
     """Decorator for caching method results with support for unhashable parameters.
 
-    This decorator can be applied to methods of classes that inherit from CachingMixin.
-    It handles unhashable parameters by converting them to hashable forms.
-
-    Thread-safe: All cache operations protected by lock.
+    Applied to methods of classes that inherit from CachingMixin.
+    Handles unhashable parameters by converting them to hashable forms.
 
     Args:
         ttl: Time-to-live for cache entries in seconds
@@ -125,9 +106,6 @@ def cached_method(ttl: int | None = None, key_prefix: str | None = None) -> Call
             cache_key = _generate_cache_key(method_name, args, kwargs)
 
             with self._cache_lock:
-                if (self._cache_hits + self._cache_misses) % 10 == 0:
-                    pass
-
                 if cache_key in self._method_cache:
                     entry = self._method_cache[cache_key]
                     current_time = time.time()

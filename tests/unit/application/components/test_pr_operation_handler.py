@@ -1,9 +1,3 @@
-"""Unit tests for PROperationHandler.
-
-Tests PROperationHandler which handles PR-related operations
-including PR diff fetching, description generation, approval, review, and changelog updates.
-"""
-
 import pytest
 
 from prdiffer.application.components.pr_operation_handler import (
@@ -18,8 +12,6 @@ from prdiffer.domain.exceptions import ValidationError, GitHubAPIError
 
 
 class MockLogger(LoggerServiceInterface):
-    """Mock logger for testing."""
-
     def debug(self, message: str, **kwargs) -> None:
         pass
 
@@ -40,8 +32,6 @@ class MockLogger(LoggerServiceInterface):
 
 
 class MockCacheService(CacheServiceInterface):
-    """Mock cache service for testing."""
-
     def get_cache_key(self, repo_owner: str, repo_name: str, pr_number: int) -> str:
         return f"{repo_owner}/{repo_name}/{pr_number}"
 
@@ -64,14 +54,10 @@ class MockCacheService(CacheServiceInterface):
         return {"size": 0, "keys": []}
 
     async def get_optimistic(self, cache_key: str):
-        """Optimistic cache lookup without commit SHA."""
         return None, None
-        return {"size": 0, "keys": []}
 
 
 class MockRepositoryCacheService(RepositoryCacheServiceInterface):
-    """Mock repository cache service for testing."""
-
     def insert(self, repository: PRDiffRepositoryInterface) -> bool:
         return True
 
@@ -98,8 +84,6 @@ class MockRepositoryCacheService(RepositoryCacheServiceInterface):
 
 
 class MockRepository(PRDiffRepositoryInterface):
-    """Mock PR diff repository for testing."""
-
     def __init__(self, repo_owner: str, repo_name: str, pr_number: int):
         self._repo_owner = repo_owner
         self._repo_name = repo_name
@@ -153,10 +137,7 @@ class MockRepository(PRDiffRepositoryInterface):
 
 
 class TestPROperationHandlerInitialization:
-    """Test suite for PROperationHandler initialization."""
-
     def test_pr_operation_handler_initialization(self):
-        """Test that PROperationHandler can be initialized."""
         logger = MockLogger()
         cache_service = MockCacheService()
         repository_cache_service = MockRepositoryCacheService()
@@ -178,7 +159,6 @@ class TestPROperationHandlerInitialization:
         assert hasattr(handler, "_logger")
 
     def test_pr_operation_handler_initialization_with_input_validator(self):
-        """Test that PROperationHandler can be initialized with custom input validator."""
         logger = MockLogger()
         cache_service = MockCacheService()
         repository_cache_service = MockRepositoryCacheService()
@@ -202,11 +182,8 @@ class TestPROperationHandlerInitialization:
 
 
 class TestPROperationHandlerGetPrDiff:
-    """Test suite for get_pr_diff method."""
-
     @pytest.mark.asyncio
     async def test_get_pr_diff_valid_url(self):
-        """Test getting PR diff with valid URL."""
         logger = MockLogger()
         cache_service = MockCacheService()
         repository_cache_service = MockRepositoryCacheService()
@@ -232,7 +209,6 @@ class TestPROperationHandlerGetPrDiff:
 
     @pytest.mark.asyncio
     async def test_get_pr_diff_empty_url_raises_value_error(self):
-        """Test that empty URL raises ValueError."""
         logger = MockLogger()
         cache_service = MockCacheService()
         repository_cache_service = MockRepositoryCacheService()
@@ -254,7 +230,6 @@ class TestPROperationHandlerGetPrDiff:
 
     @pytest.mark.asyncio
     async def test_get_pr_diff_uses_repository_cache(self):
-        """Test that repository cache is checked and used."""
         logger = MockLogger()
         cache_service = MockCacheService()
         repository_cache_service = MockRepositoryCacheService()
@@ -276,7 +251,6 @@ class TestPROperationHandlerGetPrDiff:
 
     @pytest.mark.asyncio
     async def test_get_pr_diff_handles_none_from_repository(self):
-        """Test that None returned from repository raises ValueError."""
         logger = MockLogger()
         cache_service = MockCacheService()
         repository_cache_service = MockRepositoryCacheService()
@@ -333,7 +307,6 @@ class TestPROperationHandlerGetPrDiff:
 
     @pytest.mark.asyncio
     async def test_get_pr_diff_validation_error_is_caught(self):
-        """Test that validation errors are properly caught and re-raised."""
         logger = MockLogger()
         cache_service = MockCacheService()
         repository_cache_service = MockRepositoryCacheService()
@@ -357,11 +330,8 @@ class TestPROperationHandlerGetPrDiff:
 
 
 class TestPROperationHandlerErrorHandling:
-    """Test suite for error handling in get_pr_diff."""
-
     @pytest.mark.asyncio
     async def test_get_pr_diff_handles_runtime_errors(self):
-        """Test that runtime errors are properly handled."""
         logger = MockLogger()
         cache_service = MockCacheService()
         repository_cache_service = MockRepositoryCacheService()
@@ -416,7 +386,6 @@ class TestPROperationHandlerErrorHandling:
 
     @pytest.mark.asyncio
     async def test_get_pr_diff_logs_appropriately(self):
-        """Test that operations are logged appropriately."""
         logger = MockLogger()
         cache_service = MockCacheService()
         repository_cache_service = MockRepositoryCacheService()
@@ -445,11 +414,8 @@ class TestPROperationHandlerErrorHandling:
 
 
 class TestPROperationHandlerEdgeCases:
-    """Test suite for PROperationHandler edge cases."""
-
     @pytest.mark.asyncio
     async def test_get_pr_diff_with_complex_url(self):
-        """Test handling complex GitHub URLs."""
         logger = MockLogger()
         cache_service = MockCacheService()
         repository_cache_service = MockRepositoryCacheService()
@@ -471,7 +437,6 @@ class TestPROperationHandlerEdgeCases:
 
     @pytest.mark.asyncio
     async def test_get_pr_diff_model_dump_structure(self):
-        """Test that result structure matches PRDiff model_dump format."""
         logger = MockLogger()
         cache_service = MockCacheService()
         repository_cache_service = MockRepositoryCacheService()

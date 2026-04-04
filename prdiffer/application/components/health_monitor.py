@@ -19,41 +19,27 @@ class HealthMonitor(HealthMonitorProtocol):
         rate_limiter: RateLimiterProtocol,
         logger: logging.Logger | LoggerServiceInterface | None = None,
     ):
-        """Initialize health monitor.
-
-        Args:
-            metrics_tracker: Metrics tracker for getting system metrics
-            rate_limiter: Rate limiter for getting rate limit info
-            logger: Optional logger instance
-        """
         self._metrics_tracker = metrics_tracker
         self._rate_limiter = rate_limiter
         self._logger = logger or logging.getLogger(__name__)
 
     def check_health(self) -> dict[str, Any]:
-        """Perform health check and return status.
-
-        Returns:
-            Dictionary containing health status information
-        """
+        """Perform health check and return status."""
         try:
-            # Get metrics from the metrics tracker
             metrics = self._metrics_tracker.get_metrics_summary()
 
-            # Get rate limit information
             rate_limit_info = self._rate_limiter.get_rate_limit_info()
 
-            # Determine overall health status
             status = "healthy"
 
-            # Check if success rate is too low (below 80%)
+            # Degraded if success rate below 80%
             if metrics.get("success_rate", 100) < 80:
                 status = "degraded"
 
-            # Check if we're close to rate limit (90% or more)
+            # Degraded if rate limit nearly exhausted (<10% remaining)
             remaining_requests = rate_limit_info.get("remaining_requests", 0)
             max_requests = rate_limit_info.get("max_requests", 100)
-            if remaining_requests / max_requests < 0.1:  # Less than 10% remaining
+            if remaining_requests / max_requests < 0.1:
                 status = "degraded"
 
             health_data: dict[str, Any] = {
@@ -96,14 +82,9 @@ class HealthMonitor(HealthMonitorProtocol):
             }
 
     def get_detailed_status(self) -> dict[str, Any]:
-        """Get detailed health status including component-specific information.
-
-        Returns:
-            Dictionary with detailed health information
-        """
+        """Get detailed health status including component-specific information."""
         health_status = self.check_health()
 
-        # Add component-specific health information
         health_status["components"] = {
             "metrics_tracker": {
                 "status": "healthy",

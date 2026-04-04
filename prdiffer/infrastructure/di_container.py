@@ -1,8 +1,4 @@
-"""Dependency injection container for PRDifferMCP.
-
-This module provides a lightweight DI container for managing service lifecycles,
-enabling testability and proper dependency injection throughout the codebase.
-"""
+"""Dependency injection container for PRDifferMCP."""
 
 from collections.abc import Callable
 from typing import Any, TypeVar
@@ -27,19 +23,8 @@ class DependencyAlreadyRegisteredError(PRDifferException):
 class ServiceContainer:
     """Lightweight dependency injection container.
 
-    Provides:
-        - Service registration (singleton and transient)
-        - Service resolution by interface type
-        - Lifecycle management (singletons vs transients)
-        - Thread-safe operations
-        - Clear error handling
-
-    Design Goals:
-        - Simple API: get(), create()
-        - Type-safe with full type hints
-        - Thread-safe: Locks for concurrent safety
-        - No external dependencies beyond domain interfaces
-        - Fast: minimal overhead
+    Supports singleton and transient service registration with thread-safe
+    resolution by interface type.
     """
 
     _singleton_instances: dict[str, Any] = {}
@@ -48,11 +33,6 @@ class ServiceContainer:
     _logger: LoggerServiceInterface
 
     def __init__(self, logger: LoggerServiceInterface):
-        """Initialize service container.
-
-        Args:
-            logger: Logger service instance
-        """
         self._lock = Lock()
         self._logger = logger
         self._singleton_instances: dict[str, Any] = {}
@@ -68,17 +48,13 @@ class ServiceContainer:
         """Register a singleton service.
 
         Args:
-            interface_type: Interface type (e.g., LoggerServiceInterface)
+            interface_type: Interface type to register
             factory: Factory function that creates instance
             force: Force re-registration even if exists
             instance: Optional pre-created instance (for testing)
 
         Raises:
-            DependencyAlreadyRegisteredError: If interface_type already registered with force=False
-
-        Usage:
-            Container tracks singletons that should persist for application lifetime
-            Singletons should be created once and reused
+            DependencyAlreadyRegisteredError: If already registered with force=False
         """
         type_name = interface_type.__name__
 
@@ -101,13 +77,8 @@ class ServiceContainer:
         """Register a transient service.
 
         Args:
-            interface_type: Interface type (e.g., CacheServiceInterface)
+            interface_type: Interface type to register
             factory: Factory function that creates instances
-
-        Usage:
-            Container creates new instance on each get() call
-            Transients don't persist between calls
-            Ideal for stateless services or caches
         """
         type_name = interface_type.__name__
 
@@ -120,14 +91,8 @@ class ServiceContainer:
     ) -> T:
         """Get service instance by interface type.
 
-        Args:
-            interface_type: Interface type (e.g., LoggerServiceInterface)
-
-        Returns:
-            Any: Service instance
-
         Raises:
-            ValueError: If interface_type not registered
+            ConfigurationError: If interface_type not registered
         """
         type_name = interface_type.__name__
 
@@ -143,27 +108,13 @@ class ServiceContainer:
         raise ConfigurationError(f"Service {type_name} not registered", error_code=E5009_CONFIGURATION_ERROR)
 
     def has(self, interface_type: type) -> bool:
-        """Check if interface type is registered.
-
-        Args:
-            interface_type: Interface type (e.g., LoggerServiceInterface)
-
-        Returns:
-            bool: True if registered as singleton or transient
-        """
+        """Check if interface type is registered."""
         type_name = interface_type.__name__
 
         return type_name in self._singleton_instances or type_name in self._transient_factories
 
     def is_singleton(self, interface_type: type) -> bool:
-        """Check if interface type is registered as singleton.
-
-        Args:
-            interface_type: Interface type (e.g., LoggerServiceInterface)
-
-        Returns:
-            bool: True if registered as singleton only
-        """
+        """Check if interface type is registered as singleton."""
         type_name = interface_type.__name__
 
         return type_name in self._singleton_instances and type_name not in self._transient_factories
@@ -177,15 +128,9 @@ class ServiceContainer:
         """Create and register a service instance.
 
         Args:
-            interface_type: Interface type (e.g., LoggerServiceInterface)
+            interface_type: Interface type to register
             factory: Factory function that creates instance
             instance: Optional pre-created instance (for testing)
-
-        Returns:
-            Any: Service instance
-
-        Usage:
-            Similar to get() but allows specifying instance
         """
         type_name = interface_type.__name__
 
@@ -205,28 +150,14 @@ class ServiceContainer:
         return instance
 
     def clear_all(self) -> None:
-        """Clear all registered services.
-
-        Useful for testing or resetting state.
-
-        Usage:
-            Testing: Reset container state between tests
-            Restarting: Clear memory leaks
-        """
+        """Clear all registered services."""
         with self._lock:
             self._singleton_instances.clear()
             self._transient_factories.clear()
             self._logger.info("Cleared all services")
 
     def get_instance_count(self, interface_type: type) -> int:
-        """Get count of registered instances (singleton + transient).
-
-        Args:
-            interface_type: Interface type (e.g., LoggerServiceInterface)
-
-        Returns:
-            int: Total registered instances (1 if singleton, 1 if transient, 0 if not registered)
-        """
+        """Get count of registered instances (singleton + transient)."""
         type_name = interface_type.__name__
 
         count = 0
@@ -238,21 +169,14 @@ class ServiceContainer:
         return count
 
 
-# Global container instance
 _container: ServiceContainer | None = None
 
 
 def get_container(logger: LoggerServiceInterface | None = None) -> ServiceContainer:
     """Get or create global service container.
 
-    Args:
-        logger: Optional logger service for first-time initialization
-
-    Returns:
-        ServiceContainer: Global container instance
-
     Raises:
-        ValueError: If container not initialized and no logger provided
+        ConfigurationError: If container not initialized and no logger provided
     """
     global _container
 
@@ -268,26 +192,12 @@ def get_container(logger: LoggerServiceInterface | None = None) -> ServiceContai
 
 
 def register_singleton_service(interface_type: type[T], factory: Callable[[], T], instance: T | None = None) -> None:
-    """Convenience function to register a singleton service.
-
-    Args:
-        interface_type: Interface type (e.g., LoggerServiceInterface)
-        factory: Factory function that creates instance
-        instance: Optional pre-created instance (for testing)
-    """
+    """Convenience function to register a singleton service."""
     container = get_container()
     container.register_singleton(interface_type, factory, instance=instance)
 
 
 def register_transient_factory(interface_type: type[T], factory: Callable[[], T]) -> None:
-    """Convenience function to register a transient factory.
-
-    Args:
-        interface_type: Interface type (e.g., CacheServiceInterface)
-        factory: Factory function that creates instances
-
-    Usage:
-            For services that don't need to persist
-    """
+    """Convenience function to register a transient factory."""
     container = get_container()
     container.register_transient(interface_type, factory)

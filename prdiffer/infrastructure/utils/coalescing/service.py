@@ -1,8 +1,4 @@
-"""Request coalescing service implementation.
-
-This module provides the core implementation of request coalescing
-to prevent duplicate API calls for the same resource.
-"""
+"""Request coalescing service implementation."""
 
 import anyio
 import logging
@@ -21,8 +17,6 @@ DEFAULT_MAX_WAITERS = 100
 
 @dataclass
 class CoalescedRequest:
-    """Data class representing a coalesced request."""
-
     key: str
     event: anyio.Event = field(default_factory=anyio.Event)
     result: Any | None = None
@@ -31,25 +25,11 @@ class CoalescedRequest:
 
 
 class RequestCoalescingService:
-    """Service for coalescing duplicate concurrent requests.
-
-    This service ensures that when multiple concurrent requests are made for
-    the same resource, only one actual API call is made and all requesters
-    receive the same result.
-
-    Memory Safety:
-    - Maximum waiter limit prevents unbounded waiter accumulation
-    - Proper cleanup on success, failure, timeout, and cancellation
-    - Atomic state management with anyio.Lock
+    """Coalesces duplicate concurrent requests so only one API call is made
+    and all requesters receive the same result.
     """
 
     def __init__(self, logger: logging.Logger | None = None, max_waiters: int | None = None) -> None:
-        """Initialize the request coalescing service.
-
-        Args:
-            logger: Logger instance for logging operations
-            max_waiters: Maximum number of waiters per request (default: from settings or 100)
-        """
         self._pending_requests: dict[str, CoalescedRequest] = {}
         self._lock = anyio.Lock()
         self._logger = logger or get_logger()
@@ -73,23 +53,6 @@ class RequestCoalescingService:
 
         If a request for this key is already in progress, wait for its result.
         Otherwise, execute the fetch function and share the result with all waiters.
-
-        Memory Safety:
-        - Maximum waiter limit enforced before waiting
-        - Proper cleanup on all exit paths (success, failure, timeout)
-        - Atomic state transitions prevent race conditions
-
-        Args:
-            key: Unique key identifying the request (e.g., "owner/repo/pr/123")
-            fetch_func: Async function to fetch the data if not already pending
-            timeout: Maximum time to wait for the fetch function (default: 30 seconds)
-
-        Returns:
-            The result from the fetch function
-
-        Raises:
-            TimeoutError: If the fetch function times out
-            Exception: Any exception raised by the fetch function
         """
         existing_request = None
         async with self._lock:
@@ -122,7 +85,6 @@ class RequestCoalescingService:
                 # Check if we've reached max pending requests limit (DoS prevention)
                 if len(self._pending_requests) >= self._max_pending_requests:
                     self._logger.warning(f"Maximum pending requests ({self._max_pending_requests}) reached, evicting oldest request")
-                    # Evict oldest pending request (first key in dict)
                     if self._pending_requests:
                         oldest_key = next(iter(self._pending_requests))
                         oldest_request = self._pending_requests[oldest_key]
@@ -150,7 +112,6 @@ class RequestCoalescingService:
         return await self._execute_request(new_request, key, fetch_func, effective_timeout)
 
     async def _wait_for_request(self, existing_request: CoalescedRequest, key: str, timeout: float) -> Any:
-        """Wait for an existing request to complete."""
         try:
             with anyio.fail_after(timeout):
                 await existing_request.event.wait()
@@ -176,7 +137,6 @@ class RequestCoalescingService:
         fetch_func: Callable[[], Awaitable[Any]],
         timeout: float,
     ) -> Any:
-        """Execute the fetch function and share the result with waiters."""
         cleanup_done = False
         try:
             with anyio.fail_after(timeout):
@@ -214,7 +174,6 @@ class RequestCoalescingService:
             raise
 
     async def _decrement_waiter(self, key: str) -> None:
-        """Safely decrement waiter count with cleanup."""
         async with self._lock:
             if key in self._pending_requests:
                 pending = self._pending_requests[key]
@@ -225,7 +184,6 @@ class RequestCoalescingService:
                     self._logger.debug(f"Cleaned up request for key '{key}' (no more waiters)")
 
     async def _cleanup_on_failure(self, key: str, request: CoalescedRequest, cleanup_done: bool) -> None:
-        """Clean up a request on failure or timeout."""
         if cleanup_done:
             return
 
@@ -235,13 +193,11 @@ class RequestCoalescingService:
                 self._logger.debug(f"Cleaned up failed request for key '{key}'")
 
     async def clear(self) -> None:
-        """Clear all pending requests."""
         async with self._lock:
             self._pending_requests.clear()
             self._logger.info("Cleared all pending requests")
 
     async def get_stats(self) -> dict[str, Any]:
-        """Get statistics about pending requests."""
         async with self._lock:
             pending_count = len(self._pending_requests)
             pending_keys = list(self._pending_requests.keys())
@@ -258,11 +214,6 @@ _request_coalescing_service: RequestCoalescingService | None = None
 
 
 def get_request_coalescing_service() -> RequestCoalescingService:
-    """Get the global request coalescing service instance.
-
-    Returns:
-        RequestCoalescingService: The global instance
-    """
     global _request_coalescing_service
     if _request_coalescing_service is None:
         _request_coalescing_service = RequestCoalescingService()

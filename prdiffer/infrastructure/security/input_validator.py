@@ -46,7 +46,6 @@ class InputValidator:
         owner, repo, pr = validator.validate_github_url(url)
     """
 
-    # Regex patterns for validation
     GITHUB_URL_PATTERN: re.Pattern[str] = re.compile(r"^https://github\.com/([a-zA-Z0-9_-]+)/([a-zA-Z0-9._-]+)/pull/(\d+)/?$")
     GITHUB_REPO_PATTERN: re.Pattern[str] = re.compile(r"^[a-zA-Z0-9_-]+/[a-zA-Z0-9._-]+$")
     SAFE_USERNAME_PATTERN: re.Pattern[str] = re.compile(r"^[a-zA-Z0-9_-]+$")
@@ -98,11 +97,9 @@ class InputValidator:
         if not url:
             raise InvalidURLError("URL cannot be empty")
 
-        # Check for suspicious patterns before parsing
         if self._detector.check_suspicious_patterns(url):
             raise SuspiciousOperationError("URL contains suspicious patterns", details={"url": url[:100]})
 
-        # Delegate parsing and structural validation to URL parser
         return parse_github_pr_url(url)
 
     @classmethod
@@ -214,7 +211,6 @@ class InputValidator:
         Raises:
             InvalidPRNumberError: If PR number is invalid (not an integer, negative, or too large)
         """
-        # Type check - must be an integer
         if not isinstance(pr_number, int):
             raise InvalidPRNumberError(f"PR number must be an integer, got {type(pr_number).__name__}")
 
@@ -253,7 +249,6 @@ class InputValidator:
             'data/backup.tar.gz'
         """
 
-        # Type check - must be a string
         if not isinstance(file_path, str):
             raise InputSanitizationError(f"File path must be a string, got {type(file_path).__name__}")
 
@@ -265,11 +260,9 @@ class InputValidator:
         while "//" in file_path:
             file_path = file_path.replace("//", "/")
 
-        # Check length limits
         if len(file_path) > 500:
             raise InputSanitizationError("File path too long (max 500 characters)")
 
-        # Check for path traversal using pre-compiled pattern from detector
         from prdiffer.infrastructure.security.injection_detector import (
             InjectionDetector,
         )
@@ -280,34 +273,11 @@ class InputValidator:
                 details={"path": file_path[:100]},
             )
 
-        # Ensure path doesn't start with / (absolute path)
         if file_path.startswith("/"):
             raise InputSanitizationError(
                 "Absolute paths not allowed (use relative paths)",
                 details={"path": file_path[:50]},
             )
-
-        # Check for suspicious patterns in file extensions
-        # Warn about potentially dangerous file extensions
-        dangerous_extensions = [
-            ".exe",
-            ".bat",
-            ".cmd",
-            ".com",
-            ".scr",  # Executables
-            ".sh",
-            ".bash",
-            ".zsh",
-            ".ps1",
-            ".psm1",  # Scripts
-            ".dll",
-            ".so",
-            ".dylib",  # Libraries
-        ]
-        file_ext = file_path.rsplit(".", 1)[-1].lower() if "." in file_path else ""
-        if file_ext in dangerous_extensions:
-            # Log warning but allow - could be legitimate in some contexts
-            pass  # Could add logging here if needed
 
         return file_path
 
@@ -325,7 +295,6 @@ class InputValidator:
             InputSanitizationError: If token format is invalid
         """
 
-        # Type check - must be a string
         if not isinstance(token, str):
             raise InputSanitizationError(f"Token must be a string, got {type(token).__name__}")
 
@@ -338,11 +307,9 @@ class InputValidator:
         if len(token) > 500:
             raise InputSanitizationError("Token too long (maximum 500 characters)")
 
-        # Check for whitespace
         if token != token.strip():
             raise InputSanitizationError("Token contains leading/trailing whitespace")
 
-        # Token should be alphanumeric with some special chars
         if not re.match(r"^[a-zA-Z0-9_\-\.]+$", token):
             raise InputSanitizationError("Token contains invalid characters")
 
@@ -362,7 +329,6 @@ class InputValidator:
             InputSanitizationError: If user ID is invalid
         """
 
-        # Type check - must be a string
         if not isinstance(user_id, str):
             raise InputSanitizationError(f"User ID must be a string, got {type(user_id).__name__}")
 
@@ -372,7 +338,6 @@ class InputValidator:
         if len(user_id) > 100:
             raise InputSanitizationError("User ID too long (max 100 characters)")
 
-        # Allow alphanumeric, hyphens, underscores, @, and dots
         if not re.match(r"^[a-zA-Z0-9_\-@\.]+$", user_id):
             raise InputSanitizationError("User ID contains invalid characters", details={"user_id": user_id[:50]})
 
@@ -399,14 +364,12 @@ class InputValidator:
         if len(branch) > 255:
             raise InputSanitizationError("Branch name too long (max 255 characters)")
 
-        # Check for suspicious patterns
         if _detector.check_suspicious_patterns(branch):
             raise SuspiciousOperationError(
                 "Branch name contains suspicious patterns",
                 details={"branch": branch[:100]},
             )
 
-        # Validate against Git branch naming rules
         if not cls.BRANCH_NAME_PATTERN.match(branch):
             raise InputSanitizationError(
                 "Branch name contains invalid characters or format",
@@ -416,12 +379,9 @@ class InputValidator:
                 },
             )
 
-        # Additional checks for branch name safety
-        # Cannot start or end with slash
         if branch.startswith("/") or branch.endswith("/"):
             raise InputSanitizationError("Branch name cannot start or end with '/'")
 
-        # Cannot have consecutive slashes
         if "//" in branch:
             raise InputSanitizationError("Branch name cannot contain consecutive slashes")
 
@@ -480,7 +440,6 @@ class InputValidator:
         return sanitize_for_logging(value, max_length)
 
 
-# Global instance for convenience
 _validator = InputValidator()
 
 

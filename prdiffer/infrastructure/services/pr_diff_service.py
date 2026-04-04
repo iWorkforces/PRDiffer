@@ -1,8 +1,4 @@
-"""Infrastructure implementation of PRDiffServiceInterface.
-
-This module provides the concrete implementation of PRDiffServiceInterface
-using GitHub API operations.
-"""
+"""Infrastructure implementation of PRDiffServiceInterface using GitHub API."""
 
 import os
 from typing import cast, TYPE_CHECKING
@@ -39,13 +35,10 @@ from prdiffer.infrastructure.cache.decorators import (
 # Note: We deliberately exclude KeyboardInterrupt, SystemExit, and GeneratorExit
 # to allow system-level exceptions to propagate for proper shutdown/cleanup.
 PR_SERVICE_EXCEPTIONS: tuple[type[BaseException], ...] = (
-    # GitHub-specific exceptions
     GithubException,
-    # Network and timeout exceptions
     TimeoutError,
     ConnectionError,
     OSError,
-    # Common runtime exceptions
     RuntimeError,
     ValueError,
     TypeError,
@@ -68,27 +61,16 @@ class GitHubPRDiffService(CachingMixin, PRDiffServiceInterface):
         file_processor: FileProcessor | None = None,
         logger: LoggerServiceInterface | None = None,
     ):
-        """Initialize the service with GitHub API client and diff generation components.
-
-        Args:
-            github_api_client: Optional GitHub API client (created if None)
-            diff_generator: Optional diff generator (created if None)
-            file_processor: Optional file processor (created if None)
-            logger: Optional logger instance
-        """
-        # Initialize caching mixin with 5-minute TTL and 1000 entry cache
         super().__init__(max_cache_size=1000, default_ttl=300)
 
         self._github_api: GitHubAPIClient = github_api_client or GitHubAPIClient()
         self._logger = logger or get_logger()
 
-        # Initialize the GitHub client with environment variables and settings
         github_token = os.getenv("GITHUB_TOKEN")
         timeout = int(os.getenv("GITHUB_TIMEOUT", "30"))
 
         self._github_api.initialize_client(github_token=github_token, timeout=timeout)
 
-        # Initialize diff generation components
         self._diff_generator = diff_generator
         self._file_processor = file_processor
 
@@ -105,28 +87,15 @@ class GitHubPRDiffService(CachingMixin, PRDiffServiceInterface):
     ) -> PRDiff | None:
         """Get PR diff data for the specified repository and PR.
 
-        This implementation uses native async with the async file processor
-        for improved performance on multi-file PRs.
-
-        Args:
-            repo_owner: Repository owner/organization name
-            repo_name: Repository name
-            pr_number: Pull request number
-
-        Returns:
-            Optional[PRDiff]: PR diff data if successful, None otherwise
-
         Raises:
             RepositoryNotFoundError: If repository or PR doesn't exist
             AuthenticationError: If authentication fails
             RateLimitError: If rate limit is exceeded
             ValidationError: If input parameters are invalid
         """
-        # Try to use async file processing if available (better performance)
         if self._file_processor and hasattr(self._file_processor, "process_files_to_patches_async"):
             return await self._get_pr_diff_async_native(repo_owner, repo_name, pr_number)
 
-        # Fallback to sync-to-async wrapper for backward compatibility
         return await asyncer.asyncify(self._get_pr_diff_sync)(repo_owner, repo_name, pr_number)
 
     async def _get_pr_diff_async_native(
@@ -135,23 +104,8 @@ class GitHubPRDiffService(CachingMixin, PRDiffServiceInterface):
         repo_name: str,
         pr_number: int,
     ) -> PRDiff | None:
-        """Get PR diff data using native async implementation with parallel file processing.
-
-        This method provides better performance for PRs with multiple files by:
-        - Using async file processor with parallel content fetching
-        - Leveraging AsyncParallelExecutor for concurrent operations
-        - Reducing overall latency through parallelization
-
-        Args:
-            repo_owner: Repository owner/organization name
-            repo_name: Repository name
-            pr_number: Pull request number
-
-        Returns:
-            Optional[PRDiff]: PR diff data if successful, None otherwise
-        """
+        """Get PR diff data using native async with parallel file processing."""
         try:
-            # Use the GitHub API client to get repository and PR
             repository = self._github_api._get_pygithub_repository(f"{repo_owner}/{repo_name}")
             if not repository:
                 return None
@@ -160,10 +114,8 @@ class GitHubPRDiffService(CachingMixin, PRDiffServiceInterface):
             if not pull_request:
                 return None
 
-            # Generate diff content using async parallel processing
             _, diff_files = await self._generate_diff_content_async(repository, pull_request)
 
-            # Convert FilePatchInfo list to FileDiffResponse list
             file_responses = [self._convert_file_patch_info_to_response(file_patch) for file_patch in diff_files]
 
             pr_diff = PRDiff(files=tuple(file_responses))
@@ -194,41 +146,28 @@ class GitHubPRDiffService(CachingMixin, PRDiffServiceInterface):
             return None
 
     async def _generate_diff_content_async(self, repository: Repository, pull_request: PullRequest) -> tuple[str, list[FilePatchInfo]]:
-        """Generate diff content for the pull request using async parallel processing.
-
-        This method uses the async file processor for parallel content fetching,
-        providing better performance for PRs with multiple files.
-
-        Args:
-            repository: GitHub repository instance
-            pull_request: GitHub pull request instance
+        """Generate diff content using async parallel processing.
 
         Returns:
             tuple[str, list[FilePatchInfo]]: Combined diff content and file metadata,
             empty string/list on error
         """
         try:
-            # Get the latest commit SHA for the PR
             latest_commit_sha = pull_request.head.sha
             if not latest_commit_sha:
                 return "", []
 
-            # Get the base commit SHA (merge base)
             base_commit_sha = self._get_base_commit_sha(repository, pull_request)
             if not base_commit_sha:
                 return "", []
 
-            # Get and process files
             github_files = pull_request.get_files()
             if not github_files:
                 return "", []
 
-            # Use async file processor for parallel content fetching
             if self._file_processor and hasattr(self._file_processor, "process_files_to_patches_async"):
-                # Async parallel processing for better performance
                 diff_files = await self._file_processor.process_files_to_patches_async(list(github_files), repository, latest_commit_sha, base_commit_sha)
             else:
-                # Fallback to sync processing
                 diff_files = (
                     self._file_processor.process_files_to_patches(
                         list(github_files),
@@ -240,12 +179,10 @@ class GitHubPRDiffService(CachingMixin, PRDiffServiceInterface):
                     else self._convert_github_files_to_file_patch_info(github_files)
                 )
 
-            # Generate extended diff content
             if self._diff_generator and diff_files:
                 extended_diffs = self._diff_generator.generate_extended_diff(diff_files)
                 return "\n".join(extended_diffs), diff_files
             else:
-                # Fallback: create simple diff from patches
                 diff_content_parts: list[str] = []
                 for file_patch in diff_files:
                     if file_patch.patch:
@@ -264,20 +201,7 @@ class GitHubPRDiffService(CachingMixin, PRDiffServiceInterface):
         repo_name: str,
         pr_number: int,
     ) -> str | None:
-        """Get the latest head commit SHA for the pull request.
-
-        Args:
-            repo_owner: Repository owner/organization name
-            repo_name: Repository name
-            pr_number: Pull request number
-
-        Returns:
-            str | None: Latest commit SHA if successful, None otherwise
-
-        Raises:
-            RepositoryNotFoundError: If repository or PR doesn't exist
-            AuthenticationError: If authentication fails
-        """
+        """Get the latest head commit SHA for the pull request."""
         return await asyncer.asyncify(self._get_latest_commit_sha_sync)(repo_owner, repo_name, pr_number)
 
     @cached_method(ttl=300, key_prefix="pr_diff")
@@ -289,22 +213,10 @@ class GitHubPRDiffService(CachingMixin, PRDiffServiceInterface):
     ) -> PRDiff | None:
         """Get PR diff data synchronously with method-level caching.
 
-        Caching:
-        - Results are cached for 5 minutes (300 seconds)
-        - Cache key includes repo_owner, repo_name, and pr_number
-        - Cache is automatically invalidated after TTL expires
-        - Use case-level commit-based caching provides additional freshness
-
-        Args:
-            repo_owner: Repository owner/organization name
-            repo_name: Repository name
-            pr_number: Pull request number
-
-        Returns:
-            Optional[PRDiff]: PR diff data if successful, None otherwise
+        Results cached for 5 minutes (300s). Use case-level commit-based
+        caching provides additional freshness guarantees.
         """
         try:
-            # Use the GitHub API client to get repository and PR
             repository = self._github_api._get_pygithub_repository(f"{repo_owner}/{repo_name}")
             if not repository:
                 return None
@@ -313,10 +225,8 @@ class GitHubPRDiffService(CachingMixin, PRDiffServiceInterface):
             if not pull_request:
                 return None
 
-            # Generate diff content
             diff_files = self._generate_diff_content(repository, pull_request)
 
-            # Convert FilePatchInfo list to FileDiffResponse list
             file_responses = [self._convert_file_patch_info_to_response(file_patch) for file_patch in diff_files]
 
             pr_diff = PRDiff(files=tuple(file_responses))
@@ -376,18 +286,10 @@ class GitHubPRDiffService(CachingMixin, PRDiffServiceInterface):
             return None
 
     def _convert_github_files_to_file_patch_info(self, github_files: "PaginatedList[File]") -> list[FilePatchInfo]:
-        """Convert GitHub File objects to FilePatchInfo domain entities.
-
-        Args:
-            github_files: List of GitHub File objects from PyGithub
-
-        Returns:
-            List of FilePatchInfo objects
-        """
+        """Convert GitHub File objects to FilePatchInfo domain entities."""
         file_patch_infos: list[FilePatchInfo] = []
 
         for github_file in github_files:
-            # Map GitHub file status to EDIT_TYPE
             edit_type = self._map_github_status_to_edit_type(github_file.status)
 
             # Get file content if available (for now, we'll use empty strings)
@@ -395,7 +297,6 @@ class GitHubPRDiffService(CachingMixin, PRDiffServiceInterface):
             base_file = ""
             head_file = ""
 
-            # Create FilePatchInfo object
             file_patch_info = FilePatchInfo(
                 filename=github_file.filename,
                 base_file=base_file,
@@ -411,14 +312,7 @@ class GitHubPRDiffService(CachingMixin, PRDiffServiceInterface):
         return file_patch_infos
 
     def _map_github_status_to_edit_type(self, status: str) -> EDIT_TYPE:
-        """Map GitHub file status to EDIT_TYPE enum.
-
-        Args:
-            status: GitHub file status (added, removed, modified, renamed)
-
-        Returns:
-            EDIT_TYPE enum value
-        """
+        """Map GitHub file status to EDIT_TYPE enum."""
         status_mapping = {
             "added": EDIT_TYPE.ADDED,
             "removed": EDIT_TYPE.DELETED,
@@ -429,20 +323,10 @@ class GitHubPRDiffService(CachingMixin, PRDiffServiceInterface):
         return status_mapping.get(status, EDIT_TYPE.UNKNOWN)
 
     def _convert_file_patch_info_to_response(self, file_patch: FilePatchInfo) -> FileDiffResponse:
-        """Convert FilePatchInfo to FileDiffResponse for PRDiff structure.
+        """Convert FilePatchInfo to FileDiffResponse.
 
-        Field mapping from FilePatchInfo to FileDiffResponse:
-        - filename → path
-        - edit_type → status
-        - num_plus_lines → stats.additions
-        - num_minus_lines → stats.deletions
-        - patch → diff
-
-        Args:
-            file_patch: FilePatchInfo object from domain layer
-
-        Returns:
-            FileDiffResponse: Converted object for structured response
+        Field mapping: filename→path, edit_type→status,
+        num_plus_lines→stats.additions, num_minus_lines→stats.deletions, patch→diff
         """
         stats = FileStats(additions=file_patch.num_plus_lines, deletions=file_patch.num_minus_lines)
         return FileDiffResponse(
@@ -456,38 +340,23 @@ class GitHubPRDiffService(CachingMixin, PRDiffServiceInterface):
         """Generate diff content for a pull request.
 
         Returns FilePatchInfo list instead of concatenated string.
-        Breaking change: diff_content concatenation removed.
-
-        Args:
-            repository: GitHub repository instance
-            pull_request: GitHub pull request instance
-
-        Returns:
-            list[FilePatchInfo]: File metadata and patch content,
-            empty list on error
         """
         try:
-            # Get the latest commit SHA for the PR
             latest_commit_sha = pull_request.head.sha
             if not latest_commit_sha:
                 return []
 
-            # Get the base commit SHA (merge base)
             base_commit_sha = self._get_base_commit_sha(repository, pull_request)
             if not base_commit_sha:
                 return []
 
-            # Get and process files
             github_files = pull_request.get_files()
             if not github_files:
                 return []
 
-            # Process files to create FilePatchInfo objects with content
             if self._file_processor:
-                # Use the proper file processor if available
                 diff_files = self._file_processor.process_files_to_patches(list(github_files), repository, latest_commit_sha, base_commit_sha)
             else:
-                # Fallback to simple conversion
                 diff_files = self._convert_github_files_to_file_patch_info(github_files)
 
             return diff_files
@@ -499,17 +368,8 @@ class GitHubPRDiffService(CachingMixin, PRDiffServiceInterface):
             return []
 
     def _get_base_commit_sha(self, repository: Repository, pull_request: PullRequest) -> str | None:
-        """Get the base commit SHA for the pull request.
-
-        Args:
-            repository: GitHub repository instance
-            pull_request: GitHub pull request instance
-
-        Returns:
-            Optional[str]: Base commit SHA, None on error
-        """
+        """Get the base commit SHA (merge base) for the pull request."""
         try:
-            # Try to get the merge base
             base_branch: str | None = pull_request.base.sha
             if base_branch:
                 return base_branch
@@ -532,20 +392,11 @@ class GitHubPRDiffService(CachingMixin, PRDiffServiceInterface):
         repo_owner: str,
         repo_name: str,
     ) -> bool:
-        """Validate that the repository exists and is accessible.
-
-        Args:
-            repo_owner: Repository owner/organization name
-            repo_name: Repository name
-
-        Returns:
-            bool: True if repository is accessible, False otherwise
-        """
+        """Validate that the repository exists and is accessible."""
         try:
             repository = self._github_api.get_repository(f"{repo_owner}/{repo_name}")
             return repository is not None
         except PR_SERVICE_EXCEPTIONS as e:
-            # Log the error and return False for graceful degradation
             exc = cast(Exception, e)
             sanitized = sanitize_exception_for_logging(exc)
             self._logger.error(

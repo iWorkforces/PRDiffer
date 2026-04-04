@@ -8,7 +8,6 @@ from prdiffer.domain.services import DiffServiceInterface
 from prdiffer.infrastructure.utils.logger_factory import LazyLoggerMixin
 
 
-# Default configuration for large file processing
 DEFAULT_LARGE_FILE_THRESHOLD = 5000  # Lines
 DEFAULT_DIFF_CHUNK_SIZE = 1000  # Lines per chunk
 DEFAULT_MAX_DIFF_SIZE = 100000  # Maximum diff size (100K lines)
@@ -16,24 +15,14 @@ DEFAULT_MAX_DIFF_SIZE = 100000  # Maximum diff size (100K lines)
 
 @dataclass(frozen=True)
 class DiffProcessingConfig:
-    """Configuration for diff processing of large files.
-
-    Attributes:
-        large_file_threshold: Line count threshold for enabling chunked processing
-        chunk_size: Number of lines to process per chunk for large files
-        max_diff_size: Maximum file size in lines for diff generation
-    """
+    """Configuration for diff processing of large files."""
 
     large_file_threshold: int = DEFAULT_LARGE_FILE_THRESHOLD
     chunk_size: int = DEFAULT_DIFF_CHUNK_SIZE
     max_diff_size: int = DEFAULT_MAX_DIFF_SIZE
 
     def validate(self) -> "DiffProcessingConfig":
-        """Validate configuration and return a corrected version if needed.
-
-        Returns:
-            DiffProcessingConfig: Validated configuration with applied constraints
-        """
+        """Validate configuration and return a corrected version if needed."""
         return DiffProcessingConfig(
             large_file_threshold=max(100, min(50000, self.large_file_threshold)),
             chunk_size=max(100, min(10000, self.chunk_size)),
@@ -51,26 +40,11 @@ class DiffUtils(LazyLoggerMixin, DiffServiceInterface):
     RE_HUNK_HEADER = re.compile(r"^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@[ ]?(.*)")
 
     def __init__(self, logger: logging.Logger | None = None, config: DiffProcessingConfig | None = None) -> None:
-        """Initialize the diff utility.
-
-        Args:
-            logger: Logger instance for logging operations
-            config: Optional diff processing configuration (uses defaults if not provided)
-        """
         self._init_lazy_logger(logger, __name__)
         self._config = (config or DiffProcessingConfig()).validate()
 
     def build_full_file_patch(self, original_file_str: str, new_file_str: str) -> str:
-        """Build a single unified-diff hunk that covers the entire file.
-
-        Args:
-            original_file_str: Original file content
-            new_file_str: New file content
-
-        Returns:
-            str: Unified diff patch marking unchanged lines with ' ',
-                 additions with '+', and deletions with '-'
-        """
+        """Build a single unified-diff hunk that covers the entire file."""
         orig_lines = original_file_str.splitlines()
         new_lines = new_file_str.splitlines()
 
@@ -97,7 +71,6 @@ class DiffUtils(LazyLoggerMixin, DiffServiceInterface):
                 for k in range(j1, j2):
                     body_lines.append("+" + new_lines[k])
 
-        # keep a leading blank line to match previous formatting between hunks
         return "\n".join(["", header] + body_lines)
 
     def build_full_file_patch_chunked(
@@ -111,17 +84,7 @@ class DiffUtils(LazyLoggerMixin, DiffServiceInterface):
 
         For files larger than large_file_threshold, splits processing into
         chunks to avoid O(N²) complexity issues with difflib.SequenceMatcher.
-
-        Args:
-            original_file_str: Original file content
-            new_file_str: New file content
-            chunk_size: Number of lines per chunk (uses config default if not specified)
-            large_file_threshold: Threshold for chunked processing (uses config default if not specified)
-
-        Returns:
-            str: Unified diff patch, or "[LARGE FILE - DIFF TRUNCATED]" if too large
         """
-        # Use config values if not specified
         chunk_size = chunk_size if chunk_size is not None else self._config.chunk_size
         large_file_threshold = large_file_threshold if large_file_threshold is not None else self._config.large_file_threshold
         max_diff_size = self._config.max_diff_size
@@ -129,16 +92,13 @@ class DiffUtils(LazyLoggerMixin, DiffServiceInterface):
         orig_lines = original_file_str.splitlines()
         new_lines = new_file_str.splitlines()
 
-        # Check if file is too large
         max_lines = max(len(orig_lines), len(new_lines))
         if max_lines > max_diff_size:
             return "[LARGE FILE - DIFF TRUNCATED: File exceeds maximum diff size]"
 
-        # Use standard processing for small files
         if max_lines <= large_file_threshold:
             return self.build_full_file_patch(original_file_str, new_file_str)
 
-        # Chunked processing for large files
         self._get_logger().info(f"Using chunked diff processing for large file ({max_lines} lines)")
 
         hunks: list[str] = []
@@ -148,11 +108,9 @@ class DiffUtils(LazyLoggerMixin, DiffServiceInterface):
             start_line = chunk_index * chunk_size
             end_line = min((chunk_index + 1) * chunk_size, max_lines)
 
-            # Get chunks from both files
             orig_chunk = orig_lines[start_line:end_line]
             new_chunk = new_lines[start_line:end_line]
 
-            # Generate hunk for this chunk
             hunk = self._build_chunk_hunk(orig_chunk, new_chunk, start_line + 1, start_line + 1)
             if hunk:
                 hunks.append(hunk)
@@ -168,17 +126,7 @@ class DiffUtils(LazyLoggerMixin, DiffServiceInterface):
         orig_start: int,
         new_start: int,
     ) -> str:
-        """Build a diff hunk for a chunk of lines.
-
-        Args:
-            orig_lines: Original lines in this chunk
-            new_lines: New lines in this chunk
-            orig_start: Starting line number in original file
-            new_start: Starting line number in new file
-
-        Returns:
-            str: Unified diff hunk for this chunk
-        """
+        """Build a diff hunk for a chunk of lines."""
         if not orig_lines and not new_lines:
             return ""
 
@@ -205,7 +153,6 @@ class DiffUtils(LazyLoggerMixin, DiffServiceInterface):
                 for k in range(j1, j2):
                     body_lines.append("+" + new_lines[k])
 
-        # Only return hunk if there are actual changes
         if any(line.startswith("+") or line.startswith("-") for line in body_lines):
             return "\n".join(["", header] + body_lines)
         return ""
@@ -213,14 +160,8 @@ class DiffUtils(LazyLoggerMixin, DiffServiceInterface):
     def decode_if_bytes(self, content: str | bytes | bytearray) -> str:
         """Decode bytes content to string with fallback encoding support.
 
-        Args:
-            content: Content that may be bytes, bytearray, or string
-
-        Returns:
-            str: Decoded string content, empty string if all decodings fail
-
-        Note:
-            Tries UTF-8 first, then falls back to iso-8859-1, latin-1, ascii, utf-16
+        Tries UTF-8 first, then falls back to iso-8859-1, latin-1, ascii, utf-16.
+        Returns empty string if all decodings fail.
         """
         if isinstance(content, (bytes, bytearray)):
             try:
@@ -236,36 +177,22 @@ class DiffUtils(LazyLoggerMixin, DiffServiceInterface):
         return content
 
     def extend_patch(self, original_file_str: str, patch_str: str, new_file_str: str = "") -> str:
-        """Extend a patch to show full file context instead of just changed lines.
-
-        Args:
-            original_file_str: Original file content (before changes)
-            patch_str: Original patch string (fallback if extension fails)
-            new_file_str: New file content (after changes), defaults to empty string
-
-        Returns:
-            str: Extended patch with full file context, original patch on failure,
-                 or "[BINARY FILE]" marker if binary content detected
-        """
+        """Extend a patch to show full file context instead of just changed lines."""
         original_file_str = self.decode_if_bytes(original_file_str)
         new_file_str = self.decode_if_bytes(new_file_str)
 
-        # Allow full-file context even for new files (original can be empty)
         original_file_str = original_file_str or ""
         new_file_str = new_file_str or ""
 
-        # Pre-check for binary content before attempting diff generation
         if self._is_binary_content(original_file_str) or self._is_binary_content(new_file_str):
             self._get_logger().debug("Skipping diff for binary file content")
             return "[BINARY FILE - DIFF NOT AVAILABLE]"
 
         try:
-            # Use chunked processing for large files to avoid O(N²) complexity
             max_lines = max(len(original_file_str.splitlines()), len(new_file_str.splitlines()))
             if max_lines > self._config.large_file_threshold:
                 extended_patch_str = self.build_full_file_patch_chunked(original_file_str, new_file_str)
             else:
-                # Build a single full-file unified-diff hunk
                 extended_patch_str = self.build_full_file_patch(original_file_str, new_file_str)
         except Exception as e:
             self._get_logger().warning(f"Failed to extend patch: {e}")
@@ -274,27 +201,17 @@ class DiffUtils(LazyLoggerMixin, DiffServiceInterface):
         return extended_patch_str
 
     def _is_binary_content(self, content: str) -> bool:
-        """Check if string content appears to be binary.
-
-        Args:
-            content: String content to check
-
-        Returns:
-            bool: True if content appears to be binary
-        """
+        """Check if string content appears to be binary."""
         if not content:
             return False
 
-        # Check for null bytes (common in binary files)
         if "\x00" in content:
             return True
 
-        # Check for high ratio of non-printable characters
         # Sample first 8KB for efficiency
         sample = content[:8192]
         non_printable = sum(1 for c in sample if ord(c) < 32 and c not in "\n\r\t")
 
-        # If more than 30% non-printable, likely binary
         if len(sample) > 0 and non_printable / len(sample) > 0.3:
             return True
 
@@ -302,13 +219,5 @@ class DiffUtils(LazyLoggerMixin, DiffServiceInterface):
 
 
 def get_diff_utils(logger: logging.Logger | None = None, config: DiffProcessingConfig | None = None) -> DiffUtils:
-    """Get a diff utils instance.
-
-    Args:
-        logger: Optional logger instance
-        config: Optional diff processing configuration
-
-    Returns:
-        DiffUtils: Diff utilities instance
-    """
+    """Get a diff utils instance."""
     return DiffUtils(logger=logger, config=config)

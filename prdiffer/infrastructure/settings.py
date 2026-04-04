@@ -12,27 +12,14 @@ logger = logging.getLogger(__name__)
 class SettingsService(SettingsServiceInterface):
     """Settings service for reading TOML configuration files with Dynaconf.
 
-    This service provides a centralized way to access application settings using
-    manual caching with instance variables for thread-safe operation.
-
-    Attributes:
-        settings: The Dynaconf instance for configuration management
-        _cache_lock: Thread lock for cache access synchronization
-        _github_settings_cache: Cached GitHub settings
-        _github_config_cache: Cached GitHub configuration
-        _cache_settings_cache: Cached cache settings
-        _app_settings_cache: Cached application settings
+    Uses manual caching with RLock for thread-safe operation
+    because Dynaconf objects are unhashable (no @lru_cache).
     """
 
     def __init__(
         self,
         settings_files: list[str] | None = None,
     ) -> None:
-        """Initialize the settings service with configuration files.
-
-        Args:
-            settings_files: List of TOML files to load. Defaults to ['settings.toml', '.secrets.toml']
-        """
         if settings_files is None:
             settings_files = ["settings.toml", ".secrets.toml"]
 
@@ -43,7 +30,6 @@ class SettingsService(SettingsServiceInterface):
             load_dotenv=True,
         )
 
-        # Manual caching with thread-safe access
         self._cache_lock = RLock()
         self._github_settings_cache: dict[str, Any] | None = None
         self._github_config_cache: GitHubConfig | None = None
@@ -51,42 +37,15 @@ class SettingsService(SettingsServiceInterface):
         self._app_settings_cache: dict[str, Any] | None = None
 
     def get(self, key: str, default: Any = None) -> Any:
-        """Get a configuration value.
-
-        Args:
-            key: The configuration key to retrieve
-            default: Default value if key is not found
-
-        Returns:
-            Any: The configuration value or default
-        """
         return self.settings.get(key, default)
 
     def get_str(self, key: str, default: str = "") -> str:
-        """Get a string configuration value.
-
-        Args:
-            key: The configuration key to retrieve
-            default: Default value if key is not found or not a string
-
-        Returns:
-            str: The configuration value as string or default
-        """
         value = self.settings.get(key, default)
         if isinstance(value, str):
             return value
         return str(value) if value is not None else default
 
     def get_int(self, key: str, default: int = 0) -> int:
-        """Get an integer configuration value.
-
-        Args:
-            key: The configuration key to retrieve
-            default: Default value if key is not found or not an integer
-
-        Returns:
-            int: The configuration value as integer or default
-        """
         value = self.settings.get(key, default)
         if isinstance(value, int) and not isinstance(value, bool):
             return value
@@ -96,15 +55,6 @@ class SettingsService(SettingsServiceInterface):
             return default
 
     def get_bool(self, key: str, default: bool = False) -> bool:
-        """Get a boolean configuration value.
-
-        Args:
-            key: The configuration key to retrieve
-            default: Default value if key is not found or not a boolean
-
-        Returns:
-            bool: The configuration value as boolean or default
-        """
         value = self.settings.get(key, default)
         if isinstance(value, bool):
             return value
@@ -113,15 +63,6 @@ class SettingsService(SettingsServiceInterface):
         return bool(value) if value is not None else default
 
     def get_float(self, key: str, default: float = 0.0) -> float:
-        """Get a float configuration value.
-
-        Args:
-            key: The configuration key to retrieve
-            default: Default value if key is not found or not a float
-
-        Returns:
-            float: The configuration value as float or default
-        """
         value = self.settings.get(key, default)
         if isinstance(value, float):
             return value
@@ -133,11 +74,8 @@ class SettingsService(SettingsServiceInterface):
     def get_github_settings(self) -> dict[str, Any]:
         """Get GitHub-related settings with caching.
 
-        Note: GitHub token authentication is now exclusively managed via the
-        GITHUB_TOKEN environment variable. It is no longer read from settings files.
-
-        Returns:
-            dict[str, Any]: GitHub configuration including rate limits, timeouts, etc.
+        GitHub token authentication is exclusively managed via the
+        GITHUB_TOKEN environment variable, not from settings files.
         """
         with self._cache_lock:
             if self._github_settings_cache is not None:
@@ -180,12 +118,8 @@ class SettingsService(SettingsServiceInterface):
     def get_github_config(self) -> GitHubConfig:
         """Get centralized GitHub configuration as a GitHubConfig dataclass.
 
-        This method returns a GitHubConfig object that centralizes all GitHub-related
-        settings in a single source of truth. Services should prefer receiving
-        a GitHubConfig object instead of individual parameters.
-
-        Returns:
-            GitHubConfig: Centralized GitHub configuration dataclass
+        Services should prefer receiving a GitHubConfig object
+        instead of individual parameters.
         """
         with self._cache_lock:
             if self._github_config_cache is not None:
@@ -229,11 +163,6 @@ class SettingsService(SettingsServiceInterface):
             return self._github_config_cache
 
     def get_cache_settings(self) -> dict[str, Any]:
-        """Get cache-related settings with caching.
-
-        Returns:
-            dict[str, Any]: Cache configuration including TTL and size limits
-        """
         with self._cache_lock:
             if self._cache_settings_cache is not None:
                 return self._cache_settings_cache
@@ -246,11 +175,6 @@ class SettingsService(SettingsServiceInterface):
             return self._cache_settings_cache
 
     def get_app_settings(self) -> dict[str, Any]:
-        """Get general application settings with caching.
-
-        Returns:
-            dict[str, Any]: Application configuration
-        """
         with self._cache_lock:
             if self._app_settings_cache is not None:
                 return self._app_settings_cache
@@ -266,15 +190,9 @@ class SettingsService(SettingsServiceInterface):
             return self._app_settings_cache
 
     def get_configuration_warnings(self) -> list[str]:
-        """Get configuration warnings for potential issues.
-
-        Returns:
-            list[str]: List of configuration warnings
-        """
         warnings: list[str] = []
 
         try:
-            # Check for common configuration issues
             rate_limit = self.get("github.rate_limit", 5000)
             if rate_limit > 5000:
                 warnings.append(f"High rate limit ({rate_limit}) may cause API throttling")
@@ -287,12 +205,10 @@ class SettingsService(SettingsServiceInterface):
             if max_retries > 10:
                 warnings.append(f"High retry count ({max_retries}) may increase latency")
 
-            # Check for missing environment variables
             github_token = os.getenv("GITHUB_TOKEN")
             if not github_token:
                 warnings.append("GITHUB_TOKEN environment variable not set - using anonymous access")
 
-            # Check cache settings
             use_hashed_keys = self.get("cache.use_hashed_keys", True)
             if not use_hashed_keys:
                 warnings.append("Cache key hashing disabled - may use more memory")
@@ -310,21 +226,10 @@ class SettingsService(SettingsServiceInterface):
         return warnings
 
     def is_development_mode(self) -> bool:
-        """Check if running in development mode.
-
-        Returns:
-            bool: True if in development mode
-        """
         return self.get("app.debug", False) or os.getenv("ENV_FOR_DYNACONF") == "development"
 
     def _get_loaded_config_files(self) -> list[str]:
-        """Get list of loaded configuration files.
-
-        Returns:
-            list[str]: List of configuration file paths
-        """
         try:
-            # Try to get loaded files from Dynaconf
             if hasattr(self.settings, "_loaded_files"):
                 return list(self.settings._loaded_files)
             elif hasattr(self.settings, "settings_files"):
@@ -335,10 +240,7 @@ class SettingsService(SettingsServiceInterface):
             return []
 
     def clear_cache(self) -> None:
-        """Clear all cached settings.
-
-        Resets all instance variable caches in a thread-safe manner.
-        """
+        """Clear all cached settings in a thread-safe manner."""
         with self._cache_lock:
             self._github_settings_cache = None
             self._github_config_cache = None
@@ -346,16 +248,11 @@ class SettingsService(SettingsServiceInterface):
             self._app_settings_cache = None
 
 
-# Global settings service instance
 _settings_service: SettingsService | None = None
 
 
 def get_settings_service() -> SettingsService:
-    """Get or create the global settings service instance.
-
-    Returns:
-        SettingsService: The global settings service instance
-    """
+    """Get or create the global settings service singleton."""
     global _settings_service
     if _settings_service is None:
         _settings_service = SettingsService()

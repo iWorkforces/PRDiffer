@@ -53,17 +53,6 @@ class FileProcessor:
         max_parallel_workers: int = 4,
         logger: ConsoleLogger | None = None,
     ) -> None:
-        """Initialize the file processor.
-
-        Args:
-            github_api_service: Service for GitHub API operations
-            pattern_matcher: Service for file pattern matching
-            diff_utils: Service for diff utilities
-            max_files_allowed: Maximum number of files to load content for
-            parallel_fetch_threshold: File count threshold to use parallel fetching
-            max_parallel_workers: Max workers for parallel content fetching
-            logger: Logger instance for logging operations
-        """
         self._github_api_service = github_api_service
         self._pattern_matcher = pattern_matcher
         self._diff_utils = diff_utils
@@ -72,91 +61,50 @@ class FileProcessor:
         self._max_parallel_workers = max_parallel_workers
         self._logger = logger or get_logger()
 
-        # Async lock for cache operations
         self._cache_lock = anyio.Lock()
 
-        # Cache for PR files to avoid repeated API calls
         self._pr_files_cache: PaginatedList[File] | None = None
         self._pr_cache_timestamp: float = 0.0
 
-        # Async parallel executor for concurrent operations
         self._async_executor = AsyncParallelExecutor(
             max_concurrent=max_parallel_workers,
             error_strategy=ErrorStrategy.IGNORE,
             logger=logger,
         )
 
-        # Performance optimization feature flags
         from prdiffer.infrastructure.settings import get_settings_service
 
         settings = get_settings_service()
         self._parallel_head_base_fetch_enabled = settings.get("performance.parallel_head_base_fetch_enabled", False)
 
     async def get_pr_files(self, pull_request: PyGithubPullRequest) -> PaginatedList[File]:
-        """Get all files from the pull request with caching.
-
-        Thread-safe: Uses double-check locking pattern for cache initialization.
-
-        Args:
-            pull_request: GitHub pull request object
-
-        Returns:
-            PaginatedList of File objects from the PR
-        """
-        # Fast path: check cache without lock (double-check pattern)
+        """Get all files from the pull request with caching (double-check locking, 5min TTL)."""
         if self._pr_files_cache is not None:
-            # Check if cache is still valid (5 minutes)
             current_time = time.time()
             if current_time - self._pr_cache_timestamp <= 300:
                 return self._pr_files_cache
 
-        # Slow path: acquire lock and double-check
         async with self._cache_lock:
-            # Double-check cache validity after acquiring lock
             current_time = time.time()
             if self._pr_files_cache is not None and current_time - self._pr_cache_timestamp <= 300:
                 return self._pr_files_cache
 
-            # Cache is stale or uninitialized - update it
             self._pr_files_cache = await asyncer.asyncify(pull_request.get_files)()
             self._pr_cache_timestamp = current_time
-            # Type assertion: after await, cache should be populated
             assert self._pr_files_cache is not None
             return self._pr_files_cache
 
-        # Unreachable - all code paths return inside the async context
-        assert False, "Unreachable code"
-
     def filter_files(self, files: Sequence[File]) -> list[File]:
-        """Filter files based on pattern matching configuration.
-
-        Args:
-            files: Sequence of file objects to filter (PaginatedList or list)
-
-        Returns:
-            Filtered list of files
-        """
+        """Filter files based on pattern matching configuration."""
         return [file for file in files if self._pattern_matcher.is_valid_file(file.filename)]
 
     def process_files_to_patches(self, files: list[File], repository: Repository, head_sha: str, base_sha: str) -> list[FilePatchInfo]:
-        """Process files into FilePatchInfo objects with content loading.
-
-        Args:
-            files: List of filtered files to process
-            repository: GitHub repository instance
-            head_sha: Head commit SHA
-            base_sha: Base commit SHA
-
-        Returns:
-            List of FilePatchInfo objects with loaded content
-        """
         diff_files: list[FilePatchInfo] = []
         invalid_files_names: list[str] = []
 
         counter_valid = 0
         files_to_load: list[File] = []
 
-        # First pass: identify files for batch processing
         for file in files:
             if not self._pattern_matcher.is_valid_file(file.filename):
                 invalid_files_names.append(file.filename)
@@ -165,7 +113,6 @@ class FileProcessor:
             patch = file.patch
             counter_valid += 1
 
-            # Determine if we should load full content for this file
             avoid_load = False
             if counter_valid >= self.max_files_allowed and patch:
                 avoid_load = True
@@ -173,16 +120,12 @@ class FileProcessor:
                     self._logger.info("Too many files in PR, will avoid loading full content for rest of files")
 
             if avoid_load:
-                # Process without content loading
                 file_patch = self._create_file_patch_without_content(file)
                 diff_files.append(file_patch)
             else:
-                # Add to batch processing list
                 files_to_load.append(file)
 
-        # Second pass: batch process files that need content loading
         if files_to_load:
-            # Use synchronous batch processing for consistency
             processed_files = self._process_files_with_content(files_to_load, repository, head_sha, base_sha)
             diff_files.extend(processed_files)
 
@@ -192,24 +135,12 @@ class FileProcessor:
         return diff_files
 
     async def process_files_to_patches_async(self, files: list[File], repository: Repository, head_sha: str, base_sha: str) -> list[FilePatchInfo]:
-        """Async version of process_files_to_patches.
-
-        Args:
-            files: List of filtered files to process
-            repository: GitHub repository instance
-            head_sha: Head commit SHA
-            base_sha: Base commit SHA
-
-        Returns:
-            List of FilePatchInfo objects with loaded content
-        """
         diff_files: list[FilePatchInfo] = []
         invalid_files_names: list[str] = []
 
         counter_valid = 0
         files_to_load: list[File] = []
 
-        # First pass: identify files for batch processing
         for file in files:
             if not self._pattern_matcher.is_valid_file(file.filename):
                 invalid_files_names.append(file.filename)
@@ -218,7 +149,6 @@ class FileProcessor:
             patch = file.patch
             counter_valid += 1
 
-            # Determine if we should load full content for this file
             avoid_load = False
             if counter_valid >= self.max_files_allowed and patch:
                 avoid_load = True
@@ -226,14 +156,11 @@ class FileProcessor:
                     self._logger.info("Too many files in PR, will avoid loading full content for rest of files")
 
             if avoid_load:
-                # Process without content loading
                 file_patch = self._create_file_patch_without_content(file)
                 diff_files.append(file_patch)
             else:
-                # Add to batch processing list
                 files_to_load.append(file)
 
-        # Second pass: batch process files that need content loading
         if files_to_load:
             processed_files = await self._process_files_with_content_parallel_async(
                 files_to_load,
@@ -255,26 +182,12 @@ class FileProcessor:
         head_sha: str,
         base_sha: str,
     ) -> list[FilePatchInfo]:
-        """Process files with parallel content loading for better performance (async version).
-
-        Fetches head and base content concurrently using AsyncParallelExecutor,
-        significantly improving performance for PRs with many files.
-
-        Args:
-            files: List of files to process
-            repository: GitHub repository instance
-            head_sha: Head commit SHA
-            base_sha: Base commit SHA
-
-        Returns:
-            List of FilePatchInfo objects with content loaded
-        """
+        """Process files with parallel content loading using AsyncParallelExecutor."""
         start_time = time.time()
         diff_files: list[FilePatchInfo] = []
 
-        # Separate files by status to optimize API calls
-        head_files: list[str] = []  # Files to fetch from head commit
-        base_files: list[str] = []  # Files to fetch from base commit
+        head_files: list[str] = []
+        base_files: list[str] = []
         renamed_file_mapping: dict[str, str] = {}
 
         for file in files:
@@ -290,7 +203,6 @@ class FileProcessor:
                 else:
                     base_files.append(file.filename)
 
-        # Fetch head and base contents in parallel using async tasks
         fetch_tasks: list[Any] = []
         if head_files:
             fetch_tasks.append(self._github_api_service.get_files_content_batch(repository.full_name, head_files, head_sha))
@@ -300,10 +212,8 @@ class FileProcessor:
         if base_files:
             fetch_tasks.append(self._github_api_service.get_files_content_batch(repository.full_name, base_files, base_sha))
         else:
-            fetch_tasks.append(anyio.sleep(0))  # Placeholder
+            fetch_tasks.append(anyio.sleep(0))
 
-        # Execute fetches in parallel (if GitHubAPIClient had async methods)
-        # For now, run sequentially since GitHubAPIClient is synchronous
         head_contents: dict[str, str] = {}
         base_contents: dict[str, str] = {}
         try:
@@ -319,7 +229,6 @@ class FileProcessor:
             if isinstance(base_result, dict):
                 base_contents = cast(dict[str, str], base_result)
         except (AttributeError, TypeError) as e:
-            # Handle the case where tasks are not awaitable
             self._logger.warning(
                 "Tasks not awaitable, using empty contents",
                 extra={
@@ -332,23 +241,18 @@ class FileProcessor:
             head_contents = {}
             base_contents = {}
 
-        # Process each file with loaded content
         for file in files:
-            # Get content based on file status to avoid 404 errors
             if file.status == "added":
                 new_file_content = head_contents.get(file.filename, "")
-                original_file_content = ""  # Added files don't exist in base
+                original_file_content = ""
             elif file.status == "removed":
-                # Skip deleted files - nothing to compare
                 self._logger.info(f"Skipping deleted file: {file.filename}")
                 continue
             elif file.status == "renamed":
-                # For renamed files, use the previous filename to get base content
                 new_file_content = head_contents.get(file.filename, "")
                 base_key = renamed_file_mapping.get(file.filename, file.filename)
                 original_file_content = base_contents.get(base_key, "")
 
-                # Skip rename-only files (no content changes)
                 if self._is_rename_only(file, original_file_content, new_file_content):
                     previous_name = getattr(file, "previous_filename", "?")
                     self._logger.info(f"Skipping rename-only file: {previous_name} -> {file.filename}")
@@ -370,22 +274,11 @@ class FileProcessor:
         return diff_files
 
     def _process_files_with_content(self, files: list[File], repository: Repository, head_sha: str, base_sha: str) -> list[FilePatchInfo]:
-        """Process files with content loading (batch mode).
-
-        Args:
-            files: List of files to process
-            repository: GitHub repository instance
-            head_sha: Head commit SHA
-            base_sha: Base commit SHA
-
-        Returns:
-            List of FilePatchInfo objects with content loaded
-        """
+        """Process files with content loading (batch mode, synchronous)."""
         diff_files: list[FilePatchInfo] = []
 
-        # Separate files by status to optimize API calls
-        head_files: list[str] = []  # Files to fetch from head commit
-        base_files: list[str] = []  # Files to fetch from base commit
+        head_files: list[str] = []
+        base_files: list[str] = []
         renamed_file_mapping: dict[str, str] = {}
 
         for file in files:
@@ -394,44 +287,31 @@ class FileProcessor:
             if file.status == "modified":
                 base_files.append(file.filename)
             elif file.status == "renamed":
-                # For renamed files, use previous_filename to fetch from base commit
                 previous_name = getattr(file, "previous_filename", None)
                 if previous_name:
                     base_files.append(previous_name)
                     renamed_file_mapping[file.filename] = previous_name
                 else:
-                    # Fallback to current filename if previous_filename not available
                     base_files.append(file.filename)
 
-        # Batch load content
-        # Note: For parallel fetching, use the async method _process_files_with_content_parallel_async
-        # This sync method always uses sequential fetching
-        # Note: For parallel fetching, use the async method _process_files_with_content_parallel_async
-        # This sync method always uses sequential fetching
         head_contents: dict[str, str] = {}
         base_contents: dict[str, str] = {}
 
-        # Sequential path (always used in sync context)
         head_contents = self._github_api_service.get_files_content_batch(repository.full_name, head_files, head_sha) if head_files else {}
         base_contents = self._github_api_service.get_files_content_batch(repository.full_name, base_files, base_sha) if base_files else {}
 
-        # Process each file with loaded content
         for file in files:
-            # Get content based on file status to avoid 404 errors
             if file.status == "added":
                 new_file_content = head_contents.get(file.filename, "")
-                original_file_content = ""  # Added files don't exist in base
+                original_file_content = ""
             elif file.status == "removed":
-                # Skip deleted files - nothing to compare
                 self._logger.info(f"Skipping deleted file: {file.filename}")
                 continue
             elif file.status == "renamed":
-                # For renamed files, use the previous filename to get base content
                 new_file_content = head_contents.get(file.filename, "")
                 base_key = renamed_file_mapping.get(file.filename, file.filename)
                 original_file_content = base_contents.get(base_key, "")
 
-                # Skip rename-only files (no content changes)
                 if self._is_rename_only(file, original_file_content, new_file_content):
                     previous_name = getattr(file, "previous_filename", "?")
                     self._logger.info(f"Skipping rename-only file: {previous_name} -> {file.filename}")
@@ -450,25 +330,17 @@ class FileProcessor:
         return diff_files
 
     def _create_file_patch_without_content(self, file: File) -> FilePatchInfo:
-        """Create FilePatchInfo without loading file content.
-
-        Args:
-            file: GitHub file object
-
-        Returns:
-            FilePatchInfo with empty content strings
-        """
+        """Create FilePatchInfo without loading file content."""
         edit_type = self.STATUS_TO_EDIT_TYPE.get(file.status, EDIT_TYPE.UNKNOWN)
         if edit_type == EDIT_TYPE.UNKNOWN:
             self._logger.error(f"Unknown edit type: {file.status}")
 
-        # Count lines from patch if available
         patch = file.patch or ""
         num_plus_lines, num_minus_lines = self._count_patch_lines(file, patch)
 
         return FilePatchInfo(
-            base_file="",  # Empty content
-            head_file="",  # Empty content
+            base_file="",
+            head_file="",
             patch=patch,
             filename=file.filename,
             edit_type=edit_type,
@@ -477,17 +349,7 @@ class FileProcessor:
         )
 
     def _create_file_patch_with_content(self, file: File, original_content: str, new_content: str, patch: str) -> FilePatchInfo:
-        """Create FilePatchInfo with loaded file content.
-
-        Args:
-            file: GitHub file object
-            original_content: Base file content
-            new_content: Head file content
-            patch: Unified diff patch
-
-        Returns:
-            FilePatchInfo with loaded content
-        """
+        """Create FilePatchInfo with loaded file content."""
         edit_type: EDIT_TYPE = self.STATUS_TO_EDIT_TYPE.get(file.status, EDIT_TYPE.UNKNOWN)
         if edit_type == EDIT_TYPE.UNKNOWN:
             self._logger.error(f"Unknown edit type: {file.status}")
@@ -505,20 +367,10 @@ class FileProcessor:
         )
 
     def _count_patch_lines(self, file: File, patch: str) -> tuple[int, int]:
-        """Count added and removed lines from file or patch.
-
-        Args:
-            file: GitHub file object
-            patch: Patch content
-
-        Returns:
-            Tuple of (num_plus_lines, num_minus_lines)
-        """
-        # Use GitHub API data if available
+        """Count added and removed lines from file or patch."""
         if hasattr(file, "additions") and hasattr(file, "deletions"):
             return file.additions, file.deletions
 
-        # Fall back to counting patch lines
         if patch:
             patch_lines = patch.splitlines(keepends=True)
             num_plus_lines = sum(1 for line in patch_lines if line.startswith("+"))
@@ -528,16 +380,7 @@ class FileProcessor:
         return 0, 0
 
     def _generate_patch_from_content(self, filename: str, new_content: str, original_content: str) -> str:
-        """Generate a patch for a file by comparing content.
-
-        Args:
-            filename: Name of the file
-            new_content: New file content
-            original_content: Original file content
-
-        Returns:
-            Generated patch string
-        """
+        """Generate a patch for a file by comparing content."""
         if not original_content and not new_content:
             return ""
 
@@ -558,29 +401,14 @@ class FileProcessor:
             return ""
 
     def _is_rename_only(self, file: File, original_content: str = "", new_content: str = "") -> bool:
-        """Check if a renamed file has no content changes.
-
-        Uses GitHub API metadata as primary check, falls back to content comparison.
-
-        Args:
-            file: GitHub file object with status == "renamed"
-            original_content: Base file content (for fallback comparison)
-            new_content: Head file content (for fallback comparison)
-
-        Returns:
-            True if file is renamed without content changes, False otherwise
-        """
-        # Primary check: GitHub API metadata
+        """Check if a renamed file has no content changes (API metadata primary, content comparison fallback)."""
         if hasattr(file, "additions") and hasattr(file, "deletions"):
             if file.additions == 0 and file.deletions == 0:
                 self._logger.debug(f"Rename-only detected via API metadata: {file.filename}")
                 return True
-            # Has changes - not rename-only
             return False
 
-        # Fallback: Content comparison (when API metadata unavailable)
         if original_content and new_content:
-            # Normalize trailing whitespace and compare
             is_identical = original_content.rstrip() == new_content.rstrip()
             if is_identical:
                 self._logger.debug(f"Rename-only detected via content comparison: {file.filename}")
@@ -598,17 +426,7 @@ def get_file_processor(
     parallel_fetch_threshold: int = 10,
     max_parallel_workers: int = 4,
 ) -> FileProcessor:
-    """Get a configured file processor instance.
-
-    Args:
-        github_api_service: Service for GitHub API operations
-        pattern_matcher: Service for file pattern matching
-        diff_utils: Service for diff utilities
-        max_files_allowed: Maximum number of files to load content for
-
-    Returns:
-        FileProcessor: Configured file processor instance
-    """
+    """Get a configured file processor instance."""
     return FileProcessor(
         github_api_service=github_api_service,
         pattern_matcher=pattern_matcher,

@@ -37,14 +37,12 @@ def parse_github_pr_url(pr_url: str) -> tuple[str, str, int]:
     if len(pr_url) > 2000:
         raise InvalidURLError("URL too long (max 2000 characters)")
 
-    # Must start with https://github.com/
     if not pr_url.startswith("https://github.com/"):
         raise InvalidURLError(
             "URL must start with https://github.com/",
             details={"url": pr_url[:100]},
         )
 
-    # Parse URL - supports both 'pull/' and 'pulls/'
     pattern = re.compile(r"^https://github\.com/([a-zA-Z0-9_-]+)/([a-zA-Z0-9._-]+)/pulls?/(\d+)/?$")
 
     match = pattern.match(pr_url)
@@ -57,11 +55,9 @@ def parse_github_pr_url(pr_url: str) -> tuple[str, str, int]:
 
     owner, repo_name, pr_number_str = match.groups()
 
-    # Validate components
     _validate_owner(owner)
     _validate_repo_name(repo_name)
 
-    # Validate and convert PR number
     try:
         pr_number = int(pr_number_str)
     except ValueError:
@@ -77,14 +73,7 @@ def parse_github_pr_url(pr_url: str) -> tuple[str, str, int]:
 
 
 def _validate_owner(owner: str) -> None:
-    """Validate GitHub owner/organization name.
-
-    Args:
-        owner: Username to validate
-
-    Raises:
-        InvalidURLError: If owner is invalid
-    """
+    """Validate GitHub owner/organization name."""
     if not owner:
         raise InvalidURLError("Owner cannot be empty")
 
@@ -100,14 +89,7 @@ def _validate_owner(owner: str) -> None:
 
 
 def _validate_repo_name(repo: str) -> None:
-    """Validate repository name.
-
-    Args:
-        repo: Repository name to validate
-
-    Raises:
-        InvalidURLError: If repo name is invalid
-    """
+    """Validate repository name."""
     if not repo:
         raise InvalidURLError("Repository name cannot be empty")
 
