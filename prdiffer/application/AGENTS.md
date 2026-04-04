@@ -8,14 +8,13 @@ MCP server composition root: tool discovery, plugin registration, cross-cutting 
 ## STRUCTURE
 ```
 prdiffer/application/
-├── components/         # Auth, rate limiting, metrics, health, PR ops, config (7 files, auth.py 673 lines)
+├── components/         # Auth, rate limiting, metrics, health, PR ops, config (7 files, auth.py 581 lines)
 ├── plugins/            # MCPToolPlugin implementations (get_pr_diff, approve_pr)
 ├── interfaces/         # MCP-specific protocols (tool_plugin.py)
 ├── services/           # Application services (if any)
-├── mcp_server.py       # 870-line FastMCP orchestrator
-├── tool_registry.py    # 581-line MCP tool registration
-├── plugin_manager.py   # 147-line plugin discovery + execution
-└── factory.py          # 192-line DI composition root
+├── mcp_server.py       # 184-line FastMCP orchestrator
+├── tool_registry.py    # 479-line MCP tool registration
+└── factory.py          # 87-line DI composition root
 ```
 
 ## WHERE TO LOOK
