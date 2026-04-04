@@ -22,17 +22,7 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class SecurityPatterns:
-    """Configurable security patterns loaded from settings.
-
-    This dataclass provides configurable security patterns for detecting
-    malicious input patterns. Patterns can be loaded from settings or
-    use default values.
-
-    Attributes:
-        command_injection: List of regex patterns for command injection detection
-        path_traversal: List of regex patterns for path traversal detection
-        sql_injection: List of regex patterns for SQL injection detection
-    """
+    """Configurable security patterns loaded from settings."""
 
     command_injection: list[str]
     path_traversal: list[str]
@@ -40,15 +30,7 @@ class SecurityPatterns:
 
     @classmethod
     def from_settings(cls, settings_service: "SettingsService | None") -> "SecurityPatterns":
-        """Load patterns from settings service.
-
-        Args:
-            settings_service: Settings service instance (optional)
-
-        Returns:
-            SecurityPatterns instance with configured patterns
-        """
-        # Default patterns
+        """Load patterns from settings, falling back to defaults."""
         defaults = cls(
             command_injection=[
                 r"[;&|`$]",  # Shell metacharacters
@@ -111,27 +93,15 @@ class SecurityPatterns:
         return defaults
 
     def compile_command_injection(self) -> re.Pattern[str]:
-        """Compile command injection patterns into a single regex.
-
-        Returns:
-            Compiled regex pattern
-        """
+        """Compile command injection patterns into a single regex."""
         return re.compile("|".join(self.command_injection), re.IGNORECASE)
 
     def compile_path_traversal(self) -> re.Pattern[str]:
-        """Compile path traversal patterns into a single regex.
-
-        Returns:
-            Compiled regex pattern
-        """
+        """Compile path traversal patterns into a single regex."""
         return re.compile("|".join(self.path_traversal), re.IGNORECASE)
 
     def compile_sql_injection(self) -> re.Pattern[str]:
-        """Compile SQL injection patterns into a single regex.
-
-        Returns:
-            Compiled regex pattern
-        """
+        """Compile SQL injection patterns into a single regex."""
         return re.compile("|".join(self.sql_injection), re.IGNORECASE)
 
 
@@ -153,7 +123,6 @@ class InjectionDetector:
             raise SuspiciousOperationError("Suspicious input detected")
     """
 
-    # Class-level patterns (fallback when settings not available)
     _COMMAND_INJECTION_PATTERNS = [
         r"[;&|`$]",  # Shell metacharacters
         r"\$\(",  # Command substitution
@@ -190,7 +159,6 @@ class InjectionDetector:
         r"%",  # Wildcard (can be abused)
     ]
 
-    # Pre-compiled combined patterns for performance
     _COMMAND_INJECTION_COMPILED = re.compile(
         r"[;&|`$]|\$\(|`|\|&|\|\||&&|%0[aAdD]|\\x[0-9a-fA-F]{2}",
         re.IGNORECASE,
@@ -205,49 +173,20 @@ class InjectionDetector:
     )
 
     def __init__(self, security_patterns: SecurityPatterns | None = None):
-        """Initialize the InjectionDetector with optional custom security patterns.
-
-        Args:
-            security_patterns: Optional SecurityPatterns instance for custom pattern matching.
-                If None, uses default class-level patterns.
-
-        Example:
-            >>> # Use default patterns
-            >>> detector = InjectionDetector()
-
-            >>> # Use custom patterns from settings
-            >>> from prdiffer.infrastructure.settings import get_settings_service
-            >>> settings = get_settings_service()
-            >>> patterns = SecurityPatterns.from_settings(settings)
-            >>> detector = InjectionDetector(security_patterns=patterns)
-        """
+        """Initialize with optional custom security patterns."""
         self._security_patterns = security_patterns
         if security_patterns is not None:
-            # Compile custom patterns for instance use
             self._command_injection_compiled = security_patterns.compile_command_injection()
             self._path_traversal_compiled = security_patterns.compile_path_traversal()
             self._sql_injection_compiled = security_patterns.compile_sql_injection()
         else:
-            # Use class-level compiled patterns
             self._command_injection_compiled = None
             self._path_traversal_compiled = None
             self._sql_injection_compiled = None
 
     def check_suspicious_patterns(self, value: str) -> bool:
-        """Instance method for checking suspicious patterns.
-
-        Uses instance-level custom patterns if available, otherwise falls back
-        to class-level default patterns for performance.
-
-        Args:
-            value: Value to check
-
-        Returns:
-            True if suspicious patterns found
-        """
-        # Use instance patterns if available (custom SecurityPatterns)
+        """Check if value contains suspicious injection patterns."""
         if self._security_patterns is not None:
-            # When security_patterns is not None, compiled patterns are guaranteed to be set
             assert self._command_injection_compiled is not None
             assert self._path_traversal_compiled is not None
             assert self._sql_injection_compiled is not None
@@ -260,7 +199,6 @@ class InjectionDetector:
                 return True
             return False
 
-        # Fall back to class-level default patterns
         if self._COMMAND_INJECTION_COMPILED.search(value):
             return True
         if self._PATH_TRAVERSAL_COMPILED.search(value):
@@ -271,21 +209,8 @@ class InjectionDetector:
 
     @classmethod
     def contains_suspicious_patterns(cls, value: str) -> bool:
-        """Check if value contains suspicious patterns (classmethod for backward compatibility).
-
-        This method provides backward compatibility for tests and code that call
-        this method as a classmethod. For new code with custom patterns,
-        create an instance with SecurityPatterns and call check_suspicious_patterns.
-
-        Args:
-            value: Value to check
-
-        Returns:
-            True if suspicious patterns found
-        """
-        # Use the global detector instance for classmethod calls
+        """Classmethod wrapper using the global detector instance."""
         return _detector.check_suspicious_patterns(value)
 
 
-# Global detector instance for convenience
 _detector = InjectionDetector()

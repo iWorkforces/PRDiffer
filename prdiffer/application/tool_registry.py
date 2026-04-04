@@ -1,8 +1,4 @@
-"""Tool registration module for FastMCP server.
-
-This module extracts tool registration logic from mcp_server.py,
-providing cleaner separation of concerns.
-"""
+"""Tool registration module for FastMCP server."""
 
 import time
 import hashlib
@@ -48,21 +44,7 @@ from prdiffer.domain.errors import (
 
 
 class ToolRegistry:
-    """Registry for FastMCP tools.
-
-    This class handles registration of MCP tools including get_pr_diff and approve_pr.
-
-    Attributes:
-        pr_diff_service: PR diff service for retrieving PR information
-        cache_service: Cache service for performance optimization
-        logger: Logger for tracking operations
-        github_repository_class: Factory for creating repository instances
-        rate_limiter: Rate limiter for API protection
-        metrics_tracker: Metrics tracking for monitoring
-        authentication: Authentication service for API access control
-        input_validator: Input validation service
-        request_coalescing: Request coalescing for concurrent request optimization
-    """
+    """Registry for FastMCP tools."""
 
     def __init__(
         self,
@@ -76,19 +58,6 @@ class ToolRegistry:
         input_validator: InputValidator | None = None,
         request_coalescing_service: RequestCoalescingService | None = None,
     ):
-        """Initialize ToolRegistry with dependencies.
-
-        Args:
-            pr_diff_service: PR diff service instance
-            cache_service: Cache service instance
-            logger: Logger instance
-            github_repository_class: Repository factory callable
-            rate_limiter: Rate limiter protocol
-            metrics_tracker: Metrics tracker protocol
-            authentication: Optional authentication protocol
-            input_validator: Optional input validator
-            request_coalescing_service: Optional request coalescing service
-        """
         self._pr_diff_service = pr_diff_service
         self._cache_service = cache_service
         self._logger = logger
@@ -97,7 +66,6 @@ class ToolRegistry:
         self._metrics_tracker = metrics_tracker
         self._authentication = authentication
 
-        # Initialize security validator - use injected or create default
         if input_validator is None:
             from prdiffer.infrastructure.security.input_validator import (
                 InputValidator,
@@ -107,7 +75,6 @@ class ToolRegistry:
         else:
             self._input_validator = input_validator
 
-        # Initialize request coalescing service - use injected or create default
         if request_coalescing_service is None:
             from prdiffer.infrastructure.utils.coalescing import (
                 get_request_coalescing_service,
@@ -118,22 +85,9 @@ class ToolRegistry:
             self._request_coalescing = request_coalescing_service
 
     def _generate_request_id(self) -> str:
-        """Generate a unique request ID for tracking purposes.
-
-        Returns:
-            str: Unique request ID
-        """
         return self._metrics_tracker.generate_request_id()
 
     def _check_rate_limit(self, client_id: str = "global"):
-        """Check if the current request exceeds rate limits.
-
-        Args:
-            client_id: Unique identifier for rate limiting
-
-        Raises:
-            RuntimeError: If rate limit is exceeded
-        """
         if not self._rate_limiter.check_rate_limit(client_id):
             rate_info = self._rate_limiter.get_rate_limit_info()
             raise RateLimitError(
@@ -143,19 +97,6 @@ class ToolRegistry:
         self._rate_limiter.increment_rate_limit(client_id)
 
     async def _authenticate_request(self, request_id: str, start_time: float, api_key: str | None) -> str | None:
-        """Authenticate the incoming request using API key if authentication is enabled.
-
-        Args:
-            request_id: Unique request identifier for tracing
-            start_time: Request start time for metrics tracking
-            api_key: Optional API key for authentication
-
-        Returns:
-            Optional[str]: Client ID if authentication successful, None for anonymous
-
-        Raises:
-            ValueError: If authentication fails or rate limit is exceeded
-        """
         try:
             if self._authentication is None:
                 raise AuthenticationError(
@@ -183,14 +124,6 @@ class ToolRegistry:
         return client_id
 
     def _create_safe_error_message(self, exception: Exception) -> str:
-        """Create a safe error message that doesn't expose internal details.
-
-        Args:
-            exception: The exception to create a safe message for
-
-        Returns:
-            str: A safe error message suitable for external consumption
-        """
         safe_messages = {
             "GithubException": "GitHub API error occurred",
             "RateLimitExceededException": "API rate limit exceeded. Please try again later",
@@ -219,18 +152,6 @@ class ToolRegistry:
         return "Request processing failed"
 
     def _validate_and_sanitize_params(self, pr_url: str) -> tuple[str, str, int]:
-        """Validate and sanitize the input PR URL parameter.
-
-        Args:
-            pr_url: The GitHub PR URL to validate
-
-        Returns:
-            tuple[str, str, int]: Parsed (repo_owner, repo_name, pr_number)
-
-        Raises:
-            InputSanitizationError: If PR URL parameter is missing or invalid
-            InvalidURLError: If URL format is invalid or contains suspicious patterns
-        """
         if not pr_url:
             raise InputSanitizationError("PR URL parameter is required")
 
@@ -239,20 +160,6 @@ class ToolRegistry:
         return parse_pr_url(pr_url, self._input_validator)
 
     async def _execute_use_case_with_coalescing(self, request_id: str, repo_owner: str, repo_name: str, pr_number: int) -> PRDiff:
-        """Execute the PR diff use case with request coalescing for concurrent requests.
-
-        Args:
-            request_id: Unique request identifier for tracing
-            repo_owner: Repository owner name
-            repo_name: Repository name
-            pr_number: Pull request number
-
-        Returns:
-            PRDiff: The PR diff result
-
-        Raises:
-            ValueError: If use case returns None
-        """
         coalesce_key = f"{repo_owner}/{repo_name}/pr/{pr_number}"
 
         async def fetch_pr_diff() -> PRDiff:
@@ -281,15 +188,6 @@ class ToolRegistry:
         return await self._request_coalescing.coalesce(coalesce_key, fetch_pr_diff)
 
     def _log_metrics_and_return_success(self, start_time: float, pr_diff: PRDiff) -> PRDiff:
-        """Log successful request metrics and return PR diff result.
-
-        Args:
-            start_time: Request start time
-            pr_diff: The PR diff result to return
-
-        Returns:
-            PRDiff: The unchanged PR diff result
-        """
         execution_time = time.time() - start_time
         self._metrics_tracker.track_request("get_pr_diff", True, execution_time)
 
@@ -313,17 +211,6 @@ class ToolRegistry:
         return pr_diff
 
     def _handle_security_exception(self, exception: Exception, start_time: float, request_id: str, pr_url: str) -> NoReturn:
-        """Handle security validation exceptions with appropriate logging and re-raising.
-
-        Args:
-            exception: The security exception to handle
-            start_time: Request start time for metrics
-            request_id: Unique request identifier
-            pr_url: The PR URL (sanitized for logging)
-
-        Raises:
-            ValueError: Always raises with safe error message
-        """
         execution_time = time.time() - start_time
         self._metrics_tracker.track_request("get_pr_diff", False, execution_time)
 
@@ -339,17 +226,6 @@ class ToolRegistry:
         raise ValidationError(f"Invalid request: {safe_message}", error_code=E1001_INVALID_URL)
 
     def _handle_validation_exception(self, exception: Exception, start_time: float, request_id: str, pr_url: str) -> NoReturn:
-        """Handle general validation exceptions with appropriate logging and re-raising.
-
-        Args:
-            exception: The validation exception to handle
-            start_time: Request start time for metrics
-            request_id: Unique request identifier
-            pr_url: The PR URL (sanitized for logging)
-
-        Raises:
-            ValueError: Always raises with safe error message
-        """
         execution_time = time.time() - start_time
         self._metrics_tracker.track_request("get_pr_diff", False, execution_time)
 
@@ -364,17 +240,6 @@ class ToolRegistry:
         raise ValidationError(f"Invalid request: {safe_message}", error_code=E1001_INVALID_URL)
 
     def _handle_runtime_exception(self, exception: Exception, start_time: float, request_id: str, pr_url: str) -> NoReturn:
-        """Handle runtime exceptions with logging and re-raising.
-
-        Args:
-            exception: The runtime exception to handle
-            start_time: Request start time for metrics
-            request_id: Unique request identifier
-            pr_url: The PR URL (sanitized for logging)
-
-        Raises:
-            RuntimeError: Always raises with safe error message
-        """
         execution_time = time.time() - start_time
         self._metrics_tracker.track_request("get_pr_diff", False, execution_time)
 
@@ -393,13 +258,6 @@ class ToolRegistry:
         )
 
     def register_tools(self, mcp: FastMCP) -> None:
-        """Register FastMCP tools with the server instance.
-
-        This method registers the get_pr_diff, approve_pr, and describe_pr tools.
-
-        Args:
-            mcp: The FastMCP server instance
-        """
 
         @mcp.tool()
         async def get_pr_diff(pr_url: str, api_key: str | None = None) -> PRDiff:
@@ -432,7 +290,6 @@ class ToolRegistry:
                 pr_url=pr_url,
             )
 
-            # Authenticate request
             client_id = await self._authenticate_request(request_id, start_time, api_key)
 
             rate_limit_client_id = client_id or "anonymous"
@@ -472,8 +329,6 @@ class ToolRegistry:
         @mcp.tool()
         async def approve_pr(pr_url: str, compliment: str, api_key: str | None = None) -> str:
             """Approve a GitHub PR with a compliment comment.
-
-            This method approves a pull request with a provided compliment text.
 
             Args:
                 pr_url: The full GitHub PR URL (e.g., https://github.com/owner/repo/pull/123)
@@ -550,8 +405,6 @@ class ToolRegistry:
         @mcp.tool()
         async def describe_pr(pr_url: str, pr_description: str, api_key: str | None = None) -> str:
             """Update a GitHub PR description/body.
-
-            This method updates the description of a pull request with the provided text.
 
             Args:
                 pr_url: The full GitHub PR URL (e.g., https://github.com/owner/repo/pull/123)

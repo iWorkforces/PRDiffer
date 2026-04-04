@@ -1,8 +1,6 @@
 """Shared utility for parsing GitHub PR URLs.
 
-This module provides a centralized function for parsing GitHub pull request URLs
-and extracting repository owner, name, and PR number. Used by both FastMCPServer
-and PROperationHandler to avoid code duplication.
+Consolidates URL parsing for FastMCPServer and PROperationHandler.
 """
 
 from prdiffer.domain.exceptions import (
@@ -17,16 +15,12 @@ def parse_pr_url(
 ) -> tuple[str, str, int]:
     """Parse GitHub PR URL to extract repository owner, name, and PR number.
 
-    This is a shared utility that consolidates URL parsing logic across the
-    application layer. It uses InputValidator for comprehensive validation
-    including injection detection and format validation.
-
     Args:
         pr_url: The GitHub pull request URL to parse
         input_validator: Optional InputValidator instance. If None, creates one.
 
     Returns:
-        tuple[str, str, int]: A tuple containing (repo_owner, repo_name, pr_number)
+        tuple[str, str, int]: (repo_owner, repo_name, pr_number)
 
     Raises:
         InvalidURLError: If the URL format is invalid, contains invalid characters,
@@ -42,7 +36,6 @@ def parse_pr_url(
         >>> parse_pr_url("https://github.com/owner/repo/pulls/456")
         ('owner', 'repo', 456)
     """
-    # Type check first - pr_url must be a string
     if not isinstance(pr_url, str):
         raise InvalidURLError(f"PR URL must be a string, got {type(pr_url).__name__}")
 
@@ -50,6 +43,5 @@ def parse_pr_url(
     if not pr_url_stripped:
         raise InvalidURLError("PR URL cannot be empty or whitespace-only")
 
-    # Delegate to input validator for full validation
     validator = input_validator or InputValidator()
     return validator.validate_github_url(pr_url_stripped)

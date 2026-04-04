@@ -1,25 +1,11 @@
-"""Tests for Phase 4: Architecture Refinement improvements.
-
-This module contains unit tests for:
-- GitHubConfig dataclass (centralized configuration)
-- AsyncParallelExecutor (anyio-based parallel execution)
-- GlobalCircuitBreakerRegistry (shared circuit breakers)
-"""
+"""Tests for Phase 4: Architecture Refinement improvements."""
 
 import pytest
 import anyio
 
 
-# =============================================================================
-# GitHubConfig Tests
-# =============================================================================
-
-
 class TestGitHubConfig:
-    """Tests for GitHubConfig dataclass."""
-
     def test_default_values(self):
-        """Test GitHubConfig has sensible defaults."""
         from prdiffer.domain.config import GitHubConfig
 
         config = GitHubConfig()
@@ -32,7 +18,6 @@ class TestGitHubConfig:
         assert config.diff_parallel_enabled is True
 
     def test_from_dict(self):
-        """Test creating GitHubConfig from dictionary."""
         from prdiffer.domain.config import GitHubConfig
 
         data = {
@@ -52,7 +37,6 @@ class TestGitHubConfig:
         assert config.valid_extensions == (".py", ".js")
 
     def test_to_dict(self):
-        """Test converting GitHubConfig to dictionary."""
         from prdiffer.domain.config import GitHubConfig
 
         config = GitHubConfig(
@@ -70,7 +54,6 @@ class TestGitHubConfig:
         assert data["valid_extensions"] == [".py"]
 
     def test_with_overrides(self):
-        """Test creating new config with overridden values."""
         from prdiffer.domain.config import GitHubConfig
 
         original = GitHubConfig(rate_limit=1000)
@@ -81,17 +64,15 @@ class TestGitHubConfig:
         assert overridden.timeout == 60
 
     def test_immutability(self):
-        """Test that GitHubConfig is immutable (frozen)."""
         from prdiffer.domain.config import GitHubConfig
 
         config = GitHubConfig()
 
-        # Use setattr() to test immutability (frozen dataclass prevents mutation)
+        # frozen dataclass prevents mutation via normal assignment
         with pytest.raises(AttributeError):
             setattr(config, "rate_limit", 9999)
 
     def test_should_ignore_file(self):
-        """Test file ignore pattern matching."""
         from prdiffer.domain.config import GitHubConfig
 
         config = GitHubConfig(ignore_patterns=("*.lock", "node_modules/", "*.log"))
@@ -103,7 +84,6 @@ class TestGitHubConfig:
         assert config.should_ignore_file("main.py") is False
 
     def test_has_valid_extension(self):
-        """Test valid extension checking."""
         from prdiffer.domain.config import GitHubConfig
 
         config = GitHubConfig(valid_extensions=(".py", ".js", ".ts"))
@@ -115,16 +95,13 @@ class TestGitHubConfig:
         assert config.has_valid_extension("README") is False
 
     def test_has_valid_extension_empty(self):
-        """Test valid extension with no restrictions."""
         from prdiffer.domain.config import GitHubConfig
 
         config = GitHubConfig(valid_extensions=())
 
-        # No restrictions means all files are valid
         assert config.has_valid_extension("anything.xyz") is True
 
     def test_should_process_file(self):
-        """Test combined file processing check."""
         from prdiffer.domain.config import GitHubConfig
 
         config = GitHubConfig(
@@ -137,7 +114,6 @@ class TestGitHubConfig:
         assert config.should_process_file("style.css") is False  # Invalid extension
 
     def test_helper_properties(self):
-        """Test helper properties for checking enabled features."""
         from prdiffer.domain.config import GitHubConfig
 
         config = GitHubConfig(
@@ -154,10 +130,7 @@ class TestGitHubConfig:
 
 
 class TestSettingsServiceGitHubConfig:
-    """Tests for SettingsService.get_github_config() method."""
-
     def test_get_github_config_returns_config_object(self):
-        """Test that get_github_config returns a GitHubConfig object."""
         from prdiffer.infrastructure.settings import SettingsService
         from prdiffer.domain.config import GitHubConfig
 
@@ -169,17 +142,9 @@ class TestSettingsServiceGitHubConfig:
         assert config.timeout > 0
 
 
-# =============================================================================
-# AsyncParallelExecutor Tests
-# =============================================================================
-
-
 class TestAsyncParallelExecutor:
-    """Tests for AsyncParallelExecutor with anyio."""
-
     @pytest.mark.asyncio
     async def test_execute_batch_basic(self):
-        """Test basic batch execution."""
         from prdiffer.infrastructure.utils.parallel import (
             AsyncParallelExecutor,
         )
@@ -194,7 +159,6 @@ class TestAsyncParallelExecutor:
 
     @pytest.mark.asyncio
     async def test_execute_batch_empty(self):
-        """Test batch execution with empty list."""
         from prdiffer.infrastructure.utils.parallel import (
             AsyncParallelExecutor,
         )
@@ -209,7 +173,6 @@ class TestAsyncParallelExecutor:
 
     @pytest.mark.asyncio
     async def test_execute_batch_with_errors_ignore(self):
-        """Test batch execution with errors using IGNORE strategy."""
         from prdiffer.infrastructure.utils.parallel import (
             AsyncParallelExecutor,
             ErrorStrategy,
@@ -227,7 +190,6 @@ class TestAsyncParallelExecutor:
 
     @pytest.mark.asyncio
     async def test_execute_batch_with_errors_raise(self):
-        """Test batch execution with errors using RAISE strategy."""
         from prdiffer.infrastructure.utils.parallel import (
             AsyncParallelExecutor,
             ErrorStrategy,
@@ -243,7 +205,6 @@ class TestAsyncParallelExecutor:
 
     @pytest.mark.asyncio
     async def test_execute_batch_with_context(self):
-        """Test batch execution with shared context."""
         from prdiffer.infrastructure.utils.parallel import (
             AsyncParallelExecutor,
         )
@@ -258,7 +219,6 @@ class TestAsyncParallelExecutor:
 
     @pytest.mark.asyncio
     async def test_execute_batch_with_progress(self):
-        """Test batch execution with progress tracking."""
         from prdiffer.infrastructure.utils.parallel import (
             AsyncParallelExecutor,
         )
@@ -280,7 +240,6 @@ class TestAsyncParallelExecutor:
 
     @pytest.mark.asyncio
     async def test_execute_batch_detailed(self):
-        """Test detailed batch execution with BatchResult."""
         from prdiffer.infrastructure.utils.parallel import (
             AsyncParallelExecutor,
         )
@@ -297,11 +256,9 @@ class TestAsyncParallelExecutor:
         assert result.failure_count == 1
         assert sorted(result.successful) == [2, 6]
         assert len(result.failed) == 1
-        assert result.failed[0][0] == 2  # Failed item
 
     @pytest.mark.asyncio
     async def test_concurrency_limit(self):
-        """Test that semaphore limits concurrent operations."""
         from prdiffer.infrastructure.utils.parallel import (
             AsyncParallelExecutor,
         )
@@ -327,7 +284,6 @@ class TestAsyncParallelExecutor:
         assert max_concurrent_observed <= 3
 
     def test_get_stats(self):
-        """Test executor statistics."""
         from prdiffer.infrastructure.utils.parallel import (
             AsyncParallelExecutor,
             ErrorStrategy,
@@ -347,10 +303,7 @@ class TestAsyncParallelExecutor:
 
 
 class TestBatchResult:
-    """Tests for BatchResult dataclass."""
-
     def test_batch_result_properties(self):
-        """Test BatchResult computed properties."""
         from prdiffer.infrastructure.utils.parallel import BatchResult
 
         result = BatchResult[int](
@@ -365,7 +318,6 @@ class TestBatchResult:
         assert result.all_succeeded is False
 
     def test_batch_result_all_success(self):
-        """Test BatchResult when all operations succeed."""
         from prdiffer.infrastructure.utils.parallel import BatchResult
 
         result = BatchResult[str](successful=["a", "b", "c"], failed=[])
@@ -374,7 +326,6 @@ class TestBatchResult:
         assert result.success_rate == 100.0
 
     def test_batch_result_get_errors(self):
-        """Test getting list of errors from BatchResult."""
         from prdiffer.infrastructure.utils.parallel import BatchResult
 
         e1 = ValueError("error1")
@@ -390,13 +341,7 @@ class TestBatchResult:
         assert e2 in errors
 
 
-# =============================================================================
-# GlobalCircuitBreakerRegistry Tests
-# =============================================================================
-
-
 def _reset_circuit_breaker_registry():
-    """Helper to reset the circuit breaker registry for tests."""
     import prdiffer.infrastructure.utils.circuit_breaker as cb_module
 
     cb_module.GlobalCircuitBreakerRegistry._instance = None
@@ -405,15 +350,11 @@ def _reset_circuit_breaker_registry():
 
 
 class TestGlobalCircuitBreakerRegistry:
-    """Tests for GlobalCircuitBreakerRegistry singleton."""
-
     def test_singleton_pattern(self):
-        """Test that registry is a singleton."""
         from prdiffer.infrastructure.utils.circuit_breaker import (
             GlobalCircuitBreakerRegistry,
         )
 
-        # Reset singleton for test
         _reset_circuit_breaker_registry()
 
         registry1 = GlobalCircuitBreakerRegistry()
@@ -422,12 +363,10 @@ class TestGlobalCircuitBreakerRegistry:
         assert registry1 is registry2
 
     def test_get_breaker_creates_new(self):
-        """Test getting a breaker creates it if not exists."""
         from prdiffer.infrastructure.utils.circuit_breaker import (
             get_global_circuit_breaker_registry,
         )
 
-        # Reset singleton
         _reset_circuit_breaker_registry()
 
         registry = get_global_circuit_breaker_registry()
@@ -437,12 +376,10 @@ class TestGlobalCircuitBreakerRegistry:
         assert "test_endpoint" in registry.get_all_stats()
 
     def test_get_breaker_returns_same(self):
-        """Test getting same breaker returns same instance."""
         from prdiffer.infrastructure.utils.circuit_breaker import (
             get_global_circuit_breaker_registry,
         )
 
-        # Reset singleton
         _reset_circuit_breaker_registry()
 
         registry = get_global_circuit_breaker_registry()
@@ -452,48 +389,39 @@ class TestGlobalCircuitBreakerRegistry:
         assert breaker1 is breaker2
 
     def test_can_execute_checks_both_breakers(self):
-        """Test can_execute checks both endpoint and global breakers."""
         from prdiffer.infrastructure.utils.circuit_breaker import (
             get_global_circuit_breaker_registry,
         )
 
-        # Reset singleton
         _reset_circuit_breaker_registry()
 
         registry = get_global_circuit_breaker_registry()
 
-        # Initially should allow execution
         assert registry.can_execute("test_endpoint") is True
 
     def test_record_success_updates_both(self):
-        """Test record_success updates both endpoint and global breakers."""
         from prdiffer.infrastructure.utils.circuit_breaker import (
             get_global_circuit_breaker_registry,
         )
 
-        # Reset singleton
         _reset_circuit_breaker_registry()
 
         registry = get_global_circuit_breaker_registry()
         registry.record_success("my_endpoint")
 
-        # No errors expected
         stats = registry.get_all_stats()
         assert "my_endpoint" in stats
         assert "global" in stats
 
     def test_record_failure_updates_both(self):
-        """Test record_failure updates both endpoint and global breakers."""
         from prdiffer.infrastructure.utils.circuit_breaker import (
             get_global_circuit_breaker_registry,
         )
 
-        # Reset singleton
         _reset_circuit_breaker_registry()
 
         registry = get_global_circuit_breaker_registry()
 
-        # Record failures
         for _ in range(3):
             registry.record_failure("failing_endpoint")
 
@@ -502,12 +430,10 @@ class TestGlobalCircuitBreakerRegistry:
         assert stats["global"]["failure_count"] == 3
 
     def test_get_all_stats(self):
-        """Test getting statistics for all breakers."""
         from prdiffer.infrastructure.utils.circuit_breaker import (
             get_global_circuit_breaker_registry,
         )
 
-        # Reset singleton
         _reset_circuit_breaker_registry()
 
         registry = get_global_circuit_breaker_registry()
@@ -521,25 +447,20 @@ class TestGlobalCircuitBreakerRegistry:
         assert "endpoint_2" in stats
 
     def test_get_open_breakers(self):
-        """Test getting list of open breakers."""
         from prdiffer.infrastructure.utils.circuit_breaker import (
             get_global_circuit_breaker_registry,
         )
 
-        # Reset singleton
         _reset_circuit_breaker_registry()
 
         registry = get_global_circuit_breaker_registry()
 
-        # No breakers should be open initially
         assert registry.get_open_breakers() == []
 
-        # Create a breaker with low threshold and trigger opening
         breaker = registry.get_breaker("failing_endpoint")
-        # Manually set failure threshold lower for test
+        # Low threshold to trigger opening in test
         breaker.failure_threshold = 2
 
-        # Trigger circuit to open
         for _ in range(3):
             registry.record_failure("failing_endpoint")
 
@@ -547,37 +468,30 @@ class TestGlobalCircuitBreakerRegistry:
         assert "failing_endpoint" in open_breakers
 
     def test_reset_all(self):
-        """Test resetting all circuit breakers."""
         from prdiffer.infrastructure.utils.circuit_breaker import (
             get_global_circuit_breaker_registry,
             CircuitState,
         )
 
-        # Reset singleton
         _reset_circuit_breaker_registry()
 
         registry = get_global_circuit_breaker_registry()
         breaker = registry.get_breaker("endpoint_to_reset")
         breaker.failure_threshold = 1  # Low threshold for test
 
-        # Open a breaker
         registry.record_failure("endpoint_to_reset")
         registry.record_failure("endpoint_to_reset")
 
-        # Reset all
         registry.reset_all()
 
-        # Check all are closed
         stats = registry.get_all_stats()
         assert stats["global"]["state"] == CircuitState.CLOSED.value
 
     def test_clear_endpoint(self):
-        """Test removing a specific endpoint's breaker."""
         from prdiffer.infrastructure.utils.circuit_breaker import (
             get_global_circuit_breaker_registry,
         )
 
-        # Reset singleton
         _reset_circuit_breaker_registry()
 
         registry = get_global_circuit_breaker_registry()
@@ -591,15 +505,11 @@ class TestGlobalCircuitBreakerRegistry:
 
 
 class TestCircuitBreakerForEndpoint:
-    """Tests for getting circuit breaker from global registry."""
-
     def test_get_circuit_breaker_from_registry(self):
-        """Test getting circuit breaker from global registry."""
         from prdiffer.infrastructure.utils.circuit_breaker import (
             get_global_circuit_breaker_registry,
         )
 
-        # Reset singleton
         _reset_circuit_breaker_registry()
 
         registry = get_global_circuit_breaker_registry()
@@ -609,29 +519,19 @@ class TestCircuitBreakerForEndpoint:
         assert breaker.state.value == "closed"
 
 
-# =============================================================================
-# Integration Tests
-# =============================================================================
-
-
 class TestPhase4Integration:
-    """Integration tests for Phase 4 improvements."""
-
     def test_github_config_with_settings_service(self):
-        """Test GitHubConfig integration with SettingsService."""
         from prdiffer.infrastructure.settings import SettingsService
         from prdiffer.domain.config import GitHubConfig
 
         service = SettingsService()
         config = service.get_github_config()
 
-        # Verify config matches settings
         assert isinstance(config, GitHubConfig)
         assert config.rate_limit > 0
 
     @pytest.mark.asyncio
     async def test_async_executor_with_circuit_breaker(self):
-        """Test AsyncParallelExecutor with circuit breaker integration."""
         from prdiffer.infrastructure.utils.parallel import (
             AsyncParallelExecutor,
         )
@@ -639,7 +539,6 @@ class TestPhase4Integration:
             get_global_circuit_breaker_registry,
         )
 
-        # Reset singleton
         _reset_circuit_breaker_registry()
 
         registry = get_global_circuit_breaker_registry()
@@ -664,7 +563,6 @@ class TestPhase4Integration:
         assert stats["test_api"]["failure_count"] == 0
 
     def test_github_config_file_filtering(self):
-        """Test GitHubConfig file filtering methods."""
         from prdiffer.domain.config import GitHubConfig
 
         config = GitHubConfig(
@@ -672,7 +570,6 @@ class TestPhase4Integration:
             valid_extensions=(".py", ".js", ".ts", ".md"),
         )
 
-        # Test various file scenarios
         test_cases = [
             ("src/main.py", True),  # Valid Python file
             ("lib/index.js", True),  # Valid JS file

@@ -1,5 +1,3 @@
-"""PR operation handler component for GitHub PR-related operations."""
-
 from dataclasses import asdict
 
 from typing import Any, Callable
@@ -27,8 +25,6 @@ from prdiffer.domain.errors import (
 
 
 class PROperationHandler(PROperationHandlerProtocol):
-    """Component responsible for handling PR-related operations."""
-
     def __init__(
         self,
         github_repository_class: Callable[[str, str, int], PRDiffRepositoryInterface],
@@ -37,14 +33,6 @@ class PROperationHandler(PROperationHandlerProtocol):
         logger: LoggerServiceInterface,
         input_validator: InputValidator | None = None,
     ):
-        """Initialize PR operation handler.
-
-        Args:
-            github_repository_class: Callable that creates GitHub repository instances
-            cache_service: Cache service for storing PR data
-            repository_cache_service: Repository cache service
-            logger: Logger service instance (injected via dependency inversion)
-        """
         self._github_repository_class = github_repository_class
         self._cache_service = cache_service
         self._repository_cache_service = repository_cache_service
@@ -57,29 +45,15 @@ class PROperationHandler(PROperationHandlerProtocol):
         Automatic commit-based caching ensures fresh data is returned when PR changes.
         Returns structured files array response for file-level diff analysis.
 
-        Args:
-            pr_url: GitHub PR URL (e.g., https://github.com/owner/repo/pull/123)
-            api_key: Optional API key for authentication (required if auth enabled)
-
-        Returns:
-            Dictionary containing structured files array with per-file metadata
-            Each file includes: path, status, stats (additions/deletions), diff
-
-        Raises:
-            ValueError: If URL format is invalid
-            RuntimeError: If PR diff fetch fails
-
         Note:
             Breaking Change: Response now uses files array instead of concatenated diff_content string.
             File metadata: path, status (added/modified/deleted/renamed/unknown),
                            stats (additions, deletions), diff (full patch content)
         """
         try:
-            # Validate input
             if not pr_url:
                 raise ValidationError("PR URL parameter is required", error_code=E1001_INVALID_URL)
 
-            # Parse URL to extract repository details
             try:
                 repo_owner, repo_name, pr_number = parse_pr_url(pr_url, self._input_validator)
             except (
@@ -93,12 +67,10 @@ class PROperationHandler(PROperationHandlerProtocol):
                     error_code=E1001_INVALID_URL,
                 ) from exc
 
-            # Try to get repository from cache first
             cached_repository: PRDiffRepositoryInterface | None = self._repository_cache_service.retrieve(repo_owner, repo_name, pr_number)
 
             repository: PRDiffRepositoryInterface
             if cached_repository is None:
-                # Create new repository instance
                 repository = self._github_repository_class(repo_owner, repo_name, pr_number)
                 self._logger.debug(
                     "Created new repository instance",
@@ -121,7 +93,7 @@ class PROperationHandler(PROperationHandlerProtocol):
             pr_diff: PRDiff = await repository.get_pr_diff()
 
             # Cache the repository after it's been used (now it should be initialized)
-            if hasattr(repository, "_initialized") and getattr(repository, "_initialized", False):
+            if getattr(repository, "_initialized", False):
                 cache_success = self._repository_cache_service.insert(repository)
                 if cache_success:
                     self._logger.debug(
@@ -142,23 +114,16 @@ class PROperationHandler(PROperationHandlerProtocol):
             return response
 
         except (ValueError, ValidationError) as e:
-            # Validation errors - provide clear error messages
             self._logger.warning(
                 "Validation error in PR diff request",
                 pr_url=pr_url,
                 error=str(e),
             )
             raise ValidationError(f"Invalid request: {e}", error_code=E1001_INVALID_URL)
-
-        except ValueError, ValidationError, GitHubAPIError:
-            raise
-
         except Exception as e:
-            # GitHub API or other unexpected errors
             self._logger.error(
                 "Failed to fetch PR diff",
                 pr_url=pr_url,
                 error=str(e),
             )
-            # Re-raise with consistent error format
             raise GitHubAPIError(f"Failed to fetch PR diff: {e}", error_code=E5002_GITHUB_API_ERROR)

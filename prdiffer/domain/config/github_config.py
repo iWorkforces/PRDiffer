@@ -1,6 +1,6 @@
 """Centralized GitHub configuration dataclass.
 
-This module provides a dataclass that centralizes all GitHub-related settings
+Provides a frozen dataclass that centralizes all GitHub-related settings
 in a single source of truth. Services receive a GitHubConfig object instead
 of individual parameters.
 """
@@ -15,58 +15,21 @@ from .github_config_interface import GitHubConfigDict, GitHubConfigInterface
 class GitHubConfig(GitHubConfigInterface):
     """Centralized configuration for GitHub API interactions.
 
-    This immutable dataclass contains all GitHub-related settings in one place,
-    enabling:
-    - Single source of truth for configuration
-    - Easy parameter passing to services
-    - Type-safe configuration access
-    - Immutability for thread safety
-
-    Attributes:
-        rate_limit: Maximum API requests per hour
-        timeout: Request timeout in seconds
-        max_retries: Maximum retry attempts for failed requests
-        retry_delay: Base delay between retries in seconds
-
-        retry_on_404: Whether to retry 404 errors
-        retry_on_403: Whether to retry 403 errors (rate limiting)
-        retry_on_500: Whether to retry 5xx server errors
-        retry_log_level: Log level for retry attempts
-        permanent_failure_log_level: Log level for permanent failures
-
-        circuit_breaker_enabled: Enable circuit breaker pattern
-        circuit_breaker_failure_threshold: Failures before opening circuit
-        circuit_breaker_timeout: Seconds to keep circuit open
-        adaptive_retry_enabled: Enable adaptive retry delays
-        max_adaptive_delay: Maximum adaptive delay in seconds
-        api_health_tracking: Track API health metrics
-        context_aware_retry: Enable context-aware retry strategies
-
-        ignore_patterns: File patterns to ignore (as tuple for hashability)
-        valid_extensions: Valid file extensions (as tuple for hashability)
-
-        diff_parallel_enabled: Enable parallel diff generation
-        diff_parallel_threshold: Minimum files to trigger parallel processing
-        diff_max_workers: Maximum worker threads for parallel processing
-        diff_worker_timeout: Timeout per file in seconds
-
-        max_files_allowed: Maximum files to process per PR
+    Immutable dataclass containing all GitHub-related settings.
+    Uses tuple fields instead of lists for hashability (manual caching).
     """
 
-    # Basic API settings
     rate_limit: int = 5000
     timeout: int = 30
     max_retries: int = 3
     retry_delay: float = 1.0
 
-    # Smart retry settings
     retry_on_404: bool = False
     retry_on_403: bool = True
     retry_on_500: bool = True
     retry_log_level: str = "DEBUG"
     permanent_failure_log_level: str = "INFO"
 
-    # Circuit breaker and adaptive retry
     circuit_breaker_enabled: bool = True
     circuit_breaker_failure_threshold: int = 5
     circuit_breaker_timeout: int = 60
@@ -75,35 +38,23 @@ class GitHubConfig(GitHubConfigInterface):
     api_health_tracking: bool = True
     context_aware_retry: bool = True
 
-    # File filtering patterns (tuples for hashability)
     ignore_patterns: tuple[str, ...] = field(default_factory=tuple)
     valid_extensions: tuple[str, ...] = field(default_factory=tuple)
 
-    # Parallel diff processing
     diff_parallel_enabled: bool = True
     diff_parallel_threshold: int = 3
     diff_max_workers: int = 4
     diff_worker_timeout: float = 30.0
 
-    # File processing limits
     max_files_allowed: int = 50
 
-    # Diff processing thresholds (for chunked processing of large files)
     large_file_threshold: int = 5000
     chunk_size: int = 1000
     max_diff_size: int = 100000
 
     @classmethod
     def from_dict(cls, config: dict[str, Any]) -> "GitHubConfig":
-        """Create GitHubConfig from a dictionary.
-
-        Args:
-            config: Dictionary containing configuration values
-
-        Returns:
-            GitHubConfig: New configuration instance
-        """
-        # Convert lists to tuples for hashability
+        """Create GitHubConfig from a dictionary."""
         raw_ignore_patterns = config.get("ignore_patterns")
         if raw_ignore_patterns is None:
             ignore_patterns: tuple[str, ...] = ()
@@ -146,18 +97,13 @@ class GitHubConfig(GitHubConfigInterface):
             diff_max_workers=config.get("diff_max_workers", 4),
             diff_worker_timeout=float(config.get("diff_worker_timeout", 30.0)),
             max_files_allowed=config.get("max_files_allowed", 50),
-            # Diff processing thresholds
             large_file_threshold=config.get("large_file_threshold", 5000),
             chunk_size=config.get("chunk_size", 1000),
             max_diff_size=config.get("max_diff_size", 100000),
         )
 
     def to_dict(self) -> GitHubConfigDict:
-        """Convert configuration to dictionary.
-
-        Returns:
-            dict: Dictionary representation of configuration
-        """
+        """Convert configuration to dictionary."""
         return {
             "rate_limit": self.rate_limit,
             "timeout": self.timeout,
@@ -188,60 +134,23 @@ class GitHubConfig(GitHubConfigInterface):
         }
 
     def with_overrides(self, **kwargs: Unpack[GitHubConfigDict]) -> "GitHubConfig":
-        """Create new config with overridden values.
-
-        Args:
-            **kwargs: Values to override
-
-        Returns:
-            GitHubConfig: New configuration with overrides applied
-        """
-        # Get current values and merge with overrides using dict unpacking
+        """Create new config with overridden values."""
         current_dict: dict[str, Any] = {**self.to_dict()}
         for key, value in kwargs.items():
             if isinstance(value, list):
                 current_dict[key] = tuple(cast(list[str], value))
             else:
                 current_dict[key] = value
-        # Reconstruct config from merged dict
         return self.__class__.from_dict(current_dict)
 
-    @property
-    def should_use_circuit_breaker(self) -> bool:
-        """Check if circuit breaker should be used."""
-        return self.circuit_breaker_enabled
-
-    @property
-    def should_use_adaptive_retry(self) -> bool:
-        """Check if adaptive retry should be used."""
-        return self.adaptive_retry_enabled
-
-    @property
-    def should_track_api_health(self) -> bool:
-        """Check if API health tracking should be used."""
-        return self.api_health_tracking
-
-    @property
-    def should_use_parallel_diff(self) -> bool:
-        """Check if parallel diff processing should be used."""
-        return self.diff_parallel_enabled
-
     def should_ignore_file(self, filename: str) -> bool:
-        """Check if a file should be ignored based on patterns.
-
-        Args:
-            filename: File path to check
-
-        Returns:
-            bool: True if file should be ignored
-        """
+        """Check if a file should be ignored based on patterns."""
         import fnmatch
 
         filename_lower = filename.lower()
         for pattern in self.ignore_patterns:
             if fnmatch.fnmatch(filename_lower, pattern.lower()):
                 return True
-            # Also check if pattern is in the filename for directory patterns
             if pattern.endswith("/") and pattern[:-1].lower() in filename_lower:
                 return True
         return False
@@ -249,14 +158,10 @@ class GitHubConfig(GitHubConfigInterface):
     def has_valid_extension(self, filename: str) -> bool:
         """Check if a file has a valid extension.
 
-        Args:
-            filename: File path to check
-
-        Returns:
-            bool: True if file has valid extension (or no extensions configured)
+        Returns True if no extensions are configured (no restriction).
         """
         if not self.valid_extensions:
-            return True  # No restriction if no extensions configured
+            return True
 
         for ext in self.valid_extensions:
             if filename.lower().endswith(ext.lower()):
@@ -264,12 +169,5 @@ class GitHubConfig(GitHubConfigInterface):
         return False
 
     def should_process_file(self, filename: str) -> bool:
-        """Check if a file should be processed.
-
-        Args:
-            filename: File path to check
-
-        Returns:
-            bool: True if file should be processed
-        """
+        """Check if a file should be processed (not ignored and has valid extension)."""
         return not self.should_ignore_file(filename) and self.has_valid_extension(filename)

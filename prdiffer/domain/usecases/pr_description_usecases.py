@@ -1,8 +1,4 @@
-"""Use cases for PR description update operations.
-
-This module provides business logic for updating GitHub pull request
-descriptions, following Clean Architecture principles.
-"""
+"""Use cases for PR description update operations."""
 
 from prdiffer.domain.repositories.pr_diff_repository import PRDiffRepositoryInterface
 from prdiffer.domain.services.logger import LoggerServiceInterface
@@ -13,25 +9,13 @@ from prdiffer.domain.errors import (
 
 
 class UpdatePRDescriptionUseCase:
-    """Use case for updating a GitHub PR description.
-
-    This use case orchestrates PR description update by:
-    1. Validating input parameters
-    2. Delegating to repository service for the update
-    3. Handling errors and logging appropriately
-    """
+    """Orchestrates PR description update: validates input, delegates to repository, handles errors."""
 
     def __init__(
         self,
         pr_diff_repository: PRDiffRepositoryInterface,
         logger: LoggerServiceInterface | None = None,
     ):
-        """Initialize use case with dependencies.
-
-        Args:
-            pr_diff_repository: Repository service for PR operations
-            logger: Optional logger service for DI
-        """
         self._pr_diff_repository = pr_diff_repository
         self._logger = logger
 
@@ -55,18 +39,12 @@ class UpdatePRDescriptionUseCase:
                 pr_url=pr_url[:100],
             )
 
-        # Validate inputs
         if not pr_url:
             raise InvalidURLError("PR URL cannot be empty", error_code=E1001_INVALID_URL)
-
-        if not isinstance(pr_description, str):
-            raise ValidationError(f"PR description must be a string, got {type(pr_description).__name__}", error_code=E1001_INVALID_URL)
 
         if not pr_description:
             raise ValidationError("PR description cannot be empty", error_code=E1001_INVALID_URL)
 
-        # Delegate to repository service for update
-        # The repository handles all GitHub API interaction and error handling
         result = await self._pr_diff_repository.update_pr_description(
             pr_url=pr_url,
             description=pr_description,

@@ -1,9 +1,4 @@
-"""Exception sanitization utilities for secure logging.
-
-This module provides utilities for sanitizing exceptions before logging
-to prevent exposure of sensitive information like API tokens, passwords,
-and other credentials in log files and console output.
-"""
+"""Exception sanitization utilities for secure logging."""
 
 import re
 import traceback
@@ -12,46 +7,32 @@ from types import TracebackType
 
 
 class ExceptionSanitizer:
-    """Utility class for sanitizing exceptions before logging.
-
-    This class provides methods to redact sensitive information from
-    exceptions, including API tokens, passwords, and other credentials
-    that should not appear in logs.
-    """
-
-    # Patterns for detecting and redacting sensitive information
-    # GitHub personal access token pattern (ghp_, gho_, ghu_, ghs_)
     GITHUB_TOKEN_PATTERNS = [
-        r"(ghp_[a-zA-Z0-9]{36})",  # GitHub personal access token
-        r"(gho_[a-zA-Z0-9]{36})",  # GitHub OAuth token
-        r"(ghu_[a-zA-Z0-9]{36})",  # GitHub user token
-        r"(ghs_[a-zA-Z0-9]{36})",  # GitHub server token
-        r"(ghr_[a-zA-Z0-9]{36})",  # GitHub refresh token
-        r"(github_pat_[a-zA-Z0-9_]{82})",  # GitHub fine-grained token
+        r"(ghp_[a-zA-Z0-9]{36})",
+        r"(gho_[a-zA-Z0-9]{36})",
+        r"(ghu_[a-zA-Z0-9]{36})",
+        r"(ghs_[a-zA-Z0-9]{36})",
+        r"(ghr_[a-zA-Z0-9]{36})",
+        r"(github_pat_[a-zA-Z0-9_]{82})",
     ]
 
-    # Generic token patterns (alphanumeric strings that look like tokens)
     GENERIC_TOKEN_PATTERNS = [
-        r'(["\']?token["\']?\s*[:=]\s*["\'])([a-zA-Z0-9_\-]{20,})(["\'])',  # token: "xxx" or token='xxx'
-        r'(["\']?api_key["\']?\s*[:=]\s*["\'])([a-zA-Z0-9_\-]{20,})(["\'])',  # api_key: "xxx"
-        r'(["\']?authorization["\']?\s*[:=]\s*["\'])([a-zA-Z0-9_\-]{20,})(["\'])',  # authorization: "xxx"
-        r"(Bearer\s+)([a-zA-Z0-9_\-\.]{20,})",  # Bearer xxx
+        r'(["\']?token["\']?\s*[:=]\s*["\'])([a-zA-Z0-9_\-]{20,})(["\'])',
+        r'(["\']?api_key["\']?\s*[:=]\s*["\'])([a-zA-Z0-9_\-]{20,})(["\'])',
+        r'(["\']?authorization["\']?\s*[:=]\s*["\'])([a-zA-Z0-9_\-]{20,})(["\'])',
+        r"(Bearer\s+)([a-zA-Z0-9_\-\.]{20,})",
     ]
 
-    # Password patterns
     PASSWORD_PATTERNS = [
-        r'(["\']?password["\']?\s*[:=]\s*["\'])([^"\']{8,})(["\'])',  # password: "xxx"
-        r'(["\']?passwd["\']?\s*[:=]\s*["\'])([^"\']{8,})(["\'])',  # passwd: "xxx"
-        r'(["\']?pwd["\']?\s*[:=]\s*["\'])([^"\']{8,})(["\'])',  # pwd: "xxx"
+        r'(["\']?password["\']?\s*[:=]\s*["\'])([^"\']{8,})(["\'])',
+        r'(["\']?passwd["\']?\s*[:=]\s*["\'])([^"\']{8,})(["\'])',
+        r'(["\']?pwd["\']?\s*[:=]\s*["\'])([^"\']{8,})(["\'])',
     ]
 
-    # Email patterns (partially redact)
     EMAIL_PATTERN = r"([a-zA-Z0-9._%+-]+)@([a-zA-Z0-9.-]+\.[a-zA-Z]{2,})"
 
-    # IP address patterns (partially redact)
     IP_PATTERN = r"(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})"
 
-    # API key/secret in headers or URLs
     API_KEY_IN_URL = r"([&?](api_key|token|access_token|secret|password)[=][^&\s]{8,})"
 
     @classmethod
@@ -68,13 +49,10 @@ class ExceptionSanitizer:
         if not exception:
             return ""
 
-        # Get the exception message
         message = str(exception)
 
-        # Apply all sanitization patterns
         sanitized = cls._sanitize_string(message)
 
-        # Truncate if necessary
         if len(sanitized) > max_length:
             sanitized = sanitized[:max_length] + "..."
 
@@ -102,17 +80,13 @@ class ExceptionSanitizer:
         if exc_value is None:
             return ""
 
-        # Format the traceback using the exception object
         tb_lines = traceback.format_exception(exc_value)
 
-        # Limit the number of frames
         if len(tb_lines) > max_frames * 2 + 2:  # Approximate lines per frame
-            # Keep header and a subset of frames
             header = tb_lines[:2]
             frames = tb_lines[2 : max_frames * 2 + 2]
             tb_lines = header + frames + ["... (truncated)\n"]
 
-        # Sanitize each line
         sanitized_lines = [cls._sanitize_string(line) for line in tb_lines]
 
         return "".join(sanitized_lines)
@@ -159,13 +133,9 @@ class ExceptionSanitizer:
         Returns:
             Sanitized string
         """
-        # Convert non-strings to string representation
-        if not isinstance(value, str):
-            value = str(value)
 
         sanitized = value
 
-        # Apply GitHub token redaction
         for pattern in cls.GITHUB_TOKEN_PATTERNS:
             sanitized = re.sub(
                 pattern,
@@ -174,7 +144,6 @@ class ExceptionSanitizer:
                 flags=re.IGNORECASE,
             )
 
-        # Apply generic token redaction
         for pattern in cls.GENERIC_TOKEN_PATTERNS:
             sanitized = re.sub(
                 pattern,
@@ -183,7 +152,6 @@ class ExceptionSanitizer:
                 flags=re.IGNORECASE,
             )
 
-        # Apply password redaction
         for pattern in cls.PASSWORD_PATTERNS:
             sanitized = re.sub(
                 pattern,
@@ -199,14 +167,12 @@ class ExceptionSanitizer:
             sanitized,
         )
 
-        # Partially redact IPs (first and last octet)
         sanitized = re.sub(
             cls.IP_PATTERN,
             lambda m: m.group(1) + ".*." + m.group(4),
             sanitized,
         )
 
-        # Redact API keys in URLs/headers
         sanitized = re.sub(
             cls.API_KEY_IN_URL,
             lambda m: m.group(1)[:8] + "***",
@@ -230,30 +196,25 @@ class ExceptionSanitizer:
 
         header_lower = header_value.lower()
 
-        # Bearer token
         if header_lower.startswith("bearer "):
             token = header_value[7:].strip()
             if len(token) > 10:
                 return f"Bearer {token[:4]}...{token[-4:]}"
             return "Bearer ****"
 
-        # Basic auth
         if header_lower.startswith("basic "):
             return "Basic ****"
 
-        # Token type patterns
         for prefix in ["token ", "apikey ", "api-key "]:
             if header_lower.startswith(prefix):
                 return f"{prefix.title()}****"
 
-        # Fallback: show first and last few chars
         if len(header_value) > 10:
             return f"{header_value[:4]}...{header_value[-4:]}"
 
         return "****"
 
 
-# Global instance for convenience
 _sanitizer = ExceptionSanitizer()
 
 

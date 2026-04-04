@@ -22,22 +22,18 @@ class FilePatchInfo:
     complete context of how a file has changed in a PR.
     """
 
-    # File identification and content
     filename: str
     base_file: str = ""
     head_file: str = ""
     patch: str = ""
 
-    # Edit metadata
     edit_type: EDIT_TYPE = EDIT_TYPE.UNKNOWN
     old_filename: str | None = None
     language: str | None = None
 
-    # Line statistics
     num_plus_lines: int = 0
     num_minus_lines: int = 0
 
-    # Analysis results
     ai_file_summary: str | None = None
     tokens: int = -1
 
@@ -46,34 +42,23 @@ class FilePatchInfo:
     code_smell_indicators: tuple[str, ...] | None = None
     suggested_review_priority: str = "normal"  # "high", "normal", "low"
 
-    # Computed properties (not stored, computed from other fields)
     _file_extension: str | None = field(init=False, default=None, compare=False)
     _is_binary: bool = field(init=False, default=False, compare=False)
     _change_percentage: float = field(init=False, default=0.0, compare=False)
 
     def __post_init__(self):
-        """Initialize computed properties after dataclass creation."""
         object.__setattr__(self, "_file_extension", self._extract_file_extension())
         object.__setattr__(self, "_is_binary", self._detect_binary_file())
         object.__setattr__(self, "_change_percentage", self._calculate_change_percentage())
 
     def _extract_file_extension(self) -> str | None:
-        """Extract file extension from filename.
-
-        Returns:
-            Optional[str]: File extension (e.g., '.py', '.js') or None
-        """
+        """Extract file extension from filename."""
         if "." in self.filename:
             return "." + self.filename.split(".")[-1].lower()
         return None
 
     def _detect_binary_file(self) -> bool:
-        """Detect if file is binary based on content and extension.
-
-        Returns:
-            bool: True if file appears to be binary
-        """
-        # Check common binary extensions
+        """Detect if file is binary based on content and extension."""
         binary_extensions = {
             ".jpg",
             ".jpeg",
@@ -107,10 +92,8 @@ class FilePatchInfo:
         if self._file_extension in binary_extensions:
             return True
 
-        # Check content for binary indicators
         if self.head_file:
             try:
-                # Try to decode as text
                 self.head_file.encode("utf-8").decode("utf-8")
                 return False
             except UnicodeDecodeError:
@@ -119,16 +102,11 @@ class FilePatchInfo:
         return False
 
     def _calculate_change_percentage(self) -> float:
-        """Calculate percentage of lines changed relative to file size.
-
-        Returns:
-            float: Percentage of lines changed (0.0 to 100.0)
-        """
+        """Calculate percentage of lines changed (0.0 to 100.0)."""
         total_lines = self.num_plus_lines + self.num_minus_lines
         if total_lines == 0:
             return 0.0
 
-        # Estimate original file size
         original_lines = len(self.base_file.splitlines()) if self.base_file else 1
         if original_lines == 0:
             return 0.0
@@ -137,38 +115,18 @@ class FilePatchInfo:
 
     @property
     def file_extension(self) -> str | None:
-        """Get the file extension.
-
-        Returns:
-            Optional[str]: File extension (e.g., '.py', '.js') or None
-        """
         return self._file_extension
 
     @property
     def is_binary(self) -> bool:
-        """Check if file is binary.
-
-        Returns:
-            bool: True if file is binary
-        """
         return self._is_binary
 
     @property
     def change_percentage(self) -> float:
-        """Get percentage of lines changed.
-
-        Returns:
-            float: Percentage of lines changed (0.0 to 100.0)
-        """
         return self._change_percentage
 
     @property
     def total_changes(self) -> int:
-        """Get total number of changes (additions + deletions).
-
-        Returns:
-            int: Total number of changes
-        """
         return self.num_plus_lines + self.num_minus_lines
 
     @property
@@ -190,11 +148,7 @@ class FilePatchInfo:
         )
 
     def get_summary(self) -> dict[str, Any]:
-        """Get a summary of the file change.
-
-        Returns:
-            dict: File change summary with key information
-        """
+        """Get a summary of the file change."""
         return {
             "filename": self.filename,
             "edit_type": self.edit_type,
@@ -211,17 +165,7 @@ class FilePatchInfo:
         }
 
     def calculate_review_priority(self) -> str:
-        """Calculate suggested review priority based on file characteristics.
-
-        Priority levels:
-        - "high": Security-sensitive files, large changes, config files
-        - "normal": Standard code changes
-        - "low": Documentation, tests, assets
-
-        Returns:
-            str: Suggested review priority ("high", "normal", "low")
-        """
-        # High priority patterns
+        """Calculate suggested review priority based on file characteristics."""
         high_priority_patterns = [
             "security",
             "auth",
@@ -233,7 +177,6 @@ class FilePatchInfo:
             "credential",
         ]
 
-        # Low priority patterns
         low_priority_patterns = [
             "test",
             ".md",
@@ -246,16 +189,13 @@ class FilePatchInfo:
 
         filename_lower = self.filename.lower()
 
-        # Check high priority patterns
         for pattern in high_priority_patterns:
             if pattern in filename_lower:
                 return "high"
 
-        # High priority for large changes
         if self.total_changes > 100 or self.change_percentage > 50:
             return "high"
 
-        # Check low priority patterns
         for pattern in low_priority_patterns:
             if pattern in filename_lower:
                 return "low"
@@ -263,11 +203,7 @@ class FilePatchInfo:
         return "normal"
 
     def detect_code_smells(self) -> list[str]:
-        """Detect potential code smell indicators in the diff.
-
-        Returns:
-            list[str]: List of detected code smell indicators
-        """
+        """Detect potential code smell indicators in the diff."""
         indicators: list[str] = []
 
         if not self.patch:
@@ -275,7 +211,6 @@ class FilePatchInfo:
 
         patch_lower = self.patch.lower()
 
-        # Check for common code smells
         code_smell_patterns = {
             "TODO": "Contains TODO comments",
             "FIXME": "Contains FIXME comments",
@@ -293,22 +228,16 @@ class FilePatchInfo:
             if pattern.lower() in patch_lower:
                 indicators.append(indicator)
 
-        # Large file check
         if self.total_changes > 500:
             indicators.append("Very large change set - consider splitting")
 
-        # File deletion/addition check
         if self.edit_type == EDIT_TYPE.DELETED:
             indicators.append("File deleted - verify intended")
 
         return indicators
 
     def validate(self) -> list[str]:
-        """Validate the file patch information.
-
-        Returns:
-            list[str]: List of validation errors (empty if valid)
-        """
+        """Validate the file patch information."""
         errors: list[str] = []
 
         if not self.filename or not self.filename.strip():
@@ -348,11 +277,7 @@ class FilePatchInfo:
         return False
 
     def get_diff_statistics(self) -> dict[str, Any]:
-        """Get detailed diff statistics.
-
-        Returns:
-            dict: Detailed statistics about the diff
-        """
+        """Get detailed diff statistics."""
         if not self.patch:
             return {
                 "hunks": 0,
@@ -362,7 +287,6 @@ class FilePatchInfo:
                 "diff_lines": [],
             }
 
-        # Parse diff to extract statistics
         hunks = 0
         context_lines = 0
         addition_lines = 0
@@ -390,14 +314,7 @@ class FilePatchInfo:
         }
 
     def format_for_display(self, max_context_lines: int = 10) -> str:
-        """Format the diff for human display with limited context.
-
-        Args:
-            max_context_lines: Maximum context lines to show (default: 10)
-
-        Returns:
-            str: Formatted diff string
-        """
+        """Format the diff for human display with limited context."""
         if not self.patch:
             return f"Empty diff for {self.filename}"
 
@@ -405,7 +322,6 @@ class FilePatchInfo:
         if len(lines) <= max_context_lines:
             return self.patch
 
-        # Show first and last few lines
         header_lines = min(max_context_lines // 2, len(lines))
         footer_lines = max_context_lines - header_lines
 

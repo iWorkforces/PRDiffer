@@ -67,19 +67,15 @@ class InputSanitizer:
         if detector is None:
             detector = _detector
 
-        # Check length
         if len(value) > max_length:
             raise InputSanitizationError(f"String too long (max {max_length} characters)")
 
-        # Check for null bytes
         if "\x00" in value:
             raise InputSanitizationError("String contains null bytes")
 
-        # Check for suspicious patterns
         if detector.check_suspicious_patterns(value):
             raise SuspiciousOperationError("String contains suspicious patterns")
 
-        # Remove control characters except common whitespace
         sanitized = "".join(char for char in value if char in "\t\n\r" or not (0 <= ord(char) < 32))
 
         return sanitized
@@ -95,21 +91,17 @@ class InputSanitizer:
         Returns:
             Sanitized value safe for logging
         """
-        # Convert non-strings to string representation
         if not isinstance(value, str):
             value = str(value)
 
-        # Truncate long values
         if len(value) > max_length:
             value = value[:max_length] + "..."
 
-        # Remove control characters
         sanitized = "".join(char if char.isprintable() or char in "\t\n\r" else "?" for char in value)
 
         return sanitized
 
 
-# Module-level convenience functions
 def sanitize_string(value: str, max_length: int = 1000) -> str:
     """Convenience function for string sanitization.
 

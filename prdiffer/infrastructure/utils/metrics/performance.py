@@ -1,7 +1,4 @@
-"""Performance metrics collection and tracking.
-
-Tracks cache performance, feature flag adoption, API calls, and latency.
-"""
+"""Performance metrics collection and tracking."""
 
 import time
 import threading
@@ -12,15 +9,12 @@ from dataclasses import dataclass
 
 @dataclass
 class MetricValue:
-    """Container for a single metric value."""
-
     count: int = 0
     total: float = 0.0
     min_val: float = float("inf")
     max_val: float = float("-inf")
 
     def update(self, value: float) -> None:
-        """Update metric with new value."""
         self.count += 1
         self.total += value
         self.min_val = min(self.min_val, value)
@@ -28,77 +22,34 @@ class MetricValue:
 
     @property
     def average(self) -> float:
-        """Calculate average value."""
         return self.total / self.count if self.count > 0 else 0.0
 
 
 class PerformanceMetrics:
-    """Thread-safe performance metrics collector.
-
-    Tracks:
-    - Cache hit/miss rates
-    - Feature flag adoption rates
-    - API call counts
-    - Latency percentiles (simplified)
-    """
+    """Thread-safe performance metrics collector."""
 
     def __init__(self) -> None:
-        """Initialize metrics collector."""
         self._lock = threading.RLock()
         self._counters: dict[str, int] = defaultdict(int)
         self._metrics: dict[str, MetricValue] = defaultdict(MetricValue)
         self._start_time = time.time()
 
     def increment_counter(self, name: str, delta: int = 1) -> None:
-        """Increment a counter metric.
-
-        Args:
-            name: Counter name
-            delta: Value to increment by (default: 1)
-        """
         with self._lock:
             self._counters[name] += delta
 
     def record_metric(self, name: str, value: float) -> None:
-        """Record a value metric (for averages, min/max).
-
-        Args:
-            name: Metric name
-            value: Value to record
-        """
         with self._lock:
             self._metrics[name].update(value)
 
     def record_latency(self, operation: str, duration_seconds: float) -> None:
-        """Record operation latency.
-
-        Args:
-            operation: Operation name
-            duration_seconds: Duration in seconds
-        """
         self.record_metric(f"latency.{operation}", duration_seconds)
 
     def get_counter(self, name: str) -> int:
-        """Get counter value.
-
-        Args:
-            name: Counter name
-
-        Returns:
-            Current counter value
-        """
         with self._lock:
             return self._counters.get(name, 0)
 
     def get_metric(self, name: str) -> dict[str, Any]:
-        """Get metric statistics.
-
-        Args:
-            name: Metric name
-
-        Returns:
-            Dictionary with count, total, average, min, max
-        """
         with self._lock:
             metric = self._metrics.get(name)
             if metric is None or metric.count == 0:
@@ -118,21 +69,14 @@ class PerformanceMetrics:
             }
 
     def get_all_metrics(self) -> dict[str, Any]:
-        """Get all metrics and counters.
-
-        Returns:
-            Dictionary with all metrics, counters, and metadata
-        """
         with self._lock:
             uptime = time.time() - self._start_time
 
-            # Calculate rates
             cache_hits = self._counters.get("cache.hits", 0)
             cache_misses = self._counters.get("cache.misses", 0)
             total_cache_requests = cache_hits + cache_misses
             cache_hit_rate = (cache_hits / total_cache_requests * 100) if total_cache_requests > 0 else 0.0
 
-            # Feature flag adoption
             ff_enabled = self._counters.get("feature_flags.enabled", 0)
             ff_total = self._counters.get("feature_flags.total", 0)
             ff_adoption_rate = (ff_enabled / ff_total * 100) if ff_total > 0 else 0.0
@@ -150,14 +94,7 @@ class PerformanceMetrics:
             }
 
     def _format_uptime(self, seconds: float) -> str:
-        """Format uptime in human-readable format.
-
-        Args:
-            seconds: Uptime in seconds
-
-        Returns:
-            Human-readable string (e.g., "2h 30m 15s")
-        """
+        """Format uptime in human-readable format (e.g., "2h 30m 15s")."""
         hours = int(seconds // 3600)
         minutes = int((seconds % 3600) // 60)
         secs = int(seconds % 60)
@@ -173,24 +110,18 @@ class PerformanceMetrics:
         return " ".join(parts)
 
     def reset(self) -> None:
-        """Reset all metrics."""
         with self._lock:
             self._counters.clear()
             self._metrics.clear()
             self._start_time = time.time()
 
 
-# Global metrics instance
 _metrics_instance: PerformanceMetrics | None = None
 _metrics_lock = threading.Lock()
 
 
 def get_performance_metrics() -> PerformanceMetrics:
-    """Get global performance metrics instance.
-
-    Returns:
-        PerformanceMetrics: Global instance
-    """
+    """Get or create the global PerformanceMetrics singleton."""
     global _metrics_instance
     if _metrics_instance is None:
         with _metrics_lock:

@@ -11,16 +11,7 @@ __all__ = ["_make_hashable", "_generate_cache_key"]
 
 
 def _make_hashable(obj: Any, _seen: set[int] | None = None, _depth: int = 0) -> Any:
-    """Convert an object to a hashable form recursively with circular reference protection.
-
-    Args:
-        obj: Object to convert
-        _seen: Set of already processed object IDs
-        _depth: Current recursion depth
-
-    Returns:
-        Hashable version of the object
-    """
+    """Convert an object to a hashable form recursively with circular reference protection."""
     MAX_DEPTH = 20
     if _depth > MAX_DEPTH:
         return f"<max_depth_exceeded:{type(obj).__name__}>"
@@ -79,16 +70,7 @@ def _make_hashable(obj: Any, _seen: set[int] | None = None, _depth: int = 0) -> 
 
 
 def _generate_cache_key(method_name: str, args: tuple[Any, ...], kwargs: dict[str, Any]) -> str:
-    """Generate a cache key from method name and arguments.
-
-    Args:
-        method_name: Name of the method being cached
-        args: Positional arguments (excluding self)
-        kwargs: Keyword arguments
-
-    Returns:
-        String cache key
-    """
+    """Generate a cache key from method name and arguments."""
     hashable_args = _make_hashable(args)
     hashable_kwargs = _make_hashable(kwargs)
 

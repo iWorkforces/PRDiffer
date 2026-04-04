@@ -1,8 +1,4 @@
-"""Webhook handling module for FastMCP server.
-
-This module extracts webhook processing logic from mcp_server.py,
-handling GitHub webhook events for cache invalidation.
-"""
+"""Webhook handling for GitHub cache invalidation via FastMCP."""
 
 import hmac
 import json
@@ -21,18 +17,7 @@ from prdiffer.infrastructure.security.input_validator import InputValidator
 
 
 class WebhookHandler:
-    """Handler for GitHub webhook events.
-
-    This class processes GitHub webhook events and invalidates cache
-    when PRs or repositories are updated.
-
-    Attributes:
-        settings_service: Settings service for webhook secret configuration
-        cache_service: Cache service for invalidation
-        repository_cache_service: Repository cache service for invalidation
-        logger: Logger for webhook event tracking
-        input_validator: Input validator for security
-    """
+    """Processes GitHub webhook events and invalidates cache when PRs or repositories are updated."""
 
     def __init__(
         self,
@@ -42,15 +27,6 @@ class WebhookHandler:
         logger: LoggerServiceInterface,
         input_validator: InputValidator,
     ):
-        """Initialize WebhookHandler with dependencies.
-
-        Args:
-            settings_service: Settings service instance
-            cache_service: Cache service instance
-            repository_cache_service: Repository cache service instance
-            logger: Logger instance
-            input_validator: Input validator instance
-        """
         self._settings_service = settings_service
         self._cache_service = cache_service
         self._repository_cache_service = repository_cache_service
@@ -66,7 +42,7 @@ class WebhookHandler:
             github_event: GitHub event type (push, pull_request, etc.)
 
         Returns:
-            dict: Response indicating success or failure
+            Response dict indicating success or failure.
 
         Raises:
             ValueError: If signature verification fails or payload is invalid
@@ -147,26 +123,10 @@ class WebhookHandler:
         return {"status": "success", "message": "Cache invalidated"}
 
     def get_webhook_handler(self) -> Callable[[Request], Awaitable[JSONResponse]]:
-        """Get the webhook handler function.
-
-        This returns the actual handler function that can be registered with FastMCP.
-
-        Returns:
-            callable: Webhook handler function
-        """
+        """Return the webhook handler function for FastMCP registration."""
 
         async def webhook_handler(request: Request) -> JSONResponse:
-            """Handle GitHub webhook events for cache invalidation.
-
-            GitHub sends webhook events to this endpoint, which triggers
-            cache invalidation for affected repositories and PRs.
-
-            Args:
-                request: FastAPI Request object containing webhook payload and headers
-
-            Returns:
-                JSONResponse with status indicating success or failure
-            """
+            """Handle GitHub webhook events for cache invalidation."""
             try:
                 signature = request.headers.get("X-Hub-Signature-256", "")
                 if not signature:
@@ -180,15 +140,11 @@ class WebhookHandler:
 
                 if result["status"] == "error":
                     error_message = result.get("message", "")
-                    if error_message in [
-                        "Invalid payload format",
-                        "Invalid JSON payload",
-                    ]:
+                    if error_message in ["Invalid payload format", "Invalid JSON payload"]:
                         return JSONResponse(result, status_code=400)
-                    elif error_message == "Invalid signature":
+                    if error_message == "Invalid signature":
                         return JSONResponse(result, status_code=401)
-                    else:
-                        return JSONResponse(result, status_code=400)
+                    return JSONResponse(result, status_code=400)
 
                 return JSONResponse(result, status_code=200)
             except json.JSONDecodeError as e:

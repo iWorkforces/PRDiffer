@@ -1,8 +1,4 @@
-"""Cache service for GitHub PR diff data with commit-based invalidation.
-
-This module provides caching for PR diff data using commit SHAs for cache invalidation.
-When a PR is updated (new commits pushed), the cache is automatically invalidated.
-"""
+"""Cache service for GitHub PR diff data with commit-based invalidation."""
 
 import hashlib
 import time
@@ -18,25 +14,10 @@ from prdiffer.infrastructure.logging.console_logger import get_logger
 
 
 class CacheService(CacheServiceInterface):
-    """Caching service for GitHub PR diff data with commit-based invalidation.
-
-    This service provides caching for PR diff data using commit SHAs for cache invalidation.
-    When a PR is updated (new commits pushed), the cache is automatically invalidated.
-    """
+    """Caching service for PR diff data with commit-based invalidation and LRU eviction."""
 
     def __init__(self):
-        """Initialize the cache service with empty cache and key hashing support.
-
-        Loads configuration for cache key hashing:
-        - cache.use_hashed_keys: Enable/disable hashing (default: True)
-        - cache.hash_algorithm: Hash algorithm to use (default: md5)
-        - cache.store_key_mapping: Store reverse mapping (default: True)
-        - cache.ttl: Time-to-live for cache entries in seconds (default: 600)
-
-        Thread Safety:
-        - All cache operations are protected by a reentrant lock
-        - Statistics counters are atomic within locked sections
-        """
+        """Initialize the cache service with empty cache and key hashing support."""
         self._lock = anyio.Lock()
 
         self.cache: OrderedDict[str, dict[str, Any]] = OrderedDict()
@@ -64,18 +45,7 @@ class CacheService(CacheServiceInterface):
             self.logger.info(f"Cache key hashing enabled (algorithm={self._hash_algorithm}, mapping={self._store_key_mapping}, ttl={self._ttl}s)")
 
     def get_cache_key(self, repo_owner: str, repo_name: str, pr_number: int) -> str:
-        """Generate a cache key for the given repository and PR.
-
-        Note: This returns the original (non-hashed) key format.
-
-        Args:
-            repo_owner: Repository owner/organization
-            repo_name: Repository name
-            pr_number: Pull request number
-
-        Returns:
-            str: Cache key in format "owner/repo/pr/number"
-        """
+        """Generate a cache key for the given repository and PR."""
         return f"{repo_owner}/{repo_name}/pr/{pr_number}"
 
     def _hash_key(self, key: str) -> str:
@@ -93,7 +63,7 @@ class CacheService(CacheServiceInterface):
             )
 
     async def _get_internal_key(self, original_key: str, store_mapping: bool = False) -> tuple[str, str]:
-        """Get internal key for cache operations with optional hashing."""
+        """Get internal key with optional hashing and store reverse mapping."""
         if not self._use_hashed_keys:
             return original_key, ""
 
@@ -122,21 +92,17 @@ class CacheService(CacheServiceInterface):
         return bool(age > self._ttl)
 
     async def _evict_oldest_if_needed(self) -> None:
-        """Evict entries when cache exceeds max size (optimized LRU eviction).
+        """Evict entries when cache exceeds max size.
 
-        Optimizations:
-        - O(1) LRU eviction using OrderedDict.popitem(last=False)
-        - TTL eviction only every 10 calls to avoid O(n) scan on every set()
+        O(1) LRU eviction using OrderedDict.popitem(last=False).
+        TTL eviction only every 10 calls to avoid O(n) scan on every set().
         """
-        # Periodic TTL eviction (every 10 calls)
-        # Periodic TTL eviction (every 10 calls)
         if not hasattr(self, "_eviction_call_count"):
             self._eviction_call_count = 0
 
         self._eviction_call_count += 1
 
         if self._eviction_call_count % 10 == 0:
-            # O(n) TTL eviction - only every 10th call
             current_time = time.time()
             expired_keys: list[str] = []
 
@@ -153,7 +119,6 @@ class CacheService(CacheServiceInterface):
             if expired_keys:
                 self.logger.debug(f"Cache eviction (TTL): removed {len(expired_keys)} expired entries [size={len(self.cache)}/{self._cache_max_size}]")
 
-        # O(1) LRU eviction - always when over size limit
         while len(self.cache) >= self._cache_max_size:
             evicted_key, _ = self.cache.popitem(last=False)
             self._key_mapping.pop(evicted_key, None)
@@ -218,15 +183,8 @@ class CacheService(CacheServiceInterface):
     async def get_optimistic(self, cache_key: str) -> tuple[PRDiff | None, str | None]:
         """Get cached PR diff data without commit SHA validation (optimistic lookup).
 
-        Performance optimization: Returns cached data and its commit SHA without
-        validation, allowing caller to decide whether the data is fresh enough.
-        This avoids a GitHub API call for cache hits.
-
-        Args:
-            cache_key: The cache key to look up
-
-        Returns:
-            tuple: (cached_data, cached_commit_sha) - Both None if cache miss
+        Returns cached data and its commit SHA without validation, allowing caller
+        to decide whether the data is fresh enough. Avoids a GitHub API call for cache hits.
         """
         internal_key, hash_display = await self._get_internal_key(cache_key)
 
@@ -242,7 +200,6 @@ class CacheService(CacheServiceInterface):
 
             cached_data = self.cache[internal_key]
 
-            # Check expiration (but don't validate commit SHA)
             if self._is_entry_expired(cached_data):
                 self._cache_expirations += 1
                 self._cache_misses += 1
@@ -257,13 +214,12 @@ class CacheService(CacheServiceInterface):
                 )
                 return None, None
 
-            # Return data and commit SHA without validation
             cached_commit_sha = cached_data.get("commit_sha")
             cached_result = cached_data.get("data")
 
             if cached_result:
                 self._cache_hits += 1
-                self.cache.move_to_end(internal_key)  # Update LRU
+                self.cache.move_to_end(internal_key)
                 self.logger.info(
                     "Optimistic cache hit",
                     cache_key=cache_key,
@@ -371,16 +327,11 @@ class CacheService(CacheServiceInterface):
         return base_stats
 
 
-# Global cache service instance
 _cache_service: CacheService | None = None
 
 
 def get_cache_service() -> CacheService:
-    """Get the global cache service instance (singleton pattern).
-
-    Returns:
-        CacheService: The global cache service instance
-    """
+    """Get the global cache service instance (singleton pattern)."""
     global _cache_service
 
     if _cache_service is None:

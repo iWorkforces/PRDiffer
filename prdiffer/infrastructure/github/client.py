@@ -1,5 +1,3 @@
-"""GitHub API client implementation."""
-
 import time
 import asyncer
 from collections import OrderedDict
@@ -42,8 +40,6 @@ from prdiffer.infrastructure.github.client_models import (
 
 
 class GitHubAPIClient(GitHubAPIServiceInterface):
-    """GitHub API client implementation for repository operations."""
-
     def __init__(
         self,
         max_retries: int = 3,
@@ -323,7 +319,6 @@ class GitHubAPIClient(GitHubAPIServiceInterface):
 
     def get_files_content_batch(self, repo_full_name: str, file_paths: list[str], branch: str) -> dict[str, str]:
         """Get content for multiple files with caching and optional parallel fetching."""
-        # Performance optimization: Use async parallel fetch when feature flag enabled
         if self._parallel_file_fetch_enabled:
             # Use anyio.run to call async method from sync context
             import anyio
@@ -360,7 +355,6 @@ class GitHubAPIClient(GitHubAPIServiceInterface):
                 error_code=E5009_CONFIGURATION_ERROR,
             )
 
-        assert self._github_client is not None
         github_client = self._github_client
 
         cache_key = (file_path, branch)

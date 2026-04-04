@@ -1,8 +1,4 @@
-"""Health endpoints module for FastMCP server.
-
-This module extracts health and metrics endpoints from mcp_server.py,
-providing monitoring and observability functionality.
-"""
+"""Health and metrics endpoints for FastMCP server monitoring."""
 
 from collections.abc import Callable, Awaitable
 from typing import Any
@@ -22,20 +18,7 @@ from prdiffer.infrastructure.utils.coalescing import RequestCoalescingService
 
 
 class HealthEndpoints:
-    """Handler for health and metrics endpoints.
-
-    This class provides health status and metrics tracking
-    for the MCP server.
-
-    Attributes:
-        health_monitor: Health monitor for component status
-        metrics_tracker: Metrics tracker for performance metrics
-        cache_service: Cache service for stats
-        repository_cache_service: Repository cache service for stats
-        authentication: Authentication service for status
-        request_coalescing: Request coalescing service for stats
-        logger: Logger for health check logging
-    """
+    """Handler for health and metrics endpoints."""
 
     def __init__(
         self,
@@ -47,17 +30,6 @@ class HealthEndpoints:
         request_coalescing: RequestCoalescingService,
         logger: LoggerServiceInterface,
     ):
-        """Initialize HealthEndpoints with dependencies.
-
-        Args:
-            health_monitor: Health monitor protocol
-            metrics_tracker: Metrics tracker protocol
-            cache_service: Cache service instance
-            repository_cache_service: Repository cache service instance
-            authentication: Authentication protocol
-            request_coalescing: Request coalescing service
-            logger: Logger instance
-        """
         self._health_monitor = health_monitor
         self._metrics_tracker = metrics_tracker
         self._cache_service = cache_service
@@ -67,11 +39,7 @@ class HealthEndpoints:
         self._logger = logger
 
     async def _get_health_status(self) -> dict[str, Any]:
-        """Get health status and metrics for the MCP server.
-
-        Returns:
-            dict: Health status and metrics information
-        """
+        """Get health status and metrics for the MCP server."""
         health_status = self._health_monitor.check_health()
         health_status["authentication"] = self._authentication.get_status()
         health_status["cache"] = self._cache_service.get_stats()
@@ -80,21 +48,10 @@ class HealthEndpoints:
         return health_status
 
     def get_health_handler(self) -> Callable[[], Awaitable[dict[str, Any]]]:
-        """Get health check handler function.
-
-        This returns the actual health handler function that can be
-        registered with FastMCP.
-
-        Returns:
-            callable: Health check handler function
-        """
+        """Return health handler function for FastMCP registration."""
 
         async def health() -> dict[str, Any]:
-            """Get server health status and metrics.
-
-            Returns:
-                dict: Health status and performance metrics
-            """
+            """Get server health status and metrics."""
             try:
                 return await self._get_health_status()
             except (RuntimeError, KeyError, AttributeError) as e:
@@ -109,24 +66,10 @@ class HealthEndpoints:
         return health
 
     def get_metrics_handler(self) -> Callable[[Request], Awaitable[JSONResponse]]:
-        """Get metrics handler function.
-
-        This returns the actual metrics handler function that can be
-        registered with FastMCP.
-
-        Returns:
-            callable: Metrics handler function
-        """
+        """Return metrics handler function for FastMCP registration."""
 
         async def metrics_handler(request: Request) -> JSONResponse:
-            """Handle metrics endpoint requests.
-
-            Args:
-                request: FastAPI Request object
-
-            Returns:
-                JSONResponse with metrics summary
-            """
+            """Handle metrics endpoint requests."""
             try:
                 metrics = self._metrics_tracker.get_metrics_summary()
                 return JSONResponse(metrics)
@@ -148,14 +91,7 @@ class HealthEndpoints:
         return metrics_handler
 
     def _create_safe_error_message(self, exception: Exception) -> str:
-        """Create a safe error message that doesn't expose internal details.
-
-        Args:
-            exception: The exception to create a safe message for
-
-        Returns:
-            str: A safe error message suitable for external consumption
-        """
+        """Create a safe error message that doesn't expose internal details."""
         safe_messages = {
             "GithubException": "GitHub API error occurred",
             "RateLimitExceededException": "API rate limit exceeded. Please try again later",
