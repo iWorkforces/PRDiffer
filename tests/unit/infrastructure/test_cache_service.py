@@ -7,7 +7,7 @@ with commit-based invalidation, key hashing, and TTL support.
 import anyio
 from unittest.mock import patch
 import pytest
-from prdiffer.infrastructure.cache import CacheService, get_cache_service
+from prdiffer.infrastructure.cache.service import CacheService, get_cache_service
 from prdiffer.domain.entities.pr_diff import PRDiff
 from prdiffer.domain.entities.file_diff_response import FileDiffResponse, FileStats
 from prdiffer.domain.entities.file_patch import EDIT_TYPE

@@ -1,21 +1,21 @@
 # PROJECT KNOWLEDGE BASE
 
-**Generated:** 2026-04-04T16:30:00Z
-**Commit:** fe5d140
+**Generated:** 2026-04-10T00:00:00Z
+**Commit:** 5ea25aa
 **Branch:** upstream
-**Version:** 0.5.0
+**Version:** 0.5.1
 
 ## OVERVIEW
-Python 3.14+ MCP server for GitHub PR diff analysis with Clean Architecture (Domain → Application → Infrastructure). FastMCP framework, Pydantic v2, anyio async. 208 Python files (116 src + 92 tests), 33K+ lines, 44 AGENTS.md files (depth 5 coverage).
+Python 3.14+ MCP server for GitHub PR diff analysis with Clean Architecture (Domain → Application → Infrastructure). FastMCP framework, Pydantic v2, anyio async. 244 Python files (131 src + 113 tests), 49K+ lines, 44 AGENTS.md files (depth 5 coverage).
 
 ## STRUCTURE
 ```
 PRDifferMCP/
 ├── prdiffer/
-│   ├── domain/           # Pure business logic (48 files, 8 subdirs)
-│   ├── infrastructure/   # External integrations (57 files, 9 subdirs)
-│   └── application/     # MCP server, components, plugin system (26 files, 7 subdirs)
-├── tests/               # Unit/integration/performance (74 files, 863+ tests, ~70% coverage)
+│   ├── domain/           # Pure business logic (37 files, 8 subdirs)
+│   ├── infrastructure/   # External integrations (71 files, 9 subdirs)
+│   └── application/     # MCP server, components, plugin system (23 files, 7 subdirs)
+├── tests/               # Unit/integration/performance (113 files, 863+ tests, ~70% coverage)
 ├── scripts/              # Helper scripts, git-hooks, analysis tools
 ├── docs/                # Documentation (error-codes.md only, gitignored)
 ├── settings.toml        # Dynaconf configuration (212 lines, 14 groups)
@@ -87,7 +87,7 @@ PRDifferMCP/
 - Environment vars: GITHUB_TOKEN, MCP_AUTH_ENABLED, MCP_API_KEYS.
 - SettingsService with RLock for thread-safe manual caching.
 - GitHubConfig frozen dataclass with tuple-based fields (hashable).
-- **No ruff config in pyproject.toml** → Uses ruff defaults (E/F/W rules, 88 line length, double quotes).
+- **No ruff config in pyproject.toml** → Uses ruff defaults (E/F/W/Q rules, 160 line length, double quotes).
 
 ### Error Codes
 - Format: `E{category}{number}_{NAME}` (e.g., E1001_VALIDATION_ERROR)

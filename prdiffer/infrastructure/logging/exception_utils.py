@@ -134,6 +134,9 @@ class ExceptionSanitizer:
             Sanitized string
         """
 
+        if not isinstance(value, str):
+            value = str(value)
+
         sanitized = value
 
         for pattern in cls.GITHUB_TOKEN_PATTERNS:

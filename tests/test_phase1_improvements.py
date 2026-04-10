@@ -7,11 +7,11 @@ import anyio
 from unittest.mock import Mock, patch
 
 from prdiffer.infrastructure.security.input_validator import InputValidator
-from prdiffer.infrastructure.utils.circuit_breaker.core import (
+from prdiffer.infrastructure.utils.circuit_breaker_core import (
     CircuitBreaker,
     CircuitState,
 )
-from prdiffer.infrastructure.utils.retry import RetryHandler
+from prdiffer.infrastructure.utils.retry.handler import RetryHandler
 from prdiffer.domain.entities.pr_diff import PRDiff
 
 
@@ -116,7 +116,7 @@ class TestTTLExpiration:
     @patch("prdiffer.infrastructure.settings.get_settings_service")
     @pytest.mark.asyncio
     async def test_entry_not_expired_within_ttl(self, mock_get_settings, sample_pr_diff):
-        from prdiffer.infrastructure.cache import CacheService
+        from prdiffer.infrastructure.cache.service import CacheService
 
         mock_settings = Mock()
         mock_settings.get.side_effect = lambda key, default: {
@@ -137,7 +137,7 @@ class TestTTLExpiration:
     @patch("prdiffer.infrastructure.settings.get_settings_service")
     @pytest.mark.asyncio
     async def test_entry_expired_after_ttl(self, mock_get_settings, sample_pr_diff):
-        from prdiffer.infrastructure.cache import CacheService
+        from prdiffer.infrastructure.cache.service import CacheService
 
         mock_settings = Mock()
         mock_settings.get.side_effect = lambda key, default: {
@@ -160,7 +160,7 @@ class TestTTLExpiration:
     @patch("prdiffer.infrastructure.settings.get_settings_service")
     @pytest.mark.asyncio
     async def test_expiration_statistics(self, mock_get_settings, sample_pr_diff):
-        from prdiffer.infrastructure.cache import CacheService
+        from prdiffer.infrastructure.cache.service import CacheService
 
         mock_settings = Mock()
         mock_settings.get.side_effect = lambda key, default: {

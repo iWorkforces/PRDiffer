@@ -318,7 +318,7 @@ class TestWorkflowWithRealServices:
     @pytest.fixture
     def real_settings(self):
         """Create real settings service with test configuration."""
-        from prdiffer.infrastructure.factories import get_infrastructure_factory
+        from prdiffer.infrastructure.factories.infrastructure_factory import get_infrastructure_factory
 
         factory = get_infrastructure_factory()
         return factory.create_settings_service()
@@ -326,7 +326,7 @@ class TestWorkflowWithRealServices:
     @pytest.fixture
     def real_logger(self):
         """Create real logger service."""
-        from prdiffer.infrastructure.factories import get_infrastructure_factory
+        from prdiffer.infrastructure.factories.infrastructure_factory import get_infrastructure_factory
 
         factory = get_infrastructure_factory()
         return factory.create_logger_service()
@@ -334,7 +334,7 @@ class TestWorkflowWithRealServices:
     @pytest.fixture
     def real_cache(self):
         """Create real cache service."""
-        from prdiffer.infrastructure.factories import get_infrastructure_factory
+        from prdiffer.infrastructure.factories.infrastructure_factory import get_infrastructure_factory
 
         factory = get_infrastructure_factory()
         return factory.create_cache_service()
@@ -419,7 +419,7 @@ class TestEndToEndScenarios:
 
     def test_server_initialization_scenario(self):
         """Test complete server initialization scenario."""
-        from prdiffer.infrastructure.factories import get_infrastructure_factory
+        from prdiffer.infrastructure.factories.infrastructure_factory import get_infrastructure_factory
 
         factory = get_infrastructure_factory()
 
@@ -458,8 +458,8 @@ class TestEndToEndScenarios:
 
     def test_component_interaction_scenario(self):
         """Test interaction between components."""
-        from prdiffer.infrastructure.factories import get_infrastructure_factory
-        from prdiffer.application.factories import get_application_factory
+        from prdiffer.infrastructure.factories.infrastructure_factory import get_infrastructure_factory
+        from prdiffer.application.factories.application_factory import get_application_factory
 
         infra_factory = get_infrastructure_factory()
         app_factory = get_application_factory()
@@ -511,7 +511,7 @@ class TestEndToEndScenarios:
 
     def test_health_check_scenario(self):
         """Test health check scenario."""
-        from prdiffer.infrastructure.factories import get_infrastructure_factory
+        from prdiffer.infrastructure.factories.infrastructure_factory import get_infrastructure_factory
 
         factory = get_infrastructure_factory()
 

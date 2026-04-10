@@ -4,13 +4,17 @@ import pytest
 import time
 from unittest.mock import Mock, patch
 
-from prdiffer.infrastructure.utils.retry import (
+from prdiffer.infrastructure.utils.retry.handler import (
     UnifiedRetryHandler,
+)
+from prdiffer.infrastructure.utils.retry.models import (
     OperationContext,
+)
+from prdiffer.infrastructure.utils.retry.factories import (
     get_retry_handler,
     get_advanced_retry_handler,
 )
-from prdiffer.infrastructure.utils.circuit_breaker.core import CircuitState
+from prdiffer.infrastructure.utils.circuit_breaker_core import CircuitState
 from prdiffer.infrastructure.utils.rate_limit_parser import RateLimitInfo
 
 
@@ -481,28 +485,29 @@ class TestCalculateRetryDelay:
 
 
 class TestLogRetryAttempt:
-    """Tests for _log_retry_attempt method."""
+    """Tests for log_retry_attempt standalone function."""
 
     def test_log_retry_attempt_basic(self):
         """Test basic retry attempt logging."""
-        handler = UnifiedRetryHandler()
-        with patch.object(handler, "_get_logger") as mock_get_logger:
-            mock_logger = Mock()
-            mock_get_logger.return_value = mock_logger
+        from prdiffer.infrastructure.utils.retry_logger import log_retry_attempt
 
-            rate_limit_info = RateLimitInfo(
-                remaining=100,
-                limit=5000,
-                reset_at=int(time.time() + 3600),
-                retry_after=None,
-            )
-            handler._log_retry_attempt(
-                attempt=0,
-                delay=1.0,
-                error=Exception("test error"),
-                context=OperationContext.FILE_CONTENT,
-                rate_limit_info=rate_limit_info,
-                is_secondary_rate_limit=False,
-            )
+        mock_logger = Mock()
 
-            mock_logger.debug.assert_called()
+        rate_limit_info = RateLimitInfo(
+            remaining=100,
+            limit=5000,
+            reset_at=int(time.time() + 3600),
+            retry_after=None,
+        )
+        log_retry_attempt(
+            logger=mock_logger,
+            attempt=0,
+            delay=1.0,
+            error=Exception("test error"),
+            retry_log_level="DEBUG",
+            context=OperationContext.FILE_CONTENT.value,
+            rate_limit_info=rate_limit_info,
+            is_secondary_rate_limit=False,
+        )
+
+        mock_logger.debug.assert_called()

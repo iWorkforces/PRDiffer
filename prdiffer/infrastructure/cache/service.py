@@ -7,7 +7,7 @@ from collections import OrderedDict
 from typing import Any, cast
 
 from prdiffer.domain.entities.pr_diff import PRDiff
-from prdiffer.domain.services import CacheServiceInterface
+from prdiffer.domain.services.cache import CacheServiceInterface
 from prdiffer.domain.exceptions import ValidationError
 from prdiffer.domain.errors import E1010_INVALID_CONFIGURATION
 from prdiffer.infrastructure.logging.console_logger import get_logger

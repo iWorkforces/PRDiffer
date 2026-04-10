@@ -2,7 +2,8 @@
 
 from abc import ABC, abstractmethod
 
-from prdiffer.domain.entities import Repository, PullRequest
+from prdiffer.domain.entities.repository import Repository
+from prdiffer.domain.entities.pull_request import PullRequest
 
 
 class GitHubAPIServiceInterface(ABC):

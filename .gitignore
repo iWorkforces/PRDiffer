@@ -230,3 +230,4 @@ docs/
 
 .coverage
 .opencode/
+.sisyphus/

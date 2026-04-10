@@ -1,7 +1,6 @@
 from prdiffer.domain.entities.pr_diff import PRDiff
-from prdiffer.domain.services import CacheServiceInterface
-from prdiffer.domain.services import PRDiffServiceInterface
-from prdiffer.infrastructure.settings import get_settings_service
+from prdiffer.domain.services.cache import CacheServiceInterface
+from prdiffer.domain.services.pr_diff_service import PRDiffServiceInterface
 
 
 class GetPRDiffUseCase:
@@ -11,12 +10,11 @@ class GetPRDiffUseCase:
         self,
         pr_diff_service: PRDiffServiceInterface,
         cache_service: CacheServiceInterface,
+        cache_hit_optimization_enabled: bool = False,
     ):
         self._pr_diff_service: PRDiffServiceInterface = pr_diff_service
         self._cache_service: CacheServiceInterface = cache_service
-
-        settings = get_settings_service()
-        self._cache_hit_optimization_enabled = settings.get("performance.cache_hit_optimization_enabled", False)
+        self._cache_hit_optimization_enabled = cache_hit_optimization_enabled
 
     async def execute(
         self,

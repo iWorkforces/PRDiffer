@@ -3,7 +3,7 @@
 Tests the Repository dataclass which represents a GitHub repository.
 """
 
-from prdiffer.domain.entities import Repository
+from prdiffer.domain.entities.repository import Repository
 
 
 class TestRepositoryCreation:

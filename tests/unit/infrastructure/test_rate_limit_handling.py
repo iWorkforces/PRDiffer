@@ -6,7 +6,7 @@ from unittest.mock import patch
 import pytest
 from github import GithubException
 
-from prdiffer.infrastructure.utils.retry import UnifiedRetryHandler
+from prdiffer.infrastructure.utils.retry.handler import UnifiedRetryHandler
 
 
 class FakeGithubException(GithubException):

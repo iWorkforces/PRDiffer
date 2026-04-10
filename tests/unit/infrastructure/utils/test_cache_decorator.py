@@ -1,7 +1,7 @@
 import pytest
 import time
 
-from prdiffer.infrastructure.cache.decorators import (
+from prdiffer.infrastructure.cache.cache_decorators import (
     CachingMixin,
     cached_method,
     _make_hashable,

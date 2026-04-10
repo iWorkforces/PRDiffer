@@ -11,14 +11,14 @@ from github.PullRequest import PullRequest as PyGithubPullRequest
 from github.Repository import Repository
 
 from prdiffer.domain.entities.file_patch import FilePatchInfo, EDIT_TYPE
-from prdiffer.domain.services import GitHubAPIServiceInterface
-from prdiffer.domain.services import PatternMatchingServiceInterface
-from prdiffer.domain.services import DiffServiceInterface
+from prdiffer.domain.services.github_api import GitHubAPIServiceInterface
+from prdiffer.domain.services.pattern_matching import PatternMatchingServiceInterface
+from prdiffer.domain.services.diff import DiffServiceInterface
 from prdiffer.infrastructure.logging.console_logger import ConsoleLogger, get_logger
-from prdiffer.infrastructure.utils.parallel import (
+from prdiffer.infrastructure.utils.parallel.executor import (
     AsyncParallelExecutor,
-    ErrorStrategy,
 )
+from prdiffer.infrastructure.utils.parallel.results import ErrorStrategy
 
 
 class FileProcessor:

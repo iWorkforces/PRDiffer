@@ -7,7 +7,7 @@ import pytest
 import time
 from unittest.mock import Mock
 
-from prdiffer.infrastructure.cache.repository import (
+from prdiffer.infrastructure.cache.cache_repository import (
     RepositoryCacheService,
     CacheEntry,
     get_repository_cache_service,

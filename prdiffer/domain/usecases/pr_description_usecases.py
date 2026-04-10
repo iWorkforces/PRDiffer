@@ -45,6 +45,9 @@ class UpdatePRDescriptionUseCase:
         if not pr_description:
             raise ValidationError("PR description cannot be empty", error_code=E1001_INVALID_URL)
 
+        if not isinstance(pr_description, str):
+            raise ValidationError("PR description must be a string", error_code=E1001_INVALID_URL)
+
         result = await self._pr_diff_repository.update_pr_description(
             pr_url=pr_url,
             description=pr_description,

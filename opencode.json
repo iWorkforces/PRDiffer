@@ -1,0 +1,13 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+    "mcp": {
+        "sentrux-mcp": {
+            "type": "local",
+            "command": [
+                "sentrux",
+                "--mcp"
+            ],
+            "enabled": true
+        }
+    }
+}

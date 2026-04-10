@@ -12,17 +12,18 @@ from prdiffer.domain.services.github_api import GitHubAPIServiceInterface
 from prdiffer.domain.services.diff import DiffServiceInterface
 from prdiffer.domain.services.pattern_matching import PatternMatchingServiceInterface
 from prdiffer.domain.services.retry import RetryServiceInterface
+from prdiffer.domain.interfaces.input_validation import InputValidatorProtocol
 
 from prdiffer.infrastructure.settings import get_settings_service
 from prdiffer.infrastructure.logging.console_logger import get_logger
-from prdiffer.infrastructure.cache import get_cache_service
-from prdiffer.infrastructure.cache.repository import (
+from prdiffer.infrastructure.cache.service import get_cache_service
+from prdiffer.infrastructure.cache.cache_repository import (
     get_repository_cache_service,
 )
 from prdiffer.infrastructure.github.client import GitHubAPIClient
 from prdiffer.infrastructure.utils.diff_utils import DiffUtils, DiffProcessingConfig
 from prdiffer.infrastructure.utils.pattern_matcher import PatternMatcher
-from prdiffer.infrastructure.utils.retry import RetryHandler
+from prdiffer.infrastructure.utils.retry.handler import RetryHandler
 from prdiffer.infrastructure.github.diff_generator import (
     DiffGenerator,
     get_diff_generator,
@@ -165,6 +166,12 @@ class InfrastructureFactory(InfrastructureFactoryInterface):
             parallel_executor=None,
             parallel_enabled=False,
         )
+
+    def create_input_validator(self) -> InputValidatorProtocol:
+        """Create input validator instance."""
+        from prdiffer.infrastructure.security.input_validator import InputValidator
+
+        return InputValidator()
 
 
 def get_infrastructure_factory() -> InfrastructureFactoryInterface:

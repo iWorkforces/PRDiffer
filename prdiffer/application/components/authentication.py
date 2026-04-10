@@ -4,6 +4,9 @@ This component provides authentication and authorization functionality
 for the MCP server, supporting API key-based access control with
 per-client rate limiting integration and brute-force protection.
 
+JWT handling is in jwt_handler.py.
+API key management is in api_key_manager.py.
+
 Security Note:
 - JWT signature verification is supported via verify_jwt_token() method
 - The parse_jwt_payload() method does NOT verify signatures and should
@@ -11,26 +14,22 @@ Security Note:
 - For authentication decisions, always use verify_jwt_token() or API keys
 """
 
-import base64
-import binascii
 import hashlib
-import json
 import os
 import logging
 import time
 from collections import OrderedDict
 from dataclasses import dataclass, field
-from typing import Any
 from threading import RLock
 
-import jwt
-from jwt.exceptions import InvalidTokenError, ExpiredSignatureError
-
 from prdiffer.domain.interfaces.protocols import AuthenticationProtocol
-from prdiffer.infrastructure.security.input_validator import InputValidator
+from prdiffer.domain.interfaces.input_validation import InputValidatorProtocol
 from prdiffer.domain.exceptions import AuthenticationError
 from prdiffer.domain.errors import E2002_AUTH_FAILED
 from prdiffer.domain.services.logger import LoggerServiceInterface
+
+from prdiffer.application.components.jwt_handler import JWTHandlerMixin
+from prdiffer.application.components.api_key_manager import APIKeyManagerMixin
 
 
 @dataclass
@@ -42,7 +41,7 @@ class AuthFailureRecord:
     last_failure: float = field(default_factory=time.time)
 
 
-class AuthenticationMiddleware(AuthenticationProtocol):
+class AuthenticationMiddleware(JWTHandlerMixin, APIKeyManagerMixin, AuthenticationProtocol):
     """Component responsible for authentication and authorization.
 
     Features:
@@ -66,7 +65,7 @@ class AuthenticationMiddleware(AuthenticationProtocol):
         lockout_duration: int = DEFAULT_LOCKOUT_DURATION,
         failure_window: int = DEFAULT_FAILURE_WINDOW,
         check_token_expiration: bool = True,
-        input_validator: InputValidator | None = None,
+        input_validator: InputValidatorProtocol | None = None,
     ):
         """Initialize authentication middleware.
 
@@ -78,7 +77,11 @@ class AuthenticationMiddleware(AuthenticationProtocol):
             check_token_expiration: Whether to check JWT token expiration (default: True)
         """
         self._logger = logger or logging.getLogger(__name__)
-        self._input_validator = input_validator or InputValidator()
+        if input_validator is None:
+            from prdiffer.infrastructure.factories.infrastructure_factory import get_infrastructure_factory
+
+            input_validator = get_infrastructure_factory().create_input_validator()
+        self._input_validator = input_validator
 
         self._auth_enabled = os.getenv("MCP_AUTH_ENABLED", "false").lower() in (
             "true",
@@ -345,237 +348,3 @@ class AuthenticationMiddleware(AuthenticationProtocol):
     def is_authentication_enabled(self) -> bool:
         """Check if authentication is enabled."""
         return self._auth_enabled
-
-    def validate_api_key_format(self, api_key: str) -> bool:
-        """Validate API key format before attempting authentication.
-
-        This method provides basic validation to reject obviously invalid
-        API keys before attempting authentication.
-
-        Args:
-            api_key: The API key to validate
-
-        Returns:
-            True if the API key format is valid
-        """
-        if not api_key:
-            return False
-
-        # Check length (API keys should be between 16 and 256 characters)
-        if len(api_key) < 16 or len(api_key) > 256:
-            return False
-
-        if not api_key.isascii() or not api_key.isprintable():
-            return False
-
-        return True
-
-    def validate_token(self, token: str) -> str:
-        """Validate a token format via the centralized input validator.
-
-        Args:
-            token: Token to validate
-
-        Returns:
-            str: Validated token
-
-        Raises:
-            InputSanitizationError: If token format is invalid
-        """
-        return self._input_validator.validate_token(token)
-
-    def add_api_key(self, api_key: str) -> bool:
-        """Add a new API key to the valid keys set.
-
-        This method allows runtime addition of API keys.
-
-        Args:
-            api_key: The API key to add
-
-        Returns:
-            True if the API key was added successfully
-        """
-        if not self.validate_api_key_format(api_key):
-            self._logger.warning("Failed to add API key: Invalid format")
-            return False
-
-        api_key_hash = self._hash_api_key(api_key)
-        if api_key_hash in self._hashed_api_keys:
-            self._logger.warning("API key already exists")
-            return False
-
-        self._hashed_api_keys.add(api_key_hash)
-        self._api_key_count += 1
-        self._logger.info("API key added successfully")
-        return True
-
-    def remove_api_key(self, api_key: str) -> bool:
-        """Remove an API key from the valid keys set.
-
-        Args:
-            api_key: The API key to remove
-
-        Returns:
-            True if the API key was removed successfully
-        """
-        api_key_hash = self._hash_api_key(api_key)
-        if api_key_hash in self._hashed_api_keys:
-            self._hashed_api_keys.remove(api_key_hash)
-            self._api_key_count -= 1
-            self._logger.info("API key removed successfully")
-            return True
-        return False
-
-    def get_configured_api_keys_count(self) -> int:
-        """Get the number of configured API keys."""
-        return self._api_key_count
-
-    def get_status(self) -> dict[str, Any]:
-        """Get authentication status and configuration.
-
-        Returns:
-            Dictionary containing authentication status
-        """
-        return {
-            "authentication_enabled": self._auth_enabled,
-            "api_keys_configured": self._api_key_count,
-            "admin_api_key_configured": self._admin_api_key_hash is not None,
-            "default_client_id": self._default_client_id,
-        }
-
-    @staticmethod
-    def parse_jwt_payload(token: str) -> dict[str, Any] | None:
-        """Parse JWT token payload without verification.
-
-        SECURITY WARNING: This method extracts and decodes the payload from a JWT token
-        WITHOUT performing cryptographic verification. Use this ONLY for extracting
-        metadata like expiration time for logging purposes.
-
-        NEVER use this method for authentication decisions. Always use verify_jwt_token()
-        for any security-critical operations.
-
-        Args:
-            token: The JWT token to parse
-
-        Returns:
-            The decoded payload dictionary, or None if parsing fails
-        """
-        try:
-            parts = token.split(".")
-            if len(parts) != 3:
-                return None
-
-            payload_b64 = parts[1]
-
-            padding = 4 - (len(payload_b64) % 4)
-            if padding != 4:
-                payload_b64 += "=" * padding
-
-            payload_json = base64.urlsafe_b64decode(payload_b64)
-            return json.loads(payload_json)
-        except ValueError, json.JSONDecodeError, binascii.Error:
-            return None
-
-    @staticmethod
-    def verify_jwt_token(
-        token: str,
-        secret: str,
-        algorithms: list[str] | None = None,
-        audience: str | None = None,
-        issuer: str | None = None,
-    ) -> tuple[bool, dict[str, Any] | None, str | None]:
-        """Verify JWT token with signature validation.
-
-        This method performs cryptographic verification of the JWT signature
-        and validates the token's claims (expiration, audience, issuer).
-
-        Use this method for authentication decisions. The parse_jwt_payload()
-        method does NOT verify signatures and should only be used for metadata.
-
-        Args:
-            token: The JWT token to verify
-            secret: The JWT secret key for signature verification
-            algorithms: List of allowed algorithms (default: ["HS256"])
-            audience: Optional audience claim to validate
-            issuer: Optional issuer claim to validate
-
-        Returns:
-            Tuple of (is_valid, payload, error_message) where:
-            - is_valid: True if token is valid and signature verified
-            - payload: Decoded token payload if valid, None otherwise
-            - error_message: None if valid, or error description if invalid
-        """
-        if algorithms is None:
-            algorithms = ["HS256"]
-
-        try:
-            payload = jwt.decode(
-                token,
-                secret,
-                algorithms=algorithms,
-                audience=audience,
-                issuer=issuer,
-                options={
-                    "verify_signature": True,  # Always verify signature
-                    "verify_exp": True,  # Verify expiration
-                    "verify_nbf": True,  # Verify not-before
-                    "verify_aud": audience is not None,
-                    "verify_iss": issuer is not None,
-                },
-            )
-            return True, payload, None
-
-        except ExpiredSignatureError:
-            return False, None, "Token has expired"
-        except jwt.InvalidSignatureError:
-            return False, None, "Invalid token signature"
-        except jwt.InvalidAudienceError:
-            return False, None, "Invalid token audience"
-        except jwt.InvalidIssuerError:
-            return False, None, "Invalid token issuer"
-        except jwt.InvalidAlgorithmError:
-            return False, None, "Invalid token algorithm"
-        except InvalidTokenError as e:
-            return False, None, f"Invalid token: {str(e)}"
-        except Exception as e:
-            return False, None, f"Token verification failed: {str(e)}"
-
-    def is_token_expired(self, token: str, leeway_seconds: int = 60) -> tuple[bool, str | None]:
-        """Check if a token is expired.
-
-        Supports JWT tokens with 'exp' claim and GitHub fine-grained tokens
-        which may have expiration embedded in their metadata.
-
-        Args:
-            token: The token to check
-            leeway_seconds: Grace period in seconds for clock skew (default: 60)
-
-        Returns:
-            Tuple of (is_expired, error_message) where:
-            - is_expired: True if the token is expired or has invalid expiration
-            - error_message: None if valid, or error description if expired
-        """
-        payload = self.parse_jwt_payload(token)
-
-        if payload:
-            exp_claim = payload.get("exp")
-            if exp_claim:
-                current_time = time.time()
-                expiration_time = exp_claim + leeway_seconds
-
-                if current_time >= expiration_time:
-                    time_remaining = expiration_time - current_time
-                    if time_remaining < 0:
-                        expired_for = abs(int(time_remaining))
-                        return True, f"Token expired {expired_for} seconds ago"
-
-                return False, None
-
-        # For non-JWT tokens (simple API keys), check if it's a GitHub fine-grained token
-        # GitHub fine-grained tokens with expiration have the exp_iat and exp claims
-        # We can't verify these without JWT signature, so we accept them as valid
-        # if they appear to be properly formatted
-
-        # If we can't determine expiration, assume valid (don't reject tokens
-        # that don't have clear expiration metadata)
-        return False, None

@@ -6,18 +6,18 @@ Consolidates URL parsing for FastMCPServer and PROperationHandler.
 from prdiffer.domain.exceptions import (
     InvalidURLError,
 )
-from prdiffer.infrastructure.security.input_validator import InputValidator
+from prdiffer.domain.interfaces.input_validation import InputValidatorProtocol
 
 
 def parse_pr_url(
     pr_url: str,
-    input_validator: InputValidator | None = None,
+    input_validator: InputValidatorProtocol | None = None,
 ) -> tuple[str, str, int]:
     """Parse GitHub PR URL to extract repository owner, name, and PR number.
 
     Args:
         pr_url: The GitHub pull request URL to parse
-        input_validator: Optional InputValidator instance. If None, creates one.
+        input_validator: Optional InputValidatorProtocol instance. If None, creates one via factory.
 
     Returns:
         tuple[str, str, int]: (repo_owner, repo_name, pr_number)
@@ -42,6 +42,8 @@ def parse_pr_url(
     pr_url_stripped = pr_url.strip()
     if not pr_url_stripped:
         raise InvalidURLError("PR URL cannot be empty or whitespace-only")
+    if input_validator is None:
+        from prdiffer.infrastructure.factories.infrastructure_factory import get_infrastructure_factory
 
-    validator = input_validator or InputValidator()
-    return validator.validate_github_url(pr_url_stripped)
+        input_validator = get_infrastructure_factory().create_input_validator()
+    return input_validator.validate_github_url(pr_url_stripped)

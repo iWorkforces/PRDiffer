@@ -13,7 +13,7 @@ from prdiffer.domain.services.settings import SettingsServiceInterface
 from prdiffer.domain.services.cache import CacheServiceInterface
 from prdiffer.domain.services.repository_cache import RepositoryCacheServiceInterface
 from prdiffer.domain.services.logger import LoggerServiceInterface
-from prdiffer.infrastructure.security.input_validator import InputValidator
+from prdiffer.domain.interfaces.input_validation import InputValidatorProtocol
 
 
 class WebhookHandler:
@@ -25,7 +25,7 @@ class WebhookHandler:
         cache_service: CacheServiceInterface,
         repository_cache_service: RepositoryCacheServiceInterface,
         logger: LoggerServiceInterface,
-        input_validator: InputValidator,
+        input_validator: InputValidatorProtocol,
     ):
         self._settings_service = settings_service
         self._cache_service = cache_service

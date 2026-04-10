@@ -25,7 +25,7 @@ from prdiffer.infrastructure.logging.exception_utils import (
 )
 from prdiffer.infrastructure.security.input_validator import InputValidator
 from prdiffer.infrastructure.settings import get_settings_service
-from prdiffer.infrastructure.cache.decorators import (
+from prdiffer.infrastructure.cache.cache_decorators import (
     CachingMixin,
     cached_method,
 )

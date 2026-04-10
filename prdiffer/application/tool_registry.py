@@ -20,8 +20,8 @@ from prdiffer.domain.interfaces.protocols import (
     MetricsTrackerProtocol,
     AuthenticationProtocol,
 )
-from prdiffer.infrastructure.security.input_validator import InputValidator
-from prdiffer.infrastructure.utils.coalescing import RequestCoalescingService
+from prdiffer.domain.interfaces.input_validation import InputValidatorProtocol
+from prdiffer.domain.interfaces.request_coalescing import RequestCoalescingProtocol
 from prdiffer.application.utils.pr_url_parser import parse_pr_url
 
 from prdiffer.domain.exceptions import (
@@ -55,8 +55,9 @@ class ToolRegistry:
         rate_limiter: RateLimiterProtocol,
         metrics_tracker: MetricsTrackerProtocol,
         authentication: AuthenticationProtocol | None = None,
-        input_validator: InputValidator | None = None,
-        request_coalescing_service: RequestCoalescingService | None = None,
+        input_validator: InputValidatorProtocol | None = None,
+        request_coalescing_service: RequestCoalescingProtocol | None = None,
+        cache_hit_optimization_enabled: bool = False,
     ):
         self._pr_diff_service = pr_diff_service
         self._cache_service = cache_service
@@ -64,19 +65,18 @@ class ToolRegistry:
         self._github_repository_class = github_repository_class
         self._rate_limiter = rate_limiter
         self._metrics_tracker = metrics_tracker
+        self._cache_hit_optimization_enabled = cache_hit_optimization_enabled
         self._authentication = authentication
 
         if input_validator is None:
-            from prdiffer.infrastructure.security.input_validator import (
-                InputValidator,
-            )
+            from prdiffer.infrastructure.factories.infrastructure_factory import get_infrastructure_factory
 
-            self._input_validator = InputValidator()
+            self._input_validator = get_infrastructure_factory().create_input_validator()
         else:
             self._input_validator = input_validator
 
         if request_coalescing_service is None:
-            from prdiffer.infrastructure.utils.coalescing import (
+            from prdiffer.infrastructure.utils.coalescing_service import (
                 get_request_coalescing_service,
             )
 
@@ -167,6 +167,7 @@ class ToolRegistry:
             use_case = GetPRDiffUseCase(
                 pr_diff_service=self._pr_diff_service,
                 cache_service=self._cache_service,
+                cache_hit_optimization_enabled=self._cache_hit_optimization_enabled,
             )
             result = await use_case.execute(repo_owner=repo_owner, repo_name=repo_name, pr_number=pr_number)
 

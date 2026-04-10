@@ -7,8 +7,10 @@ covering retry logic, circuit breaker integration, and error classification.
 import pytest
 from unittest.mock import patch
 
-from prdiffer.infrastructure.utils.retry import (
+from prdiffer.infrastructure.utils.retry.handler import (
     UnifiedRetryHandler,
+)
+from prdiffer.infrastructure.utils.retry.models import (
     RETRY_EXCEPTIONS,
 )
 
@@ -110,7 +112,7 @@ class TestRetryHandlerCircuitBreaker:
 
         # Circuit breaker should be open now after reaching failure threshold
         # Check the state using the enum value
-        from prdiffer.infrastructure.utils.circuit_breaker.core import CircuitState
+        from prdiffer.infrastructure.utils.circuit_breaker_core import CircuitState
 
         assert retry_handler_with_circuit_breaker._circuit_breaker.state == CircuitState.OPEN
 

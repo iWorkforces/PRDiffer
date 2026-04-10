@@ -5,7 +5,7 @@ import time
 import logging
 from typing import Any, TypedDict
 from prdiffer.domain.entities.file_patch import FilePatchInfo
-from prdiffer.domain.services import DiffServiceInterface
+from prdiffer.domain.services.diff import DiffServiceInterface
 from prdiffer.infrastructure.logging.console_logger import get_logger
 from prdiffer.infrastructure.logging.exception_utils import (
     sanitize_exception_for_logging,

@@ -7,7 +7,7 @@ that cache PRDiffRepositoryInterface instances to avoid repeated initialization.
 from abc import ABC, abstractmethod
 from typing import Any
 
-from prdiffer.domain.repositories import PRDiffRepositoryInterface
+from prdiffer.domain.repositories.pr_diff_repository import PRDiffRepositoryInterface
 
 
 class RepositoryCacheServiceInterface(ABC):

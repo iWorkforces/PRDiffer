@@ -26,7 +26,7 @@ from prdiffer.application.components.pr_operation_handler import PROperationHand
 from prdiffer.application.components.health_monitor import HealthMonitor
 from prdiffer.application.components.server_configuration import ServerConfiguration
 from prdiffer.application.components.authentication import AuthenticationMiddleware
-from prdiffer.infrastructure.security.input_validator import InputValidator
+from prdiffer.domain.interfaces.input_validation import InputValidatorProtocol
 
 
 class ApplicationFactory(ApplicationFactoryInterface):
@@ -47,10 +47,12 @@ class ApplicationFactory(ApplicationFactoryInterface):
         pattern_matching_service: PatternMatchingServiceInterface,
         retry_service: RetryServiceInterface,
         logger: LoggerServiceInterface,
-        input_validator: Any = None,
+        input_validator: InputValidatorProtocol | None = None,
     ) -> PROperationHandlerProtocol:
         if input_validator is None:
-            input_validator = InputValidator()
+            from prdiffer.infrastructure.factories.infrastructure_factory import get_infrastructure_factory
+
+            input_validator = get_infrastructure_factory().create_input_validator()
         return PROperationHandler(
             github_repository_class=github_repository_class,
             cache_service=cache_service,

@@ -3,8 +3,8 @@ from typing import Any
 import os
 from threading import RLock
 from dynaconf import Dynaconf
-from prdiffer.domain.services import SettingsServiceInterface
-from prdiffer.domain.config import GitHubConfig
+from prdiffer.domain.services.settings import SettingsServiceInterface
+from prdiffer.domain.config.github_config import GitHubConfig
 
 logger = logging.getLogger(__name__)
 

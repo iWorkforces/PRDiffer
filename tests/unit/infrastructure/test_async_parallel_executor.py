@@ -8,12 +8,14 @@ import pytest
 import asyncio
 from unittest.mock import Mock, AsyncMock
 
-from prdiffer.infrastructure.utils.parallel import (
+from prdiffer.infrastructure.utils.parallel.executor import (
     AsyncParallelExecutor,
-    BatchResult,
-    ErrorStrategy,
     get_async_parallel_executor,
     create_async_parallel_executor,
+)
+from prdiffer.infrastructure.utils.parallel.results import (
+    BatchResult,
+    ErrorStrategy,
 )
 
 

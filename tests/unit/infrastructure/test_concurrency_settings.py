@@ -108,8 +108,10 @@ class TestConcurrencySettings:
 
     def test_async_parallel_executor_configurable(self):
         """Verify that AsyncParallelExecutor can be configured with different concurrency values."""
-        from prdiffer.infrastructure.utils.parallel import (
+        from prdiffer.infrastructure.utils.parallel.executor import (
             AsyncParallelExecutor,
+        )
+        from prdiffer.infrastructure.utils.parallel.results import (
             ErrorStrategy,
         )
 

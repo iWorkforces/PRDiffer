@@ -3,7 +3,7 @@
 Tests the PullRequest dataclass and PRState enum which represent GitHub pull requests.
 """
 
-from prdiffer.domain.entities import PullRequest, PRState
+from prdiffer.domain.entities.pull_request import PullRequest, PRState
 
 
 class TestPRState:

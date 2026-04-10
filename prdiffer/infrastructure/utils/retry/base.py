@@ -6,7 +6,7 @@ from abc import abstractmethod
 from collections.abc import Callable
 from typing import Any
 
-from prdiffer.domain.services import RetryServiceInterface
+from prdiffer.domain.services.retry import RetryServiceInterface
 from prdiffer.infrastructure.utils.logger_factory import LazyLoggerMixin
 from prdiffer.infrastructure.utils.retry_logger import (
     log_retry_attempt,

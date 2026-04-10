@@ -1,6 +1,8 @@
 """GitHub repository implementation for PR diff data retrieval (Refactored).
 
 This is the refactored version using composition with extracted components.
+PR operations are in github_repository_operations.py.
+Utility helpers are in github_repository_utils.py.
 """
 
 from __future__ import annotations
@@ -21,7 +23,7 @@ from github.GithubException import (
 import asyncer
 from prdiffer.domain.entities.pr_diff import PRDiff
 from prdiffer.domain.entities.file_diff_response import FileDiffResponse
-from prdiffer.domain.repositories import PRDiffRepositoryInterface
+from prdiffer.domain.repositories.pr_diff_repository import PRDiffRepositoryInterface
 from prdiffer.domain.services.logger import LoggerServiceInterface, LogLevel
 from prdiffer.domain.exceptions import PRDifferException
 from prdiffer.domain.errors import E5009_CONFIGURATION_ERROR
@@ -39,8 +41,14 @@ from prdiffer.infrastructure.utils.pattern_matcher import get_pattern_matcher
 from prdiffer.infrastructure.utils.diff_utils import get_diff_utils
 from prdiffer.infrastructure.services.pr_diff_service import GitHubPRDiffService
 
+from prdiffer.infrastructure.github_repository_operations import GitHubPROperationsMixin
+from prdiffer.infrastructure.github_repository_utils import (
+    log_filtered_files,
+    sanitize_filename_for_logging,
+)
 
-class GitHubPRDiffRepository(PRDiffRepositoryInterface):
+
+class GitHubPRDiffRepository(GitHubPROperationsMixin, PRDiffRepositoryInterface):
     """GitHub repository implementation for PR diff data retrieval.
 
     This refactored class uses composition with extracted components for
@@ -158,7 +166,8 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
         )
 
         if self._parallel_diff_generation_enabled and self.diff_parallel_enabled:
-            from prdiffer.infrastructure.utils.parallel import AsyncParallelExecutor, ErrorStrategy
+            from prdiffer.infrastructure.utils.parallel.executor import AsyncParallelExecutor
+            from prdiffer.infrastructure.utils.parallel.results import ErrorStrategy
 
             self._parallel_executor = AsyncParallelExecutor(
                 max_concurrent=self.diff_max_workers,
@@ -293,212 +302,6 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
         """
         return await self._get_pr_diff_sync()
 
-    async def approve_pr_with_comment(self, pr_url: str, compliment: str) -> str:
-        """Approve a GitHub PR with a compliment comment.
-
-        This method:
-        1. Parses the PR URL to extract owner, repo, and PR number
-        2. Validates PR exists and is accessible
-        3. Calls pr.create_review() with event="APPROVE" and the compliment as body
-        4. Returns success message or raises exceptions loudly on failures
-
-        Args:
-            pr_url: The full GitHub PR URL (e.g., https://github.com/owner/repo/pull/123)
-            compliment: The compliment text to include in the approval review
-
-        Returns:
-            str: Success message indicating PR was approved
-
-        Raises:
-            InvalidURLError: If PR URL format is invalid
-            RuntimeError: If GitHub objects failed to initialize
-            GithubException: If PR approval fails (404, 403, rate limit, etc.)
-        """
-
-        if not compliment:
-            raise ValueError("Compliment cannot be empty")
-
-        safe_compliment = self._input_validator.sanitize_for_logging(compliment, max_length=500)
-
-        repo_owner, repo_name, pr_number = self._input_validator.validate_github_url(pr_url)
-
-        if repo_owner != self._repo_owner or repo_name != self._repo_name:
-            self._logger.warning(
-                f"PR URL components do not match repository instance: expected {self._repo_owner}/{self._repo_name}, got {repo_owner}/{repo_name}",
-                pr_url=pr_url[:100],
-            )
-
-        if pr_number != self._pr_number:
-            self._logger.warning(
-                f"PR number does not match repository instance: expected {self._pr_number}, got {pr_number}",
-                pr_url=pr_url[:100],
-            )
-
-        self._logger.info(
-            f"Approving PR #{pr_number} in {repo_owner}/{repo_name}",
-            pr_number=pr_number,
-            repo=repo_name,
-            owner=repo_owner,
-            compliment=safe_compliment,
-        )
-
-        await self._initialize_github_objects()
-
-        if self._pull_request is None:
-            raise RuntimeError(
-                f"Failed to access pull request #{pr_number} in repository {repo_owner}/{repo_name} - pull request may not exist or be inaccessible"
-            )
-
-        try:
-            pull_request = self._pull_request
-            review = await asyncer.asyncify(pull_request.create_review)(
-                event="APPROVE",
-                body=compliment,
-            )
-
-            self._logger.info(
-                f"Successfully approved PR #{pr_number}",
-                pr_number=pr_number,
-                review_id=review.id if hasattr(review, "id") else "unknown",
-            )
-
-            return f"Successfully approved PR #{pr_number} in {repo_owner}/{repo_name}"
-
-        except GithubException as e:
-            sanitized = sanitize_exception_for_logging(e)
-
-            if "404" in str(e).lower() or "not found" in str(e).lower():
-                self._logger.error(
-                    f"Pull request #{pr_number} not found in {repo_owner}/{repo_name}",
-                    extra=sanitized,
-                    pr_number=pr_number,
-                )
-                raise RuntimeError(f"Pull request #{pr_number} not found in repository {repo_owner}/{repo_name}") from e
-
-            if "403" in str(e).lower() or "forbidden" in str(e).lower():
-                self._logger.error(
-                    f"Permission denied for PR #{pr_number} - insufficient permissions",
-                    extra=sanitized,
-                    pr_number=pr_number,
-                )
-                raise RuntimeError(f"Insufficient permissions to approve PR #{pr_number} - ensure token has 'repo' scope and write access") from e
-
-            if "429" in str(e).lower() or "rate limit" in str(e).lower():
-                self._logger.warning(
-                    f"GitHub API rate limit exceeded while approving PR #{pr_number}",
-                    extra=sanitized,
-                    pr_number=pr_number,
-                )
-                raise RuntimeError("GitHub API rate limit exceeded - please retry later") from e
-
-            self._logger.error(
-                f"GitHub API error while approving PR #{pr_number}",
-                extra=sanitized,
-                pr_number=pr_number,
-            )
-            raise RuntimeError(f"GitHub API error while approving PR #{pr_number}") from e
-
-    async def update_pr_description(self, pr_url: str, description: str) -> str:
-        """Update a GitHub PR description/body.
-
-        This method:
-        1. Parses the PR URL to extract owner, repo, and PR number
-        2. Validates PR exists and is accessible
-        3. Calls pr.edit(body=description) to update the description
-        4. Returns success message or raises exceptions loudly on failures
-
-        Args:
-            pr_url: The full GitHub PR URL (e.g., https://github.com/owner/repo/pull/123)
-            description: The new description text to set on the PR
-
-        Returns:
-            str: Success message indicating PR description was updated
-
-        Raises:
-            InvalidURLError: If PR URL format is invalid
-            RuntimeError: If GitHub objects failed to initialize
-            GithubException: If PR update fails (404, 403, rate limit, etc.)
-        """
-
-        if not description:
-            raise ValueError("Description cannot be empty")
-
-        safe_description = self._input_validator.sanitize_for_logging(description, max_length=500)
-
-        repo_owner, repo_name, pr_number = self._input_validator.validate_github_url(pr_url)
-
-        if repo_owner != self._repo_owner or repo_name != self._repo_name:
-            self._logger.warning(
-                f"PR URL components do not match repository instance: expected {self._repo_owner}/{self._repo_name}, got {repo_owner}/{repo_name}",
-                pr_url=pr_url[:100],
-            )
-
-        if pr_number != self._pr_number:
-            self._logger.warning(
-                f"PR number does not match repository instance: expected {self._pr_number}, got {pr_number}",
-                pr_url=pr_url[:100],
-            )
-
-        self._logger.info(
-            f"Updating description for PR #{pr_number} in {repo_owner}/{repo_name}",
-            pr_number=pr_number,
-            repo=repo_name,
-            owner=repo_owner,
-            description_preview=safe_description,
-        )
-
-        await self._initialize_github_objects()
-
-        if self._pull_request is None:
-            raise RuntimeError(
-                f"Failed to access pull request #{pr_number} in repository {repo_owner}/{repo_name} - pull request may not exist or be inaccessible"
-            )
-
-        try:
-            pull_request = self._pull_request
-            await asyncer.asyncify(pull_request.edit)(body=description)
-
-            self._logger.info(
-                f"Successfully updated description for PR #{pr_number}",
-                pr_number=pr_number,
-            )
-
-            return f"Successfully updated description for PR #{pr_number} in {repo_owner}/{repo_name}"
-
-        except GithubException as e:
-            sanitized = sanitize_exception_for_logging(e)
-
-            if "404" in str(e).lower() or "not found" in str(e).lower():
-                self._logger.error(
-                    f"Pull request #{pr_number} not found in {repo_owner}/{repo_name}",
-                    extra=sanitized,
-                    pr_number=pr_number,
-                )
-                raise RuntimeError(f"Pull request #{pr_number} not found in repository {repo_owner}/{repo_name}") from e
-
-            if "403" in str(e).lower() or "forbidden" in str(e).lower():
-                self._logger.error(
-                    f"Permission denied for PR #{pr_number} - insufficient permissions",
-                    extra=sanitized,
-                    pr_number=pr_number,
-                )
-                raise RuntimeError(f"Insufficient permissions to update PR #{pr_number} - ensure token has 'repo' scope and write access") from e
-
-            if "429" in str(e).lower() or "rate limit" in str(e).lower():
-                self._logger.warning(
-                    f"GitHub API rate limit exceeded while updating PR #{pr_number}",
-                    extra=sanitized,
-                    pr_number=pr_number,
-                )
-                raise RuntimeError("GitHub API rate limit exceeded - please retry later") from e
-
-            self._logger.error(
-                f"GitHub API error while updating description for PR #{pr_number}",
-                extra=sanitized,
-                pr_number=pr_number,
-            )
-            raise RuntimeError(f"GitHub API error while updating description for PR #{pr_number}") from e
-
     async def _get_latest_commit_sha_sync(self) -> str:
         await self._initialize_github_objects()
 
@@ -597,34 +400,12 @@ class GitHubPRDiffRepository(PRDiffRepositoryInterface):
         return base_sha, head_sha
 
     def _sanitize_filename_for_logging(self, filename: str) -> str:
-        """Sanitize a filename for safe logging.
-
-        This prevents log injection attacks through malicious file names.
-
-        Args:
-            filename: The filename to sanitize
-
-        Returns:
-            str: A sanitized filename safe for logging
-        """
-        return self._input_validator.sanitize_for_logging(filename, max_length=200)
+        """Sanitize a filename for safe logging."""
+        return sanitize_filename_for_logging(self._input_validator, filename)
 
     def _log_filtered_files(self, original_files: list[File], filtered_files: list[File]) -> None:
         """Log information about filtered files with sanitized names."""
-        try:
-            # Sanitize file names before logging to prevent log injection
-            original_names = [self._sanitize_filename_for_logging(file.filename) for file in original_files]
-            filtered_names = [self._sanitize_filename_for_logging(file.filename) for file in filtered_files]
-            self._logger.info(
-                "Filtered out [ignore] files for pull request:",
-                extra={"files": original_names, "filtered_files": filtered_names},
-            )
-        except Exception as e:
-            # Log warning instead of silently swallowing exceptions
-            self._logger.warning(
-                f"Failed to log filtered files: {e}",
-                error_type=type(e).__name__,
-            )
+        log_filtered_files(self._logger, self._input_validator, original_files, filtered_files)
 
 
 _repository_cache: dict[str, "GitHubPRDiffRepository"] = {}

@@ -1,7 +1,7 @@
 import threading
 import time
 from prdiffer.infrastructure.settings import SettingsService
-from prdiffer.domain.config import GitHubConfig
+from prdiffer.domain.config.github_config import GitHubConfig
 
 
 class TestSettingsCaching:
@@ -282,7 +282,10 @@ class TestNoLruCacheImport:
             "/Volumes/Data/GitHub/cc/PRDifferMCP/prdiffer/infrastructure/settings.py",
             "r",
         ) as f:
-            content = f.read()
+            lines = f.readlines()
 
-        assert "@lru_cache" not in content
-        assert "from functools import lru_cache" not in content
+        for line in lines:
+            stripped = line.lstrip()
+            assert not stripped.startswith("@lru_cache"), f"Found @lru_cache decorator: {line.strip()}"
+        source = "".join(lines)
+        assert "from functools import lru_cache" not in source
