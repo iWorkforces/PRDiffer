@@ -16,7 +16,7 @@ from prdiffer.domain.exceptions import (
     ValidationError,
     GitHubAPIError,
 )
-from prdiffer.infrastructure.security.input_validator import InputValidator
+from prdiffer.domain.interfaces.input_validation import InputValidatorProtocol
 from prdiffer.application.utils.pr_url_parser import parse_pr_url
 from prdiffer.domain.errors import (
     E1001_INVALID_URL,
@@ -31,13 +31,17 @@ class PROperationHandler(PROperationHandlerProtocol):
         cache_service: CacheServiceInterface,
         repository_cache_service: RepositoryCacheServiceInterface,
         logger: LoggerServiceInterface,
-        input_validator: InputValidator | None = None,
+        input_validator: InputValidatorProtocol | None = None,
     ):
         self._github_repository_class = github_repository_class
         self._cache_service = cache_service
         self._repository_cache_service = repository_cache_service
         self._logger = logger
-        self._input_validator = input_validator or InputValidator()
+        if input_validator is None:
+            from prdiffer.infrastructure.factories.infrastructure_factory import get_infrastructure_factory
+
+            input_validator = get_infrastructure_factory().create_input_validator()
+        self._input_validator = input_validator
 
     async def get_pr_diff(self, pr_url: str) -> dict[str, Any]:
         """Get PR diff information.

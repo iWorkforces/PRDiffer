@@ -9,8 +9,8 @@ from prdiffer.domain.services.repository_cache import RepositoryCacheServiceInte
 from prdiffer.domain.services.logger import LoggerServiceInterface
 from typing import Any
 
-from prdiffer.infrastructure.factories import get_infrastructure_factory
-from prdiffer.application.factories import get_application_factory
+from prdiffer.infrastructure.factories.infrastructure_factory import get_infrastructure_factory
+from prdiffer.application.factories.application_factory import get_application_factory
 
 
 def create_mcp_server(
@@ -58,15 +58,12 @@ def create_mcp_server(
         logger=logger,
     )
 
-    from prdiffer.infrastructure.security.input_validator import InputValidator
-    from prdiffer.infrastructure.utils.coalescing import (
-        get_request_coalescing_service,
-    )
-
     if pr_diff_service is None:
         pr_diff_service = infrastructure_factory.create_pr_diff_service()
 
-    input_validator_instance = InputValidator()
+    input_validator_instance = infrastructure_factory.create_input_validator()
+    from prdiffer.infrastructure.utils.coalescing_service import get_request_coalescing_service
+
     request_coalescing_instance = get_request_coalescing_service()
 
     return FastMCPServer(

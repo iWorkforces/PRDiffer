@@ -17,8 +17,8 @@ from prdiffer.domain.interfaces.protocols import (
     ServerConfigurationProtocol,
     AuthenticationProtocol,
 )
-from prdiffer.infrastructure.security.input_validator import InputValidator
-from prdiffer.infrastructure.utils.coalescing import RequestCoalescingService
+from prdiffer.domain.interfaces.input_validation import InputValidatorProtocol
+from prdiffer.domain.interfaces.request_coalescing import RequestCoalescingProtocol
 
 from prdiffer.application.tool_registry import ToolRegistry
 from prdiffer.application.webhook_handler import WebhookHandler
@@ -45,8 +45,8 @@ class FastMCPServer:
         health_monitor: HealthMonitorProtocol,
         server_configuration: ServerConfigurationProtocol,
         authentication: AuthenticationProtocol | None = None,
-        input_validator: InputValidator | None = None,
-        request_coalescing_service: RequestCoalescingService | None = None,
+        input_validator: InputValidatorProtocol | None = None,
+        request_coalescing_service: RequestCoalescingProtocol | None = None,
     ):
         self._settings_service = settings_service
         self._cache_service = cache_service
@@ -71,16 +71,14 @@ class FastMCPServer:
             self._authentication = authentication
 
         if input_validator is None:
-            from prdiffer.infrastructure.security.input_validator import (
-                InputValidator,
-            )
+            from prdiffer.infrastructure.factories.infrastructure_factory import get_infrastructure_factory
 
-            self._input_validator = InputValidator()
+            self._input_validator = get_infrastructure_factory().create_input_validator()
         else:
             self._input_validator = input_validator
 
         if request_coalescing_service is None:
-            from prdiffer.infrastructure.utils.coalescing import (
+            from prdiffer.infrastructure.utils.coalescing_service import (
                 get_request_coalescing_service,
             )
 
@@ -102,6 +100,8 @@ class FastMCPServer:
         self._register_endpoints_and_tools()
 
     def _initialize_components(self) -> None:
+        cache_hit_optimization_enabled: bool = self._settings_service.get("performance.cache_hit_optimization_enabled", False)
+
         self._tool_registry = ToolRegistry(
             pr_diff_service=self._pr_diff_service,
             cache_service=self._cache_service,
@@ -112,6 +112,7 @@ class FastMCPServer:
             authentication=self._authentication,
             input_validator=self._input_validator,
             request_coalescing_service=self._request_coalescing,
+            cache_hit_optimization_enabled=cache_hit_optimization_enabled,
         )
 
         self._webhook_handler = WebhookHandler(
