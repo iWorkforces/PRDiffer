@@ -18,6 +18,7 @@ from prdiffer.domain.services.diff import DiffServiceInterface
 from prdiffer.domain.services.pattern_matching import PatternMatchingServiceInterface
 from prdiffer.domain.services.retry import RetryServiceInterface
 from prdiffer.domain.services.pr_diff_service import PRDiffServiceInterface
+from prdiffer.domain.interfaces.input_validation import InputValidatorProtocol
 
 
 class InfrastructureFactoryInterface(ABC):
@@ -57,4 +58,8 @@ class InfrastructureFactoryInterface(ABC):
 
     @abstractmethod
     def create_pr_diff_service(self) -> PRDiffServiceInterface:
+        pass
+
+    @abstractmethod
+    def create_input_validator(self) -> InputValidatorProtocol:
         pass

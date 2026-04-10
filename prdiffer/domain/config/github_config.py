@@ -171,3 +171,23 @@ class GitHubConfig(GitHubConfigInterface):
     def should_process_file(self, filename: str) -> bool:
         """Check if a file should be processed (not ignored and has valid extension)."""
         return not self.should_ignore_file(filename) and self.has_valid_extension(filename)
+
+    @property
+    def should_use_circuit_breaker(self) -> bool:
+        """Check if circuit breaker should be used."""
+        return self.circuit_breaker_enabled
+
+    @property
+    def should_use_adaptive_retry(self) -> bool:
+        """Check if adaptive retry should be used."""
+        return self.adaptive_retry_enabled
+
+    @property
+    def should_track_api_health(self) -> bool:
+        """Check if API health should be tracked."""
+        return self.api_health_tracking
+
+    @property
+    def should_use_parallel_diff(self) -> bool:
+        """Check if parallel diff processing should be used."""
+        return self.diff_parallel_enabled

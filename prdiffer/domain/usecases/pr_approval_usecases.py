@@ -45,6 +45,9 @@ class ApprovePRUseCase:
         if not compliment:
             raise ValidationError("Compliment cannot be empty", error_code=E1001_INVALID_URL)
 
+        if not isinstance(compliment, str):
+            raise ValidationError("Compliment must be a string", error_code=E1001_INVALID_URL)
+
         result = await self._pr_diff_repository.approve_pr_with_comment(
             pr_url=pr_url,
             compliment=compliment,
