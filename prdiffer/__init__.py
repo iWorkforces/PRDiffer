@@ -3,10 +3,3 @@
 This package provides a Model Context Protocol (MCP) server that enables
 AI assistants to analyze GitHub pull requests with comprehensive diff context.
 """
-
-from prdiffer.version import __version__
-
-# Export main components for programmatic access
-from prdiffer.server import main
-
-__all__ = ["main", "__version__"]
