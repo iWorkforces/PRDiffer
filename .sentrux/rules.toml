@@ -1,0 +1,30 @@
+[constraints]
+max_cycles = 0
+max_cc = 25
+max_fn_lines = 150
+no_god_files = true
+
+[[layers]]
+name = "domain"
+paths = ["prdiffer/domain/*"]
+order = 2
+
+[[layers]]
+name = "application"
+paths = ["prdiffer/application/*"]
+order = 1
+
+[[layers]]
+name = "infrastructure"
+paths = ["prdiffer/infrastructure/*"]
+order = 0
+
+[[boundaries]]
+from = "prdiffer/domain/*"
+to = "prdiffer/infrastructure/*"
+reason = "Domain must remain pure — no infrastructure imports"
+
+[[boundaries]]
+from = "prdiffer/domain/*"
+to = "prdiffer/application/*"
+reason = "Domain must not depend on application layer"
