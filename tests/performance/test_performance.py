@@ -9,9 +9,9 @@ import pytest
 from collections import deque
 
 from prdiffer.infrastructure.utils.api_health_tracker import APIHealthTracker
-from prdiffer.infrastructure.cache.decorators import CachingMixin, cached_method
+from prdiffer.infrastructure.cache.cache_decorators import CachingMixin, cached_method
 from prdiffer.infrastructure.security.input_validator import InputValidator
-from prdiffer.infrastructure.utils.coalescing import RequestCoalescingService
+from prdiffer.infrastructure.utils.coalescing_service import RequestCoalescingService
 from prdiffer.application.components.authentication import AuthenticationMiddleware
 
 

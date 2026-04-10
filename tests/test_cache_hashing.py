@@ -7,7 +7,7 @@ including configuration, reverse mapping, and logging behavior.
 import hashlib
 import pytest
 from unittest.mock import Mock, patch
-from prdiffer.infrastructure.cache import CacheService
+from prdiffer.infrastructure.cache.service import CacheService
 from prdiffer.domain.entities.pr_diff import PRDiff
 from prdiffer.domain.exceptions import ValidationError
 

@@ -1,5 +1,6 @@
-import pytest
+from typing import Any
 
+import pytest
 from prdiffer.application.utils.pr_url_parser import parse_pr_url
 from prdiffer.domain.exceptions import (
     InvalidURLError,
@@ -49,7 +50,8 @@ class TestParsePRURL:
 
     def test_invalid_pr_url_none(self):
         with pytest.raises(InvalidURLError, match="must be a string"):
-            parse_pr_url(None)  # type: ignore[arg-type]
+            bad_input: Any = None
+            parse_pr_url(bad_input)
 
     def test_invalid_pr_url_empty_string(self):
         with pytest.raises(InvalidURLError, match="empty or whitespace-only"):
@@ -128,15 +130,18 @@ class TestParsePRURL:
 
     def test_pr_url_non_string_input(self):
         with pytest.raises(InvalidURLError, match="must be a string"):
-            parse_pr_url(12345)  # type: ignore[arg-type]
+            bad_input: Any = 12345
+            parse_pr_url(bad_input)
 
     def test_pr_url_dict_input(self):
         with pytest.raises(InvalidURLError, match="must be a string"):
-            parse_pr_url({"url": "https://github.com/owner/repo/pull/123"})  # type: ignore[arg-type]
+            bad_input: Any = {"url": "https://github.com/owner/repo/pull/123"}
+            parse_pr_url(bad_input)
 
     def test_pr_url_list_input(self):
         with pytest.raises(InvalidURLError, match="must be a string"):
-            parse_pr_url(["https://github.com/owner/repo/pull/123"])  # type: ignore[arg-type]
+            bad_input: Any = ["https://github.com/owner/repo/pull/123"]
+            parse_pr_url(bad_input)
 
     def test_real_world_pr_url(self):
         result = parse_pr_url("https://github.com/facebook/react/pull/12345")

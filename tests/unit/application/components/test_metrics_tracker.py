@@ -306,7 +306,7 @@ class TestMetricsTrackerCalculateSuccessRate:
         """Test success rate with no requests."""
         tracker = MetricsTracker()
 
-        rate = tracker._calculate_success_rate()
+        rate = tracker._calculate_success_rate_safe(0, 0)
 
         assert rate == 0.0
 
@@ -317,7 +317,7 @@ class TestMetricsTrackerCalculateSuccessRate:
         tracker.track_request("op", success=True, execution_time=0.1)
         tracker.track_request("op", success=True, execution_time=0.1)
 
-        rate = tracker._calculate_success_rate()
+        rate = tracker._calculate_success_rate_safe(2, 2)
 
         assert rate == 100.0
 
@@ -328,7 +328,7 @@ class TestMetricsTrackerCalculateSuccessRate:
         tracker.track_request("op", success=True, execution_time=0.1)
         tracker.track_request("op", success=False, execution_time=0.1)
 
-        rate = tracker._calculate_success_rate()
+        rate = tracker._calculate_success_rate_safe(1, 2)
 
         assert rate == 50.0
 

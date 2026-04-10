@@ -10,7 +10,8 @@ from prdiffer.infrastructure.github.mappers import (
     map_pygithub_repository_to_domain,
     map_pygithub_pr_to_domain,
 )
-from prdiffer.domain.entities import Repository, PullRequest, PRState
+from prdiffer.domain.entities.repository import Repository
+from prdiffer.domain.entities.pull_request import PullRequest, PRState
 
 
 class TestMapPyGithubRepositoryToDomain:

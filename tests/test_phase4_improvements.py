@@ -6,7 +6,7 @@ import anyio
 
 class TestGitHubConfig:
     def test_default_values(self):
-        from prdiffer.domain.config import GitHubConfig
+        from prdiffer.domain.config.github_config import GitHubConfig
 
         config = GitHubConfig()
 
@@ -18,7 +18,7 @@ class TestGitHubConfig:
         assert config.diff_parallel_enabled is True
 
     def test_from_dict(self):
-        from prdiffer.domain.config import GitHubConfig
+        from prdiffer.domain.config.github_config import GitHubConfig
 
         data = {
             "rate_limit": 1000,
@@ -37,7 +37,7 @@ class TestGitHubConfig:
         assert config.valid_extensions == (".py", ".js")
 
     def test_to_dict(self):
-        from prdiffer.domain.config import GitHubConfig
+        from prdiffer.domain.config.github_config import GitHubConfig
 
         config = GitHubConfig(
             rate_limit=2000,
@@ -54,7 +54,7 @@ class TestGitHubConfig:
         assert data["valid_extensions"] == [".py"]
 
     def test_with_overrides(self):
-        from prdiffer.domain.config import GitHubConfig
+        from prdiffer.domain.config.github_config import GitHubConfig
 
         original = GitHubConfig(rate_limit=1000)
         overridden = original.with_overrides(rate_limit=2000, timeout=60)
@@ -64,7 +64,7 @@ class TestGitHubConfig:
         assert overridden.timeout == 60
 
     def test_immutability(self):
-        from prdiffer.domain.config import GitHubConfig
+        from prdiffer.domain.config.github_config import GitHubConfig
 
         config = GitHubConfig()
 
@@ -73,7 +73,7 @@ class TestGitHubConfig:
             setattr(config, "rate_limit", 9999)
 
     def test_should_ignore_file(self):
-        from prdiffer.domain.config import GitHubConfig
+        from prdiffer.domain.config.github_config import GitHubConfig
 
         config = GitHubConfig(ignore_patterns=("*.lock", "node_modules/", "*.log"))
 
@@ -84,7 +84,7 @@ class TestGitHubConfig:
         assert config.should_ignore_file("main.py") is False
 
     def test_has_valid_extension(self):
-        from prdiffer.domain.config import GitHubConfig
+        from prdiffer.domain.config.github_config import GitHubConfig
 
         config = GitHubConfig(valid_extensions=(".py", ".js", ".ts"))
 
@@ -95,14 +95,14 @@ class TestGitHubConfig:
         assert config.has_valid_extension("README") is False
 
     def test_has_valid_extension_empty(self):
-        from prdiffer.domain.config import GitHubConfig
+        from prdiffer.domain.config.github_config import GitHubConfig
 
         config = GitHubConfig(valid_extensions=())
 
         assert config.has_valid_extension("anything.xyz") is True
 
     def test_should_process_file(self):
-        from prdiffer.domain.config import GitHubConfig
+        from prdiffer.domain.config.github_config import GitHubConfig
 
         config = GitHubConfig(
             ignore_patterns=("*.lock", "node_modules/"),
@@ -114,7 +114,7 @@ class TestGitHubConfig:
         assert config.should_process_file("style.css") is False  # Invalid extension
 
     def test_helper_properties(self):
-        from prdiffer.domain.config import GitHubConfig
+        from prdiffer.domain.config.github_config import GitHubConfig
 
         config = GitHubConfig(
             circuit_breaker_enabled=True,
@@ -132,7 +132,7 @@ class TestGitHubConfig:
 class TestSettingsServiceGitHubConfig:
     def test_get_github_config_returns_config_object(self):
         from prdiffer.infrastructure.settings import SettingsService
-        from prdiffer.domain.config import GitHubConfig
+        from prdiffer.domain.config.github_config import GitHubConfig
 
         service = SettingsService()
         config = service.get_github_config()
@@ -145,7 +145,7 @@ class TestSettingsServiceGitHubConfig:
 class TestAsyncParallelExecutor:
     @pytest.mark.asyncio
     async def test_execute_batch_basic(self):
-        from prdiffer.infrastructure.utils.parallel import (
+        from prdiffer.infrastructure.utils.parallel.executor import (
             AsyncParallelExecutor,
         )
 
@@ -159,7 +159,7 @@ class TestAsyncParallelExecutor:
 
     @pytest.mark.asyncio
     async def test_execute_batch_empty(self):
-        from prdiffer.infrastructure.utils.parallel import (
+        from prdiffer.infrastructure.utils.parallel.executor import (
             AsyncParallelExecutor,
         )
 
@@ -173,8 +173,10 @@ class TestAsyncParallelExecutor:
 
     @pytest.mark.asyncio
     async def test_execute_batch_with_errors_ignore(self):
-        from prdiffer.infrastructure.utils.parallel import (
+        from prdiffer.infrastructure.utils.parallel.executor import (
             AsyncParallelExecutor,
+        )
+        from prdiffer.infrastructure.utils.parallel.results import (
             ErrorStrategy,
         )
 
@@ -190,8 +192,10 @@ class TestAsyncParallelExecutor:
 
     @pytest.mark.asyncio
     async def test_execute_batch_with_errors_raise(self):
-        from prdiffer.infrastructure.utils.parallel import (
+        from prdiffer.infrastructure.utils.parallel.executor import (
             AsyncParallelExecutor,
+        )
+        from prdiffer.infrastructure.utils.parallel.results import (
             ErrorStrategy,
         )
 
@@ -205,7 +209,7 @@ class TestAsyncParallelExecutor:
 
     @pytest.mark.asyncio
     async def test_execute_batch_with_context(self):
-        from prdiffer.infrastructure.utils.parallel import (
+        from prdiffer.infrastructure.utils.parallel.executor import (
             AsyncParallelExecutor,
         )
 
@@ -219,7 +223,7 @@ class TestAsyncParallelExecutor:
 
     @pytest.mark.asyncio
     async def test_execute_batch_with_progress(self):
-        from prdiffer.infrastructure.utils.parallel import (
+        from prdiffer.infrastructure.utils.parallel.executor import (
             AsyncParallelExecutor,
         )
 
@@ -240,7 +244,7 @@ class TestAsyncParallelExecutor:
 
     @pytest.mark.asyncio
     async def test_execute_batch_detailed(self):
-        from prdiffer.infrastructure.utils.parallel import (
+        from prdiffer.infrastructure.utils.parallel.executor import (
             AsyncParallelExecutor,
         )
 
@@ -259,7 +263,7 @@ class TestAsyncParallelExecutor:
 
     @pytest.mark.asyncio
     async def test_concurrency_limit(self):
-        from prdiffer.infrastructure.utils.parallel import (
+        from prdiffer.infrastructure.utils.parallel.executor import (
             AsyncParallelExecutor,
         )
 
@@ -284,8 +288,10 @@ class TestAsyncParallelExecutor:
         assert max_concurrent_observed <= 3
 
     def test_get_stats(self):
-        from prdiffer.infrastructure.utils.parallel import (
+        from prdiffer.infrastructure.utils.parallel.executor import (
             AsyncParallelExecutor,
+        )
+        from prdiffer.infrastructure.utils.parallel.results import (
             ErrorStrategy,
         )
 
@@ -304,7 +310,7 @@ class TestAsyncParallelExecutor:
 
 class TestBatchResult:
     def test_batch_result_properties(self):
-        from prdiffer.infrastructure.utils.parallel import BatchResult
+        from prdiffer.infrastructure.utils.parallel.results import BatchResult
 
         result = BatchResult[int](
             successful=[1, 2, 3],
@@ -318,7 +324,7 @@ class TestBatchResult:
         assert result.all_succeeded is False
 
     def test_batch_result_all_success(self):
-        from prdiffer.infrastructure.utils.parallel import BatchResult
+        from prdiffer.infrastructure.utils.parallel.results import BatchResult
 
         result = BatchResult[str](successful=["a", "b", "c"], failed=[])
 
@@ -326,7 +332,7 @@ class TestBatchResult:
         assert result.success_rate == 100.0
 
     def test_batch_result_get_errors(self):
-        from prdiffer.infrastructure.utils.parallel import BatchResult
+        from prdiffer.infrastructure.utils.parallel.results import BatchResult
 
         e1 = ValueError("error1")
         e2 = RuntimeError("error2")
@@ -342,7 +348,7 @@ class TestBatchResult:
 
 
 def _reset_circuit_breaker_registry():
-    import prdiffer.infrastructure.utils.circuit_breaker as cb_module
+    import prdiffer.infrastructure.utils.circuit_breaker_registry as cb_module
 
     cb_module.GlobalCircuitBreakerRegistry._instance = None
     cb_module.GlobalCircuitBreakerRegistry._initialized = False
@@ -351,7 +357,7 @@ def _reset_circuit_breaker_registry():
 
 class TestGlobalCircuitBreakerRegistry:
     def test_singleton_pattern(self):
-        from prdiffer.infrastructure.utils.circuit_breaker import (
+        from prdiffer.infrastructure.utils.circuit_breaker_registry import (
             GlobalCircuitBreakerRegistry,
         )
 
@@ -363,7 +369,7 @@ class TestGlobalCircuitBreakerRegistry:
         assert registry1 is registry2
 
     def test_get_breaker_creates_new(self):
-        from prdiffer.infrastructure.utils.circuit_breaker import (
+        from prdiffer.infrastructure.utils.circuit_breaker_registry import (
             get_global_circuit_breaker_registry,
         )
 
@@ -376,7 +382,7 @@ class TestGlobalCircuitBreakerRegistry:
         assert "test_endpoint" in registry.get_all_stats()
 
     def test_get_breaker_returns_same(self):
-        from prdiffer.infrastructure.utils.circuit_breaker import (
+        from prdiffer.infrastructure.utils.circuit_breaker_registry import (
             get_global_circuit_breaker_registry,
         )
 
@@ -389,7 +395,7 @@ class TestGlobalCircuitBreakerRegistry:
         assert breaker1 is breaker2
 
     def test_can_execute_checks_both_breakers(self):
-        from prdiffer.infrastructure.utils.circuit_breaker import (
+        from prdiffer.infrastructure.utils.circuit_breaker_registry import (
             get_global_circuit_breaker_registry,
         )
 
@@ -400,7 +406,7 @@ class TestGlobalCircuitBreakerRegistry:
         assert registry.can_execute("test_endpoint") is True
 
     def test_record_success_updates_both(self):
-        from prdiffer.infrastructure.utils.circuit_breaker import (
+        from prdiffer.infrastructure.utils.circuit_breaker_registry import (
             get_global_circuit_breaker_registry,
         )
 
@@ -414,7 +420,7 @@ class TestGlobalCircuitBreakerRegistry:
         assert "global" in stats
 
     def test_record_failure_updates_both(self):
-        from prdiffer.infrastructure.utils.circuit_breaker import (
+        from prdiffer.infrastructure.utils.circuit_breaker_registry import (
             get_global_circuit_breaker_registry,
         )
 
@@ -430,7 +436,7 @@ class TestGlobalCircuitBreakerRegistry:
         assert stats["global"]["failure_count"] == 3
 
     def test_get_all_stats(self):
-        from prdiffer.infrastructure.utils.circuit_breaker import (
+        from prdiffer.infrastructure.utils.circuit_breaker_registry import (
             get_global_circuit_breaker_registry,
         )
 
@@ -447,7 +453,7 @@ class TestGlobalCircuitBreakerRegistry:
         assert "endpoint_2" in stats
 
     def test_get_open_breakers(self):
-        from prdiffer.infrastructure.utils.circuit_breaker import (
+        from prdiffer.infrastructure.utils.circuit_breaker_registry import (
             get_global_circuit_breaker_registry,
         )
 
@@ -468,8 +474,10 @@ class TestGlobalCircuitBreakerRegistry:
         assert "failing_endpoint" in open_breakers
 
     def test_reset_all(self):
-        from prdiffer.infrastructure.utils.circuit_breaker import (
+        from prdiffer.infrastructure.utils.circuit_breaker_registry import (
             get_global_circuit_breaker_registry,
+        )
+        from prdiffer.infrastructure.utils.circuit_breaker_core import (
             CircuitState,
         )
 
@@ -488,7 +496,7 @@ class TestGlobalCircuitBreakerRegistry:
         assert stats["global"]["state"] == CircuitState.CLOSED.value
 
     def test_clear_endpoint(self):
-        from prdiffer.infrastructure.utils.circuit_breaker import (
+        from prdiffer.infrastructure.utils.circuit_breaker_registry import (
             get_global_circuit_breaker_registry,
         )
 
@@ -506,7 +514,7 @@ class TestGlobalCircuitBreakerRegistry:
 
 class TestCircuitBreakerForEndpoint:
     def test_get_circuit_breaker_from_registry(self):
-        from prdiffer.infrastructure.utils.circuit_breaker import (
+        from prdiffer.infrastructure.utils.circuit_breaker_registry import (
             get_global_circuit_breaker_registry,
         )
 
@@ -522,7 +530,7 @@ class TestCircuitBreakerForEndpoint:
 class TestPhase4Integration:
     def test_github_config_with_settings_service(self):
         from prdiffer.infrastructure.settings import SettingsService
-        from prdiffer.domain.config import GitHubConfig
+        from prdiffer.domain.config.github_config import GitHubConfig
 
         service = SettingsService()
         config = service.get_github_config()
@@ -532,10 +540,10 @@ class TestPhase4Integration:
 
     @pytest.mark.asyncio
     async def test_async_executor_with_circuit_breaker(self):
-        from prdiffer.infrastructure.utils.parallel import (
+        from prdiffer.infrastructure.utils.parallel.executor import (
             AsyncParallelExecutor,
         )
-        from prdiffer.infrastructure.utils.circuit_breaker import (
+        from prdiffer.infrastructure.utils.circuit_breaker_registry import (
             get_global_circuit_breaker_registry,
         )
 
@@ -563,7 +571,7 @@ class TestPhase4Integration:
         assert stats["test_api"]["failure_count"] == 0
 
     def test_github_config_file_filtering(self):
-        from prdiffer.domain.config import GitHubConfig
+        from prdiffer.domain.config.github_config import GitHubConfig
 
         config = GitHubConfig(
             ignore_patterns=("*.lock", "node_modules/", "*.min.js"),

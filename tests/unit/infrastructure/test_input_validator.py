@@ -87,8 +87,8 @@ class TestGitHubURLValidation:
             validator.validate_github_url("https://github.com/../../etc/passwd/pull/123")
 
     def test_validate_github_url_sql_injection(self, validator: InputValidator):
-        # Note: This URL fails pattern matching before SQL injection detection
-        with pytest.raises(InvalidURLError):
+        # Note: SQL injection patterns are now detected before URL parsing
+        with pytest.raises(SuspiciousOperationError):
             validator.validate_github_url("https://github.com/owner/repo' OR '1'='1/pull/123")
 
     def test_validate_github_url_convenience_function(self):

@@ -144,7 +144,7 @@ class TestGetGithubConfig:
 
     def test_get_github_config_returns_dataclass(self, settings_service):
         """Test that GitHub config returns GitHubConfig dataclass."""
-        from prdiffer.domain.config import GitHubConfig
+        from prdiffer.domain.config.github_config import GitHubConfig
 
         settings_service.settings.get.return_value = None
 
