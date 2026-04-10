@@ -1,33 +1,15 @@
-"""Repository cache models and utilities."""
+"""Repository cache models and utilities.
 
-from dataclasses import dataclass
-from functools import wraps
-from typing import ParamSpec, TypeVar
-from collections.abc import Callable
+BACKWARD COMPATIBILITY SHIM: This module has been flattened.
+The canonical location is now ``prdiffer.infrastructure.cache.cache_repository``.
+"""
 
-from prdiffer.domain.repositories import PRDiffRepositoryInterface
+from prdiffer.infrastructure.cache.cache_repository import (
+    CacheEntry,
+    with_lock,
+)
 
-P = ParamSpec("P")
-R = TypeVar("R")
-
-
-@dataclass
-class CacheEntry:
-    repository: PRDiffRepositoryInterface
-    timestamp: float
-    initialized: bool
-
-
-def with_lock(lock_attr: str = "_lock") -> Callable[[Callable[P, R]], Callable[P, R]]:
-
-    def decorator(func: Callable[P, R]) -> Callable[P, R]:
-        @wraps(func)
-        def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
-            self = args[0]
-            lock = getattr(self, lock_attr)
-            with lock:
-                return func(*args, **kwargs)
-
-        return wrapper
-
-    return decorator
+__all__ = [
+    "CacheEntry",
+    "with_lock",
+]
