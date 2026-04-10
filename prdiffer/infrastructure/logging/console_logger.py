@@ -5,7 +5,7 @@ import sys
 from datetime import datetime, timezone
 from typing import Any
 from prdiffer.infrastructure.settings import get_settings_service
-from prdiffer.domain.services import LoggerServiceInterface, LogLevel
+from prdiffer.domain.services.logger import LoggerServiceInterface, LogLevel
 
 
 class ConsoleLogger(LoggerServiceInterface):

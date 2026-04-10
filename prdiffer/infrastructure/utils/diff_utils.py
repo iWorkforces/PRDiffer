@@ -4,7 +4,7 @@ import difflib
 import re
 import logging
 from dataclasses import dataclass
-from prdiffer.domain.services import DiffServiceInterface
+from prdiffer.domain.services.diff import DiffServiceInterface
 from prdiffer.infrastructure.utils.logger_factory import LazyLoggerMixin
 
 

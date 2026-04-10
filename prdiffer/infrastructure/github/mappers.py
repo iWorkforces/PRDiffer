@@ -7,7 +7,8 @@ PyGithub dependencies in the infrastructure layer only.
 
 from github.Repository import Repository as PyGithubRepository
 from github.PullRequest import PullRequest as PyGithubPullRequest
-from prdiffer.domain.entities import Repository, PullRequest, PRState
+from prdiffer.domain.entities.repository import Repository
+from prdiffer.domain.entities.pull_request import PullRequest, PRState
 
 
 def map_pygithub_repository_to_domain(

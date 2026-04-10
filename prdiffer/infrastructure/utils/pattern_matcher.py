@@ -1,7 +1,7 @@
 """Pattern matching utility for file filtering and validation."""
 
 import re
-from prdiffer.domain.services import PatternMatchingServiceInterface
+from prdiffer.domain.services.pattern_matching import PatternMatchingServiceInterface
 
 
 class PatternMatcher(PatternMatchingServiceInterface):
