@@ -8,12 +8,12 @@ Comprehensive test suite with pytest, markers, fixtures, generator patterns, and
 ## STRUCTURE
 ```
 tests/
-├── unit/               # Unit tests per layer (55 files)
+├── unit/               # Unit tests per layer (96 files)
 │   ├── domain/
 │   ├── infrastructure/
 │   └── application/
 ├── integration/         # Integration tests (8 files)
-├── performance/         # Performance tests (8 files, benchmarking)
+├── performance/         # Performance tests (1 file, benchmarking)
 ├── conftest.py         # Shared fixtures (auto-use for env setup)
 └── test_phase_*.py     # 4 phase files (80K+ lines total)
 ```
