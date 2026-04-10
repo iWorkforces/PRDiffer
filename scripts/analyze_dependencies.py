@@ -11,8 +11,11 @@ from pathlib import Path
 from collections import defaultdict
 
 
-class DependencyAnalyzer(ast.NodeVisitor):
-    """AST visitor to extract import dependencies."""
+class DependencyAnalyzer:
+    """Extract top-level import dependencies from a Python module.
+
+    Only analyses module-scope and class-scope imports, not lazy imports
+    inside function/method bodies (which are acceptable for fallback DI)."""
 
     def __init__(self, file_path: Path):
         self.file_path = file_path
@@ -30,15 +33,21 @@ class DependencyAnalyzer(ast.NodeVisitor):
             # Not in prdiffer directory
             return ".".join(parts)
 
-    def visit_Import(self, node: ast.Import) -> None:
-        """Visit import statement."""
-        for alias in node.names:
-            self.imports.add(alias.name)
-
-    def visit_ImportFrom(self, node: ast.ImportFrom) -> None:
-        """Visit from ... import statement."""
-        if node.module:
+    def _collect_imports_from_node(self, node: ast.AST) -> None:
+        """Collect import statements from a single AST node."""
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                self.imports.add(alias.name)
+        elif isinstance(node, ast.ImportFrom) and node.module:
             self.imports.add(node.module)
+
+    def analyze(self, tree: ast.Module) -> None:
+        """Analyze top-level and class-level imports only."""
+        for node in ast.iter_child_nodes(tree):
+            self._collect_imports_from_node(node)
+            if isinstance(node, ast.ClassDef):
+                for class_node in ast.iter_child_nodes(node):
+                    self._collect_imports_from_node(class_node)
 
 
 def analyze_directory(root: Path) -> dict[str, set[str]]:
@@ -63,7 +72,7 @@ def analyze_directory(root: Path) -> dict[str, set[str]]:
 
             tree = ast.parse(source)
             analyzer = DependencyAnalyzer(py_file)
-            analyzer.visit(tree)
+            analyzer.analyze(tree)
 
             module = analyzer.current_module
             # Filter to only prdiffer dependencies

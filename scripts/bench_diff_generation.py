@@ -7,10 +7,8 @@ from dataclasses import dataclass
 from typing import cast
 
 from prdiffer.domain.entities.file_patch import FilePatchInfo, EDIT_TYPE
-from prdiffer.domain.entities import (
-    Repository as DomainRepository,
-    PullRequest as DomainPullRequest,
-)
+from prdiffer.domain.entities.repository import Repository as DomainRepository
+from prdiffer.domain.entities.pull_request import PullRequest as DomainPullRequest
 from prdiffer.domain.services.github_api import GitHubAPIServiceInterface
 from prdiffer.domain.services.pattern_matching import PatternMatchingServiceInterface
 from prdiffer.infrastructure.github.diff_generator import DiffGenerator
