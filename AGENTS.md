@@ -3,7 +3,7 @@
 **Generated:** 2026-04-10T00:00:00Z
 **Commit:** 5ea25aa
 **Branch:** upstream
-**Version:** 0.5.1
+**Version:** 0.5.2
 
 ## OVERVIEW
 Python 3.14+ MCP server for GitHub PR diff analysis with Clean Architecture (Domain → Application → Infrastructure). FastMCP framework, Pydantic v2, anyio async. 244 Python files (131 src + 113 tests), 49K+ lines, 44 AGENTS.md files (depth 5 coverage).
