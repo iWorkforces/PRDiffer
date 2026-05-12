@@ -231,3 +231,5 @@ docs/
 .coverage
 .opencode/
 .sisyphus/
+# CocoIndex Code (ccc)
+/.cocoindex_code/
