@@ -68,6 +68,7 @@ claude mcp add --transport http prdiffer http://127.0.0.1:9102/mcp
 
 File `opencode.json`:
 
+```json
 {
   "$schema": "https://opencode.ai/config.json",
   "mcp": {
@@ -78,6 +79,7 @@ File `opencode.json`:
     }
   }
 }
+```
 
 ## AI Agent Skill
 
