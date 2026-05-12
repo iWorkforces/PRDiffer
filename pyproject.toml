@@ -5,7 +5,7 @@ description = "MCP Server For GitHub PR's Review Process With Full Contexts"
 readme = "README.md"
 license = { text = "MIT" }
 authors = [
-    { name = "CCWorkforce Engineers" }
+    { name = "OCWorkforces Engineers" }
 ]
 requires-python = ">=3.14.3"
 keywords = ["mcp", "github", "pr-review", "code-review", "diff", "model-context-protocol"]
@@ -47,10 +47,10 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/CCWorkforce/PRDifferMCP"
-Repository = "https://github.com/CCWorkforce/PRDifferMCP"
-Issues = "https://github.com/CCWorkforce/PRDifferMCP/issues"
-Documentation = "https://github.com/CCWorkforce/PRDifferMCP#readme"
+Homepage = "https://github.com/OCWorkforces/PRDifferMCP"
+Repository = "https://github.com/OCWorkforces/PRDifferMCP"
+Issues = "https://github.com/OCWorkforces/PRDifferMCP/issues"
+Documentation = "https://github.com/OCWorkforces/PRDifferMCP#readme"
 
 [project.scripts]
 prdiffer = "prdiffer.server:main"
