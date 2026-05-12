@@ -32,7 +32,7 @@ PRDifferMCP is an MCP server that extracts and analyzes GitHub PR diffs, providi
 
 ```bash
 # Clone the repository
-git clone https://github.com/CCWorkforce/PRDifferMCP.git
+git clone https://github.com/OCWorkforces/PRDifferMCP.git
 cd PRDifferMCP
 
 # Install dependencies with uv (recommended)
@@ -78,3 +78,66 @@ File `opencode.json`:
     }
   }
 }
+
+## AI Agent Skill
+
+PRDifferMCP ships with an **[Agent Skill](https://skills.sh)** that teaches AI coding assistants how to use `prdiffer__get_pr_diff`, `prdiffer__approve_pr`, and `prdiffer__describe_pr` MCP tools effectively. The skill provides tool signatures, structured return type documentation, common workflows, error handling patterns, and constraints — so your AI agent can analyze PRs without guessing.
+
+### Install the Skill
+
+```bash
+npx skills add OCWorkforces/PRDifferMCP
+```
+
+This installs the skill to all detected AI coding agents. For specific agents:
+
+```bash
+# Claude Code only
+npx skills add OCWorkforces/PRDifferMCP -a claude-code
+
+# OpenCode only
+npx skills add OCWorkforces/PRDifferMCP -a opencode
+
+# Multiple agents
+npx skills add OCWorkforces/PRDifferMCP -a claude-code -a opencode -a cursor
+```
+
+### Supported Agents
+
+The skill is compatible with **50+ AI coding agents** including:
+
+| Agent | Install Flag | Skill Path |
+|-------|-------------|------------|
+| **Claude Code** | `claude-code` | `.claude/skills/` |
+| **OpenCode** | `opencode` | `.agents/skills/` |
+| **Cursor** | `cursor` | `.agents/skills/` |
+| **Windsurf** | `windsurf` | `.windsurf/skills/` |
+| **GitHub Copilot** | `github-copilot` | `.agents/skills/` |
+| **Cline** | `cline` | `.agents/skills/` |
+| **Gemini CLI** | `gemini-cli` | `.agents/skills/` |
+| **Codex** | `codex` | `.agents/skills/` |
+
+For a complete list, see [skills.sh](https://skills.sh).
+
+### What the Skill Teaches Your Agent
+
+After installation, your AI agent will know:
+
+- **When to use each tool** — trigger phrases like "analyze this PR" or "approve this PR" activate the skill
+- **Tool signatures** — exact parameter names, types, and whether they're required
+- **Return types** — the structured `PRDiff` → `FileDiffResponse` → `FileStats` shape with field-level documentation
+- **Error handling** — error codes (`E1001`, `E2002`, `E3001`, `E5002`) and recovery strategies
+- **Common workflows** — analyze changes, review & approve, summarize & describe, extract statistics
+- **Constraints** — URL format requirements, authentication, rate limiting, caching behavior
+
+### How It Works
+
+The skill's `SKILL.md` (located at `skills/prdiffer/SKILL.md`) activates automatically when your AI agent encounters trigger phrases like "get PR diff", "analyze pull request", or "approve this PR". The agent then uses the documented MCP tool signatures to call the PRDiffer server without guesswork.
+
+The MCP server must still be running separately (`./start-prdiffer-mcp-server.sh`) — the skill only teaches the agent *how* to call the tools, not run them.
+
+### Learn More
+
+- **[skills.sh](https://skills.sh)** — Discover more agent skills
+- **[skills/prdiffer/SKILL.md](skills/prdiffer/SKILL.md)** — Read the full skill definition
+- **[Agent Skills Specification](https://agentskills.io)** — How skills work across agents
