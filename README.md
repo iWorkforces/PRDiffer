@@ -143,3 +143,50 @@ The MCP server must still be running separately (`./start-prdiffer-mcp-server.sh
 - **[skills.sh](https://skills.sh)** — Discover more agent skills
 - **[skills/prdiffer/SKILL.md](skills/prdiffer/SKILL.md)** — Read the full skill definition
 - **[Agent Skills Specification](https://agentskills.io)** — How skills work across agents
+
+## Using the Skill with AI Coding Agents
+
+Once the `prdiffer` skill is installed and the MCP server is running, you can prompt your AI coding agent naturally. The skill activates automatically and drives the right MCP tool calls. Below are ready-to-use prompts — one per tool.
+
+---
+
+### `prdiffer__get_pr_diff` — Fetch & Analyze a PR
+
+Use this to retrieve the full structured diff and perform a thorough code review.
+
+> **Prompt your agent:**
+>
+> Use the `prdiffer` skill to get the full diff from `https://github.com/<owner>/<repository>/pull/<pull_number>`, then analyze it thoroughly across multiple aspects — architecture, correctness, security, test coverage, and style — and produce a comprehensive PR review with specific inline observations and actionable recommendations.
+
+The agent will call `prdiffer__get_pr_diff`, iterate over every `FileDiffResponse` in the result, and synthesize a structured review covering changed files, addition/deletion statistics, and full patch content.
+
+---
+
+### `prdiffer__approve_pr` — Review and Approve a PR
+
+Use this after analyzing a PR to submit a formal approval with a meaningful compliment.
+
+> **Prompt your agent:**
+>
+> Use the `prdiffer` skill to fetch the diff for `https://github.com/<owner>/<repository>/pull/<pull_number>`, verify the changes look correct and safe, then approve the PR with a genuine, specific compliment that references what was done well.
+
+The agent will call `prdiffer__get_pr_diff` to inspect the changes, then invoke `prdiffer__approve_pr` with a compliment derived from the actual diff content (e.g., praising a clean refactor or solid test coverage).
+
+---
+
+### `prdiffer__describe_pr` — Auto-Generate a PR Description
+
+Use this to write or update the PR body with an accurate summary generated from the actual diff.
+
+> **Prompt your agent:**
+>
+> Use the `prdiffer` skill to fetch the diff for `https://github.com/<owner>/<repository>/pull/<pull_number>`, then generate a clear, structured PR description covering the motivation, a summary of changed files, and a testing checklist. Update the PR body with the generated description.
+
+The agent will call `prdiffer__get_pr_diff` to understand what changed, compose a Markdown description (motivation, file-level summary, testing notes), and submit it via `prdiffer__describe_pr`.
+
+---
+
+> **Tip:** You can combine all three in a single prompt:
+>
+> *"Fetch the diff for `https://github.com/<owner>/<repo>/pull/<number>`, write a comprehensive review, generate a structured description and update the PR body, then approve it if everything looks good."*
+>
