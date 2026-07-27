@@ -1,6 +1,6 @@
 [project]
 name = "prdiffer"
- version = "0.5.2"
+ version = "0.6.0"
 description = "MCP Server For GitHub PR's Review Process With Full Contexts"
 readme = "README.md"
 license = { text = "MIT" }
