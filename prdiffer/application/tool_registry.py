@@ -11,7 +11,6 @@ from prdiffer.domain.repositories.pr_diff_repository import PRDiffRepositoryInte
 from fastmcp import FastMCP
 
 from prdiffer.domain.entities.pr_diff import PRDiff
-from prdiffer.domain.usecases.pr_diff_usecases import GetPRDiffUseCase
 from prdiffer.domain.services.pr_diff_service import PRDiffServiceInterface
 from prdiffer.domain.services.cache import CacheServiceInterface
 from prdiffer.domain.services.logger import LoggerServiceInterface, LogLevel
@@ -23,6 +22,7 @@ from prdiffer.domain.interfaces.protocols import (
 from prdiffer.domain.interfaces.input_validation import InputValidatorProtocol
 from prdiffer.domain.interfaces.request_coalescing import RequestCoalescingProtocol
 from prdiffer.application.utils.pr_url_parser import parse_pr_url
+from prdiffer.application.pr_diff_executor import _CoalescedPRDiffExecutionMixin
 
 from prdiffer.domain.exceptions import (
     InvalidURLError,
@@ -43,7 +43,7 @@ from prdiffer.domain.errors import (
 )
 
 
-class ToolRegistry:
+class ToolRegistry(_CoalescedPRDiffExecutionMixin):
     """Registry for FastMCP tools."""
 
     def __init__(
@@ -158,35 +158,6 @@ class ToolRegistry:
         pr_url = self._input_validator.sanitize_string(pr_url, max_length=2000)
 
         return parse_pr_url(pr_url, self._input_validator)
-
-    async def _execute_use_case_with_coalescing(self, request_id: str, repo_owner: str, repo_name: str, pr_number: int) -> PRDiff:
-        coalesce_key = f"{repo_owner}/{repo_name}/pr/{pr_number}"
-
-        async def fetch_pr_diff() -> PRDiff:
-            """Fetch PR diff - will be coalesced if multiple requests arrive."""
-            use_case = GetPRDiffUseCase(
-                pr_diff_service=self._pr_diff_service,
-                cache_service=self._cache_service,
-                cache_hit_optimization_enabled=self._cache_hit_optimization_enabled,
-            )
-            result = await use_case.execute(repo_owner=repo_owner, repo_name=repo_name, pr_number=pr_number)
-
-            if result is None:
-                self._logger.error(
-                    "Use case returned None for PR diff",
-                    request_id=request_id,
-                    repo_owner=repo_owner,
-                    repo_name=repo_name,
-                    pr_number=pr_number,
-                )
-                raise GitHubAPIError(
-                    "Failed to get PR diff - use case returned None",
-                    error_code=E5002_GITHUB_API_ERROR,
-                )
-
-            return result
-
-        return await self._request_coalescing.coalesce(coalesce_key, fetch_pr_diff)
 
     def _log_metrics_and_return_success(self, start_time: float, pr_diff: PRDiff) -> PRDiff:
         execution_time = time.time() - start_time

@@ -374,7 +374,7 @@ class TestExecuteUseCaseWithCoalescing:
         """Test successful use case execution."""
         mock_request_coalescing.coalesce = AsyncMock(return_value=sample_pr_diff)
 
-        with patch("prdiffer.application.tool_registry.GetPRDiffUseCase") as MockUseCase:
+        with patch("prdiffer.application.pr_diff_executor.GetPRDiffUseCase") as MockUseCase:
             mock_use_case = MagicMock()
             mock_use_case.execute = AsyncMock(return_value=sample_pr_diff)
             MockUseCase.return_value = mock_use_case
@@ -386,7 +386,7 @@ class TestExecuteUseCaseWithCoalescing:
     @pytest.mark.anyio
     async def test_execute_returns_none(self, tool_registry, mock_request_coalescing, mock_logger):
         """Test use case returns None."""
-        with patch("prdiffer.application.tool_registry.GetPRDiffUseCase") as MockUseCase:
+        with patch("prdiffer.application.pr_diff_executor.GetPRDiffUseCase") as MockUseCase:
             mock_use_case = MagicMock()
             mock_use_case.execute = AsyncMock(return_value=None)
             MockUseCase.return_value = mock_use_case
