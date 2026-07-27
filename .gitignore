@@ -233,3 +233,4 @@ docs/
 .sisyphus/
 # CocoIndex Code (ccc)
 /.cocoindex_code/
+.omo/
