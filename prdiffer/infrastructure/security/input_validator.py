@@ -114,6 +114,19 @@ class InputValidator(InputValidationHelpersMixin):
 
         return parse_github_pr_url(url)
 
+    def validate_gitlab_url(self, url: str) -> tuple[str, str, int]:
+        """Validate and parse a canonical GitLab merge request URL."""
+        from prdiffer.infrastructure.utils.url_parser import parse_gitlab_merge_request_url
+
+        url = url.strip()
+        if not url:
+            raise InvalidURLError("URL cannot be empty")
+
+        if self._detector.check_suspicious_patterns(url):
+            raise SuspiciousOperationError("URL contains suspicious patterns", details={"url": url[:100]})
+
+        return parse_gitlab_merge_request_url(url)
+
     @classmethod
     def validate_repository_identifier(cls, identifier: str) -> tuple[str, str]:
         """Validate a repository identifier (owner/repo format).

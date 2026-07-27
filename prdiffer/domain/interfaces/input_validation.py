@@ -26,6 +26,10 @@ class InputValidatorProtocol(Protocol):
         """
         ...
 
+    def validate_gitlab_url(self, url: str) -> tuple[str, str, int]:
+        """Validate and parse a canonical GitLab merge request URL."""
+        ...
+
     def validate_repository_identifier(self, identifier: str) -> tuple[str, str]:
         """Validate a repository identifier (owner/repo format).
 
