@@ -1,251 +1,152 @@
+from threading import get_ident
+
 import pytest
-from unittest.mock import AsyncMock, patch, MagicMock
-from dataclasses import dataclass
 
 from prdiffer.domain.entities.file_diff_response import FileDiffResponse, FileStats
 from prdiffer.domain.entities.file_patch import EDIT_TYPE
 from prdiffer.domain.entities.pr_diff import PRDiff
+from prdiffer.domain.errors import E5002_GITHUB_API_ERROR
 from prdiffer.domain.exceptions import PRDifferException
 import prdiffer.infrastructure.vcs_providers.gitlab_repository as gitlab_repository
+from prdiffer.infrastructure.vcs_providers.gitlab_operations import GitLabDiffRecord
 from prdiffer.infrastructure.vcs_providers.gitlab_repository import GitLabVCSRepository
 
 
-def mock_gitlab_client():
-    """Create a mock httpx client for GitLab tests."""
-    mock_response = MagicMock()
-    mock_response.status_code = 200
-    mock_response.json.return_value = {"sha": "mock-sha-123456789"}
-    mock_response.headers = {"X-Next-Page": ""}
+class RecordingOperations:
+    instances: list["RecordingOperations"] = []
+    diff_records: tuple[GitLabDiffRecord, ...] = ()
+    latest_sha = "gitlab-sha"
 
-    mock_client = AsyncMock()
-    mock_client.__aenter__.return_value = mock_client
-    mock_client.get.return_value = mock_response
-    return mock_client
+    def __init__(self, token: str | None) -> None:
+        self.token = token
+        self.calls: list[str] = []
+        self.thread_ids: list[int] = []
+        self.instances.append(self)
 
+    def initialize(self) -> None:
+        self.calls.append("initialize")
+        self.thread_ids.append(get_ident())
 
-@dataclass(frozen=True)
-class GitLabDiffResponse:
-    payload: list[dict[str, str | bool]]
-    next_page: str
-    status_code: int = 200
+    def get_diff_records(self, owner: str, repo: str, pr: int) -> tuple[GitLabDiffRecord, ...]:
+        assert (owner, repo, pr) == ("owner", "repo", 17)
+        self.calls.append("diff")
+        self.thread_ids.append(get_ident())
+        return self.diff_records
 
-    @property
-    def headers(self) -> dict[str, str]:
-        return {"X-Next-Page": self.next_page}
-
-    def json(self) -> list[dict[str, str | bool]]:
-        return self.payload
-
-
-class GitLabDiffClient:
-    def __init__(self, responses: dict[int, GitLabDiffResponse]):
-        self._responses = responses
-        self.requested_pages: list[int] = []
-
-    async def __aenter__(self) -> "GitLabDiffClient":
-        return self
-
-    async def __aexit__(self, exc_type: object, exc_value: object, traceback: object) -> None:
-        return None
-
-    async def get(self, url: str, *, params: dict[str, int | bool]) -> GitLabDiffResponse:
-        assert url == "/projects/owner%2Frepo/merge_requests/17/diffs"
-        assert params["per_page"] == 100
-        assert params["unidiff"] is True
-
-        page = params["page"]
-        assert isinstance(page, int)
-        self.requested_pages.append(page)
-        return self._responses[page]
+    def get_latest_commit_sha(self, owner: str, repo: str, pr: int) -> str:
+        assert (owner, repo, pr) == ("owner", "repo", 17)
+        self.calls.append("sha")
+        self.thread_ids.append(get_ident())
+        return self.latest_sha
 
 
-class GitLabHTTPX:
-    class HTTPError(Exception):
-        pass
-
-    def __init__(self, client: GitLabDiffClient):
-        self._client = client
-
-    def AsyncClient(self, *, base_url: str, headers: dict[str, str]) -> GitLabDiffClient:
-        assert base_url == "https://gitlab.com/api/v4"
-        assert headers == {}
-        return self._client
+def install_operations(monkeypatch: pytest.MonkeyPatch, records: tuple[GitLabDiffRecord, ...] = ()) -> None:
+    RecordingOperations.instances.clear()
+    RecordingOperations.diff_records = records
+    monkeypatch.setattr(gitlab_repository, "GitLabOperations", RecordingOperations)
 
 
 class TestGitLabVCSRepository:
-    """Tests for GitLab VCS provider implementation."""
-
-    def test_provider_name_property(self):
-        """Provider should return 'gitlab'."""
+    def test_provider_metadata_and_url_support(self) -> None:
+        # Given
         provider = GitLabVCSRepository()
+
+        # When / Then
         assert provider.provider_name == "gitlab"
-
-    def test_provider_version_property(self):
-        """Provider should return 'v4'."""
-        provider = GitLabVCSRepository()
         assert provider.provider_version == "v4"
-
-    @pytest.mark.asyncio
-    async def test_initialize(self):
-        """Provider should initialize without errors."""
-        provider = GitLabVCSRepository()
-        with patch("prdiffer.infrastructure.vcs_providers.gitlab_repository.httpx") as mock_httpx:
-            mock_httpx.AsyncClient.return_value = mock_gitlab_client()
-            await provider.initialize()
-
-    @pytest.mark.asyncio
-    async def test_initialize_without_token(self):
-        """Provider should initialize without token."""
-        provider = GitLabVCSRepository()
-        with patch("prdiffer.infrastructure.vcs_providers.gitlab_repository.httpx") as mock_httpx:
-            mock_httpx.AsyncClient.return_value = mock_gitlab_client()
-            await provider.initialize()
-
-    @pytest.mark.asyncio
-    async def test_get_pr_diff(self):
-        """Provider should return diff files list."""
-        provider = GitLabVCSRepository()
-        with patch("prdiffer.infrastructure.vcs_providers.gitlab_repository.httpx") as mock_httpx:
-            client = mock_gitlab_client()
-            client.get.return_value.json.return_value = []
-            mock_httpx.AsyncClient.return_value = client
-            await provider.initialize()
-            diff = await provider.get_pr_diff("owner", "repo", 123)
-            assert diff == PRDiff(files=())
-
-    @pytest.mark.asyncio
-    async def test_get_pr_diff_with_token(self):
-        """Provider should return diff with token."""
-        provider = GitLabVCSRepository("test-token")
-        with patch("prdiffer.infrastructure.vcs_providers.gitlab_repository.httpx") as mock_httpx:
-            client = mock_gitlab_client()
-            client.get.return_value.json.return_value = []
-            mock_httpx.AsyncClient.return_value = client
-            await provider.initialize()
-            diff = await provider.get_pr_diff("owner", "repo", 123)
-            assert diff == PRDiff(files=())
-
-    @pytest.mark.asyncio
-    async def test_get_latest_commit_sha(self):
-        """Provider should return mock SHA."""
-        provider = GitLabVCSRepository()
-        with patch("prdiffer.infrastructure.vcs_providers.gitlab_repository.httpx") as mock_httpx:
-            mock_httpx.AsyncClient.return_value = mock_gitlab_client()
-            await provider.initialize()
-            sha = await provider.get_latest_commit_sha("owner", "repo", 123)
-            assert sha == "mock-sha-123456789"
-
-    @pytest.mark.asyncio
-    async def test_get_latest_commit_sha_with_token(self):
-        """Provider should return SHA with token."""
-        provider = GitLabVCSRepository("test-token")
-        with patch("prdiffer.infrastructure.vcs_providers.gitlab_repository.httpx") as mock_httpx:
-            mock_httpx.AsyncClient.return_value = mock_gitlab_client()
-            await provider.initialize()
-            sha = await provider.get_latest_commit_sha("owner", "repo", 123)
-            assert sha == "mock-sha-123456789"
-
-    def test_supports_repository_gitlab_url(self):
-        """Provider should support GitLab URLs."""
-        provider = GitLabVCSRepository()
-        assert provider.supports_repository("https://gitlab.com/owner/repo/-/merge_requests/123")
-        assert not provider.supports_repository("https://github.com/owner/repo/pull/123")
-
-    def test_supports_repository_gitlab_tree_url(self):
-        """Provider should support GitLab tree URLs."""
-        provider = GitLabVCSRepository()
-        assert provider.supports_repository("https://gitlab.com/owner/repo/-/tree/abcd1234")
-
-    def test_does_not_support_github_url(self):
-        """Provider should not support GitHub URLs."""
-        provider = GitLabVCSRepository()
-        assert not provider.supports_repository("https://github.com/owner/repo/pull/123")
-
-    def test_supports_repository_invalid_url(self):
-        """Provider should not support invalid URLs."""
-        provider = GitLabVCSRepository()
-        assert not provider.supports_repository("not-a-valid-url")
-
-    @pytest.mark.asyncio
-    async def test_get_latest_commit_sha_raises_without_httpx(self, monkeypatch: pytest.MonkeyPatch):
-        """Provider should fail explicitly when its HTTP client is unavailable."""
-        provider = GitLabVCSRepository()
-        monkeypatch.setattr(gitlab_repository, "httpx", None)
-        with pytest.raises(PRDifferException, match="HTTP client"):
-            await provider.get_latest_commit_sha("owner", "repo", 123)
+        assert provider.supports_repository("https://gitlab.com/owner/repo/-/merge_requests/17")
+        assert provider.supports_repository("https://gitlab.com/owner/repo/-/tree/abc123")
+        assert not provider.supports_repository("https://github.com/owner/repo/pull/17")
 
     @pytest.mark.anyio
-    async def test_get_pr_diff_aggregates_pages_and_maps_gitlab_file_records(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    async def test_async_methods_use_one_worker_and_store_only_operations(self, monkeypatch: pytest.MonkeyPatch) -> None:
         # Given
-        monkeypatch.delenv("GITHUB_TOKEN", raising=False)
+        install_operations(monkeypatch)
+        provider = GitLabVCSRepository("test-token")
+        main_thread = get_ident()
+
+        # When
+        await provider.initialize()
+        diff = await provider.get_pr_diff("owner", "repo", 17)
+        sha = await provider.get_latest_commit_sha("owner", "repo", 17)
+
+        # Then
+        operation = RecordingOperations.instances[0]
+        assert vars(provider) == {"_operations": operation}
+        assert operation.token == "test-token"
+        assert operation.calls == ["initialize", "diff", "sha"]
+        assert len(operation.thread_ids) == 3
+        assert all(thread_id != main_thread for thread_id in operation.thread_ids)
+        assert diff == PRDiff(files=())
+        assert sha == "gitlab-sha"
+
+    @pytest.mark.anyio
+    async def test_diff_mapping_preserves_gitlab_file_semantics(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        # Given
         added_diff = "--- /dev/null\n+++ b/src/added.py\n+first\n+second"
         modified_diff = "--- a/src/current.py\n+++ b/src/current.py\n-old\n+new"
-        renamed_diff = "--- a/src/old_name.py\n+++ b/src/new_name.py\n-old name\n+new name"
-        deleted_diff = "--- a/src/removed.py\n+++ /dev/null\n-old"
-        unchanged_flags = {
-            "new_file": False,
-            "renamed_file": False,
-            "deleted_file": False,
-            "collapsed": False,
-            "too_large": False,
-        }
-        first_page = GitLabDiffResponse(
-            payload=[
-                {**unchanged_flags, "old_path": "src/added.py", "new_path": "src/added.py", "new_file": True, "diff": added_diff},
-                {**unchanged_flags, "old_path": "src/current.py", "new_path": "src/current.py", "diff": modified_diff},
-                {**unchanged_flags, "old_path": "src/old_name.py", "new_path": "src/new_name.py", "renamed_file": True, "diff": renamed_diff},
-                {**unchanged_flags, "old_path": "src/removed.py", "new_path": "src/removed.py", "deleted_file": True, "diff": deleted_diff},
-            ],
-            next_page="2",
+        renamed_diff = "--- a/src/old.py\n+++ b/src/new.py\n-old\n+new"
+        deleted_diff = "--- a/src/deleted.py\n+++ /dev/null\n-old"
+        records: tuple[GitLabDiffRecord, ...] = (
+            GitLabDiffRecord(old_path="src/added.py", new_path="src/added.py", new_file=True, deleted_file=False, renamed_file=False, diff=added_diff),
+            GitLabDiffRecord(old_path="src/current.py", new_path="src/current.py", new_file=False, deleted_file=False, renamed_file=False, diff=modified_diff),
+            GitLabDiffRecord(old_path="src/old.py", new_path="src/new.py", new_file=False, deleted_file=False, renamed_file=True, diff=renamed_diff),
+            GitLabDiffRecord(
+                old_path="src/deleted.py", new_path="src/replacement.py", new_file=False, deleted_file=True, renamed_file=False, diff=deleted_diff
+            ),
+            GitLabDiffRecord(old_path="src/collapsed.py", new_path="src/collapsed.py", new_file=False, deleted_file=False, renamed_file=False, collapsed=True),
+            GitLabDiffRecord(old_path="src/large.py", new_path="src/large.py", new_file=False, deleted_file=False, renamed_file=False, too_large=True),
         )
-        second_page = GitLabDiffResponse(
-            payload=[
-                {**unchanged_flags, "old_path": "src/collapsed.py", "new_path": "src/collapsed.py", "collapsed": True, "diff": ""},
-                {**unchanged_flags, "old_path": "src/large.py", "new_path": "src/large.py", "too_large": True, "diff": ""},
-            ],
-            next_page="",
-        )
-        client = GitLabDiffClient({1: first_page, 2: second_page})
-        monkeypatch.setattr(gitlab_repository, "httpx", GitLabHTTPX(client))
+        install_operations(monkeypatch, records)
 
         # When
         diff = await GitLabVCSRepository().get_pr_diff("owner", "repo", 17)
 
         # Then
-        assert client.requested_pages == [1, 2]
         assert diff == PRDiff(
             files=(
                 FileDiffResponse("src/added.py", EDIT_TYPE.ADDED, FileStats(additions=2, deletions=0), added_diff),
                 FileDiffResponse("src/current.py", EDIT_TYPE.MODIFIED, FileStats(additions=1, deletions=1), modified_diff),
-                FileDiffResponse("src/new_name.py", EDIT_TYPE.RENAMED, FileStats(additions=1, deletions=1), renamed_diff),
-                FileDiffResponse("src/removed.py", EDIT_TYPE.DELETED, FileStats(additions=0, deletions=1), deleted_diff),
+                FileDiffResponse("src/new.py", EDIT_TYPE.RENAMED, FileStats(additions=1, deletions=1), renamed_diff),
+                FileDiffResponse("src/deleted.py", EDIT_TYPE.DELETED, FileStats(additions=0, deletions=1), deleted_diff),
                 FileDiffResponse("src/collapsed.py", EDIT_TYPE.MODIFIED, FileStats(), ""),
                 FileDiffResponse("src/large.py", EDIT_TYPE.MODIFIED, FileStats(), ""),
             )
         )
 
     @pytest.mark.anyio
-    async def test_get_pr_diff_requests_another_page_when_gitlab_omits_pagination_headers(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    async def test_diff_mapping_normalizes_null_collapsed_and_too_large_patches(self, monkeypatch: pytest.MonkeyPatch) -> None:
         # Given
-        record = {
-            "old_path": "src/file.py",
-            "new_path": "src/file.py",
-            "new_file": False,
-            "renamed_file": False,
-            "deleted_file": False,
-            "diff": "+line",
-        }
-        client = GitLabDiffClient(
-            {
-                1: GitLabDiffResponse(payload=[record] * 100, next_page=""),
-                2: GitLabDiffResponse(payload=[], next_page=""),
-            }
+        records = (
+            GitLabDiffRecord(
+                old_path="src/collapsed.py", new_path="src/collapsed.py", new_file=False, deleted_file=False, renamed_file=False, collapsed=True, diff=None
+            ),
+            GitLabDiffRecord(
+                old_path="src/large.py", new_path="src/large.py", new_file=False, deleted_file=False, renamed_file=False, too_large=True, diff=None
+            ),
         )
-        monkeypatch.setattr(gitlab_repository, "httpx", GitLabHTTPX(client))
+        install_operations(monkeypatch, records)
 
         # When
         diff = await GitLabVCSRepository().get_pr_diff("owner", "repo", 17)
 
         # Then
-        assert client.requested_pages == [1, 2]
-        assert len(diff.files) == 100
+        assert diff == PRDiff(
+            files=(
+                FileDiffResponse("src/collapsed.py", EDIT_TYPE.MODIFIED, FileStats(), ""),
+                FileDiffResponse("src/large.py", EDIT_TYPE.MODIFIED, FileStats(), ""),
+            )
+        )
+
+    @pytest.mark.anyio
+    async def test_conflicting_diff_flags_raise_existing_api_error(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        # Given
+        records = (GitLabDiffRecord(old_path="src/file.py", new_path="src/file.py", new_file=True, deleted_file=True, renamed_file=False),)
+        install_operations(monkeypatch, records)
+
+        # When / Then
+        with pytest.raises(PRDifferException) as error:
+            await GitLabVCSRepository().get_pr_diff("owner", "repo", 17)
+
+        assert error.value.message == "GitLab diff record has conflicting change flags"
+        assert error.value.error_code is E5002_GITHUB_API_ERROR
