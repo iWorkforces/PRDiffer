@@ -1,38 +1,36 @@
-"""GitLab VCS provider implementation.
+"""GitLab VCS provider implementation."""
 
-This module implements VCSDiffRepositoryInterface for GitLab,
-demonstrating multi-provider support capability.
-"""
+from typing import NotRequired, TypedDict
+from urllib.parse import quote
 
-import logging
-from prdiffer.domain.interfaces.vcs_provider import VCSDiffRepositoryInterface
+from prdiffer.domain.entities.file_diff_response import FileDiffResponse, FileStats
+from prdiffer.domain.entities.file_patch import EDIT_TYPE
 from prdiffer.domain.entities.pr_diff import PRDiff
+from prdiffer.domain.errors import E4002_PR_NOT_FOUND, E5002_GITHUB_API_ERROR, E5019_CONNECTION_ERROR
 from prdiffer.domain.exceptions import PRDifferException
-from prdiffer.domain.errors import (
-    E5019_CONNECTION_ERROR,
-    E5002_GITHUB_API_ERROR,
-    E4002_PR_NOT_FOUND,
-)
+from prdiffer.domain.interfaces.vcs_provider import VCSDiffRepositoryInterface
 
 httpx = None
-
-logger = logging.getLogger(__name__)
 
 try:
     import httpx
 except ImportError:
-    logger.debug("httpx not installed; GitLab VCS provider will not be available")
+    pass
+
+
+class GitLabDiffRecord(TypedDict):
+    """GitLab merge request diff record."""
+
+    old_path: str
+    new_path: str
+    new_file: bool
+    deleted_file: bool
+    renamed_file: bool
+    diff: NotRequired[str]
 
 
 class GitLabVCSRepository(VCSDiffRepositoryInterface):
-    """GitLab-specific implementation of VCS provider interface.
-
-    This is a demonstration provider showing how to add
-    new VCS providers to the system without modifying core code.
-
-    NOTE: Full GitLab API integration not implemented in this demo.
-    This provider returns mock data for structure demonstration.
-    """
+    """GitLab-specific implementation of VCS provider interface."""
 
     def __init__(
         self,
@@ -57,145 +55,101 @@ class GitLabVCSRepository(VCSDiffRepositoryInterface):
         return "v4"
 
     async def initialize(self) -> None:
-        """Initialize GitLab connection.
+        """Validate the configured GitLab connection."""
+        if httpx is None:
+            raise PRDifferException("GitLab HTTP client is not available", error_code=E5019_CONNECTION_ERROR)
 
-        For demonstration, this validates that token is set
-        if using API.
+        try:
+            async with httpx.AsyncClient(base_url="https://gitlab.com/api/v4", headers=self._headers) as client:
+                response = await client.get("/user")
+        except httpx.HTTPError as error:
+            raise PRDifferException(f"GitLab connection error: {error}", error_code=E5019_CONNECTION_ERROR) from error
 
-        Raises:
-            RuntimeError: If initialization fails
-        """
-        if httpx:
-            try:
-                async with httpx.AsyncClient(base_url="https://gitlab.com/api/v4", headers=self._headers) as client:
-                    response = await client.get("/user")
-                    if response.status_code != 200:
-                        raise PRDifferException(
-                            f"Failed to initialize GitLab connection: {response.status_code}",
-                            error_code=E5019_CONNECTION_ERROR,
-                        )
-            except Exception as e:
-                raise PRDifferException(f"GitLab connection error: {e}", error_code=E5019_CONNECTION_ERROR)
+        if response.status_code != 200:
+            raise PRDifferException(
+                f"Failed to initialize GitLab connection: {response.status_code}",
+                error_code=E5019_CONNECTION_ERROR,
+            )
 
     async def get_pr_diff(self, owner: str, repo: str, pr: int) -> PRDiff:
-        """Get merge request diff from GitLab.
+        """Get and map every structured GitLab merge request diff page."""
+        if httpx is None:
+            raise PRDifferException("GitLab HTTP client is not available", error_code=E5019_CONNECTION_ERROR)
 
-        Args:
-            owner: Repository owner/organization
-            repo: Repository name
-            pr: Merge request number
-
-        Returns:
-            PRDiff: Complete merge request diff with file context
-
-        Note:
-            This demonstration returns mock data.
-            Full implementation would use GitLab API:
-            - https://docs.gitlab.com/ee/api/merge_requests.html
-        """
-        if httpx:
-            try:
-                path = f"{owner}%2F{repo}"
-                async with httpx.AsyncClient(base_url="https://gitlab.com/api/v4", headers=self._headers) as client:
-                    url = f"/projects/{path}/merge_requests/{pr}"
-                    response = await client.get(url)
-
+        url = f"/projects/{quote(f'{owner}/{repo}', safe='')}/merge_requests/{pr}/diffs"
+        files: list[FileDiffResponse] = []
+        page = 1
+        try:
+            async with httpx.AsyncClient(base_url="https://gitlab.com/api/v4", headers=self._headers) as client:
+                while True:
+                    response = await client.get(url, params={"page": page, "per_page": 100, "unidiff": True})
                     if response.status_code != 200:
                         raise PRDifferException(
                             f"Merge request not found: {response.status_code}",
                             error_code=E4002_PR_NOT_FOUND,
                         )
+                    records: list[GitLabDiffRecord] = response.json()
+                    files.extend(self._to_file_diff(record) for record in records)
+                    next_page = response.headers.get("X-Next-Page", "")
+                    if next_page:
+                        page = int(next_page)
+                    elif len(records) == 100:
+                        page += 1
+                    else:
+                        break
+        except httpx.HTTPError as error:
+            raise PRDifferException(f"GitLab API error: {error}", error_code=E5002_GITHUB_API_ERROR) from error
 
-                    return PRDiff(files=())
-            except httpx.HTTPError as e:
-                logger.error(
-                    "GitLab API HTTP error when fetching MR diff",
-                    extra={
-                        "owner": owner,
-                        "repo": repo,
-                        "pr": pr,
-                        "error": str(e),
-                        "error_type": type(e).__name__,
-                    },
-                )
-                raise PRDifferException(f"GitLab API error: {e}", error_code=E5002_GITHUB_API_ERROR) from e
-            except Exception as e:
-                logger.error(
-                    "Unexpected error when fetching GitLab MR diff",
-                    extra={
-                        "owner": owner,
-                        "repo": repo,
-                        "pr": pr,
-                        "error": str(e),
-                        "error_type": type(e).__name__,
-                    },
-                )
-                raise PRDifferException(f"GitLab API error: {e}", error_code=E5002_GITHUB_API_ERROR) from e
-        else:
-            return PRDiff(files=())
+        return PRDiff(files=tuple(files))
 
     async def get_latest_commit_sha(self, owner: str, repo: str, pr: int) -> str:
-        """Get latest head commit SHA for merge request.
+        """Get the nonempty latest head commit SHA for a merge request."""
+        if httpx is None:
+            raise PRDifferException("GitLab HTTP client is not available", error_code=E5019_CONNECTION_ERROR)
 
-        Args:
-            owner: Repository owner/organization
-            repo: Repository name
-            pr: Merge request number
+        url = f"/projects/{quote(f'{owner}/{repo}', safe='')}/merge_requests/{pr}"
+        try:
+            async with httpx.AsyncClient(base_url="https://gitlab.com/api/v4", headers=self._headers) as client:
+                response = await client.get(url)
+        except httpx.HTTPError as error:
+            raise PRDifferException(f"GitLab API error: {error}", error_code=E5002_GITHUB_API_ERROR) from error
 
-        Returns:
-            str: Latest head commit SHA
+        if response.status_code != 200:
+            raise PRDifferException(
+                f"Merge request not found: {response.status_code}",
+                error_code=E4002_PR_NOT_FOUND,
+            )
+        merge_request: dict[str, str] = response.json()
+        sha = merge_request.get("sha")
+        if not sha:
+            raise PRDifferException("Merge request SHA is missing", error_code=E5002_GITHUB_API_ERROR)
+        return sha
 
-        Note:
-            This demonstration returns a mock SHA.
-            Full implementation would use GitLab API.
-        """
-        if httpx:
-            try:
-                path = f"{owner}%2F{repo}"
-                async with httpx.AsyncClient(base_url="https://gitlab.com/api/v4", headers=self._headers) as client:
-                    url = f"/projects/{path}/merge_requests/{pr}"
-                    response = await client.get(url)
+    @staticmethod
+    def _to_file_diff(record: GitLabDiffRecord) -> FileDiffResponse:
+        """Map a GitLab diff record to the existing domain response."""
+        patch = record.get("diff", "")
+        match (record["new_file"], record["deleted_file"], record["renamed_file"]):
+            case (True, False, False):
+                path, status = record["new_path"], EDIT_TYPE.ADDED
+            case (False, True, False):
+                path, status = record["old_path"], EDIT_TYPE.DELETED
+            case (False, False, True):
+                path, status = record["new_path"], EDIT_TYPE.RENAMED
+            case (False, False, False):
+                path, status = record["new_path"], EDIT_TYPE.MODIFIED
+            case _:
+                raise PRDifferException("GitLab diff record has conflicting change flags", error_code=E5002_GITHUB_API_ERROR)
 
-                    if response.status_code != 200:
-                        logger.warning(
-                            "GitLab API returned non-200 status for commit SHA",
-                            extra={
-                                "owner": owner,
-                                "repo": repo,
-                                "pr": pr,
-                                "status_code": response.status_code,
-                            },
-                        )
-                        return "unknown"
-
-                    mr_data = response.json()
-                    return mr_data.get("sha", "unknown")
-            except httpx.HTTPError as e:
-                logger.error(
-                    "GitLab API HTTP error when fetching commit SHA",
-                    extra={
-                        "owner": owner,
-                        "repo": repo,
-                        "pr": pr,
-                        "error": str(e),
-                        "error_type": type(e).__name__,
-                    },
-                )
-                return "unknown"
-            except Exception as e:
-                logger.error(
-                    "Unexpected error when fetching GitLab commit SHA",
-                    extra={
-                        "owner": owner,
-                        "repo": repo,
-                        "pr": pr,
-                        "error": str(e),
-                        "error_type": type(e).__name__,
-                    },
-                )
-                return "unknown"
-        else:
-            return "mock-sha-1234567890"
+        return FileDiffResponse(
+            path=path,
+            status=status,
+            stats=FileStats(
+                additions=sum(line.startswith("+") and not line.startswith("+++") for line in patch.splitlines()),
+                deletions=sum(line.startswith("-") and not line.startswith("---") for line in patch.splitlines()),
+            ),
+            diff=patch,
+        )
 
     def supports_repository(self, url: str) -> bool:
         """Check if URL belongs to GitLab.
