@@ -1,6 +1,7 @@
 """Factory for creating FastMCPServer with all dependencies properly injected."""
 
 from prdiffer.domain.services.pr_diff_service import PRDiffServiceInterface
+from prdiffer.domain.usecases.pr_diff_usecases import PRDiffReader
 
 from .mcp_server import FastMCPServer
 from prdiffer.domain.services.settings import SettingsServiceInterface
@@ -19,6 +20,7 @@ def create_mcp_server(
     cache_service: CacheServiceInterface | None = None,
     repository_cache_service: RepositoryCacheServiceInterface | None = None,
     pr_diff_service: PRDiffServiceInterface | None = None,
+    gitlab_reader: PRDiffReader | None = None,
     logger: LoggerServiceInterface | None = None,
 ) -> FastMCPServer:
     """Create FastMCPServer with all dependencies properly injected."""
@@ -71,6 +73,7 @@ def create_mcp_server(
         cache_service=cache_service,
         repository_cache_service=repository_cache_service,
         pr_diff_service=pr_diff_service,
+        gitlab_reader=gitlab_reader,
         github_repository_class=github_repository_class,
         logger=logger,
         rate_limiter=rate_limiter,

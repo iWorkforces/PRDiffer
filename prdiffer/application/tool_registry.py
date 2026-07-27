@@ -5,12 +5,13 @@ import hashlib
 import json
 from dataclasses import asdict
 from collections.abc import Callable
-from typing import NoReturn
+from typing import NoReturn, assert_never
 from prdiffer.domain.repositories.pr_diff_repository import PRDiffRepositoryInterface
 
 from fastmcp import FastMCP
 
 from prdiffer.domain.entities.pr_diff import PRDiff
+from prdiffer.domain.usecases.pr_diff_usecases import PRDiffReader
 from prdiffer.domain.services.pr_diff_service import PRDiffServiceInterface
 from prdiffer.domain.services.cache import CacheServiceInterface
 from prdiffer.domain.services.logger import LoggerServiceInterface, LogLevel
@@ -21,7 +22,7 @@ from prdiffer.domain.interfaces.protocols import (
 )
 from prdiffer.domain.interfaces.input_validation import InputValidatorProtocol
 from prdiffer.domain.interfaces.request_coalescing import RequestCoalescingProtocol
-from prdiffer.application.utils.pr_url_parser import parse_pr_url
+from prdiffer.application.utils.pr_url_parser import parse_pr_target, parse_pr_url
 from prdiffer.application.pr_diff_executor import _CoalescedPRDiffExecutionMixin
 
 from prdiffer.domain.exceptions import (
@@ -54,12 +55,14 @@ class ToolRegistry(_CoalescedPRDiffExecutionMixin):
         github_repository_class: Callable[[str, str, int], PRDiffRepositoryInterface],
         rate_limiter: RateLimiterProtocol,
         metrics_tracker: MetricsTrackerProtocol,
+        gitlab_reader: PRDiffReader | None = None,
         authentication: AuthenticationProtocol | None = None,
         input_validator: InputValidatorProtocol | None = None,
         request_coalescing_service: RequestCoalescingProtocol | None = None,
         cache_hit_optimization_enabled: bool = False,
     ):
         self._pr_diff_service = pr_diff_service
+        self._gitlab_reader = gitlab_reader
         self._cache_service = cache_service
         self._logger = logger
         self._github_repository_class = github_repository_class
@@ -233,7 +236,7 @@ class ToolRegistry(_CoalescedPRDiffExecutionMixin):
 
         @mcp.tool()
         async def get_pr_diff(pr_url: str, api_key: str | None = None) -> PRDiff:
-            """Get the structured file-level diff content for a specific GitHub pull request.
+            """Get the structured file-level diff content for a GitHub PR or GitLab MR.
 
             Returns per-file diff information including:
             - File paths
@@ -242,7 +245,7 @@ class ToolRegistry(_CoalescedPRDiffExecutionMixin):
             - Full patch content for each file
 
             Args:
-                pr_url: The full GitHub PR URL (e.g., https://github.com/owner/repo/pull/123)
+                pr_url: A GitHub PR URL or GitLab MR URL (e.g., https://github.com/owner/repo/pull/123 or https://gitlab.com/owner/repo/-/merge_requests/123)
                 api_key: Optional API key for authentication (required if auth enabled)
 
             Raises:
@@ -269,9 +272,32 @@ class ToolRegistry(_CoalescedPRDiffExecutionMixin):
             try:
                 self._check_rate_limit(rate_limit_client_id)
 
-                repo_owner, repo_name, pr_number = self._validate_and_sanitize_params(pr_url)
+                if not pr_url:
+                    raise InputSanitizationError("PR URL parameter is required")
+                sanitized_pr_url = self._input_validator.sanitize_string(pr_url, max_length=2000)
+                target = parse_pr_target(sanitized_pr_url, self._input_validator)
 
-                pr_diff = await self._execute_use_case_with_coalescing(request_id, repo_owner, repo_name, pr_number)
+                match target.provider:
+                    case "github":
+                        pr_diff = await self._execute_use_case_with_coalescing(
+                            request_id,
+                            target.repo_owner,
+                            target.repo_name,
+                            target.pr_number,
+                        )
+                    case "gitlab":
+                        if self._gitlab_reader is None:
+                            raise RuntimeError("GitLab reader is not configured")
+                        pr_diff = await self._execute_use_case_with_coalescing(
+                            request_id,
+                            target.repo_owner,
+                            target.repo_name,
+                            target.pr_number,
+                            pr_diff_reader=self._gitlab_reader,
+                            cache_namespace="gitlab",
+                        )
+                    case unreachable:
+                        assert_never(unreachable)
 
                 return self._log_metrics_and_return_success(start_time, pr_diff)
 
