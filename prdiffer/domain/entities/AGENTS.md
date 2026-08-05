@@ -9,7 +9,7 @@ prdiffer/domain/entities/
 ├── file_diff_response.py    # FileDiffResponse, FileStats (~54)
 ├── file_content.py          # FileContentAvailable | FileContentUnavailable (~41)
 ├── generated_file_diff.py   # GeneratedFileDiff (~19)
-├── pr_diff_cache.py         # PRDiffCacheEntryV2 + github-full-diff-v2 helpers (~46)
+├── pr_diff_cache.py         # StrictPRDiffCacheIdentity + GitHub v2 / GitLab v1 keys
 ├── pr_diff.py               # PRDiff — files tuple of FileDiffResponse (~17)
 ├── pull_request.py          # PullRequest + PRState (~61)
 ├── repository.py            # Repository (~37)
@@ -23,7 +23,7 @@ prdiffer/domain/entities/
 | **MCP file payload** | `file_diff_response.py` | path, status, stats, diff, `previous_path` (renames only) |
 | **Typed content** | `file_content.py` | Available empty text vs deterministic unavailability |
 | **Generated unit** | `generated_file_diff.py` | index + path + previous_path + full-context `diff` |
-| **Cache schema v2** | `pr_diff_cache.py` | wrap/unwrap; prefix `github-full-diff-v2` |
+| **Strict cache identity** | `pr_diff_cache.py` | `StrictPRDiffCacheIdentity`; GitHub v2 / GitLab v1 key builders |
 | **Aggregate response** | `pr_diff.py` | `files: tuple[FileDiffResponse, ...]` |
 | **PR / repo VO** | `pull_request.py`, `repository.py` | Pure metadata (non-frozen dataclasses) |
 
@@ -40,8 +40,12 @@ prdiffer/domain/entities/
 | `FileContentResult` | Alias | `file_content.py` | Available \| Unavailable |
 | `GeneratedFileDiff` | Frozen dataclass | `generated_file_diff.py` | One generated full-context file |
 | `PRDiff` | Frozen dataclass | `pr_diff.py` | Aggregate files tuple |
+| `StrictPRDiffCacheIdentity` | Frozen dataclass | `pr_diff_cache.py` | cache_key + validation_token + schema_version |
 | `PRDiffCacheEntryV2` | Frozen dataclass | `pr_diff_cache.py` | schema_version=2 + PRDiff |
-| `github_full_diff_v2_key` | Function | `pr_diff_cache.py` | Exact session/v2 cache key |
+| `github_full_diff_v2_key` | Function | `pr_diff_cache.py` | Exact GitHub session/v2 cache key |
+| `github_full_diff_v2_identity` | Function | `pr_diff_cache.py` | GitHub identity (key + head_sha token) |
+| `gitlab_full_diff_v1_key` | Function | `pr_diff_cache.py` | `gitlab-full-diff-v1:{ns}:{repo}:{iid}:{ver}:{base}:{start}:{head}` |
+| `gitlab_full_diff_v1_identity` | Function | `pr_diff_cache.py` | GitLab identity (version + three refs token) |
 | `PullRequest` / `PRState` | Entity | `pull_request.py` | PR metadata |
 | `Repository` | Entity | `repository.py` | Repo metadata |
 
@@ -52,7 +56,8 @@ prdiffer/domain/entities/
 - `FileDiffResponse.previous_path` is optional and valid **only** for `EDIT_TYPE.RENAMED` (`__post_init__` invariant; must differ from `path`). Success responses remain complete by construction — no completeness boolean.
 - GitLab maps `old_path` → `previous_path` on renames only; otherwise `None`.
 - Content: operational failures (auth, rate limit, transport) **raise**; do not fold into `FileContentUnavailable`.
-- Cache helpers: `wrap_pr_diff_for_cache`, `unwrap_pr_diff_cache_value` (accept v2 entry or bare `PRDiff` under v2-prefix key only).
+- Cache helpers: `wrap_pr_diff_for_cache`, `unwrap_pr_diff_cache_value` (accept v2 entry or bare `PRDiff` under GitHub v2-prefix key only).
+- Sessions expose `StrictPRDiffCacheIdentity` (provider-neutral); GitHub keys remain byte-stable; GitLab uses `gitlab-full-diff-v1` (no extra `gitlab:` prefix on the strict key).
 
 ## ANTI-PATTERNS
 - NO I/O or framework types.

@@ -86,7 +86,7 @@ Your next move: start the plan in a worker session or request the optional dual 
 ## Todos
 > Implementation + Test = ONE todo. Never separate.
 <!-- APPEND TASK BATCHES BELOW THIS LINE WITH edit/apply_patch - never rewrite the headers above. -->
-- [ ] 1. Generalize strict session cache identity while preserving GitHub v2 behavior
+- [x] 1. Generalize strict session cache identity while preserving GitHub v2 behavior
   - Recommended task executor category: `deep` - shared domain protocol and use-case changes have broad cache/caller blast radius and require exact compatibility proof.
   - What to do: In `prdiffer/domain/entities/pr_diff_cache.py`, add frozen `StrictPRDiffCacheIdentity(cache_key: str, validation_token: str, schema_version: int)` and GitLab v1 key/validation builders. Extend `prdiffer/domain/interfaces/pr_diff_reader.py` so every strict session exposes `cache_identity`; adapt `prdiffer/infrastructure/github/pr_diff_session.py` to return the existing `github-full-diff-v2:{owner}:{repo}:{pr}:{head_sha}` key byte-for-byte and `head_sha` validation token. Keep cache value schema v2 behavior unchanged. Add exact key/schema/immutability tests in `tests/unit/domain/test_gitlab_pr_diff_cache.py`, `tests/unit/domain/entities/test_pr_diff_cache.py`, and GitHub session regressions.
   - Must NOT do: Do not change GitHub key bytes, accept raw/legacy values under unversioned keys, add provider branching to the use case in this todo, or prepend `gitlab:` to the future strict cache key.

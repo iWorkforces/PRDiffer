@@ -1,6 +1,6 @@
-"""Session-capable PR diff reader contracts (GitHub v2 path).
+"""Session-capable PR diff reader contracts (strict full-diff path).
 
-GitLab and other non-session readers keep the legacy PRDiffReader protocol
+Non-session readers keep the legacy PRDiffReader protocol
 in ``domain.usecases.pr_diff_usecases``.
 """
 
@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from typing import Protocol, runtime_checkable
 
 from prdiffer.domain.entities.pr_diff import PRDiff
+from prdiffer.domain.entities.pr_diff_cache import StrictPRDiffCacheIdentity
 from prdiffer.domain.usecases.pr_diff_usecases import PRDiffReader
 
 
@@ -31,6 +32,11 @@ class PRDiffReadSessionInterface(Protocol):
     @property
     def snapshot(self) -> PRDiffSnapshot:
         """Immutable metadata for this open session."""
+        ...
+
+    @property
+    def cache_identity(self) -> StrictPRDiffCacheIdentity:
+        """Provider-neutral cache key + validation token for this session."""
         ...
 
     async def build_pr_diff(self) -> PRDiff:

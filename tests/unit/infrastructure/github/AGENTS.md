@@ -16,7 +16,7 @@ tests/unit/infrastructure/github/
 ├── test_generated_file_diffs.py           # 116 — ordered full-context generation
 ├── test_github_mappers.py                 # 416
 ├── test_inventory_admission.py            # 90 — authoritative inventory + admission
-└── test_pr_diff_session.py                # 75 — session isolation / CapacityLimiter
+└── test_pr_diff_session.py                # session isolation / cache_identity / CapacityLimiter
 ```
 
 ## WHERE TO LOOK
@@ -26,7 +26,7 @@ tests/unit/infrastructure/github/
 | **Inventory / 3000 cap** | `test_inventory_admission.py` | `INVENTORY_TRUNCATED`, admission selection |
 | **Ordered processor** | `test_file_processor_ordered.py` | Strict assembly, sync/async parity |
 | **Generated full-context diffs** | `test_generated_file_diffs.py` | Ordered diffs, E5003 mapping |
-| **PR diff session** | `test_pr_diff_session.py` | anyio limiter capacity, aclose |
+| **PR diff session** | `test_pr_diff_session.py` | anyio limiter, aclose, GitHub v2 `cache_identity` |
 | **Happy vs edge** | `*_comprehensive.py` | Edge/error branches |
 
 ## CONVENTIONS

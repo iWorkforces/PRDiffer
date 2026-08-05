@@ -15,6 +15,10 @@ from github.PullRequest import PullRequest as PyGithubPullRequest
 from github.Repository import Repository as PyGithubRepository
 
 from prdiffer.domain.entities.pr_diff import PRDiff
+from prdiffer.domain.entities.pr_diff_cache import (
+    StrictPRDiffCacheIdentity,
+    github_full_diff_v2_identity,
+)
 from prdiffer.domain.interfaces.pr_diff_reader import PRDiffReadSessionInterface, PRDiffSnapshot
 from prdiffer.domain.exceptions import PRDifferException, TimeoutError as DomainTimeoutError
 from prdiffer.domain.errors import E5004_TIMEOUT_ERROR, E5009_CONFIGURATION_ERROR
@@ -51,6 +55,12 @@ class GitHubPRDiffSession(PRDiffReadSessionInterface):
     @property
     def snapshot(self) -> PRDiffSnapshot:
         return self._snapshot
+
+    @property
+    def cache_identity(self) -> StrictPRDiffCacheIdentity:
+        """GitHub full-diff v2 key bytes + head_sha validation token."""
+        snap = self._snapshot
+        return github_full_diff_v2_identity(snap.owner, snap.repo, snap.pr_number, snap.head_sha)
 
     @property
     def metadata_lookup_count(self) -> int:

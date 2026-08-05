@@ -16,6 +16,7 @@ tests/unit/domain/
 ├── test_exceptions.py
 ├── test_full_diff_incomplete_error.py  # E5020 + FullDiffIncompleteReason taxonomy
 ├── test_pr_diff_cache_v2.py            # Schema v2 keys / wrap / unwrap
+├── test_gitlab_pr_diff_cache.py        # GitLab v1 identity builders + legacy rejection
 ├── test_vcs_provider_interface.py
 └── test_vcs_provider_registry.py     # 601 — URL auto-detection
 ```
@@ -25,6 +26,8 @@ tests/unit/domain/
 |------|----------|-------|
 | **E5020 incomplete full-diff** | `test_full_diff_incomplete_error.py` | Reason enum (9 values), exception contract |
 | **PRDiff cache v2** | `test_pr_diff_cache_v2.py` | `github_full_diff_v2_key`, wrap/unwrap |
+| **GitLab cache identity** | `test_gitlab_pr_diff_cache.py` | `gitlab-full-diff-v1` key/token/immutability |
+| **Strict identity entity** | `entities/test_pr_diff_cache.py` | `StrictPRDiffCacheIdentity` + GitHub identity |
 | **Session vs legacy reader** | `usecases/test_session_pr_diff_usecase.py` | Session-capable PRDiff dispatch |
 | **Entities** | `entities/` | `FilePatchInfo`, `FileDiffResponse.previous_path`, `PRDiff` |
 | **Provider registry** | `test_vcs_provider_registry.py` | GitHub/GitLab URL routing |
