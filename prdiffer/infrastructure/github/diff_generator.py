@@ -40,14 +40,15 @@ class DiffGenerator:
         self,
         diff_utils: DiffServiceInterface,
         parallel_executor: Any = None,
-        parallel_enabled: bool = True,
+        parallel_enabled: bool = False,
         parallel_threshold: int = 3,
         max_workers: int = 4,
         logger: logging.Logger | None = None,
     ) -> None:
         self._diff_utils = diff_utils
         self._parallel_executor = parallel_executor
-        # Parallel generation can use ThreadPoolExecutor without an injected executor.
+        # Parallel generation is enabled explicitly by factory/settings (not bare ctor).
+        # ThreadPoolExecutor can use ThreadPool without an injected executor when enabled.
         self._parallel_enabled = bool(parallel_enabled)
         self._parallel_threshold = parallel_threshold
         self._max_workers = max(
@@ -488,7 +489,7 @@ class DiffGenerator:
 def get_diff_generator(
     diff_utils: DiffServiceInterface,
     parallel_executor: Any = None,
-    parallel_enabled: bool = True,
+    parallel_enabled: bool = False,
     parallel_threshold: int = 3,
     max_workers: int = 4,
 ) -> DiffGenerator:

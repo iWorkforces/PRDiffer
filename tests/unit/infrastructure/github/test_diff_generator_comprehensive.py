@@ -67,8 +67,8 @@ class TestDiffGeneratorInit:
 
         assert generator._diff_utils is mock_diff_utils
         assert generator._parallel_executor is None
-        # Parallel ordered generation no longer requires an injected executor.
-        assert generator._parallel_enabled is True
+        # Bare ctor stays sequential; factory/settings opt into parallel generation.
+        assert generator._parallel_enabled is False
         assert generator._parallel_threshold == 3
 
     def test_init_with_parallel_executor(self, mock_diff_utils, mock_parallel_executor):

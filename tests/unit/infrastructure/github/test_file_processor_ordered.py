@@ -46,6 +46,8 @@ def processor() -> FileProcessor:
         pattern_matcher=AcceptAllMatcher(),
         diff_utils=MagicMock(),
         max_files_allowed=50,
+        # Unit tests mock the batch API; keep head/base sequential for determinism.
+        parallel_head_base_fetch_enabled=False,
     )
 
 
