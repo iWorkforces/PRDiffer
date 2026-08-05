@@ -185,12 +185,14 @@ class GitLabRuntime:
         config: GitLabConfig,
         private_token: str | None = None,
         *,
+        base_url: str = GITLAB_COM_URL,
         limiter: anyio.CapacityLimiter | None = None,
         client_factory: Callable[..., object] | None = None,
         deadline_monotonic: float | None = None,
     ) -> None:
         self._config = config
         self._private_token = private_token
+        self._base_url = (base_url or GITLAB_COM_URL).rstrip("/")
         self._limiter = limiter or anyio.CapacityLimiter(config.max_concurrent)
         self._client_factory = client_factory or gitlab.Gitlab
         self._deadline_monotonic = deadline_monotonic
@@ -217,11 +219,17 @@ class GitLabRuntime:
             return float(self._config.pr_diff_request_timeout_seconds)
         return self._deadline_monotonic - time.monotonic()
 
-    def create_client(self, *, remaining: float | None = None) -> object:
+    def create_client(
+        self,
+        *,
+        remaining: float | None = None,
+        base_url: str | None = None,
+    ) -> object:
         """Build a fresh python-gitlab client for one operation.
 
         Injects max_retries and obey_rate_limit via http_request defaults
         (constructor in python-gitlab 8.5 does not accept those parameters).
+        ``base_url`` selects GitLab.com or a custom-hosted instance.
         """
         budget = self.remaining_budget() if remaining is None else remaining
         if budget <= 0:
@@ -230,8 +238,9 @@ class GitLabRuntime:
                 error_code=E5004_TIMEOUT_ERROR,
             )
         timeout = min(float(self._config.timeout), budget)
+        url = (base_url or self._base_url or GITLAB_COM_URL).rstrip("/")
         client = self._client_factory(
-            GITLAB_COM_URL,
+            url,
             private_token=self._private_token,
             timeout=timeout,
             retry_transient_errors=self._config.retry_transient_errors,

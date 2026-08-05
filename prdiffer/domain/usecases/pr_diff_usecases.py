@@ -52,10 +52,16 @@ class GetPRDiffUseCase:
         repo_owner: str,
         repo_name: str,
         pr_number: int,
+        *,
+        base_url: str | None = None,
     ) -> PRDiff | None:
-        """Execute the use case with automatic commit-based caching."""
+        """Execute the use case with automatic commit-based caching.
+
+        ``base_url`` is optional and used by GitLab session readers for
+        custom-hosted instances (e.g. ``https://nova.teachx.ai``).
+        """
         if _is_session_reader(self._pr_diff_service):
-            return await self._execute_session_path(repo_owner, repo_name, pr_number)
+            return await self._execute_session_path(repo_owner, repo_name, pr_number, base_url=base_url)
         return await self._execute_legacy_path(repo_owner, repo_name, pr_number)
 
     async def _execute_session_path(
@@ -63,14 +69,25 @@ class GetPRDiffUseCase:
         repo_owner: str,
         repo_name: str,
         pr_number: int,
+        *,
+        base_url: str | None = None,
     ) -> PRDiff | None:
         from prdiffer.domain.entities.pr_diff_cache import (
             unwrap_pr_diff_cache_value,
             wrap_pr_diff_for_cache,
         )
+        import inspect
 
         open_session = getattr(self._pr_diff_service, "open_pr_diff_session")
-        session = await open_session(repo_owner, repo_name, pr_number)
+        # Pass base_url only when the reader accepts it (GitLab); GitHub ignores.
+        try:
+            sig = inspect.signature(open_session)
+            if "base_url" in sig.parameters:
+                session = await open_session(repo_owner, repo_name, pr_number, base_url=base_url)
+            else:
+                session = await open_session(repo_owner, repo_name, pr_number)
+        except TypeError:
+            session = await open_session(repo_owner, repo_name, pr_number)
         try:
             identity = session.cache_identity
             # Provider-neutral key from session; ignore cache_namespace on strict path.

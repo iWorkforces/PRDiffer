@@ -60,9 +60,14 @@ def gitlab_full_diff_v1_key(
     base_sha: str,
     start_sha: str,
     head_sha: str,
+    *,
+    host: str = "gitlab.com",
 ) -> str:
-    """Exact GitLab strict full-diff v1 cache key (no ``gitlab:`` prefix)."""
-    return f"{GITLAB_FULL_DIFF_CACHE_PREFIX}:{namespace.casefold()}:{repo.casefold()}:{iid}:{version_id}:{base_sha}:{start_sha}:{head_sha}"
+    """Exact GitLab strict full-diff v1 cache key (includes host for multi-instance).
+
+    Format: ``gitlab-full-diff-v1:{host}:{ns}:{repo}:{iid}:{ver}:{base}:{start}:{head}``
+    """
+    return f"{GITLAB_FULL_DIFF_CACHE_PREFIX}:{host.casefold()}:{namespace.casefold()}:{repo.casefold()}:{iid}:{version_id}:{base_sha}:{start_sha}:{head_sha}"
 
 
 def gitlab_full_diff_v1_validation_token(
@@ -83,10 +88,12 @@ def gitlab_full_diff_v1_identity(
     base_sha: str,
     start_sha: str,
     head_sha: str,
+    *,
+    host: str = "gitlab.com",
 ) -> StrictPRDiffCacheIdentity:
-    """Strict session identity for GitLab full-diff v1."""
+    """Strict session identity for GitLab full-diff v1 (host-aware)."""
     return StrictPRDiffCacheIdentity(
-        cache_key=gitlab_full_diff_v1_key(namespace, repo, iid, version_id, base_sha, start_sha, head_sha),
+        cache_key=gitlab_full_diff_v1_key(namespace, repo, iid, version_id, base_sha, start_sha, head_sha, host=host),
         validation_token=gitlab_full_diff_v1_validation_token(version_id, base_sha, start_sha, head_sha),
         schema_version=PRDIFF_CACHE_SCHEMA_V1,
     )

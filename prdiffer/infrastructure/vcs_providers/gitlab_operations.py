@@ -26,6 +26,7 @@ from prdiffer.infrastructure.vcs_providers.gitlab_models import (
     GitLabVersionSummary,
 )
 from prdiffer.infrastructure.vcs_providers.gitlab_runtime import (
+    GITLAB_COM_URL,
     GitLabNotFoundContext,
     GitLabNotFoundKind,
     map_gitlab_exception,
@@ -48,13 +49,20 @@ class GitLabOperations:
     exactly match the MR's current ``diff_refs``.
     """
 
-    def __init__(self, gitlab_token: str | None = None) -> None:
+    def __init__(
+        self,
+        gitlab_token: str | None = None,
+        *,
+        base_url: str = GITLAB_COM_URL,
+    ) -> None:
         self._gitlab_token = gitlab_token
+        self._base_url = (base_url or GITLAB_COM_URL).rstrip("/")
 
-    def initialize(self) -> None:
+    def initialize(self, *, base_url: str | None = None) -> None:
         """Authenticate a newly created GitLab client."""
+        url = (base_url or self._base_url).rstrip("/")
         try:
-            with gitlab.Gitlab(url="https://gitlab.com", private_token=self._gitlab_token) as client:
+            with gitlab.Gitlab(url=url, private_token=self._gitlab_token) as client:
                 client.auth()
         except (gitlab.GitlabError, requests.RequestException):
             raise PRDifferException(
@@ -62,21 +70,32 @@ class GitLabOperations:
                 error_code=E5019_CONNECTION_ERROR,
             ) from None
 
-    def get_latest_commit_sha(self, owner: str, repo: str, pr: int) -> str:
+    def get_latest_commit_sha(self, owner: str, repo: str, pr: int, *, base_url: str | None = None) -> str:
         """Return the head SHA from a pinned snapshot (compat surface)."""
-        return self.select_diff_snapshot(f"{owner}/{repo}", pr).head_sha
+        return self.select_diff_snapshot(f"{owner}/{repo}", pr, base_url=base_url).head_sha
 
-    def get_diff_records(self, owner: str, repo: str, pr: int) -> tuple[GitLabDiffRecord, ...]:
+    def get_diff_records(
+        self, owner: str, repo: str, pr: int, *, base_url: str | None = None
+    ) -> tuple[GitLabDiffRecord, ...]:
         """Return ordered records from the pinned immutable version (compat)."""
-        return self.select_diff_snapshot(f"{owner}/{repo}", pr).records
-    def select_diff_snapshot(self, project_path: str, iid: int) -> GitLabDiffSnapshot:
+        return self.select_diff_snapshot(f"{owner}/{repo}", pr, base_url=base_url).records
+
+    def select_diff_snapshot(
+        self,
+        project_path: str,
+        iid: int,
+        *,
+        base_url: str | None = None,
+    ) -> GitLabDiffSnapshot:
         """Select and fetch exactly one MR diff version matching current diff_refs.
 
         ``project_path`` is the unencoded GitLab project path (e.g.
-        ``group/subgroup/project``).
+        ``group/subgroup/project``). ``base_url`` selects GitLab.com or a
+        custom-hosted instance (e.g. ``https://nova.teachx.ai``).
         """
+        url = (base_url or self._base_url).rstrip("/")
         try:
-            with gitlab.Gitlab(url="https://gitlab.com", private_token=self._gitlab_token) as client:
+            with gitlab.Gitlab(url=url, private_token=self._gitlab_token) as client:
                 return self._select_diff_snapshot_with_client(client, project_path, iid)
         except FullDiffIncompleteError:
             raise

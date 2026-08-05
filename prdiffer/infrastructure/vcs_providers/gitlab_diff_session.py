@@ -34,7 +34,12 @@ class GitLabPRDiffSession(PRDiffReadSessionInterface):
         config: GitLabConfig,
         runtime: GitLabRuntime,
         deadline_monotonic: float,
+        base_url: str | None = None,
     ) -> None:
+        from urllib.parse import urlparse
+
+        from prdiffer.infrastructure.vcs_providers.gitlab_runtime import GITLAB_COM_URL
+
         self._gitlab_snapshot = snapshot
         self._operations = operations
         self._content_fetcher = content_fetcher
@@ -42,6 +47,7 @@ class GitLabPRDiffSession(PRDiffReadSessionInterface):
         self._config = config
         self._runtime = runtime
         self._deadline_monotonic = deadline_monotonic
+        self._base_url = (base_url or GITLAB_COM_URL).rstrip("/")
         self._closed = False
         self._built = False
         # Domain PRDiffSnapshot uses owner/repo split; owner may be nested namespace.
@@ -58,6 +64,7 @@ class GitLabPRDiffSession(PRDiffReadSessionInterface):
             head_sha=snapshot.head_sha,
             authoritative_changed_files=len(snapshot.records),
         )
+        host = urlparse(self._base_url).hostname or "gitlab.com"
         self._cache_identity = gitlab_full_diff_v1_identity(
             namespace=owner,
             repo=repo,
@@ -66,6 +73,7 @@ class GitLabPRDiffSession(PRDiffReadSessionInterface):
             base_sha=snapshot.base_sha,
             start_sha=snapshot.start_sha,
             head_sha=snapshot.head_sha,
+            host=host,
         )
 
     @property
@@ -136,24 +144,24 @@ class GitLabSessionPRDiffReader:
         repo_name: str,
         pr_number: int,
         /,
+        *,
+        base_url: str | None = None,
     ) -> GitLabPRDiffSession:
         deadline = time.monotonic() + self._request_timeout_seconds
         self._runtime.set_deadline_monotonic(deadline)
         project_path = f"{repo_owner}/{repo_name}"
 
-        def select(_client: object) -> GitLabDiffSnapshot:
-            # Selection uses operations' own client lifecycle today; pass-through.
-            return self._operations.select_diff_snapshot(project_path, pr_number)
-
-        # Run snapshot selection under runtime budget/limiter.
-        # operations.select_diff_snapshot opens its own client; wrap for mapping/timeout.
         remaining = deadline - time.monotonic()
         if remaining <= 0:
             raise DomainTimeoutError(
                 "PR diff request deadline exhausted before session open",
                 error_code=E5004_TIMEOUT_ERROR,
             )
-        snapshot = self._operations.select_diff_snapshot(project_path, pr_number)
+        snapshot = self._operations.select_diff_snapshot(
+            project_path,
+            pr_number,
+            base_url=base_url,
+        )
         return GitLabPRDiffSession(
             snapshot=snapshot,
             operations=self._operations,
@@ -162,17 +170,34 @@ class GitLabSessionPRDiffReader:
             config=self._config,
             runtime=self._runtime,
             deadline_monotonic=deadline,
+            base_url=base_url,
         )
 
-    async def get_pr_diff(self, repo_owner: str, repo_name: str, pr_number: int, /) -> PRDiff | None:
-        session = await self.open_pr_diff_session(repo_owner, repo_name, pr_number)
+    async def get_pr_diff(
+        self,
+        repo_owner: str,
+        repo_name: str,
+        pr_number: int,
+        /,
+        *,
+        base_url: str | None = None,
+    ) -> PRDiff | None:
+        session = await self.open_pr_diff_session(repo_owner, repo_name, pr_number, base_url=base_url)
         try:
             return await session.build_pr_diff()
         finally:
             await session.aclose()
 
-    async def get_latest_commit_sha(self, repo_owner: str, repo_name: str, pr_number: int, /) -> str | None:
-        session = await self.open_pr_diff_session(repo_owner, repo_name, pr_number)
+    async def get_latest_commit_sha(
+        self,
+        repo_owner: str,
+        repo_name: str,
+        pr_number: int,
+        /,
+        *,
+        base_url: str | None = None,
+    ) -> str | None:
+        session = await self.open_pr_diff_session(repo_owner, repo_name, pr_number, base_url=base_url)
         try:
             return session.snapshot.head_sha
         finally:

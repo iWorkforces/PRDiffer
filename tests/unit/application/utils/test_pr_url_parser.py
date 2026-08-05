@@ -227,7 +227,7 @@ class TestParsePRTarget:
     @pytest.mark.parametrize(
         "bad_url",
         [
-            "https://gitlab.example.com/group/project/-/merge_requests/1",
+            "http://gitlab.com/group/project/-/merge_requests/1",  # not https
             "https://gitlab.com/group/project/-/tree/main",
             "https://gitlab.com/only-one/-/merge_requests/1",
             "https://gitlab.com/group//project/-/merge_requests/1",
@@ -239,6 +239,7 @@ class TestParsePRTarget:
             "https://gitlab.com/group/project/-/merge_requests/1?x=1",
             "https://gitlab.com/group/project/-/merge_requests/1#frag",
             "https://gitlab.com/group/project/-/merge_requests/1000001",
+            "https://user:pass@nova.teachx.ai/g/p/-/merge_requests/1",
         ],
     )
     def test_parse_pr_target_rejects_malformed_gitlab_urls(self, bad_url: str) -> None:
@@ -251,3 +252,14 @@ class TestParsePRTarget:
         validator = InputValidator()
         with pytest.raises((InvalidURLError, InvalidPRNumberError, SuspiciousOperationError)):
             pr_url_parser.parse_pr_target(bad_url, validator)
+
+    def test_parse_custom_hosted_gitlab_url(self) -> None:
+        """Real custom-hosted GitLab MR URL (nova.teachx.ai)."""
+        url = "https://nova.teachx.ai/trace-analysis/oh-my-grokbuild/-/merge_requests/1"
+        validator = InputValidator()
+        target = pr_url_parser.parse_pr_target(url, validator)
+        assert target.provider == "gitlab"
+        assert target.repo_owner == "trace-analysis"
+        assert target.repo_name == "oh-my-grokbuild"
+        assert target.pr_number == 1
+        assert target.base_url == "https://nova.teachx.ai"

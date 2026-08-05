@@ -302,6 +302,7 @@ class ToolRegistry(_CoalescedPRDiffExecutionMixin):
                             target.pr_number,
                             pr_diff_reader=self._gitlab_reader,
                             cache_namespace="gitlab",
+                            base_url=target.base_url,
                         )
                     case unreachable:
                         assert_never(unreachable)

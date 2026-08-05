@@ -204,7 +204,7 @@ GitLab merge-request diffs are reconstructed from one immutable MR diff version
 (version ID + base/start/head SHAs). Successful responses are ordered,
 full-context, and all-or-nothing. Nested namespaces such as
 `https://gitlab.com/group/subgroup/project/-/merge_requests/42` are supported
-on GitLab.com only. Binary, oversized, unavailable, or incomplete inventories
+on GitLab.com and custom-hosted GitLab (e.g. `https://nova.teachx.ai/group/project/-/merge_requests/1`). Binary, oversized, unavailable, or incomplete inventories
 fail the entire request with `E5020_FULL_DIFF_INCOMPLETE` (structured MCP
 `ToolError` JSON). Legacy hunk-only cache keys under `gitlab:owner:repo:iid`
 are ignored; strict cache identity uses `gitlab-full-diff-v1:...`.

@@ -13,8 +13,8 @@ prdiffer/application/utils/
 | Task | Location | Notes |
 |------|----------|-------|
 | **GitHub PR URL** | `parse_pr_url()` | Returns `(owner, repo, number)` via `InputValidatorProtocol` |
-| **Provider-aware target** | `parse_pr_target()` | Frozen `PRTarget` for GitHub or GitLab URLs |
-| **PRTarget model** | `PRTarget` dataclass | `provider`, `repo_owner`, `repo_name`, `pr_number` |
+| **Provider-aware target** | `parse_pr_target()` | Frozen `PRTarget` for GitHub or GitLab (incl. custom hosts) |
+| **PRTarget model** | `PRTarget` dataclass | `provider`, `repo_owner`, `repo_name`, `pr_number`, optional `base_url` |
 
 ## CONVENTIONS
 - Prefer injected `InputValidatorProtocol`; factory fallback for default validator is transitional.

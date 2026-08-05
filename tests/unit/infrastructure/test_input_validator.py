@@ -119,10 +119,16 @@ class TestGitLabURLValidation:
         owner, repo, iid = validate_gitlab_url(url)
         assert (owner, repo, iid) == ("group/subgroup", "project", 42)
 
+    def test_validate_custom_hosted_gitlab_url(self, validator: InputValidator) -> None:
+        url = "https://nova.teachx.ai/trace-analysis/oh-my-grokbuild/-/merge_requests/1"
+        validate_gitlab_url: Callable[[str], tuple[str, str, int]] = getattr(validator, "validate_gitlab_url")
+        owner, repo, iid = validate_gitlab_url(url)
+        assert (owner, repo, iid) == ("trace-analysis", "oh-my-grokbuild", 1)
+
     @pytest.mark.parametrize(
         "bad_url",
         [
-            "https://self-managed.example/group/project/-/merge_requests/1",
+            "http://gitlab.com/group/project/-/merge_requests/1",
             "https://gitlab.com/a/b/-/merge_requests/1?foo=1",
             "https://gitlab.com/a/b/-/merge_requests/1#x",
             "https://gitlab.com/a/../b/-/merge_requests/1",

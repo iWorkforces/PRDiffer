@@ -135,5 +135,5 @@ class TestGitLabSessionReader:
         )
         result = await reader.get_pr_diff("group/sub", "project", 42)
         assert result is not None
-        ops.select_diff_snapshot.assert_called_once_with("group/sub/project", 42)
+        ops.select_diff_snapshot.assert_called_once_with("group/sub/project", 42, base_url=None)
         content.fetch_all.assert_awaited()

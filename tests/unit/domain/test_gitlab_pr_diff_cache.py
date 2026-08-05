@@ -41,7 +41,25 @@ def test_gitlab_v1_key_exact_format_and_casefold() -> None:
         start_sha="startSHA",
         head_sha="headSHA",
     )
-    assert key == (f"{GITLAB_FULL_DIFF_CACHE_PREFIX}:group/subgroup:project:42:99:baseSHA:startSHA:headSHA")
+    assert key == (
+        f"{GITLAB_FULL_DIFF_CACHE_PREFIX}:gitlab.com:group/subgroup:project:42:99:baseSHA:startSHA:headSHA"
+    )
+
+
+def test_gitlab_v1_key_includes_custom_host() -> None:
+    key = gitlab_full_diff_v1_key(
+        namespace="trace-analysis",
+        repo="oh-my-grokbuild",
+        iid=1,
+        version_id=3,
+        base_sha="b",
+        start_sha="s",
+        head_sha="h",
+        host="nova.teachx.ai",
+    )
+    assert key == (
+        f"{GITLAB_FULL_DIFF_CACHE_PREFIX}:nova.teachx.ai:trace-analysis:oh-my-grokbuild:1:3:b:s:h"
+    )
 
 
 def test_gitlab_v1_validation_token_contains_version_and_three_refs() -> None:

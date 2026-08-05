@@ -66,9 +66,19 @@ class GitLabVCSRepository(VCSDiffRepositoryInterface):
         """Validate the configured GitLab connection without blocking the event loop."""
         await anyio.to_thread.run_sync(self._operations.initialize, abandon_on_cancel=False)
 
-    async def open_pr_diff_session(self, repo_owner: str, repo_name: str, pr_number: int, /):
+    async def open_pr_diff_session(
+        self,
+        repo_owner: str,
+        repo_name: str,
+        pr_number: int,
+        /,
+        *,
+        base_url: str | None = None,
+    ):
         """Open a request-scoped strict full-diff session."""
-        return await self._session_reader.open_pr_diff_session(repo_owner, repo_name, pr_number)
+        return await self._session_reader.open_pr_diff_session(
+            repo_owner, repo_name, pr_number, base_url=base_url
+        )
 
     async def get_pr_diff(self, owner: str, repo: str, pr: int) -> PRDiff:
         """Build a complete PRDiff via open/build/close session lifecycle."""
