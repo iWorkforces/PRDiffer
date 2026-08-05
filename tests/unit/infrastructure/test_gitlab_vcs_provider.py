@@ -34,7 +34,9 @@ class TestGitLabVCSRepository:
             GitLabDiffRecord(old_path="src/added.py", new_path="src/added.py", new_file=True, deleted_file=False, renamed_file=False, diff=added_diff),
             GitLabDiffRecord(old_path="src/current.py", new_path="src/current.py", new_file=False, deleted_file=False, renamed_file=False, diff=modified_diff),
             GitLabDiffRecord(old_path="src/old.py", new_path="src/new.py", new_file=False, deleted_file=False, renamed_file=True, diff=renamed_diff),
-            GitLabDiffRecord(old_path="src/deleted.py", new_path="src/replacement.py", new_file=False, deleted_file=True, renamed_file=False, diff=deleted_diff),
+            GitLabDiffRecord(
+                old_path="src/deleted.py", new_path="src/replacement.py", new_file=False, deleted_file=True, renamed_file=False, diff=deleted_diff
+            ),
             GitLabDiffRecord(old_path="src/collapsed.py", new_path="src/collapsed.py", new_file=False, deleted_file=False, renamed_file=False, collapsed=True),
             GitLabDiffRecord(old_path="src/large.py", new_path="src/large.py", new_file=False, deleted_file=False, renamed_file=False, too_large=True),
         )
