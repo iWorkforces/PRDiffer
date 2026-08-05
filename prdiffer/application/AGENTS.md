@@ -44,6 +44,7 @@ prdiffer/application/
 ### Strict full-diff (`get_pr_diff`)
 - **All-or-nothing full-context diffs**: successful responses include every selected file with path/status/stats and **generated full-context** unified `diff` text (not hunk-only provider patches).
 - On incomplete reconstruction (inventory truncation, limits, binary/oversized, generation failure, etc.) the tool fails with **`E5020_FULL_DIFF_INCOMPLETE`** and a stable `reason` — never a partial `files` array.
+- At the FastMCP boundary, `FullDiffIncompleteError` becomes `ToolError` with compact JSON `{"error_code","message","details"}` (safe details only; no `files`).
 
 ### Components
 - Optional constructor DI with factory fallbacks for tests.
