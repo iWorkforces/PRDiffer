@@ -77,6 +77,31 @@ class TestFilePatchInfoCreation:
         assert patch._is_binary is False
         assert 0.0 <= patch._change_percentage <= 100.0
 
+    def test_optional_modes_default_none(self):
+        patch = FilePatchInfo(filename="src/example.py")
+        assert patch.old_mode is None
+        assert patch.new_mode is None
+
+    def test_valid_git_modes_accepted(self):
+        patch = FilePatchInfo(
+            filename="script.sh",
+            old_mode="100644",
+            new_mode="100755",
+            edit_type=EDIT_TYPE.MODIFIED,
+        )
+        assert patch.old_mode == "100644"
+        assert patch.new_mode == "100755"
+
+    def test_malformed_mode_rejected(self):
+        import pytest
+
+        with pytest.raises(ValueError, match="old_mode"):
+            FilePatchInfo(filename="a.py", old_mode="644")
+        with pytest.raises(ValueError, match="new_mode"):
+            FilePatchInfo(filename="a.py", new_mode="100755x")
+        with pytest.raises(ValueError, match="old_mode"):
+            FilePatchInfo(filename="a.py", old_mode="10064a")
+
     def test_default_review_priority(self):
         """Test default review priority is 'normal'."""
         patch = FilePatchInfo(filename="test.py")

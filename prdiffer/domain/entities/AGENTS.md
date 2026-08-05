@@ -5,7 +5,7 @@ Frozen (mostly) domain models for PR diffs, content results, cache entries, and 
 ## STRUCTURE
 ```
 prdiffer/domain/entities/
-├── file_patch.py            # FilePatchInfo + EDIT_TYPE — rich model (~329)
+├── file_patch.py            # FilePatchInfo + EDIT_TYPE — rich model (+ optional modes)
 ├── file_diff_response.py    # FileDiffResponse, FileStats (~54)
 ├── file_content.py          # FileContentAvailable | FileContentUnavailable (~41)
 ├── generated_file_diff.py   # GeneratedFileDiff (~19)
@@ -31,7 +31,7 @@ prdiffer/domain/entities/
 | Symbol | Type | Location | Role |
 |--------|------|----------|------|
 | `EDIT_TYPE` | StrEnum | `file_patch.py` | added/deleted/modified/renamed/unknown |
-| `FilePatchInfo` | Frozen dataclass | `file_patch.py` | Rich file change model |
+| `FilePatchInfo` | Frozen dataclass | `file_patch.py` | Rich file change model; optional `old_mode`/`new_mode` (six-digit octal) |
 | `FileStats` | Frozen dataclass | `file_diff_response.py` | additions/deletions |
 | `FileDiffResponse` | Frozen dataclass | `file_diff_response.py` | Public MCP file payload |
 | `FileContentAvailable` | Frozen dataclass | `file_content.py` | Successful text (incl. empty) |

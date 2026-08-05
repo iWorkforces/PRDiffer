@@ -46,6 +46,7 @@ prdiffer/infrastructure/github/
 ### Ordered processing + generation
 - `FileProcessor` assembles ordered `FilePatchInfo` (including deleted / rename-only).
 - `DiffGenerator.generate_ordered_file_diffs` returns one full-context `GeneratedFileDiff` per selected file in order, or hard-fails.
+- When `old_mode`/`new_mode` are both set and differ, prepend deterministic `old mode`/`new mode` headers (before rename headers).
 - Contract inability → **E5020** / `FullDiffIncompleteError`; unexpected defects → E5003.
 
 ### Sessions

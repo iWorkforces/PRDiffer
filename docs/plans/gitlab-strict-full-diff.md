@@ -116,7 +116,7 @@ Your next move: start the plan in a worker session or request the optional dual 
   - QA scenarios: Happy - `uv run pytest tests/unit/domain/test_error_codes.py tests/unit/domain/test_errors.py tests/unit/domain/test_exceptions.py tests/unit/domain/test_full_diff_incomplete_error.py -v --tb=short`; Failure - constructing/logging a representative GitLab error with secret-like upstream fields proves they are never copied into public details. Evidence: `<attemptDir>/task-3-gitlab-strict-full-diff.txt`.
   - Commit: N | proposed `feat(errors): add GitLab API error codes`.
 
-- [ ] 4. Extend the shared full-context generator for explicit file-mode changes
+- [x] 4. Extend the shared full-context generator for explicit file-mode changes
   - Recommended task executor category: `unspecified-high` - shared entity and generator changes require ordered-diff and GitHub regression coverage.
   - What to do: Add optional `old_mode`/`new_mode` to `FilePatchInfo` in `prdiffer/domain/entities/file_patch.py`, validating Git-style six-digit octal mode strings only when present. Update `prdiffer/infrastructure/github/diff_generator.py` to prepend deterministic `old mode <mode>\nnew mode <mode>\n` when valid modes differ; compose mode headers with rename headers in stable order; mode-only files return status `modified`, additions/deletions `0/0`, and nonempty mode text. Keep absent modes behavior unchanged.
   - Must NOT do: Do not infer modes from nullable provider patches, emit a mode header when modes are equal/absent, change existing textual full-context bodies, or weaken unknown-status/binary/truncation failures.

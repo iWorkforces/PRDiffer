@@ -177,14 +177,19 @@ class DiffGenerator:
                 previous_path=previous_path,
             )
 
+        # Stable header order: mode headers, then rename headers, then body.
+        mode_header = self._mode_change_header(file_patch.old_mode, file_patch.new_mode)
+        rename_header = ""
         if file_patch.edit_type is EDIT_TYPE.RENAMED and previous_path:
             rename_header = f"rename from {previous_path}\nrename to {file_patch.filename}\n"
-            # Rename-only still emits deterministic headers even when text is identical/empty.
+
+        if rename_header or mode_header:
+            # Rename/mode-only still emits deterministic headers when text is identical/empty.
             if base_text == head_text:
-                diff = rename_header + (body.lstrip("\n") if body.strip() else "")
-                diff = diff.rstrip("\n")
+                body_part = body.lstrip("\n") if body.strip() else ""
+                diff = (mode_header + rename_header + body_part).rstrip("\n")
             else:
-                diff = rename_header + body.lstrip("\n")
+                diff = mode_header + rename_header + body.lstrip("\n")
         else:
             diff = body
 
@@ -194,6 +199,15 @@ class DiffGenerator:
             previous_path=previous_path if file_patch.edit_type is EDIT_TYPE.RENAMED else None,
             diff=diff,
         )
+
+    @staticmethod
+    def _mode_change_header(old_mode: str | None, new_mode: str | None) -> str:
+        """Deterministic mode headers when both modes are present and differ."""
+        if old_mode is None or new_mode is None:
+            return ""
+        if old_mode == new_mode:
+            return ""
+        return f"old mode {old_mode}\nnew mode {new_mode}\n"
 
     def _build_full_context_body(self, base_text: str, head_text: str, *, provider_patch: str) -> str:
         """Build full-file unified body from required text; provider patch is fallback input only."""
