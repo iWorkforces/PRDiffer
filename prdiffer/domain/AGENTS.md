@@ -30,7 +30,8 @@ prdiffer/domain/
 | **VCS provider contract** | `interfaces/vcs_provider.py` | `VCSDiffRepositoryInterface` |
 | **App component Protocols** | `interfaces/protocols.py` | RateLimiter, Auth, Metrics, … |
 | **Provider registry** | `vcs_provider_registry.py` | `supports_repository()` auto-detect |
-| **Error codes** | `error_codes.py` + `errors.py` | Structured E-codes |
+| **Error codes** | `error_codes.py` + `errors.py` | Structured E-codes (incl. `E5020_FULL_DIFF_INCOMPLETE`) |
+| **Full-diff incomplete** | `exceptions.py` | `FullDiffIncompleteError` + `FullDiffIncompleteReason` |
 | **Factory contracts** | `factories/` | Dependency inversion for outer layers |
 
 ## CONVENTIONS
@@ -53,6 +54,8 @@ prdiffer/domain/
 ### Error Model
 - Exception hierarchy in `exceptions.py` (auth, rate limit, validation, not found, …).
 - Parallel structured codes in `error_codes.py` / `errors.py` for MCP-facing responses.
+- **Strict full-diff incompleteness**: `E5020_FULL_DIFF_INCOMPLETE` + `FullDiffIncompleteError(GitHubAPIError)` with `FullDiffIncompleteReason` taxonomy (`INVENTORY_TRUNCATED`, `FILE_COUNT_LIMIT`, `BINARY_CONTENT`, `FILE_SIZE_LIMIT`, `CONTENT_UNAVAILABLE`, `CONTENT_DECODE_FAILED`, `UNSUPPORTED_FILE_STATUS`, `DIFF_GENERATION_FAILED`, `RESPONSE_SIZE_LIMIT`). Safe details only: `reason`, `path`, `previous_path`, `observed`, `limit` — never tokens or raw content.
+- Do **not** remap auth/permission/rate-limit/retry-exhausted network failures to E5020; unexpected algorithm defects stay `E5003_DIFF_GENERATION_ERROR`.
 
 ## ANTI-PATTERNS
 - **NO outer-layer imports** in domain.
