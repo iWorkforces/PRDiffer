@@ -10,7 +10,13 @@ from typing import Any, TypeVar, cast
 
 import anyio
 from prdiffer.infrastructure.logging.console_logger import get_logger, ConsoleLogger
-from prdiffer.infrastructure.utils.parallel.results import BatchResult, ErrorStrategy
+from prdiffer.infrastructure.utils.parallel.results import (
+    BatchResult,
+    ErrorStrategy,
+    IndexedBatchError,
+    IndexedBatchResult,
+    IndexedItemOutcome,
+)
 
 # Exceptions to catch in parallel execution
 # Note: We deliberately exclude KeyboardInterrupt, SystemExit, and GeneratorExit
@@ -44,6 +50,35 @@ OPERATIONAL_EXCEPTIONS: tuple[type[BaseException], ...] = (
 
 T = TypeVar("T")
 R = TypeVar("R")
+K = TypeVar("K")
+
+
+def _is_cancellation(exc: BaseException | None) -> bool:
+    if exc is None:
+        return False
+    if isinstance(exc, anyio.get_cancelled_exc_class()):
+        return True
+    name = type(exc).__name__
+    return name in {"CancelledError", "CancelledException"}
+
+
+def _first_root_failure(
+    outcomes: tuple[IndexedItemOutcome[K, R], ...] | tuple[IndexedItemOutcome[object, object], ...],
+) -> IndexedItemOutcome[object, object] | None:
+    """Prefer the first non-cancellation failure for identity reporting."""
+    non_cancel: list[IndexedItemOutcome[object, object]] = []
+    any_fail: list[IndexedItemOutcome[object, object]] = []
+    for outcome in outcomes:
+        boxed = cast(IndexedItemOutcome[object, object], outcome)
+        if boxed.error is not None:
+            any_fail.append(boxed)
+            if not _is_cancellation(boxed.error):
+                non_cancel.append(boxed)
+    if non_cancel:
+        return non_cancel[0]
+    if any_fail:
+        return any_fail[0]
+    return None
 
 
 class AsyncParallelExecutor:
@@ -378,6 +413,136 @@ class AsyncParallelExecutor:
             self._logger.warning(f"Batch execution timed out after {self.timeout}s")
 
         return result
+
+    async def execute_indexed_batch(
+        self,
+        func: Callable[[K], Awaitable[R]],
+        items: list[K],
+        *,
+        strict: bool = True,
+        keys: list[K] | None = None,
+    ) -> IndexedBatchResult[K, R]:
+        """Execute items with identity-preserving indexed results.
+
+        Outcomes are stored by submission index and always returned in input
+        order. Strict mode cancels siblings on the first failure and raises
+        ``IndexedBatchError`` carrying the full ordered outcome tuple — never a
+        compacted success list.
+
+        Args:
+            func: Async function applied to each item (or key when ``keys`` given)
+            items: Submitted work items (identity when keys is None)
+            strict: When True, cancel siblings and raise on first failure
+            keys: Optional explicit identity keys parallel to ``items``
+
+        Returns:
+            IndexedBatchResult with one outcome per submitted item in order
+
+        Raises:
+            ValueError: If keys length mismatches items or keys contain duplicates
+            IndexedBatchError: Strict mode failure (includes failed item identity)
+            TimeoutError: When batch timeout elapses and strict/raise semantics apply
+        """
+        if keys is not None and len(keys) != len(items):
+            raise ValueError("keys length must match items length")
+        identity_keys: list[K] = list(keys) if keys is not None else list(items)
+        if len(identity_keys) != len(set(identity_keys)):
+            raise ValueError("indexed batch keys must be unique")
+
+        if not items:
+            return IndexedBatchResult(outcomes=())
+
+        slot_count = len(items)
+        outcomes: list[IndexedItemOutcome[K, R] | None] = [None] * slot_count
+        semaphore = await self._get_semaphore()
+        cancel_scope_box: dict[str, anyio.CancelScope | None] = {"scope": None}
+
+        async def process_indexed(index: int, item: K, key: K) -> None:
+            async with semaphore:
+                try:
+                    value = await func(item)
+                    outcomes[index] = IndexedItemOutcome(index=index, key=key, value=value, error=None)
+                except BaseException as exc:  # capture identity even for non-operational errors
+                    outcomes[index] = IndexedItemOutcome(index=index, key=key, value=None, error=exc)
+                    self._logger.error(
+                        "Indexed batch item failed",
+                        extra={"index": index, "key": repr(key), "error": str(exc)},
+                    )
+                    if strict and cancel_scope_box["scope"] is not None:
+                        cancel_scope_box["scope"].cancel()
+                    if strict:
+                        raise
+
+        async def run_all() -> None:
+            with anyio.CancelScope() as scope:
+                cancel_scope_box["scope"] = scope
+                async with anyio.create_task_group() as tg:
+                    for index, (item, key) in enumerate(zip(items, identity_keys, strict=True)):
+                        tg.start_soon(process_indexed, index, item, key)
+
+        try:
+            if self.timeout:
+                with anyio.fail_after(self.timeout):
+                    await run_all()
+            else:
+                await run_all()
+        except TimeoutError:
+            self._logger.warning(f"Indexed batch timed out after {self.timeout}s")
+            for index, key in enumerate(identity_keys):
+                if outcomes[index] is None:
+                    outcomes[index] = IndexedItemOutcome(
+                        index=index,
+                        key=key,
+                        value=None,
+                        error=TimeoutError(f"Item timed out after {self.timeout}s"),
+                    )
+            if strict:
+                sealed = tuple(
+                    outcome if outcome is not None else IndexedItemOutcome(index=i, key=identity_keys[i], error=RuntimeError("missing outcome"))
+                    for i, outcome in enumerate(outcomes)
+                )
+                raise IndexedBatchError(
+                    f"Indexed batch timed out after {self.timeout}s",
+                    outcomes=sealed,
+                ) from None
+        except BaseException as exc:
+            # Ensure every slot has an outcome even after cancellation.
+            for index, key in enumerate(identity_keys):
+                if outcomes[index] is None:
+                    outcomes[index] = IndexedItemOutcome(
+                        index=index,
+                        key=key,
+                        value=None,
+                        error=exc if strict else RuntimeError("cancelled sibling"),
+                    )
+            sealed = tuple(
+                outcome if outcome is not None else IndexedItemOutcome(index=i, key=identity_keys[i], error=RuntimeError("missing outcome"))
+                for i, outcome in enumerate(outcomes)
+            )
+            if strict:
+                first = _first_root_failure(sealed)
+                identity = first.key if first is not None else None
+                raise IndexedBatchError(
+                    f"Indexed batch failed for item identity={identity!r}",
+                    outcomes=sealed,
+                    cause=first.error if first else exc,
+                ) from exc
+            return IndexedBatchResult(outcomes=sealed)
+
+        sealed_ok = tuple(
+            outcome if outcome is not None else IndexedItemOutcome(index=i, key=identity_keys[i], error=RuntimeError("missing outcome"))
+            for i, outcome in enumerate(outcomes)
+        )
+        batch = IndexedBatchResult(outcomes=sealed_ok)
+        if strict and not batch.all_succeeded:
+            first = _first_root_failure(sealed_ok)
+            assert first is not None
+            raise IndexedBatchError(
+                f"Indexed batch failed for item identity={first.key!r}",
+                outcomes=sealed_ok,
+                cause=first.error,
+            )
+        return batch
 
     def get_stats(self) -> dict[str, Any]:
         """Get executor statistics.

@@ -16,7 +16,10 @@ from prdiffer.infrastructure.utils.parallel.executor import (
 from prdiffer.infrastructure.utils.parallel.results import (
     BatchResult,
     ErrorStrategy,
+    IndexedBatchError,
+    IndexedBatchResult,
 )
+import anyio
 
 
 @pytest.mark.unit
@@ -724,3 +727,115 @@ class TestEdgeCases:
 
         # Error ignored, empty result
         assert result == []
+
+
+@pytest.mark.unit
+class TestExecuteIndexedBatch:
+    """Indexed all-or-error batch contract tests."""
+
+    @pytest.mark.asyncio
+    async def test_reverse_completion_preserves_submission_order(self):
+        executor = AsyncParallelExecutor(max_concurrent=3, error_strategy=ErrorStrategy.RAISE)
+        release = {name: anyio.Event() for name in ("a", "b", "c")}
+
+        async def work(name: str) -> str:
+            await release[name].wait()
+            return name.upper()
+
+        async def run() -> None:
+            # Complete c, then a, then b — result order must still be a,b,c
+            async with anyio.create_task_group() as tg:
+                async def starter():
+                    await anyio.sleep(0.01)
+                    release["c"].set()
+                    await anyio.sleep(0.01)
+                    release["a"].set()
+                    await anyio.sleep(0.01)
+                    release["b"].set()
+
+                tg.start_soon(starter)
+                batch = await executor.execute_indexed_batch(work, ["a", "b", "c"], strict=True)
+                assert [o.key for o in batch.outcomes] == ["a", "b", "c"]
+                assert list(batch.values_in_order) == ["A", "B", "C"]
+
+        await run()
+
+    @pytest.mark.asyncio
+    async def test_failed_middle_item_raises_with_identity(self):
+        executor = AsyncParallelExecutor(max_concurrent=3, error_strategy=ErrorStrategy.IGNORE)
+        started: list[str] = []
+        finished: list[str] = []
+
+        async def work(name: str) -> str:
+            started.append(name)
+            if name == "b":
+                raise ValueError("boom-b")
+            await anyio.sleep(0.05)
+            finished.append(name)
+            return name
+
+        with pytest.raises(IndexedBatchError) as exc_info:
+            await executor.execute_indexed_batch(work, ["a", "b", "c"], strict=True)
+
+        err = exc_info.value
+        assert err.first_failure is not None
+        assert err.first_failure.key == "b"
+        assert isinstance(err.first_failure.error, ValueError)
+        assert [o.index for o in err.outcomes] == [0, 1, 2]
+        # No compacted success list escapes
+        with pytest.raises(IndexedBatchError):
+            _ = IndexedBatchResult(outcomes=err.outcomes).values_in_order
+
+    @pytest.mark.asyncio
+    async def test_duplicate_keys_rejected(self):
+        executor = AsyncParallelExecutor(max_concurrent=2)
+
+        async def work(name: str) -> str:
+            return name
+
+        with pytest.raises(ValueError, match="unique"):
+            await executor.execute_indexed_batch(work, ["a", "a"], strict=True)
+
+    @pytest.mark.asyncio
+    async def test_timeout_marks_pending_items(self):
+        executor = AsyncParallelExecutor(max_concurrent=2, timeout=0.05)
+
+        async def work(name: str) -> str:
+            await anyio.sleep(1.0)
+            return name
+
+        with pytest.raises((IndexedBatchError, TimeoutError)):
+            await executor.execute_indexed_batch(work, ["a", "b"], strict=True)
+
+    @pytest.mark.asyncio
+    async def test_non_strict_collects_failures_in_order(self):
+        executor = AsyncParallelExecutor(max_concurrent=3)
+
+        async def work(name: str) -> str:
+            if name == "b":
+                raise RuntimeError("fail-b")
+            return name
+
+        batch = await executor.execute_indexed_batch(work, ["a", "b", "c"], strict=False)
+        assert [o.key for o in batch.outcomes] == ["a", "b", "c"]
+        assert batch.outcomes[0].ok is True
+        assert batch.outcomes[1].ok is False
+        assert batch.outcomes[2].ok is True
+        assert batch.outcomes[0].value == "a"
+        assert batch.outcomes[2].value == "c"
+
+    @pytest.mark.asyncio
+    async def test_explicit_keys_parallel_to_items(self):
+        executor = AsyncParallelExecutor(max_concurrent=2)
+
+        async def work(item: int) -> int:
+            return item * 10
+
+        batch = await executor.execute_indexed_batch(
+            work,
+            [1, 2, 3],
+            keys=["x", "y", "z"],
+            strict=True,
+        )
+        assert [o.key for o in batch.outcomes] == ["x", "y", "z"]
+        assert list(batch.values_in_order) == [10, 20, 30]
