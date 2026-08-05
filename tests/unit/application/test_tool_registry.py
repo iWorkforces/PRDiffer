@@ -534,10 +534,15 @@ class TestSafeErrorMessages:
 class TestGetPRDiffProviderDispatch:
     @pytest.mark.anyio
     @pytest.mark.parametrize(
-        ("url", "provider", "cache_key"),
+        ("url", "provider", "cache_key", "coalesce_key"),
         [
-            ("https://github.com/owner/repo/pull/17", "github", "owner/repo/pr/17"),
-            ("https://gitlab.com/owner/repo/-/merge_requests/17", "gitlab", "gitlab:owner/repo/pr/17"),
+            ("https://github.com/owner/repo/pull/17", "github", "owner/repo/pr/17", "owner/repo/pr/17"),
+            (
+                "https://gitlab.com/owner/repo/-/merge_requests/17",
+                "gitlab",
+                "gitlab:owner/repo/pr/17",
+                "https://gitlab.com:gitlab:owner/repo/pr/17",
+            ),
         ],
     )
     async def test_registered_get_pr_diff_routes_to_only_the_matching_provider_reader(
@@ -545,6 +550,7 @@ class TestGetPRDiffProviderDispatch:
         url: str,
         provider: str,
         cache_key: str,
+        coalesce_key: str,
         mock_logger,
         mock_github_repository_class,
         mock_rate_limiter,
@@ -594,7 +600,7 @@ class TestGetPRDiffProviderDispatch:
         assert other_reader.diff_calls == []
         assert cache.lookup_keys == [(cache_key, f"{provider}-commit")]
         assert cache.write_keys == [(cache_key, f"{provider}-commit", expected_diff)]
-        assert coalescer.keys == [cache_key]
+        assert coalescer.keys == [coalesce_key]
 
 
 @pytest.mark.unit

@@ -64,7 +64,7 @@ class GitLabOperations:
         try:
             with gitlab.Gitlab(url=url, private_token=self._gitlab_token) as client:
                 client.auth()
-        except (gitlab.GitlabError, requests.RequestException):
+        except gitlab.GitlabError, requests.RequestException:
             raise PRDifferException(
                 "Failed to initialize GitLab connection",
                 error_code=E5019_CONNECTION_ERROR,
@@ -74,9 +74,7 @@ class GitLabOperations:
         """Return the head SHA from a pinned snapshot (compat surface)."""
         return self.select_diff_snapshot(f"{owner}/{repo}", pr, base_url=base_url).head_sha
 
-    def get_diff_records(
-        self, owner: str, repo: str, pr: int, *, base_url: str | None = None
-    ) -> tuple[GitLabDiffRecord, ...]:
+    def get_diff_records(self, owner: str, repo: str, pr: int, *, base_url: str | None = None) -> tuple[GitLabDiffRecord, ...]:
         """Return ordered records from the pinned immutable version (compat)."""
         return self.select_diff_snapshot(f"{owner}/{repo}", pr, base_url=base_url).records
 
@@ -182,9 +180,7 @@ class GitLabOperations:
         if len(matches) != 1:
             raise FullDiffIncompleteError(
                 FullDiffIncompleteReason.INVENTORY_TRUNCATED,
-                message=(
-                    f"Expected exactly one MR diff version matching diff_refs; found {len(matches)}"
-                ),
+                message=(f"Expected exactly one MR diff version matching diff_refs; found {len(matches)}"),
                 observed=len(matches),
                 limit=1,
             )
@@ -202,10 +198,7 @@ class GitLabOperations:
             raise
 
         fetched = GitLabVersionSummary.from_object(version)
-        if (
-            fetched.version_id != selected.version_id
-            or not fetched.matches_refs(refs)
-        ):
+        if fetched.version_id != selected.version_id or not fetched.matches_refs(refs):
             raise FullDiffIncompleteError(
                 FullDiffIncompleteReason.INVENTORY_TRUNCATED,
                 message="Fetched MR diff version id/refs drifted from selection",
@@ -219,7 +212,7 @@ class GitLabOperations:
         else:
             try:
                 real_size = int(real_size_raw)
-            except (TypeError, ValueError):
+            except TypeError, ValueError:
                 raise FullDiffIncompleteError(
                     FullDiffIncompleteReason.INVENTORY_TRUNCATED,
                     message="MR diff version real_size is malformed",
@@ -262,10 +255,10 @@ def _as_dict(raw: object) -> dict[str, Any]:
     if callable(as_dict):
         data = as_dict()
         if isinstance(data, dict):
-            return data
+            return {str(k): v for k, v in data.items()}
     attributes = getattr(raw, "attributes", None)
     if isinstance(attributes, dict):
-        return attributes
+        return {str(k): v for k, v in attributes.items()}
     if isinstance(raw, dict):
-        return raw
+        return {str(k): v for k, v in raw.items()}
     raise ValueError("cannot coerce diff record")

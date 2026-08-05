@@ -126,16 +126,16 @@ class GitLabDiffSnapshot:
 
 def _attrs(raw: object) -> dict[str, Any]:
     if isinstance(raw, dict):
-        return raw
+        return {str(k): v for k, v in raw.items()}
     # python-gitlab RESTObject attributes
     as_dict = getattr(raw, "asdict", None)
     if callable(as_dict):
         data = as_dict()
         if isinstance(data, dict):
-            return data
+            return {str(k): v for k, v in data.items()}
     attributes = getattr(raw, "attributes", None)
     if isinstance(attributes, dict):
-        return attributes
+        return {str(k): v for k, v in attributes.items()}
     # Fallback: public non-callable attributes
     return {k: getattr(raw, k) for k in dir(raw) if not k.startswith("_") and not callable(getattr(raw, k, None))}
 

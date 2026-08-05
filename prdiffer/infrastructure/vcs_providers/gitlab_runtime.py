@@ -312,7 +312,8 @@ class GitLabRuntime:
             # blocking callback (abandon_on_cancel: client closed in worker finally).
             async with self._limiter:
                 with anyio.fail_after(remaining):
-                    return await anyio.to_thread.run_sync(
+                    run_sync = getattr(anyio.to_thread, "run_sync")
+                    return await run_sync(
                         worker,
                         abandon_on_cancel=True,
                     )

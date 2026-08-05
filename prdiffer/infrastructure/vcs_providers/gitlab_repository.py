@@ -76,9 +76,7 @@ class GitLabVCSRepository(VCSDiffRepositoryInterface):
         base_url: str | None = None,
     ):
         """Open a request-scoped strict full-diff session."""
-        return await self._session_reader.open_pr_diff_session(
-            repo_owner, repo_name, pr_number, base_url=base_url
-        )
+        return await self._session_reader.open_pr_diff_session(repo_owner, repo_name, pr_number, base_url=base_url)
 
     async def get_pr_diff(self, owner: str, repo: str, pr: int) -> PRDiff:
         """Build a complete PRDiff via open/build/close session lifecycle."""

@@ -268,22 +268,22 @@ Your next move: start the plan in a worker session or request the optional dual 
 
 ## Final verification wave
 > Runs in parallel after ALL todos. ALL must APPROVE. Surface results and wait for the user's explicit okay before declaring complete.
-- [ ] F1. Plan compliance audit
+- [x] F1. Plan compliance audit
   - Recommended task executor category: `unspecified-high` - trace every promised contract to implementation and evidence independently of implementer self-report.
   - What to verify: Read this plan and the final diff; build an 18-row compliance table with pass/fail and exact source/test/evidence reference for every todo. Re-run the focused cumulative pytest gate. Reject any missing failure branch, skipped evidence file, stale cache path, current `/diffs` call, partial-result path, or unverified structured transport field.
   - Acceptance: all 18 rows PASS; all referenced evidence exists and command output proves the named assertion ran; focused tests exit zero.
   - Evidence: `<attemptDir>/final-F1-gitlab-strict-full-diff.txt`.
-- [ ] F2. Code quality review
+- [x] F2. Code quality review
   - Recommended task executor category: `deep` - review shared protocol changes, concurrency, error boundaries, type proofs, and module responsibility as one cohesive quality pass.
   - What to verify: Run `lsp_diagnostics` on every changed Python file, `uv run ruff check .`, `uv run ruff format --check .`, `uv run ty check`, and the architecture analyzer. Measure pure LOC for every added/modified source module; reject any >250 without a justified `SIZE_OK`. Inspect for `Any` in public signatures, casts/ignores, broad/empty catches, blocking event-loop I/O, secret-bearing errors/logs, non-exhaustive tagged-state branches, duplicate retry loops, and mutable shared SDK clients.
   - Acceptance: diagnostics/lint/format/type pass; analyzer has no new violation beyond the recorded application-factory edge; no hard invariant or size defect remains.
   - Evidence: `<attemptDir>/final-F2-gitlab-strict-full-diff.txt`.
-- [ ] F3. Real manual QA
+- [x] F3. Real manual QA
   - Recommended task executor category: `unspecified-high` - exercise the actual registered MCP surface and async provider pipeline rather than internal functions alone.
   - What to verify: Through a no-network fake GitLab SDK and real `ToolRegistry`/`FastMCP.call_tool`, execute: nested-namespace ordered mixed-file success; collapsed/null-hunk reconstruction; cache miss then strict cache hit; binary E5020; inventory-size mismatch E5020; 401; 429; timeout. Capture decoded raw MCP success/error payloads. Then run `uv run pytest tests/integration/test_gitlab_strict_full_diff.py tests/integration/test_full_diff_mcp_surface.py tests/performance/test_gitlab_strict_full_diff.py -vv -s --tb=short`.
   - Acceptance: success is complete and ordered; every failure has exact nonpartial code/details; operational errors are not E5020/not-found; cache hit performs no content calls; all protocol/integration/performance scenarios pass.
   - Evidence: `<attemptDir>/final-F3-gitlab-strict-full-diff.txt` plus `<attemptDir>/final-F3-raw-success.json` and `<attemptDir>/final-F3-raw-errors.json`.
-- [ ] F4. Scope fidelity
+- [x] F4. Scope fidelity
   - Recommended task executor category: `deep` - independently distinguish necessary shared seams from accidental provider or feature expansion.
   - What to verify: Inspect `git diff --name-status` and the complete patch against Must have/Must NOT have. Confirm no self-managed host/config, deprecated/raw diff endpoint, live-network test, partial mode, dependency/version bump, GitHub behavior drift, unrelated architecture cleanup, or secret exposure. Re-run GitHub cache/session/generator regressions and verify docs exactly match tested GitLab settings/codes.
   - Acceptance: every changed path maps to one todo; no out-of-scope behavior or dependency change exists; GitHub regression tests and `uv lock --check` pass; documentation and implementation constants agree.
