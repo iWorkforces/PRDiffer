@@ -1,12 +1,12 @@
 # AGENTS.md - Infrastructure/Factories
 
 **Package:** 0.6.0  
-`InfrastructureFactory` implements domain `InfrastructureFactoryInterface` (184 lines).
+`InfrastructureFactory` implements domain `InfrastructureFactoryInterface` (~234 lines).
 
 ## STRUCTURE
 ```
 prdiffer/infrastructure/factories/
-├── infrastructure_factory.py  # create_* for all infra services (184)
+├── infrastructure_factory.py  # create_* for all infra services (~234)
 └── __init__.py
 ```
 
@@ -15,13 +15,15 @@ prdiffer/infrastructure/factories/
 |------|----------|-------|
 | **Wire GitHub stack** | `create_github_api_service`, `create_pr_diff_service` | Reads `GitHubConfig` via `get_settings_service()` |
 | **File processor / diffs** | `create_file_processor`, `create_diff_generator` | Parallel thresholds from config |
+| **GitLab strict stack** | `create_gitlab_runtime`, `create_gitlab_session_reader` | Shared runtime limiter + session reader / VCS repo |
 | **Process-wide factory** | `get_infrastructure_factory()` | Returns new `InfrastructureFactory()` |
 
 ## METHODS (HIGH LEVEL)
-Settings, logger, cache, repository cache, GitHub API, diff utils, pattern matching, retry, PR diff service, file processor, diff generator, input validator.
+Settings, logger, cache, repository cache, GitHub API, diff utils, pattern matching, retry, PR diff service, file processor, diff generator, input validator, **GitLab runtime + session reader**.
 
 ## CONVENTIONS
 - Prefer **one authoritative `GitHubConfig`** when wiring clients/processors/services (no ad-hoc defaults that diverge from settings).
+- Prefer **one authoritative `GitLabConfig`** + process-shared `GitLabRuntime` limiter when wiring GitLab.
 - Parallel flags from config default **true** (settings + `GitHubConfig`):
   - `parallel_file_fetch_enabled`
   - `parallel_head_base_fetch_enabled`
@@ -33,5 +35,6 @@ Settings, logger, cache, repository cache, GitHub API, diff utils, pattern match
 
 ## ANTI-PATTERNS
 - NO circular imports with application layer (application injects factory results; avoid re-entering carelessly).
-- NO hardcoding timeouts/limits that already live on `GitHubConfig`.
+- NO hardcoding timeouts/limits that already live on `GitHubConfig` / `GitLabConfig`.
 - NO unbounded fan-out — always respect `max_concurrent` / `diff_max_workers`.
+- NO creating a new process-wide GitLab limiter per request (reuse `create_gitlab_runtime`).

@@ -215,3 +215,13 @@ except Exception as e:
 - **Rate limiting**: The server enforces request limits. Avoid tight loops calling `get_pr_diff` repeatedly.
 - **Caching**: The server uses commit-based cache invalidation. Repeated calls for the same PR return cached data until the PR is updated.
 - **File filtering**: The server may apply pattern-based file filtering (configured server-side). Missing files in the response may be due to server-side filters.
+
+## GitLab strict full-diff notes
+
+- Nested namespaces: `group/subgroup` is `repo_owner`, project is `repo_name`.
+- Hosts: default allowlist is `gitlab.com` only. Custom/self-hosted instances require
+  server-side `gitlab.allowed_hosts` opt-in (bare hostnames). Disallowed hosts → `E1001_INVALID_URL`.
+- Cache identity: `gitlab-full-diff-v1:{host}:{ns}:{repo}:{iid}:{version}:{base}:{start}:{head}`
+  (`host` is port-aware for non-default ports).
+- Failures: E5020 (structured JSON at MCP boundary), E2006/E2007/E3006/E5021 operational.
+- No partial `files` array; equal-content equal-mode modified is E5020 fail-closed.

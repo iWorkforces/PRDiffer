@@ -9,8 +9,31 @@ import anyio
 import pytest
 
 from prdiffer.domain.entities.pr_diff import PRDiff
+from prdiffer.domain.entities.pr_diff_cache import (
+    PRDIFF_CACHE_SCHEMA_V2,
+    github_full_diff_v2_key,
+)
 from prdiffer.domain.interfaces.pr_diff_reader import PRDiffSnapshot
 from prdiffer.infrastructure.github.pr_diff_session import GitHubPRDiffSession
+
+
+@pytest.mark.unit
+def test_session_cache_identity_matches_github_v2_bytes() -> None:
+    snapshot = PRDiffSnapshot("Owner", "Repo", 7, "baseSHA", "headSHA", 3)
+    session = GitHubPRDiffSession(
+        snapshot=snapshot,
+        github_client=MagicMock(),
+        repository=MagicMock(),
+        pull_request=MagicMock(),
+        service=MagicMock(),
+        limiter=anyio.CapacityLimiter(1),
+        deadline_monotonic=time.monotonic() + 30,
+    )
+    identity = session.cache_identity
+    assert identity.cache_key == github_full_diff_v2_key("Owner", "Repo", 7, "headSHA")
+    assert identity.cache_key == "github-full-diff-v2:owner:repo:7:headSHA"
+    assert identity.validation_token == "headSHA"
+    assert identity.schema_version == PRDIFF_CACHE_SCHEMA_V2
 
 
 @pytest.mark.unit

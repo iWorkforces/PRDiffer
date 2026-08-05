@@ -19,6 +19,8 @@ def _patch(
     head: str = "",
     patch: str = "",
     old: str | None = None,
+    old_mode: str | None = None,
+    new_mode: str | None = None,
 ) -> FilePatchInfo:
     return FilePatchInfo(
         filename=name,
@@ -27,6 +29,8 @@ def _patch(
         patch=patch,
         edit_type=edit,
         old_filename=old,
+        old_mode=old_mode,
+        new_mode=new_mode,
         num_plus_lines=1 if head else 0,
         num_minus_lines=1 if base else 0,
     )
@@ -93,6 +97,65 @@ class TestGenerateOrderedFileDiffs:
         results = generator.generate_ordered_file_diffs(files)
         assert len(results) == 2
         assert all(isinstance(r, GeneratedFileDiff) for r in results)
+
+    def test_mode_change_headers_exact(self) -> None:
+        utils = DiffUtils()
+        generator = DiffGenerator(diff_utils=utils, parallel_enabled=False)
+        files = [
+            _patch(
+                name="script.sh",
+                edit=EDIT_TYPE.MODIFIED,
+                base="echo hi\n",
+                head="echo hi\n",
+                old_mode="100644",
+                new_mode="100755",
+            )
+        ]
+        results = generator.generate_ordered_file_diffs(files)
+        assert results[0].diff.startswith("old mode 100644\nnew mode 100755\n")
+        assert "old mode 100644" in results[0].diff
+        assert "new mode 100755" in results[0].diff
+
+    def test_equal_or_absent_modes_emit_no_mode_header(self) -> None:
+        utils = DiffUtils()
+        generator = DiffGenerator(diff_utils=utils, parallel_enabled=False)
+        files = [
+            _patch(name="a.py", edit=EDIT_TYPE.MODIFIED, base="x\n", head="y\n"),
+            _patch(
+                name="b.py",
+                edit=EDIT_TYPE.MODIFIED,
+                base="x\n",
+                head="y\n",
+                old_mode="100644",
+                new_mode="100644",
+            ),
+        ]
+        results = generator.generate_ordered_file_diffs(files)
+        assert "old mode" not in results[0].diff
+        assert "new mode" not in results[0].diff
+        assert "old mode" not in results[1].diff
+
+    def test_rename_plus_mode_header_order_deterministic(self) -> None:
+        utils = DiffUtils()
+        generator = DiffGenerator(diff_utils=utils, parallel_enabled=False)
+        files = [
+            _patch(
+                name="new.sh",
+                edit=EDIT_TYPE.RENAMED,
+                base="same\n",
+                head="same\n",
+                old="old.sh",
+                old_mode="100644",
+                new_mode="100755",
+            )
+        ]
+        results = generator.generate_ordered_file_diffs(files)
+        diff = results[0].diff
+        mode_pos = diff.index("old mode 100644")
+        rename_pos = diff.index("rename from old.sh")
+        assert mode_pos < rename_pos
+        assert "rename to new.sh" in diff
+        assert "new mode 100755" in diff
 
     def test_unknown_status_raises_e5020(self) -> None:
         utils = DiffUtils()

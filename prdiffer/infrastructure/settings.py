@@ -5,6 +5,7 @@ from threading import RLock
 from dynaconf import Dynaconf
 from prdiffer.domain.services.settings import SettingsServiceInterface
 from prdiffer.domain.config.github_config import GitHubConfig
+from prdiffer.domain.config.gitlab_config import GitLabConfig
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +34,7 @@ class SettingsService(SettingsServiceInterface):
         self._cache_lock = RLock()
         self._github_settings_cache: dict[str, Any] | None = None
         self._github_config_cache: GitHubConfig | None = None
+        self._gitlab_config_cache: GitLabConfig | None = None
         self._cache_settings_cache: dict[str, Any] | None = None
         self._app_settings_cache: dict[str, Any] | None = None
 
@@ -170,6 +172,59 @@ class SettingsService(SettingsServiceInterface):
             )
             return self._github_config_cache
 
+    def get_gitlab_config(self) -> GitLabConfig:
+        """Get centralized GitLab configuration as a GitLabConfig dataclass.
+
+        Resolves gitlab.* keys with fallbacks to shared app/diff/mcp limits.
+        """
+        with self._cache_lock:
+            if self._gitlab_config_cache is not None:
+                return self._gitlab_config_cache
+
+            def get_with_fallback(key: str, default: Any = None) -> Any:
+                value = self.get(key)
+                if value is None and hasattr(self.settings, "from_env"):
+                    default_settings = self.settings.from_env("default")
+                    value = default_settings.get(key, default) if default_settings else None
+                return value if value is not None else default
+
+            max_files = get_with_fallback("gitlab.max_files_allowed", None)
+            if max_files is None:
+                max_files = get_with_fallback("app.max_files_allowed", 50)
+
+            max_total = get_with_fallback("gitlab.max_total_chars", None)
+            if max_total is None:
+                max_total = get_with_fallback("diff.max_total_chars", 200_000)
+
+            request_timeout = get_with_fallback("gitlab.pr_diff_request_timeout_seconds", None)
+            if request_timeout is None:
+                request_timeout = get_with_fallback("mcp.pr_diff_request_timeout_seconds", 180.0)
+
+            # Host allowlist priority:
+            # 1) GITLAB_ALLOWED_HOSTS env (CSV) — works with start-prdiffer-mcp-server.sh /.env
+            # 2) settings.toml gitlab.allowed_hosts (list/CSV)
+            # 3) GitLabConfig default ("gitlab.com",)
+            env_hosts = os.getenv("GITLAB_ALLOWED_HOSTS")
+            if env_hosts is not None and env_hosts.strip():
+                allowed_hosts_raw: Any = env_hosts
+            else:
+                allowed_hosts_raw = get_with_fallback("gitlab.allowed_hosts", None)
+            hosts_cfg = GitLabConfig.from_dict({"allowed_hosts": allowed_hosts_raw})
+
+            self._gitlab_config_cache = GitLabConfig(
+                timeout=int(get_with_fallback("gitlab.timeout", 30)),
+                max_retries=int(get_with_fallback("gitlab.max_retries", 3)),
+                max_concurrent=int(get_with_fallback("gitlab.max_concurrent", 4)),
+                retry_transient_errors=bool(get_with_fallback("gitlab.retry_transient_errors", True)),
+                obey_rate_limit=bool(get_with_fallback("gitlab.obey_rate_limit", True)),
+                max_file_size_bytes=int(get_with_fallback("gitlab.max_file_size_bytes", 10_485_760)),
+                max_files_allowed=int(max_files),
+                max_total_chars=int(max_total),
+                pr_diff_request_timeout_seconds=float(request_timeout),
+                allowed_hosts=hosts_cfg.allowed_hosts,
+            )
+            return self._gitlab_config_cache
+
     def get_cache_settings(self) -> dict[str, Any]:
         with self._cache_lock:
             if self._cache_settings_cache is not None:
@@ -252,6 +307,7 @@ class SettingsService(SettingsServiceInterface):
         with self._cache_lock:
             self._github_settings_cache = None
             self._github_config_cache = None
+            self._gitlab_config_cache = None
             self._cache_settings_cache = None
             self._app_settings_cache = None
 

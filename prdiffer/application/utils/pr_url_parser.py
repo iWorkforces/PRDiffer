@@ -20,6 +20,8 @@ class PRTarget:
     repo_owner: str
     repo_name: str
     pr_number: int
+    # GitLab base URL (e.g. https://gitlab.com or https://gitlab.example.com); None for GitHub.
+    base_url: str | None = None
 
 
 def parse_pr_url(
@@ -80,8 +82,21 @@ def parse_pr_target(
 
     if pr_url_stripped.startswith("https://github.com/"):
         repo_owner, repo_name, pr_number = parse_pr_url(pr_url_stripped, input_validator)
-        return PRTarget("github", repo_owner, repo_name, pr_number)
-    if pr_url_stripped.startswith("https://gitlab.com/"):
+        return PRTarget("github", repo_owner, repo_name, pr_number, base_url=None)
+
+    # GitLab.com or custom-hosted GitLab: HTTPS MR path marker.
+    if pr_url_stripped.startswith("https://") and "/-/merge_requests/" in pr_url_stripped:
+        from prdiffer.infrastructure.utils.url_parser import parse_gitlab_merge_request_parts
+
+        # Validator enforces suspicious-pattern checks + path/host rules.
         repo_owner, repo_name, pr_number = input_validator.validate_gitlab_url(pr_url_stripped)
-        return PRTarget("gitlab", repo_owner, repo_name, pr_number)
+        parts = parse_gitlab_merge_request_parts(pr_url_stripped)
+        return PRTarget(
+            "gitlab",
+            repo_owner,
+            repo_name,
+            pr_number,
+            base_url=parts.base_url,
+        )
+
     raise InvalidURLError("Unsupported PR URL provider")

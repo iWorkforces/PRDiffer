@@ -9,12 +9,12 @@ prdiffer/infrastructure/github/
 ├── client.py                # GitHubAPIClient facade (280)
 ├── client_operations.py     # File content / batch / cache mixin (431)
 ├── client_models.py         # Exception tuples + cache defaults (16)
-├── file_processor.py        # Ordered fetch/filter → FilePatchInfo (544)
-├── diff_generator.py        # generate_ordered_file_diffs → GeneratedFileDiff (468)
+├── file_processor.py        # Ordered fetch/filter → FilePatchInfo (~582)
+├── diff_generator.py        # generate_ordered_file_diffs → GeneratedFileDiff (~517)
 ├── etag_adapter.py          # Conditional requests / 304 (121)
 ├── inventory.py             # Authoritative inventory + admission (126)
 ├── mappers.py               # API → domain mapping (88)
-├── pr_diff_session.py       # anyio session isolation (213)
+├── pr_diff_session.py       # anyio session isolation + cache_identity (~223)
 └── __init__.py
 ```
 
@@ -46,12 +46,14 @@ prdiffer/infrastructure/github/
 ### Ordered processing + generation
 - `FileProcessor` assembles ordered `FilePatchInfo` (including deleted / rename-only).
 - `DiffGenerator.generate_ordered_file_diffs` returns one full-context `GeneratedFileDiff` per selected file in order, or hard-fails.
+- When `old_mode`/`new_mode` are both set and differ, prepend deterministic `old mode`/`new mode` headers (before rename headers).
 - Contract inability → **E5020** / `FullDiffIncompleteError`; unexpected defects → E5003.
 
 ### Sessions
 - `GitHubPRDiffSession` / `GitHubSessionPRDiffReader`: request-local client/repo/PR handles.
 - Blocking PyGithub work via `anyio.to_thread.run_sync` with CapacityLimiter (capacity 1 when parallel fetch disabled).
 - One metadata lookup per request; always close/drop strong refs in `aclose`.
+- `cache_identity` returns byte-stable GitHub v2 key + `head_sha` validation token (`github_full_diff_v2_identity`).
 
 ### Boundary
 - Never return raw PyGithub objects past this package boundary.

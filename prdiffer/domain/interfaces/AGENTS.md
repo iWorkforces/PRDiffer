@@ -6,7 +6,7 @@ Cross-cutting ports and Protocols (~520 lines). Package 0.6.0.
 ```
 prdiffer/domain/interfaces/
 ├── vcs_provider.py          # VCSDiffRepositoryInterface (~112)
-├── pr_diff_reader.py        # SessionPRDiffReader, PRDiffSnapshot, session port (~57)
+├── pr_diff_reader.py        # SessionPRDiffReader, PRDiffSnapshot, cache_identity
 ├── protocols.py             # Application component Protocols (~180)
 ├── input_validation.py      # InputValidatorProtocol (~121)
 ├── request_coalescing.py    # RequestCoalescingProtocol (~50)
@@ -17,7 +17,7 @@ prdiffer/domain/interfaces/
 | Task | Location | Notes |
 |------|----------|-------|
 | **New VCS capability** | `vcs_provider.py` | Extend ABC; implement in infrastructure |
-| **GitHub session path** | `pr_diff_reader.py` | `SessionPRDiffReader.open_pr_diff_session` |
+| **Strict session path** | `pr_diff_reader.py` | `SessionPRDiffReader.open_pr_diff_session` + `cache_identity` |
 | **Component typing** | `protocols.py` | Auth, rate limit, metrics, health, config, PR ops |
 | **Security port** | `input_validation.py` | Injected into auth / tools |
 | **Coalescing port** | `request_coalescing.py` | Deduplicate concurrent PR fetches |
@@ -27,7 +27,7 @@ prdiffer/domain/interfaces/
 |--------|------|----------|------|
 | `VCSDiffRepositoryInterface` | ABC | `vcs_provider.py` | Multi-provider get_pr_diff / supports_repository |
 | `PRDiffSnapshot` | Frozen dataclass | `pr_diff_reader.py` | owner/repo/pr + base/head SHA + file count |
-| `PRDiffReadSessionInterface` | Protocol | `pr_diff_reader.py` | snapshot, `build_pr_diff`, `aclose` |
+| `PRDiffReadSessionInterface` | Protocol | `pr_diff_reader.py` | snapshot, `cache_identity`, `build_pr_diff`, `aclose` |
 | `SessionPRDiffReader` | Protocol | `pr_diff_reader.py` | Extends use-case `PRDiffReader` + open session |
 | `InputValidatorProtocol` | Protocol | `input_validation.py` | URL/path/token/sanitize contracts |
 | `RequestCoalescingProtocol` | Protocol | `request_coalescing.py` | `coalesce` / clear / stats |
@@ -38,9 +38,13 @@ prdiffer/domain/interfaces/
 | `ServerConfigurationProtocol` | Protocol | `protocols.py` | Transport/server config |
 | `AuthenticationProtocol` | Protocol | `protocols.py` | Auth + client id extraction |
 
-## SESSION PATH (full-diff v2)
-- GitHub implements `SessionPRDiffReader`: one `open_pr_diff_session` → snapshot (incl. `head_sha`) → cache key → `build_pr_diff` → always `aclose` in `finally`.
-- Non-session readers (e.g. GitLab) keep legacy `PRDiffReader` methods defined in `usecases/pr_diff_usecases.py` (`get_pr_diff`, `get_latest_commit_sha`).
+## SESSION PATH (strict full-diff)
+- Strict sessions implement `SessionPRDiffReader`: one `open_pr_diff_session` → snapshot + `cache_identity` → cache key/token → `build_pr_diff` → always `aclose` in `finally`.
+- Every session exposes `cache_identity: StrictPRDiffCacheIdentity` (provider-neutral key + validation token + schema_version).
+- GitHub identity: `github-full-diff-v2:{owner}:{repo}:{pr}:{head_sha}` + `head_sha` token (schema 2).
+- GitLab identity: `gitlab-full-diff-v1:{host}:{ns}:{repo}:{iid}:{ver}:{base}:{start}:{head}` + version/refs token (schema 1); host from request `base_url` (port-aware).
+- Optional `base_url` on open for GitLab custom-hosted instances (GitHub ignores).
+- Non-session readers keep legacy `PRDiffReader` methods (`get_pr_diff`, `get_latest_commit_sha`).
 - `GetPRDiffUseCase` selects path via structural check for `open_pr_diff_session` on the concrete type (not instance attrs).
 
 ## CONVENTIONS

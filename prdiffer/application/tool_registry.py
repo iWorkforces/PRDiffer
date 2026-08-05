@@ -9,6 +9,7 @@ from typing import NoReturn, assert_never
 from prdiffer.domain.repositories.pr_diff_repository import PRDiffRepositoryInterface
 
 from fastmcp import FastMCP
+from fastmcp.exceptions import ToolError
 
 from prdiffer.domain.entities.pr_diff import PRDiff
 from prdiffer.domain.usecases.pr_diff_usecases import PRDiffReader
@@ -33,6 +34,7 @@ from prdiffer.domain.exceptions import (
     SuspiciousOperationError,
     ValidationError,
     AuthenticationError,
+    FullDiffIncompleteError,
     GitHubAPIError,
     RateLimitError,
 )
@@ -41,6 +43,7 @@ from prdiffer.domain.errors import (
     E2002_AUTH_FAILED,
     E3001_RATE_LIMITED,
     E5002_GITHUB_API_ERROR,
+    E5020_FULL_DIFF_INCOMPLETE,
 )
 
 
@@ -299,11 +302,23 @@ class ToolRegistry(_CoalescedPRDiffExecutionMixin):
                             target.pr_number,
                             pr_diff_reader=self._gitlab_reader,
                             cache_namespace="gitlab",
+                            base_url=target.base_url,
                         )
                     case unreachable:
                         assert_never(unreachable)
 
                 return self._log_metrics_and_return_success(start_time, pr_diff)
+
+            except FullDiffIncompleteError as e:
+                # Preserve machine-readable E5020 at the raw FastMCP boundary.
+                execution_time = time.time() - start_time
+                self._metrics_tracker.track_request("get_pr_diff", False, execution_time)
+                payload = {
+                    "error_code": str(E5020_FULL_DIFF_INCOMPLETE),
+                    "message": e.message,
+                    "details": e.details,
+                }
+                raise ToolError(json.dumps(payload, separators=(",", ":"), sort_keys=False)) from e
 
             except (
                 InvalidURLError,

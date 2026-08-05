@@ -3,33 +3,33 @@
 Pure business logic. No external deps, no I/O. Entities, ports (ABC/Protocol), use cases, and factory contracts only.
 
 ## OVERVIEW
-Package **0.6.0**, Python **3.14.3+**, branch `enhance-stability`.  
-~34 non-`__init__` modules across root + 7 subpackages. Frozen dataclasses for most entities; ABC/Protocol for ports.
+Package **0.6.0**, Python **3.14.3+**.  
+**42** modules across root + **7** subpackages. Frozen dataclasses for most entities; ABC/Protocol for ports.
 
 ## STRUCTURE
 ```
 prdiffer/domain/
-├── entities/                 # PRDiff, FilePatchInfo (329), FileDiffResponse, content/cache types
+├── entities/                 # PRDiff, FilePatchInfo (~347), FileDiffResponse, content/cache types
 ├── services/                 # Service interfaces (ABC only; 9 ports)
 ├── usecases/                 # GetPRDiff (session + legacy), DescribePR, ApprovePR
 ├── repositories/             # PRDiffRepositoryInterface
 ├── interfaces/               # VCS, PRDiffReader session, input validation, coalescing, app Protocols
-├── config/                   # GitHubConfig + GitHubConfigInterface
+├── config/                   # GitHubConfig + GitLabConfig + GitHubConfigInterface
 ├── factories/                # ApplicationFactoryInterface, InfrastructureFactoryInterface
-├── error_codes.py            # E1xxx–E5xxx constants (~386), incl. E5020_FULL_DIFF_INCOMPLETE
+├── error_codes.py            # E1xxx–E5xxx constants, incl. E5020 + GitLab E2006/E2007/E3006/E5021 (~418)
 ├── errors.py                 # ErrorCode, MCPError helpers (~218)
-├── exceptions.py             # PRDifferException hierarchy (~562); FullDiffIncompleteError
+├── exceptions.py             # PRDifferException hierarchy (~580); FullDiffIncompleteError, GitLabAPIError
 └── vcs_provider_registry.py  # VCSProviderRegistry (~110)
 ```
 
 ## WHERE TO LOOK
 | Task | Location | Notes |
 |------|----------|-------|
-| **Rich domain model** | `entities/file_patch.py` | 329 lines; priority, smells, validate, stats |
-| **MCP response shape** | `entities/file_diff_response.py`, `entities/pr_diff.py` | Frozen dataclasses; `previous_path` on renames |
+| **Rich domain model** | `entities/file_patch.py` | ~347 lines; priority, smells, modes, validate, stats |
+| **MCP response shape** | `entities/file_diff_response.py`, `entities/pr_diff.py` | Frozen; `previous_path` on renames |
 | **Typed content** | `entities/file_content.py` | `FileContentAvailable` / `FileContentUnavailable` |
 | **Generated diff unit** | `entities/generated_file_diff.py` | `GeneratedFileDiff` (index, path, previous_path, diff) |
-| **Full-diff cache v2** | `entities/pr_diff_cache.py` | `PRDiffCacheEntryV2`, `github-full-diff-v2` keys |
+| **Strict cache identity** | `entities/pr_diff_cache.py` | GitHub v2 + GitLab v1 (host-aware) keys |
 | **Session PR path** | `interfaces/pr_diff_reader.py` + `usecases/pr_diff_usecases.py` | Session reader vs legacy two-call path |
 | **Service interfaces** | `services/*.py` | ABC + `@abstractmethod` |
 | **VCS provider contract** | `interfaces/vcs_provider.py` | `VCSDiffRepositoryInterface` |
@@ -38,6 +38,7 @@ prdiffer/domain/
 | **Error codes** | `error_codes.py` + `errors.py` | Structured E-codes |
 | **Full-diff incomplete** | `exceptions.py` | `FullDiffIncompleteError` + `FullDiffIncompleteReason` |
 | **GitHub config VO** | `config/github_config.py` | Size limits, request timeout, parallel flags default `true` |
+| **GitLab config VO** | `config/gitlab_config.py` | Limits + `allowed_hosts` (default `gitlab.com`) |
 | **Factory contracts** | `factories/` | Dependency inversion for outer layers |
 
 ## CODE MAP
@@ -45,15 +46,22 @@ prdiffer/domain/
 |--------|------|----------|------|
 | `PRDiff` | Entity | `entities/pr_diff.py` | `files: tuple[FileDiffResponse, ...]` |
 | `FileDiffResponse` | Entity | `entities/file_diff_response.py` | path/status/stats/diff/`previous_path` |
-| `FilePatchInfo` | Entity | `entities/file_patch.py` | Rich review model (329) |
+| `FilePatchInfo` | Entity | `entities/file_patch.py` | Rich review model (~347) |
 | `FileContentAvailable` / `Unavailable` | Entity | `entities/file_content.py` | Typed content acquisition |
 | `GeneratedFileDiff` | Entity | `entities/generated_file_diff.py` | One generated full-context file |
-| `PRDiffCacheEntryV2` | Entity | `entities/pr_diff_cache.py` | Strict full-diff cache schema v2 |
+| `StrictPRDiffCacheIdentity` | Entity | `entities/pr_diff_cache.py` | Provider-neutral cache key + token |
+| `PRDiffCacheEntryV2` | Entity | `entities/pr_diff_cache.py` | Schema-versioned cache wrapper |
 | `SessionPRDiffReader` | Protocol | `interfaces/pr_diff_reader.py` | `open_pr_diff_session` |
-| `GetPRDiffUseCase` | Use case | `usecases/pr_diff_usecases.py` | Session path (~61–100) vs legacy |
+| `GetPRDiffUseCase` | Use case | `usecases/pr_diff_usecases.py` | Session path (+ `base_url`) vs legacy (~148) |
 | `E5020_FULL_DIFF_INCOMPLETE` | ErrorCode | `error_codes.py` | Full-diff incompleteness |
+| `E2006_GITLAB_AUTH_FAILED` | ErrorCode | `error_codes.py` | GitLab 401 |
+| `E2007_GITLAB_INSUFFICIENT_PERMISSIONS` | ErrorCode | `error_codes.py` | GitLab 403 |
+| `E3006_GITLAB_RATE_LIMITED` | ErrorCode | `error_codes.py` | GitLab 429 |
+| `E5021_GITLAB_API_ERROR` | ErrorCode | `error_codes.py` | GitLab 5xx / upstream |
+| `GitLabAPIError` | Exception | `exceptions.py` | Operational GitLab errors; optional status_code |
 | `FullDiffIncompleteError` | Exception | `exceptions.py` | Maps to E5020; safe details only |
 | `GitHubConfig` | Config VO | `config/github_config.py` | Frozen; full-diff admission limits |
+| `GitLabConfig` | Config VO | `config/gitlab_config.py` | Frozen+slots; limits + host allowlist |
 | `VCSProviderRegistry` | Registry | `vcs_provider_registry.py` | Multi-provider URL selection |
 
 ## CONVENTIONS
@@ -66,14 +74,15 @@ prdiffer/domain/
 ### Entities
 - Prefer `@dataclass(frozen=True)` (`PRDiff`, `FileDiffResponse`, content/cache types).
 - Use `tuple[T, ...]` for sequences (hashable).
-- **Rich**: `FilePatchInfo` — review priority, code smells, validation.
+- **Rich**: `FilePatchInfo` — review priority, code smells, optional modes, validation.
 - **Anemic/DTO**: `PRDiff`, `FileDiffResponse` hold structured response data.
 - Note: `PullRequest` / `Repository` use non-frozen `@dataclass` (mutable value objects).
 
 ### Interfaces
 - Domain defines ports; infrastructure implements adapters.
 - Application component Protocols live in `interfaces/protocols.py` so factories depend on domain contracts.
-- GitHub full-diff uses session ports (`SessionPRDiffReader`); GitLab keeps legacy `PRDiffReader` methods.
+- Both GitHub and GitLab full-diff use session ports (`open_pr_diff_session`); GitLab also accepts optional `base_url`.
+- Structural session detection inspects the **concrete type** so MagicMock doubles do not take the session path accidentally.
 
 ### Error Model
 - Exception hierarchy in `exceptions.py` (auth, rate limit, validation, not found, cache, config, processing, security, …).
@@ -82,12 +91,14 @@ prdiffer/domain/
   - `INVENTORY_TRUNCATED`, `FILE_COUNT_LIMIT`, `BINARY_CONTENT`, `FILE_SIZE_LIMIT`, `CONTENT_UNAVAILABLE`, `CONTENT_DECODE_FAILED`, `UNSUPPORTED_FILE_STATUS`, `DIFF_GENERATION_FAILED`, `RESPONSE_SIZE_LIMIT`
   - Safe details only: `reason`, `path`, `previous_path`, `observed`, `limit` — never tokens or raw content.
 - Do **not** remap auth/permission/rate-limit/retry-exhausted network failures to E5020; unexpected algorithm defects stay `E5003_DIFF_GENERATION_ERROR`.
+- GitLab operational mapping: 401→E2006, 403→E2007, 429→E3006, 5xx→E5021; reuse E4001/E4002/E4003 for verified project/MR/file 404, E5004 timeout, E5019 connection. Never put `response_body`/tokens/credentials in details.
 
 ### Full-diff correctness (0.6.0)
 - Success responses are complete by construction (no completeness boolean).
 - `FileDiffResponse.previous_path` only for `EDIT_TYPE.RENAMED`.
 - Content union: available empty text ≠ deterministic unavailability; operational failures raise.
-- Cache: versioned `github-full-diff-v2` keys; ignore unversioned/v1/wrong-schema on read.
+- Cache: `github-full-diff-v2` and host-aware `gitlab-full-diff-v1:{host}:…`; ignore unversioned/wrong-schema on read.
+- Sessions expose `StrictPRDiffCacheIdentity` (provider-neutral key + validation token).
 
 ## ANTI-PATTERNS
 - **NO outer-layer imports** in domain.
@@ -97,6 +108,7 @@ prdiffer/domain/
 - **NO `list` fields on frozen dataclasses** → use `tuple`.
 - **NO Pydantic in domain** → frozen dataclasses.
 - **NO leaking raw content/tokens** in `FullDiffIncompleteError.details`.
+- **NO open-host defaults** in `GitLabConfig.allowed_hosts` (must stay explicit allowlist).
 
 ## NOTES
 - Domain has no package `__init__` re-exports at root; import concrete modules.

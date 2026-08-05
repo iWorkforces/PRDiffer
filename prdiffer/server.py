@@ -15,7 +15,7 @@ from prdiffer.infrastructure.cache.cache_repository import (
 )
 from prdiffer.infrastructure.logging.console_logger import get_logger
 from prdiffer.infrastructure.github_repository import GitHubPRDiffRepository
-from prdiffer.infrastructure.vcs_providers.gitlab_repository import GitLabVCSRepository
+from prdiffer.infrastructure.factories.infrastructure_factory import InfrastructureFactory
 
 
 def parse_args() -> argparse.Namespace:
@@ -137,7 +137,9 @@ def main() -> None:
             cache_service=cache_service,
             repository_cache_service=repository_cache_service,
             logger=logger,
-            gitlab_reader=GitLabVCSRepository(gitlab_token=os.getenv("GITLAB_TOKEN") or None),
+            gitlab_reader=InfrastructureFactory().create_gitlab_session_reader(
+                private_token=os.getenv("GITLAB_TOKEN") or None,
+            ),
         )
         server.run()
     except KeyboardInterrupt:

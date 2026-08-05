@@ -34,11 +34,14 @@ from prdiffer.domain.errors import (
     E2003_INSUFFICIENT_PERMISSIONS,
     E2004_EXPIRED_TOKEN,
     E2005_GITHUB_AUTH_FAILED,
+    E2006_GITLAB_AUTH_FAILED,
+    E2007_GITLAB_INSUFFICIENT_PERMISSIONS,
     E3001_RATE_LIMITED,
     E3002_SECONDARY_RATE_LIMIT,
     E3003_ABUSE_DETECTION,
     E3004_GLOBAL_RATE_LIMIT,
     E3005_USER_RATE_LIMIT,
+    E3006_GITLAB_RATE_LIMITED,
     E4001_REPO_NOT_FOUND,
     E4002_PR_NOT_FOUND,
     E4003_FILE_NOT_FOUND,
@@ -62,6 +65,8 @@ from prdiffer.domain.errors import (
     E5017_INPUT_SANITIZATION_ERROR,
     E5018_SIGNATURE_VERIFICATION_ERROR,
     E5019_CONNECTION_ERROR,
+    E5020_FULL_DIFF_INCOMPLETE,
+    E5021_GITLAB_API_ERROR,
 )
 
 
@@ -256,6 +261,8 @@ class TestErrorCodeConstants:
         assert E2003_INSUFFICIENT_PERMISSIONS.code == "E2003"
         assert E2004_EXPIRED_TOKEN.code == "E2004"
         assert E2005_GITHUB_AUTH_FAILED.code == "E2005"
+        assert E2006_GITLAB_AUTH_FAILED.code == "E2006"
+        assert E2007_GITLAB_INSUFFICIENT_PERMISSIONS.code == "E2007"
 
     def test_rate_limit_error_codes(self):
         """Test rate limit error codes (E3xxx)."""
@@ -265,6 +272,7 @@ class TestErrorCodeConstants:
         assert E3003_ABUSE_DETECTION.code == "E3003"
         assert E3004_GLOBAL_RATE_LIMIT.code == "E3004"
         assert E3005_USER_RATE_LIMIT.code == "E3005"
+        assert E3006_GITLAB_RATE_LIMITED.code == "E3006"
 
     def test_not_found_error_codes(self):
         """Test not found error codes (E4xxx)."""
@@ -296,6 +304,26 @@ class TestErrorCodeConstants:
         assert E5017_INPUT_SANITIZATION_ERROR.code == "E5017"
         assert E5018_SIGNATURE_VERIFICATION_ERROR.code == "E5018"
         assert E5019_CONNECTION_ERROR.code == "E5019"
+        assert E5020_FULL_DIFF_INCOMPLETE.code == "E5020"
+        assert E5021_GITLAB_API_ERROR.code == "E5021"
+
+    def test_gitlab_error_codes_messages(self):
+        """GitLab operational codes have provider-specific messages/remediation."""
+        assert "GitLab" in E2006_GITLAB_AUTH_FAILED.message
+        assert "token" in E2006_GITLAB_AUTH_FAILED.remediation.lower() or "GITLAB" in E2006_GITLAB_AUTH_FAILED.remediation
+        assert "permission" in E2007_GITLAB_INSUFFICIENT_PERMISSIONS.message.lower()
+        assert "rate limit" in E3006_GITLAB_RATE_LIMITED.message.lower()
+        assert E5021_GITLAB_API_ERROR.category.name == "INTERNAL"
+
+    def test_all_error_code_constants_unique(self):
+        import prdiffer.domain.error_codes as codes
+
+        all_codes = [value.code for name, value in vars(codes).items() if name.startswith("E") and hasattr(value, "code")]
+        assert len(all_codes) == len(set(all_codes))
+        assert "E2006" in all_codes
+        assert "E2007" in all_codes
+        assert "E3006" in all_codes
+        assert "E5021" in all_codes
 
     def test_error_code_properties(self):
         """Test that error codes have all required properties."""
@@ -348,11 +376,14 @@ class TestErrorCategories:
             E2003_INSUFFICIENT_PERMISSIONS,
             E2004_EXPIRED_TOKEN,
             E2005_GITHUB_AUTH_FAILED,
+            E2006_GITLAB_AUTH_FAILED,
+            E2007_GITLAB_INSUFFICIENT_PERMISSIONS,
             E3001_RATE_LIMITED,
             E3002_SECONDARY_RATE_LIMIT,
             E3003_ABUSE_DETECTION,
             E3004_GLOBAL_RATE_LIMIT,
             E3005_USER_RATE_LIMIT,
+            E3006_GITLAB_RATE_LIMITED,
             E4001_REPO_NOT_FOUND,
             E4002_PR_NOT_FOUND,
             E4003_FILE_NOT_FOUND,
@@ -376,6 +407,8 @@ class TestErrorCategories:
             E5017_INPUT_SANITIZATION_ERROR,
             E5018_SIGNATURE_VERIFICATION_ERROR,
             E5019_CONNECTION_ERROR,
+            E5020_FULL_DIFF_INCOMPLETE,
+            E5021_GITLAB_API_ERROR,
         ]
 
         for error_code in error_codes:

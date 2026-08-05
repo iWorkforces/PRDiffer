@@ -21,7 +21,7 @@ prdiffer/infrastructure/utils/
 ├── diff_limits.py              # Strict size hard limits (67)
 ├── diff_utils.py               # DiffServiceInterface impl
 ├── pattern_matcher.py          # Ignore/extension patterns
-├── url_parser.py               # GitHub PR URL parsing
+├── url_parser.py               # GitHub PR + GitLab MR URL parsing (~281; custom hosts)
 ├── logger_factory.py           # get_logger helpers, LazyLoggerMixin (123)
 ├── performance.py              # Metrics (may mirror metrics/)
 └── retry_logger.py
@@ -36,6 +36,7 @@ prdiffer/infrastructure/utils/
 | **Indexed identity** | `execute_indexed_batch` | Ordered outcomes; strict `IndexedBatchError` |
 | **Coalesce** | `coalescing_service.py` | Deduplicate concurrent work |
 | **Full-diff size** | `diff_limits.py` | `assert_*` → E5020 RESPONSE_SIZE_LIMIT |
+| **GitLab/GitHub URLs** | `url_parser.py` | `parse_github_*`, `parse_gitlab_merge_request_parts` (nested NS + host) |
 | **Logger mixin** | `logger_factory.py` | Lazy init / null logger |
 
 ## CONVENTIONS
