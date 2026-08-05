@@ -90,6 +90,7 @@ class FakeClient:
         cls.max_active = 0
         cls.closed = 0
 
+
 @pytest.fixture(autouse=True)
 def _reset_fake_client() -> None:
     FakeClient.reset()

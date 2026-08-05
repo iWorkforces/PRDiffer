@@ -73,7 +73,7 @@ def _parse_retry_after(exc: BaseException, remaining: float) -> int | None:
         return None
     try:
         value = int(raw)
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         return None
     if value < 0:
         return None
@@ -96,9 +96,7 @@ def map_gitlab_exception(
 
     status = _safe_status(exc)
 
-    if isinstance(exc, requests.Timeout) or (
-        isinstance(exc, requests.RequestException) and "timeout" in type(exc).__name__.lower()
-    ):
+    if isinstance(exc, requests.Timeout) or (isinstance(exc, requests.RequestException) and "timeout" in type(exc).__name__.lower()):
         return DomainTimeoutError(
             "GitLab request timed out",
             error_code=E5004_TIMEOUT_ERROR,
