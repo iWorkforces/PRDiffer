@@ -501,5 +501,8 @@ class TestMockImplementationCompliance:
             def get_files_content_batch(self, repository, file_paths, branch):
                 return {}
 
+            def get_files_content_multi_ref_batch(self, requests):
+                return ()
+
         mock = MockGitHubAPIService()
         assert isinstance(mock, GitHubAPIServiceInterface)
