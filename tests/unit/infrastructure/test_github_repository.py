@@ -66,7 +66,7 @@ def mock_settings():
         "file_processing.parallel_fetch_threshold": 10,
         "file_processing.concurrent_downloads": 3,
         "diff.truncate_enabled": False,
-        "diff.max_total_chars": 200000,
+        "diff.max_total_chars": 600000,
         "diff.truncation_notice": "[DIFF TRUNCATED]",
     }.get(key, default)
     return settings

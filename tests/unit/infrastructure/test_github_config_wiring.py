@@ -19,7 +19,7 @@ class TestGitHubConfigNewDefaults:
         assert config.timeout == 30
         assert config.pr_diff_request_timeout_seconds == 180.0
         assert config.max_file_size_bytes == 10_485_760
-        assert config.max_total_chars == 200_000
+        assert config.max_total_chars == 600_000
         assert config.parallel_file_fetch_enabled is True
         assert config.parallel_head_base_fetch_enabled is True
         assert config.parallel_diff_generation_enabled is True
@@ -54,7 +54,7 @@ class TestSettingsTomlDefaults:
         assert config.timeout == 30
         assert config.pr_diff_request_timeout_seconds == 180.0
         assert config.max_file_size_bytes == 10_485_760
-        assert config.max_total_chars == 200_000
+        assert config.max_total_chars == 600_000
         assert config.max_files_allowed == 50
         assert len(config.ignore_patterns) > 0
         assert "*.lock" in config.ignore_patterns

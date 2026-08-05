@@ -60,7 +60,7 @@ class TestGitHubConfigDefaults:
         assert config.chunk_size == 1000
         assert config.max_diff_size == 100000
         assert config.max_file_size_bytes == 10_485_760
-        assert config.max_total_chars == 200_000
+        assert config.max_total_chars == 600_000
         assert config.pr_diff_request_timeout_seconds == 180.0
         assert config.parallel_file_fetch_enabled is True
         assert config.parallel_head_base_fetch_enabled is True

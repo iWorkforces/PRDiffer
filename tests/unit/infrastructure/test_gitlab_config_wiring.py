@@ -15,7 +15,7 @@ class TestGitLabConfigDefaults:
         assert config.timeout == 30
         assert config.pr_diff_request_timeout_seconds == 180.0
         assert config.max_file_size_bytes == 10_485_760
-        assert config.max_total_chars == 200_000
+        assert config.max_total_chars == 600_000
         assert config.max_files_allowed == 50
         assert config.max_concurrent == 4
         assert config.max_retries == 3
@@ -36,7 +36,7 @@ class TestSettingsTomlGitLabDefaults:
         assert config.timeout == 30
         assert config.pr_diff_request_timeout_seconds == 180.0
         assert config.max_file_size_bytes == 10_485_760
-        assert config.max_total_chars == 200_000
+        assert config.max_total_chars == 600_000
         assert config.max_files_allowed == 50
         assert config.max_concurrent == 4
         assert config.max_retries == 3

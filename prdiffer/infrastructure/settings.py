@@ -4,7 +4,7 @@ import os
 from threading import RLock
 from dynaconf import Dynaconf
 from prdiffer.domain.services.settings import SettingsServiceInterface
-from prdiffer.domain.config.github_config import GitHubConfig
+from prdiffer.domain.config.github_config import DEFAULT_MAX_TOTAL_CHARS, GitHubConfig
 from prdiffer.domain.config.gitlab_config import GitLabConfig
 
 logger = logging.getLogger(__name__)
@@ -163,7 +163,7 @@ class SettingsService(SettingsServiceInterface):
                 chunk_size=int(get_with_fallback("diff.chunk_size", 1000)),
                 max_diff_size=int(get_with_fallback("diff.max_diff_size", 100000)),
                 max_file_size_bytes=int(get_with_fallback("github.max_file_size_bytes", 10_485_760)),
-                max_total_chars=int(get_with_fallback("diff.max_total_chars", 200_000)),
+                max_total_chars=int(get_with_fallback("diff.max_total_chars", DEFAULT_MAX_TOTAL_CHARS)),
                 parallel_file_fetch_enabled=bool(get_with_fallback("performance.parallel_file_fetch_enabled", True)),
                 parallel_head_base_fetch_enabled=bool(get_with_fallback("performance.parallel_head_base_fetch_enabled", True)),
                 parallel_diff_generation_enabled=bool(get_with_fallback("performance.parallel_diff_generation_enabled", True)),
@@ -198,7 +198,7 @@ class SettingsService(SettingsServiceInterface):
 
             max_total = get_with_fallback("gitlab.max_total_chars", None)
             if max_total is None:
-                max_total = get_with_fallback("diff.max_total_chars", 200_000)
+                max_total = get_with_fallback("diff.max_total_chars", DEFAULT_MAX_TOTAL_CHARS)
 
             request_timeout = get_with_fallback("gitlab.pr_diff_request_timeout_seconds", None)
             if request_timeout is None:

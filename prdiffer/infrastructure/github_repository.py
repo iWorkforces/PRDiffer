@@ -27,6 +27,7 @@ from prdiffer.domain.repositories.pr_diff_repository import PRDiffRepositoryInte
 from prdiffer.domain.services.logger import LoggerServiceInterface, LogLevel
 from prdiffer.domain.exceptions import PRDifferException
 from prdiffer.domain.errors import E5009_CONFIGURATION_ERROR
+from prdiffer.domain.config.github_config import DEFAULT_MAX_TOTAL_CHARS
 from prdiffer.infrastructure.settings import SettingsService, get_settings_service
 from prdiffer.infrastructure.logging.console_logger import get_logger
 from prdiffer.infrastructure.logging.exception_utils import (
@@ -130,7 +131,7 @@ class GitHubPRDiffRepository(GitHubPROperationsMixin, PRDiffRepositoryInterface)
 
         self._parallel_diff_generation_enabled = self.settings_service.get("performance.parallel_diff_generation_enabled", True)
         self._diff_truncate_enabled = self.settings_service.get("diff.truncate_enabled", False)
-        self._diff_max_total_chars = int(self.settings_service.get("diff.max_total_chars", 200000))
+        self._diff_max_total_chars = int(self.settings_service.get("diff.max_total_chars", DEFAULT_MAX_TOTAL_CHARS))
         self._diff_truncation_notice = self.settings_service.get("diff.truncation_notice", "[DIFF TRUNCATED]")
 
         self._github_api_client = get_github_api_client(

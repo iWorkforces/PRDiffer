@@ -155,7 +155,7 @@ diff.max_diff_size = 100000          # Maximum lines - files larger return trunc
 
 # Diff size limits
 diff.truncate_enabled = true
-diff.max_total_chars = 200000
+diff.max_total_chars = 600000
 diff.truncation_notice = "[DIFF TRUNCATED]"
 
 # Request coalescing settings
