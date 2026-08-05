@@ -23,7 +23,7 @@ from typing import Any, Literal, cast
 
 import anyio
 
-from prdiffer.domain.entities.file_content import FileContentAvailable, FileContentResult
+from prdiffer.domain.entities.file_content import FileContentAvailable, FileContentRequest, FileContentResponse, FileContentResult
 from prdiffer.domain.entities.file_patch import FilePatchInfo
 from prdiffer.domain.entities.pull_request import PullRequest as DomainPullRequest
 from prdiffer.domain.entities.repository import Repository as DomainRepository
@@ -217,6 +217,27 @@ class InstrumentedAPIService(GitHubAPIServiceInterface):
         except Exception:
             self._counters.end(0)
             raise
+
+    def get_files_content_multi_ref_batch(self, requests: tuple[FileContentRequest, ...]) -> tuple[FileContentResponse, ...]:
+        byte_count = 0
+        self._counters.begin()
+        try:
+            self._maybe_block()
+            responses = tuple(
+                FileContentResponse(
+                    request=request,
+                    content=FileContentAvailable(text=self._content_map.get((request.path, request.ref), "")),
+                )
+                for request in requests
+            )
+            byte_count = sum(
+                len(response.content.text.encode("utf-8"))
+                for response in responses
+                if isinstance(response.content, FileContentAvailable)
+            )
+            return responses
+        finally:
+            self._counters.end(byte_count)
 
     def get_files_content_batch_parallel(
         self,
