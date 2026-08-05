@@ -1,41 +1,66 @@
 # AGENTS.md - Infrastructure/GitHub
 
-PyGithub-backed API client, file processing, and diff generation (~1.6K lines).
+**Package:** 0.6.0  
+PyGithub-backed API client, inventory admission, ordered file processing, full-context diff generation, and request sessions. Critical path for full-diff correctness.
 
 ## STRUCTURE
 ```
 prdiffer/infrastructure/github/
-├── client.py                # GitHub API client facade (276)
-├── client_operations.py     # Operations mixins/helpers (331)
-├── client_models.py         # Client-side models (16)
-├── file_processor.py        # File fetch/filter/chunk (437)
-├── diff_generator.py        # Unified diff generation (326)
+├── client.py                # GitHubAPIClient facade (280)
+├── client_operations.py     # File content / batch / cache mixin (431)
+├── client_models.py         # Exception tuples + cache defaults (16)
+├── file_processor.py        # Ordered fetch/filter → FilePatchInfo (544)
+├── diff_generator.py        # generate_ordered_file_diffs → GeneratedFileDiff (468)
 ├── etag_adapter.py          # Conditional requests / 304 (121)
+├── inventory.py             # Authoritative inventory + admission (126)
 ├── mappers.py               # API → domain mapping (88)
+├── pr_diff_session.py       # anyio session isolation (213)
 └── __init__.py
 ```
 
 ## WHERE TO LOOK
 | Task | Location | Notes |
 |------|----------|-------|
-| **API calls** | `client.py`, `client_operations.py` | Retry/CB integration points |
-| **File handling** | `file_processor.py` | Ordered strict assembly (deleted/rename-only included) |
-| **Diff build** | `diff_generator.py` | `generate_ordered_file_diffs` → `GeneratedFileDiff` (full-context, ordered) |
-| **Bandwidth** | `etag_adapter.py` | ETag / 304 |
-| **Domain map** | `mappers.py` | To FilePatchInfo / responses |
+| **API client facade** | `client.py` | Implements `GitHubAPIServiceInterface`; retry/CB params |
+| **File content + batch** | `client_operations.py` | Typed content union; repo-scoped content cache |
 | **Inventory admission** | `inventory.py` | Authoritative `changed_files` vs enumeration; selected N+1 → E5020 |
+| **Ordered file processing** | `file_processor.py` | Deleted/rename-only included; head/base fetch |
+| **Full-context diffs** | `diff_generator.py` | `GeneratedFileDiff` in provider order; hard-fail incompleteness |
 | **Request session** | `pr_diff_session.py` | anyio `to_thread` + CapacityLimiter; one metadata lookup per request |
+| **ETag bandwidth** | `etag_adapter.py` | Conditional GET / 304 |
+| **Domain mapping** | `mappers.py` | Repository / PR → domain entities |
 
 ## CONVENTIONS
+
+### Typed file content
+- `get_file_content` / batch APIs return `FileContentAvailable | FileContentUnavailable`.
+- Empty text is **available** (`text == ""`).
+- Cache key is `(repo_full_name, path, immutable_ref)`; **only available text** is cached.
+- Auth / rate-limit / transport / retry-exhausted failures raise operational exceptions — never become unavailable union values.
+
+### Inventory (strict)
+- Fully materialize provider file pages, then validate authoritative `changed_files` vs enumerated count.
+- Authoritative count > 3000 → inventory truncated (E5020 path).
+- Ignore/extension filter, then **selected-file admission**: exactly N succeeds; N+1 → `FILE_COUNT_LIMIT` (E5020).
+
+### Ordered processing + generation
+- `FileProcessor` assembles ordered `FilePatchInfo` (including deleted / rename-only).
+- `DiffGenerator.generate_ordered_file_diffs` returns one full-context `GeneratedFileDiff` per selected file in order, or hard-fails.
+- Contract inability → **E5020** / `FullDiffIncompleteError`; unexpected defects → E5003.
+
+### Sessions
+- `GitHubPRDiffSession` / `GitHubSessionPRDiffReader`: request-local client/repo/PR handles.
+- Blocking PyGithub work via `anyio.to_thread.run_sync` with CapacityLimiter (capacity 1 when parallel fetch disabled).
+- One metadata lookup per request; always close/drop strong refs in `aclose`.
+
+### Boundary
 - Never return raw PyGithub objects past this package boundary.
 - Respect rate limits (403/429) via retry utilities.
-- Honor file ignore patterns / extension allowlists from settings.
-- **Typed content**: `get_file_content` / batch APIs return `FileContentAvailable | FileContentUnavailable`.
-  - Empty text is available (`text == ""`).
-  - Cache key is `(repo_full_name, path, immutable_ref)`; only available text is cached.
-  - Auth/rate-limit/transport/retry-exhausted failures raise operational exceptions — never become unavailable union values.
+- Honor ignore patterns / extension allowlists from settings/`GitHubConfig`.
 
 ## ANTI-PATTERNS
 - NO domain imports of `github.*` SDK.
-- NO unbounded file downloads without limits.
+- NO unbounded file downloads without size limits.
 - NO caching unavailable sentinels or empty-string error stand-ins.
+- NO completing full-diff with partial file sets when inventory/admission fails.
+- NO second metadata lookup inside an open session when handles already exist.

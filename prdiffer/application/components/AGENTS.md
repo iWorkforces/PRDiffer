@@ -20,19 +20,21 @@ prdiffer/application/components/
 | Task | Location | Notes |
 |------|----------|-------|
 | **API key / lockout** | `authentication.py`, `api_key_manager.py` | SHA-256 keys, failure window, RLock |
-| **JWT metadata** | `jwt_handler.py` | Not primary auth decision surface |
+| **JWT metadata** | `jwt_handler.py` | Metadata only unless verified path; not primary auth |
 | **Rate limits** | `rate_limiter.py` | Per-client limits, thread-safe |
-| **Metrics / health** | `metrics_tracker.py`, `health_monitor.py` | Success rate, degraded thresholds |
-| **PR orchestration** | `pr_operation_handler.py` | Coordinates ops for tools |
-| **Transport config** | `server_configuration.py` | stdio/http/sse/streamable-http |
+| **Metrics / health** | `metrics_tracker.py`, `health_monitor.py` | Request success rate, degraded thresholds |
+| **PR orchestration** | `pr_operation_handler.py` | Coordinates ops for tools (legacy/helper path) |
+| **Transport config** | `server_configuration.py` | Logging, MCP instructions, stdio/http/sse/streamable-http |
 
 ## CONVENTIONS
-- Mixins for auth concerns; `AuthenticationMiddleware` composes JWT + API key mixins.
-- Inject `InputValidatorProtocol` when possible; factory fallback is transitional.
+- Mixins for auth concerns; `AuthenticationMiddleware` composes `JWTHandlerMixin` + `APIKeyManagerMixin`.
+- Inject `InputValidatorProtocol` when possible; infrastructure factory fallback is transitional.
 - Sanitize logs (never log raw tokens/API keys).
 - Thread safety: `threading.RLock` for sync shared state.
+- Implement domain Protocols (`AuthenticationProtocol`, `RateLimiterProtocol`, etc.) for DI.
 
 ## ANTI-PATTERNS
-- NO domain business logic (priority/smells) in components.
-- NO trusting JWT without configured verification path for authorization decisions.
+- NO domain business logic (priority/smells/full-diff completeness) in components.
+- NO trusting unverified JWT for authorization decisions (API keys are primary).
 - NO unbounded failure-record maps (auth caps tracked clients).
+- NO VCS SDK imports (PyGithub/python-gitlab).
