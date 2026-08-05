@@ -19,11 +19,13 @@
 #   GITLAB_TOKEN           GitLab personal access token (one provider token is required)
 #   GITLAB_ALLOWED_HOSTS   Comma-separated GitLab host allowlist (default: gitlab.com)
 #                          e.g. gitlab.com,gitlab.example.com
+#   MAX_FILES_ALLOWED      Max selected files for full-context PR/MR diffs (default: 50
+#                          from settings.toml app.max_files_allowed; positive integer)
 #   PID_FILE               Custom PID file location (default: .prdiffer-server.pid)
 #
 # Configuration:
-#   Copy .env.example to .env and fill in tokens / allowlist. This script sources
-#   .env automatically before starting the server.
+#   Copy .env.example to .env and fill in tokens / allowlist / limits. This script
+#   sources .env automatically before starting the server.
 
 set -euo pipefail
 
@@ -169,18 +171,18 @@ check_existing_server() {
     fi
 }
 
-# Load .env file if it exists (see .env.example for keys including GITLAB_ALLOWED_HOSTS)
+# Load .env file if it exists (see .env.example for keys including GITLAB_ALLOWED_HOSTS, MAX_FILES_ALLOWED)
 load_env_file() {
     if [[ -f .env ]]; then
         log_info "Loading environment variables from .env file"
-        # Export variables from .env file (GITHUB_TOKEN, GITLAB_TOKEN, GITLAB_ALLOWED_HOSTS, …)
+        # Export variables from .env file (GITHUB_TOKEN, GITLAB_TOKEN, GITLAB_ALLOWED_HOSTS, MAX_FILES_ALLOWED, …)
         set -a
         # shellcheck source=/dev/null
         source .env
         set +a
-        log_debug "Loaded .env (GITLAB_ALLOWED_HOSTS=${GITLAB_ALLOWED_HOSTS:-<unset, use settings.toml>})"
+        log_debug "Loaded .env (GITLAB_ALLOWED_HOSTS=${GITLAB_ALLOWED_HOSTS:-<unset, use settings.toml>}, MAX_FILES_ALLOWED=${MAX_FILES_ALLOWED:-<unset, use settings.toml>})"
     elif [[ -f .env.example ]]; then
-        log_debug "No .env file found; copy .env.example to .env to configure tokens and GitLab hosts"
+        log_debug "No .env file found; copy .env.example to .env to configure tokens, GitLab hosts, and limits"
     fi
 }
 
@@ -342,7 +344,7 @@ if [[ -z "${GITHUB_TOKEN:-}" && -z "${GITLAB_TOKEN:-}" ]]; then
     echo ""
     echo -e "${PURPLE}Option 2: Copy .env.example to .env${NC}"
     echo -e "  cp .env.example .env"
-    echo -e "  # then edit .env: GITHUB_TOKEN / GITLAB_TOKEN / GITLAB_ALLOWED_HOSTS"
+    echo -e "  # then edit .env: GITHUB_TOKEN / GITLAB_TOKEN / GITLAB_ALLOWED_HOSTS / MAX_FILES_ALLOWED"
     echo ""
     echo -e "${CYAN}Generate a personal access token in your selected provider account, then set its environment variable.${NC}"
     echo ""
@@ -361,6 +363,14 @@ if [[ -n "${GITLAB_TOKEN:-}" ]]; then
         log_info "GitLab allowed hosts: settings.toml gitlab.allowed_hosts (default gitlab.com)"
         log_debug "Set GITLAB_ALLOWED_HOSTS=gitlab.com,your.gitlab.host for custom instances"
     fi
+fi
+
+# Surface selected-file admission limit (env overrides settings.toml app.max_files_allowed)
+if [[ -n "${MAX_FILES_ALLOWED:-}" ]]; then
+    log_info "Max files allowed (MAX_FILES_ALLOWED): ${MAX_FILES_ALLOWED}"
+else
+    log_info "Max files allowed: settings.toml app.max_files_allowed (default 50)"
+    log_debug "Set MAX_FILES_ALLOWED=N to raise/lower the full-diff selected-file admission limit"
 fi
 echo ""
 

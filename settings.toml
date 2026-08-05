@@ -2,6 +2,8 @@
 # Application settings
 app.debug = false
 app.log_level = "INFO"
+# Selected-file admission limit for full-context diffs (GitHub + GitLab).
+# Runtime override via MAX_FILES_ALLOWED in .env (see .env.example / start script).
 app.max_files_allowed = 50
 app.incremental_mode = false
 
