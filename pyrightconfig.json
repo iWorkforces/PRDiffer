@@ -42,7 +42,6 @@
   "reportUnusedVariable": "warning",
   "reportDuplicateImport": "warning",
   "reportWildcardImportFromLibrary": "warning",
-  "reportShadowedImports": "warning",
   "reportPrivateImportUsage": "warning",
   "reportPrivateUsage": "none",
   "reportUnnecessaryIsInstance": "warning",
@@ -55,11 +54,9 @@
   "reportUntypedClassDecorator": "warning",
   "reportUntypedBaseClass": "warning",
   "reportUntypedNamedTuple": "warning",
-  "reportUnknownArgumentType": "warning",
-  "reportUnknownMemberType": "warning",
-  "reportUnknownParameterType": "warning",
-  "reportUnknownVariableType": "warning",
-  "reportUnknownParameterType": "warning",
-  "reportUnknownArgumentType": "warning",
-  "reportAny": "none"
+  "reportUnknownArgumentType": "error",
+  "reportUnknownMemberType": "error",
+  "reportUnknownParameterType": "error",
+  "reportUnknownVariableType": "error",
+  "reportUnknownLambdaType": "error"
 }
