@@ -1,4 +1,4 @@
-"""Ordered strict FileProcessor assembly tests (Todo 11)."""
+"""Ordered strict FileProcessor assembly tests."""
 
 from __future__ import annotations
 

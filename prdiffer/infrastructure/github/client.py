@@ -82,7 +82,7 @@ class GitHubAPIClient(GitHubAPIClientOperationsMixin, GitHubAPIServiceInterface)
         # Prefer constructor injection; fall back to settings for legacy callers.
         if parallel_file_fetch_enabled is None:
             settings = get_settings_service()
-            self._parallel_file_fetch_enabled = bool(settings.get("performance.parallel_file_fetch_enabled", False))
+            self._parallel_file_fetch_enabled = bool(settings.get("performance.parallel_file_fetch_enabled", True))
         else:
             self._parallel_file_fetch_enabled = parallel_file_fetch_enabled
 

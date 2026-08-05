@@ -30,7 +30,7 @@ prdiffer/infrastructure/
 | Task | Location | Notes |
 |------|----------|-------|
 | **DI / singletons** | `di_container.py` | `ServiceContainer`, `get_container()` |
-| **Wire services** | `factories/infrastructure_factory.py` | `GitHubConfig` sentinels; parallel flags default **false** |
+| **Wire services** | `factories/infrastructure_factory.py` | `GitHubConfig` sentinels; parallel flags default **true** |
 | **Settings** | `settings.py` → `GitHubConfig` | 30s GitHub timeout / 180s request timeout |
 | **PR repository** | `github_repository.py` | Main PRDiff repository |
 | **Full-diff orchestration** | `services/pr_diff_service.py` | Maps `GeneratedFileDiff` → `FileDiffResponse`, size limits, session path |
@@ -62,7 +62,7 @@ prdiffer/infrastructure/
 ### Configuration
 - Authoritative config is `SettingsService.get_github_config()` → frozen `GitHubConfig`.
 - Manual settings cache with `RLock` (Dynaconf unhashable → no `@lru_cache`).
-- Parallel performance flags (`parallel_file_fetch_enabled`, `parallel_head_base_fetch_enabled`, `parallel_diff_generation_enabled`) default **false**.
+- Parallel performance flags (`parallel_file_fetch_enabled`, `parallel_head_base_fetch_enabled`, `parallel_diff_generation_enabled`) default **true** (bounded by `max_concurrent` / `diff_max_workers`).
 
 ### Flattened modules + package shims
 Several packages re-export flattened canonical modules for import stability:

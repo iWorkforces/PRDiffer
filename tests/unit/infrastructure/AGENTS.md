@@ -18,7 +18,7 @@ tests/unit/infrastructure/
 ├── test_pr_diff_service_full_context.py # Strict full-context PRDiff mapping
 ├── test_pr_diff_service_updates.py
 ├── test_github_config_wiring.py         # GitHubConfig defaults through settings/factory
-├── test_full_diff_concurrency_defaults.py  # parallel_* flags default false
+├── test_full_diff_concurrency_defaults.py  # parallel_* flags default true; capacity bounds
 ├── test_diff_limits.py                  # Strict size limits (no silent truncate)
 ├── test_async_parallel_executor.py      # 842 — anyio parallel executor
 ├── test_di_container.py

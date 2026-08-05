@@ -132,6 +132,8 @@ class InfrastructureFactory(InfrastructureFactoryInterface):
             diff_utils=diff_service,
             parallel_executor=None,
             parallel_enabled=config.parallel_diff_generation_enabled,
+            parallel_threshold=config.diff_parallel_threshold,
+            max_workers=config.diff_max_workers,
         )
 
         return GitHubPRDiffService(
@@ -170,6 +172,8 @@ class InfrastructureFactory(InfrastructureFactoryInterface):
             diff_utils=diff_service,
             parallel_executor=None,
             parallel_enabled=config.parallel_diff_generation_enabled,
+            parallel_threshold=config.diff_parallel_threshold,
+            max_workers=config.diff_max_workers,
         )
 
     def create_input_validator(self) -> InputValidatorProtocol:

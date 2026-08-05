@@ -1,4 +1,4 @@
-"""In-process FastMCP surface tests for strict full-diff responses (Todo 15)."""
+"""In-process FastMCP surface tests for strict full-diff responses."""
 
 from __future__ import annotations
 

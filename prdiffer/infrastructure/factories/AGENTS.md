@@ -22,15 +22,16 @@ Settings, logger, cache, repository cache, GitHub API, diff utils, pattern match
 
 ## CONVENTIONS
 - Prefer **one authoritative `GitHubConfig`** when wiring clients/processors/services (no ad-hoc defaults that diverge from settings).
-- Parallel flags from config default **false**:
+- Parallel flags from config default **true** (settings + `GitHubConfig`):
   - `parallel_file_fetch_enabled`
   - `parallel_head_base_fetch_enabled`
   - `parallel_diff_generation_enabled`
-- When parallel file fetch is disabled, serialized capacity uses `github_worker_capacity` semantics (capacity 1 path via config).
+- When parallel file fetch is disabled, serialized capacity uses `github_worker_capacity` semantics (capacity 1).
+- Diff generator receives `parallel_enabled` + `diff_max_workers` / `diff_parallel_threshold` from config.
 - Return domain interfaces / concrete adapters as appropriate for callers.
 - Lazy-import security validator to avoid circular imports where needed.
 
 ## ANTI-PATTERNS
 - NO circular imports with application layer (application injects factory results; avoid re-entering carelessly).
 - NO hardcoding timeouts/limits that already live on `GitHubConfig`.
-- NO enabling parallel fan-out by default in factory wiring.
+- NO unbounded fan-out — always respect `max_concurrent` / `diff_max_workers`.

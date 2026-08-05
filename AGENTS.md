@@ -89,7 +89,7 @@ PRDifferMCP/
 - No truncation notices / partial payloads on size limit (`RESPONSE_SIZE_LIMIT`).
 - Content cache keys: `(repo_full_name, path, ref)`; unavailable results are not cached as success.
 - PR-diff response cache: **v2 only** (`github-full-diff-v2`); legacy entries ignored.
-- Parallel fetch/generation is **opt-in** (default serialized, capacity 1).
+- Parallel fetch/generation defaults **on** (`performance.parallel_* = true`); capacity uses `github.max_concurrent` (disable flags for serialized capacity 1).
 - PyGithub blocking calls stay off the event loop via session + `anyio.to_thread` + limiter.
 
 ### Dependency Injection
@@ -106,7 +106,7 @@ PRDifferMCP/
 - **Dynaconf** via `settings.toml` + optional `.secrets.toml`.
 - Manual caching with `RLock` in `SettingsService` (Dynaconf unhashable → no `@lru_cache`).
 - Env overrides: `GITHUB_TOKEN`, `MCP_AUTH_ENABLED`, `MCP_API_KEYS`, `MCP_TRANSPORT`, `MCP_PORT`, `MCP_HOST`.
-- `GitHubConfig` frozen dataclass: `timeout` (30), `pr_diff_request_timeout_seconds` (180), size limits, `parallel_*` default false.
+- `GitHubConfig` frozen dataclass: `timeout` (30), `pr_diff_request_timeout_seconds` (180), size limits, `parallel_*` default true (bounded by `max_concurrent`).
 - **Ruff** configured in `pyproject.toml` (E/F/W/Q, line-length 160, double quotes, target py314).
 
 ### Error Codes

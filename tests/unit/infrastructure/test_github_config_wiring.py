@@ -20,14 +20,18 @@ class TestGitHubConfigNewDefaults:
         assert config.pr_diff_request_timeout_seconds == 180.0
         assert config.max_file_size_bytes == 10_485_760
         assert config.max_total_chars == 200_000
-        assert config.parallel_file_fetch_enabled is False
-        assert config.parallel_head_base_fetch_enabled is False
-        assert config.parallel_diff_generation_enabled is False
-        assert config.github_worker_capacity == 1
+        assert config.parallel_file_fetch_enabled is True
+        assert config.parallel_head_base_fetch_enabled is True
+        assert config.parallel_diff_generation_enabled is True
+        assert config.github_worker_capacity == 4
 
     def test_worker_capacity_when_parallel_enabled(self) -> None:
         config = GitHubConfig(parallel_file_fetch_enabled=True, max_concurrent=4)
         assert config.github_worker_capacity == 4
+
+    def test_worker_capacity_when_parallel_disabled(self) -> None:
+        config = GitHubConfig(parallel_file_fetch_enabled=False, max_concurrent=4)
+        assert config.github_worker_capacity == 1
 
     def test_rejects_nonpositive_max_files(self) -> None:
         with pytest.raises(ConfigurationError, match="max_files_allowed"):
@@ -48,10 +52,10 @@ class TestSettingsTomlDefaults:
         assert config.pr_diff_request_timeout_seconds == 180.0
         assert config.max_file_size_bytes == 10_485_760
         assert config.max_total_chars == 200_000
-        assert config.parallel_file_fetch_enabled is False
-        assert config.parallel_head_base_fetch_enabled is False
-        assert config.parallel_diff_generation_enabled is False
-        assert config.github_worker_capacity == 1
+        assert config.parallel_file_fetch_enabled is True
+        assert config.parallel_head_base_fetch_enabled is True
+        assert config.parallel_diff_generation_enabled is True
+        assert config.github_worker_capacity == 4
 
 
 @pytest.mark.unit

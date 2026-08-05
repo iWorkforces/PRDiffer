@@ -117,8 +117,8 @@ class GitHubSessionPRDiffReader:
         *,
         github_timeout_seconds: int = 30,
         request_timeout_seconds: float = 180.0,
-        parallel_file_fetch_enabled: bool = False,
-        max_concurrent: int = 1,
+        parallel_file_fetch_enabled: bool = True,
+        max_concurrent: int = 4,
         logger: Any | None = None,
     ) -> None:
         self._service = service

@@ -37,7 +37,7 @@ prdiffer/domain/
 | **Provider registry** | `vcs_provider_registry.py` | `supports_repository()` auto-detect |
 | **Error codes** | `error_codes.py` + `errors.py` | Structured E-codes |
 | **Full-diff incomplete** | `exceptions.py` | `FullDiffIncompleteError` + `FullDiffIncompleteReason` |
-| **GitHub config VO** | `config/github_config.py` | Size limits, request timeout, parallel flags default `false` |
+| **GitHub config VO** | `config/github_config.py` | Size limits, request timeout, parallel flags default `true` |
 | **Factory contracts** | `factories/` | Dependency inversion for outer layers |
 
 ## CODE MAP

@@ -789,7 +789,7 @@ def write_json_atomic(path: Path, payload: dict[str, Any], *, allow_overwrite: b
 
 
 def compare_reports(baseline: dict[str, Any], post: dict[str, Any]) -> dict[str, Any]:
-    """Compare sealed baseline vs post report (used by Todo 16; available early)."""
+    """Compare sealed baseline vs post report."""
     if baseline.get("schema_version") != post.get("schema_version"):
         raise ValueError("Schema version mismatch between baseline and post reports")
     if baseline.get("matrix") != post.get("matrix"):
@@ -851,7 +851,7 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--baseline",
         default="",
-        help="Baseline JSON path for post-phase validation (Todo 16)",
+        help="Baseline JSON path for post-phase validation",
     )
     parser.add_argument(
         "--compare",

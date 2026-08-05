@@ -128,7 +128,7 @@ class GitHubPRDiffRepository(GitHubPROperationsMixin, PRDiffRepositoryInterface)
         self.file_parallel_threshold = self.settings_service.get("file_processing.parallel_fetch_threshold", 10)
         self.file_parallel_workers = self.settings_service.get("file_processing.concurrent_downloads", 3)
 
-        self._parallel_diff_generation_enabled = self.settings_service.get("performance.parallel_diff_generation_enabled", False)
+        self._parallel_diff_generation_enabled = self.settings_service.get("performance.parallel_diff_generation_enabled", True)
         self._diff_truncate_enabled = self.settings_service.get("diff.truncate_enabled", False)
         self._diff_max_total_chars = int(self.settings_service.get("diff.max_total_chars", 200000))
         self._diff_truncation_notice = self.settings_service.get("diff.truncation_notice", "[DIFF TRUNCATED]")

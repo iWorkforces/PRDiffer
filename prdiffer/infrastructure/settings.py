@@ -162,9 +162,9 @@ class SettingsService(SettingsServiceInterface):
                 max_diff_size=int(get_with_fallback("diff.max_diff_size", 100000)),
                 max_file_size_bytes=int(get_with_fallback("github.max_file_size_bytes", 10_485_760)),
                 max_total_chars=int(get_with_fallback("diff.max_total_chars", 200_000)),
-                parallel_file_fetch_enabled=bool(get_with_fallback("performance.parallel_file_fetch_enabled", False)),
-                parallel_head_base_fetch_enabled=bool(get_with_fallback("performance.parallel_head_base_fetch_enabled", False)),
-                parallel_diff_generation_enabled=bool(get_with_fallback("performance.parallel_diff_generation_enabled", False)),
+                parallel_file_fetch_enabled=bool(get_with_fallback("performance.parallel_file_fetch_enabled", True)),
+                parallel_head_base_fetch_enabled=bool(get_with_fallback("performance.parallel_head_base_fetch_enabled", True)),
+                parallel_diff_generation_enabled=bool(get_with_fallback("performance.parallel_diff_generation_enabled", True)),
                 pr_diff_request_timeout_seconds=float(get_with_fallback("mcp.pr_diff_request_timeout_seconds", 180.0)),
                 max_concurrent=int(get_with_fallback("github.max_concurrent", 4)),
             )

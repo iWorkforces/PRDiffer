@@ -2,9 +2,11 @@
 
 import inspect
 import time
+from concurrent.futures import ThreadPoolExecutor
+from typing import Any, Sequence, cast
+
 import anyio
 import asyncer
-from typing import Any, Sequence, cast
 from github.File import File
 from github.PaginatedList import PaginatedList
 from github.PullRequest import PullRequest as PyGithubPullRequest
@@ -79,7 +81,7 @@ class FileProcessor:
             from prdiffer.infrastructure.settings import get_settings_service
 
             settings = get_settings_service()
-            self._parallel_head_base_fetch_enabled = bool(settings.get("performance.parallel_head_base_fetch_enabled", False))
+            self._parallel_head_base_fetch_enabled = bool(settings.get("performance.parallel_head_base_fetch_enabled", True))
         else:
             self._parallel_head_base_fetch_enabled = parallel_head_base_fetch_enabled
 
@@ -139,16 +141,51 @@ class FileProcessor:
             texts[path] = self._require_text(value, path=path, ref=ref)
         return texts
 
+    def _fetch_head_base_batches(
+        self,
+        repo_full_name: str,
+        head_paths: list[str],
+        base_paths: list[str],
+        head_sha: str,
+        base_sha: str,
+    ) -> tuple[dict[str, Any], dict[str, Any]]:
+        """Load head/base content batches; optionally concurrent when enabled."""
+        if not head_paths and not base_paths:
+            return {}, {}
+
+        def _fetch(paths: list[str], ref: str) -> dict[str, Any]:
+            if not paths:
+                return {}
+            return cast(
+                dict[str, Any],
+                self._github_api_service.get_files_content_batch(repo_full_name, paths, ref),
+            )
+
+        if self._parallel_head_base_fetch_enabled and head_paths and base_paths:
+            with ThreadPoolExecutor(max_workers=2) as pool:
+                head_future = pool.submit(_fetch, head_paths, head_sha)
+                base_future = pool.submit(_fetch, base_paths, base_sha)
+                return head_future.result(), base_future.result()
+
+        head_raw = _fetch(head_paths, head_sha)
+        base_raw = _fetch(base_paths, base_sha)
+        return head_raw, base_raw
+
     def process_files_to_patches(self, files: list[Any], repository: Any, head_sha: str, base_sha: str) -> list[FilePatchInfo]:
         """Assemble FilePatchInfo list in provider order (strict, no soft skips)."""
         classified = self._classify_selected_files(files)
         if not classified:
             return []
         head_paths, base_paths, rename_map = self._required_content_keys(classified)
-        head_raw = self._github_api_service.get_files_content_batch(repository.full_name, head_paths, head_sha) if head_paths else {}
-        base_raw = self._github_api_service.get_files_content_batch(repository.full_name, base_paths, base_sha) if base_paths else {}
-        head_contents = self._text_map(cast(dict[str, Any], head_raw), ref=head_sha)
-        base_contents = self._text_map(cast(dict[str, Any], base_raw), ref=base_sha)
+        head_raw, base_raw = self._fetch_head_base_batches(
+            repository.full_name,
+            head_paths,
+            base_paths,
+            head_sha,
+            base_sha,
+        )
+        head_contents = self._text_map(head_raw, ref=head_sha)
+        base_contents = self._text_map(base_raw, ref=base_sha)
         return self._assemble_patches_in_order(classified, head_contents, base_contents, rename_map)
 
     async def process_files_to_patches_async(self, files: list[Any], repository: Any, head_sha: str, base_sha: str) -> list[FilePatchInfo]:
@@ -158,18 +195,19 @@ class FileProcessor:
             return []
         head_paths, base_paths, rename_map = self._required_content_keys(classified)
 
-        head_contents: dict[str, str] = {}
-        base_contents: dict[str, str] = {}
-        if head_paths:
-            head_result = self._github_api_service.get_files_content_batch(repository.full_name, head_paths, head_sha)
-            if inspect.iscoroutine(head_result):
-                head_result = await head_result
-            head_contents = self._text_map(cast(dict[str, Any], head_result), ref=head_sha)
-        if base_paths:
-            base_result = self._github_api_service.get_files_content_batch(repository.full_name, base_paths, base_sha)
-            if inspect.iscoroutine(base_result):
-                base_result = await base_result
-            base_contents = self._text_map(cast(dict[str, Any], base_result), ref=base_sha)
+        # Blocking batch APIs may nest anyio.run; run concurrent head/base on worker threads.
+        run_sync = getattr(anyio.to_thread, "run_sync")
+        head_raw, base_raw = await run_sync(
+            lambda: self._fetch_head_base_batches(
+                repository.full_name,
+                head_paths,
+                base_paths,
+                head_sha,
+                base_sha,
+            ),
+        )
+        head_contents = self._text_map(head_raw, ref=head_sha)
+        base_contents = self._text_map(base_raw, ref=base_sha)
 
         return self._assemble_patches_in_order(classified, head_contents, base_contents, rename_map)
 

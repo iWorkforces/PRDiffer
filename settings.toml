@@ -44,12 +44,12 @@ github.context_aware_retry = true  # Enable context-aware retry strategies
 github.max_concurrent = 4  # Maximum concurrent GitHub API operations
 
 # Performance optimization feature flags
-# Parallel fetch/generation defaults remain false until safety gates (Todo 14) pass.
+# Bounded concurrency (indexed batch, session CapacityLimiter, max_concurrent).
 [performance]
 cache_hit_optimization_enabled = true  # Optimistic cache lookup before commit SHA check (40-60% latency reduction)
-parallel_file_fetch_enabled = false  # Opt-in async parallel file fetching (serialized by default)
-parallel_head_base_fetch_enabled = false  # Opt-in concurrent head/base content fetch
-parallel_diff_generation_enabled = false  # Opt-in parallel diff generation
+parallel_file_fetch_enabled = true  # Bounded parallel file content fetch (github.max_concurrent)
+parallel_head_base_fetch_enabled = true  # Concurrent head and base content loads
+parallel_diff_generation_enabled = true  # Parallel full-context per-file generation
 
 # File filtering patterns
 github.ignore_patterns = [

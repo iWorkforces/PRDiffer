@@ -33,9 +33,9 @@ prdiffer/domain/config/
 | `max_file_size_bytes` | 10_485_760 (10 MiB) | Content size admission |
 | `max_total_chars` | 200_000 | Aggregate public diff char budget |
 | `max_files_allowed` | 50 | Selected-file admission limit |
-| `parallel_file_fetch_enabled` | `false` | Opt-in; capacity is 1 when off |
-| `parallel_head_base_fetch_enabled` | `false` | Opt-in concurrency |
-| `parallel_diff_generation_enabled` | `false` | Opt-in concurrency |
+| `parallel_file_fetch_enabled` | `true` | Bounded batch fetch; capacity 1 when off |
+| `parallel_head_base_fetch_enabled` | `true` | Concurrent head + base content loads |
+| `parallel_diff_generation_enabled` | `true` | Parallel ordered full-context generation |
 | `max_concurrent` | 4 | Worker cap when parallel fetch enabled |
 
 Also: retry/circuit-breaker knobs, `ignore_patterns` / `valid_extensions` as tuples, legacy `diff_parallel_*` for older parallel-diff paths.

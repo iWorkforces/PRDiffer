@@ -1,4 +1,4 @@
-"""Service-level full-context PRDiff construction tests (Todo 12)."""
+"""Service-level full-context PRDiff construction tests."""
 
 from __future__ import annotations
 

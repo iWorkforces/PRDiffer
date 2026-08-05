@@ -1,4 +1,4 @@
-"""Strict ordered full-context generation tests (Todo 9)."""
+"""Strict ordered full-context generation tests."""
 
 from __future__ import annotations
 

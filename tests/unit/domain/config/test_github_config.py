@@ -62,9 +62,9 @@ class TestGitHubConfigDefaults:
         assert config.max_file_size_bytes == 10_485_760
         assert config.max_total_chars == 200_000
         assert config.pr_diff_request_timeout_seconds == 180.0
-        assert config.parallel_file_fetch_enabled is False
-        assert config.parallel_head_base_fetch_enabled is False
-        assert config.parallel_diff_generation_enabled is False
+        assert config.parallel_file_fetch_enabled is True
+        assert config.parallel_head_base_fetch_enabled is True
+        assert config.parallel_diff_generation_enabled is True
 
 
 @pytest.mark.unit

@@ -1,8 +1,9 @@
 """Diff generation and patch processing service."""
 
+import logging
 import re
 import time
-import logging
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Any, TypedDict
 
 from prdiffer.domain.entities.file_patch import EDIT_TYPE, FilePatchInfo
@@ -41,12 +42,18 @@ class DiffGenerator:
         parallel_executor: Any = None,
         parallel_enabled: bool = True,
         parallel_threshold: int = 3,
+        max_workers: int = 4,
         logger: logging.Logger | None = None,
     ) -> None:
         self._diff_utils = diff_utils
         self._parallel_executor = parallel_executor
-        self._parallel_enabled = parallel_enabled and parallel_executor is not None
+        # Parallel generation can use ThreadPoolExecutor without an injected executor.
+        self._parallel_enabled = bool(parallel_enabled)
         self._parallel_threshold = parallel_threshold
+        self._max_workers = max(
+            1,
+            int(getattr(parallel_executor, "max_concurrent", None) or getattr(parallel_executor, "max_workers", None) or max_workers),
+        )
         self._logger = logger or get_logger()
 
     def generate_ordered_file_diffs(self, diff_files: list[FilePatchInfo]) -> list[GeneratedFileDiff]:
@@ -59,9 +66,10 @@ class DiffGenerator:
         if not diff_files:
             return []
 
-        results: list[GeneratedFileDiff] = []
-        for index, file_patch in enumerate(diff_files):
-            results.append(self._generate_one_file_diff(index, file_patch))
+        if self._parallel_enabled and len(diff_files) >= self._parallel_threshold:
+            results = self._generate_ordered_file_diffs_parallel(diff_files)
+        else:
+            results = [self._generate_one_file_diff(index, file_patch) for index, file_patch in enumerate(diff_files)]
 
         if len(results) != len(diff_files):
             raise FullDiffIncompleteError(
@@ -80,6 +88,30 @@ class DiffGenerator:
                     limit=expected_index,
                 )
         return results
+
+    def _generate_ordered_file_diffs_parallel(self, diff_files: list[FilePatchInfo]) -> list[GeneratedFileDiff]:
+        """Generate ordered diffs concurrently; preserve index identity and strict failure."""
+        workers = min(self._max_workers, len(diff_files))
+        ordered: list[GeneratedFileDiff | None] = [None] * len(diff_files)
+        first_error: BaseException | None = None
+
+        with ThreadPoolExecutor(max_workers=workers) as pool:
+            futures = {pool.submit(self._generate_one_file_diff, index, file_patch): index for index, file_patch in enumerate(diff_files)}
+            for future in as_completed(futures):
+                index = futures[future]
+                try:
+                    ordered[index] = future.result()
+                except Exception as exc:
+                    if first_error is None:
+                        first_error = exc
+                    # Best-effort cancel remaining work; already-running tasks finish.
+                    for pending in futures:
+                        pending.cancel()
+
+        if first_error is not None:
+            raise first_error
+
+        return [item for item in ordered if item is not None]
 
     def generate_extended_diff(self, diff_files: list[FilePatchInfo], add_line_numbers_to_hunks: bool = False) -> list[str]:
         """Generate extended diffs (legacy list[str] surface).
@@ -458,6 +490,7 @@ def get_diff_generator(
     parallel_executor: Any = None,
     parallel_enabled: bool = True,
     parallel_threshold: int = 3,
+    max_workers: int = 4,
 ) -> DiffGenerator:
     """Get a configured diff generator instance."""
     return DiffGenerator(
@@ -465,4 +498,5 @@ def get_diff_generator(
         parallel_executor=parallel_executor,
         parallel_enabled=parallel_enabled,
         parallel_threshold=parallel_threshold,
+        max_workers=max_workers,
     )
