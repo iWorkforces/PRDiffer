@@ -212,3 +212,24 @@ class TestGetPRDiffUseCase:
         # Assert
         assert use_case._pr_diff_service is mock_pr_diff_service
         assert use_case._cache_service is mock_cache_service
+
+    @pytest.mark.anyio
+    async def test_cache_keys_keep_github_unprefixed_and_namespace_gitlab(self, mock_pr_diff_service, mock_cache_service, sample_pr_diff):
+        # Given
+        mock_cache_service.get_cache_key.side_effect = lambda owner, repo, number: f"{owner}/{repo}/pr/{number}"
+        mock_pr_diff_service.get_latest_commit_sha.return_value = "commit-17"
+        mock_pr_diff_service.get_pr_diff.return_value = sample_pr_diff
+        github_use_case = GetPRDiffUseCase(pr_diff_service=mock_pr_diff_service, cache_service=mock_cache_service)
+        gitlab_use_case = GetPRDiffUseCase(
+            pr_diff_service=mock_pr_diff_service,
+            cache_service=mock_cache_service,
+            cache_namespace="gitlab",
+        )
+
+        # When
+        await github_use_case.execute(repo_owner="owner", repo_name="repo", pr_number=17)
+        await gitlab_use_case.execute(repo_owner="owner", repo_name="repo", pr_number=17)
+
+        # Then
+        assert mock_cache_service.get.await_args_list[0].args[0] == "owner/repo/pr/17"
+        assert mock_cache_service.get.await_args_list[1].args[0] == "gitlab:owner/repo/pr/17"

@@ -1,6 +1,8 @@
 """Comprehensive tests for ToolRegistry."""
 
 import pytest
+from collections.abc import Awaitable, Callable
+from dataclasses import dataclass, field
 from unittest.mock import MagicMock, AsyncMock, patch
 
 from prdiffer.application.tool_registry import ToolRegistry
@@ -15,6 +17,76 @@ from prdiffer.domain.exceptions import (
     GitHubAPIError,
     InputSanitizationError,
 )
+
+
+@dataclass
+class ProviderReader:
+    result: PRDiff
+    commit_sha: str
+    diff_calls: list[tuple[str, str, int]] = field(default_factory=list[tuple[str, str, int]])
+    commit_calls: list[tuple[str, str, int]] = field(default_factory=list[tuple[str, str, int]])
+
+    async def get_pr_diff(self, repo_owner: str, repo_name: str, pr_number: int) -> PRDiff:
+        self.diff_calls.append((repo_owner, repo_name, pr_number))
+        return self.result
+
+    async def get_latest_commit_sha(self, repo_owner: str, repo_name: str, pr_number: int) -> str:
+        self.commit_calls.append((repo_owner, repo_name, pr_number))
+        return self.commit_sha
+
+
+@dataclass
+class RecordingCache:
+    lookup_keys: list[tuple[str, str]] = field(default_factory=list[tuple[str, str]])
+    write_keys: list[tuple[str, str, PRDiff]] = field(default_factory=list[tuple[str, str, PRDiff]])
+
+    def get_cache_key(self, repo_owner: str, repo_name: str, pr_number: int) -> str:
+        return f"{repo_owner}/{repo_name}/pr/{pr_number}"
+
+    async def get(self, cache_key: str, commit_sha: str) -> None:
+        self.lookup_keys.append((cache_key, commit_sha))
+        return None
+
+    async def set(self, cache_key: str, commit_sha: str, diff: PRDiff) -> None:
+        self.write_keys.append((cache_key, commit_sha, diff))
+
+
+@dataclass
+class RecordingCoalescer:
+    keys: list[str] = field(default_factory=list[str])
+
+    async def coalesce(self, key: str, fetch: Callable[[], Awaitable[PRDiff]]) -> PRDiff:
+        self.keys.append(key)
+        return await fetch()
+
+
+class ProviderAwareValidator:
+    def sanitize_string(self, value: str, max_length: int = 1000) -> str:
+        return value
+
+    def sanitize_for_logging(self, value: str, max_length: int = 200) -> str:
+        return value
+
+    def validate_github_url(self, url: str) -> tuple[str, str, int]:
+        assert url == "https://github.com/owner/repo/pull/17"
+        return "owner", "repo", 17
+
+    def validate_gitlab_url(self, url: str) -> tuple[str, str, int]:
+        assert url == "https://gitlab.com/owner/repo/-/merge_requests/17"
+        return "owner", "repo", 17
+
+
+class MCPToolCapture:
+    def __init__(self) -> None:
+        self.get_pr_diff_tool: Callable[..., Awaitable[PRDiff]] | None = None
+
+    def tool(self) -> Callable[[Callable[..., Awaitable[PRDiff]]], Callable[..., Awaitable[PRDiff]]]:
+        def decorator(function: Callable[..., Awaitable[PRDiff]]) -> Callable[..., Awaitable[PRDiff]]:
+            if function.__name__ == "get_pr_diff":
+                self.get_pr_diff_tool = function
+            return function
+
+        return decorator
 
 
 @pytest.fixture
@@ -374,7 +446,7 @@ class TestExecuteUseCaseWithCoalescing:
         """Test successful use case execution."""
         mock_request_coalescing.coalesce = AsyncMock(return_value=sample_pr_diff)
 
-        with patch("prdiffer.application.tool_registry.GetPRDiffUseCase") as MockUseCase:
+        with patch("prdiffer.application.pr_diff_executor.GetPRDiffUseCase") as MockUseCase:
             mock_use_case = MagicMock()
             mock_use_case.execute = AsyncMock(return_value=sample_pr_diff)
             MockUseCase.return_value = mock_use_case
@@ -386,7 +458,7 @@ class TestExecuteUseCaseWithCoalescing:
     @pytest.mark.anyio
     async def test_execute_returns_none(self, tool_registry, mock_request_coalescing, mock_logger):
         """Test use case returns None."""
-        with patch("prdiffer.application.tool_registry.GetPRDiffUseCase") as MockUseCase:
+        with patch("prdiffer.application.pr_diff_executor.GetPRDiffUseCase") as MockUseCase:
             mock_use_case = MagicMock()
             mock_use_case.execute = AsyncMock(return_value=None)
             MockUseCase.return_value = mock_use_case
@@ -452,3 +524,69 @@ class TestSafeErrorMessages:
         result = tool_registry._create_safe_error_message(error)
 
         assert result == "Invalid input type"
+
+
+class TestGetPRDiffProviderDispatch:
+    @pytest.mark.anyio
+    @pytest.mark.parametrize(
+        ("url", "provider", "cache_key"),
+        [
+            ("https://github.com/owner/repo/pull/17", "github", "owner/repo/pr/17"),
+            ("https://gitlab.com/owner/repo/-/merge_requests/17", "gitlab", "gitlab:owner/repo/pr/17"),
+        ],
+    )
+    async def test_registered_get_pr_diff_routes_to_only_the_matching_provider_reader(
+        self,
+        url: str,
+        provider: str,
+        cache_key: str,
+        mock_logger,
+        mock_github_repository_class,
+        mock_rate_limiter,
+        mock_metrics_tracker,
+        mock_authentication,
+    ) -> None:
+        # Given
+        github_diff = PRDiff(files=(FileDiffResponse("github.py", EDIT_TYPE.MODIFIED, FileStats(additions=1, deletions=0), "+github"),))
+        gitlab_diff = PRDiff(files=(FileDiffResponse("gitlab.py", EDIT_TYPE.ADDED, FileStats(additions=1, deletions=0), "+gitlab"),))
+        github_reader = ProviderReader(github_diff, "github-commit")
+        gitlab_reader = ProviderReader(gitlab_diff, "gitlab-commit")
+        cache = RecordingCache()
+        coalescer = RecordingCoalescer()
+        registry_arguments: dict[str, object] = {
+            "pr_diff_service": github_reader,
+            "cache_service": cache,
+            "logger": mock_logger,
+            "github_repository_class": mock_github_repository_class,
+            "gitlab_reader": gitlab_reader,
+            "rate_limiter": mock_rate_limiter,
+            "metrics_tracker": mock_metrics_tracker,
+            "authentication": mock_authentication,
+            "input_validator": ProviderAwareValidator(),
+            "request_coalescing_service": coalescer,
+        }
+        registry = ToolRegistry.__new__(ToolRegistry)
+        initialize_registry: Callable[..., None] = getattr(registry, "__init__")
+        initialize_registry(**registry_arguments)
+        mcp = MCPToolCapture()
+        register_tools: Callable[[MCPToolCapture], None] = getattr(registry, "register_tools")
+        register_tools(mcp)
+        get_pr_diff = mcp.get_pr_diff_tool
+        assert get_pr_diff is not None
+        readers = {"github": github_reader, "gitlab": gitlab_reader}
+        expected_diff = {"github": github_diff, "gitlab": gitlab_diff}[provider]
+        selected_reader = readers[provider]
+        other_reader = readers[{"github": "gitlab", "gitlab": "github"}[provider]]
+
+        # When
+        result = await get_pr_diff(url, None)
+
+        # Then
+        assert result is expected_diff
+        assert selected_reader.commit_calls == [("owner", "repo", 17)]
+        assert selected_reader.diff_calls == [("owner", "repo", 17)]
+        assert other_reader.commit_calls == []
+        assert other_reader.diff_calls == []
+        assert cache.lookup_keys == [(cache_key, f"{provider}-commit")]
+        assert cache.write_keys == [(cache_key, f"{provider}-commit", expected_diff)]
+        assert coalescer.keys == [cache_key]

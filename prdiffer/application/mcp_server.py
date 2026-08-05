@@ -8,6 +8,7 @@ from prdiffer.domain.services.settings import SettingsServiceInterface
 from prdiffer.domain.services.cache import CacheServiceInterface
 from prdiffer.domain.services.repository_cache import RepositoryCacheServiceInterface
 from prdiffer.domain.services.pr_diff_service import PRDiffServiceInterface
+from prdiffer.domain.usecases.pr_diff_usecases import PRDiffReader
 from prdiffer.domain.services.logger import LoggerServiceInterface
 from prdiffer.domain.interfaces.protocols import (
     RateLimiterProtocol,
@@ -44,6 +45,7 @@ class FastMCPServer:
         pr_operation_handler: PROperationHandlerProtocol,
         health_monitor: HealthMonitorProtocol,
         server_configuration: ServerConfigurationProtocol,
+        gitlab_reader: PRDiffReader | None = None,
         authentication: AuthenticationProtocol | None = None,
         input_validator: InputValidatorProtocol | None = None,
         request_coalescing_service: RequestCoalescingProtocol | None = None,
@@ -52,6 +54,7 @@ class FastMCPServer:
         self._cache_service = cache_service
         self._repository_cache_service = repository_cache_service
         self._pr_diff_service = pr_diff_service
+        self._gitlab_reader = gitlab_reader
         self._logger = logger
         self._github_repository_class: Callable[..., Any] = github_repository_class
 
@@ -104,6 +107,7 @@ class FastMCPServer:
 
         self._tool_registry = ToolRegistry(
             pr_diff_service=self._pr_diff_service,
+            gitlab_reader=self._gitlab_reader,
             cache_service=self._cache_service,
             logger=self._logger,
             github_repository_class=self._github_repository_class,

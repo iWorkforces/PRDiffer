@@ -15,7 +15,8 @@
 # Environment Variables:
 #   TRANSPORT           Transport mode (overrides --transport)
 #   PORT                Port number (overrides --port)
-#   GITHUB_TOKEN        GitHub personal access token (required)
+#   GITHUB_TOKEN        GitHub personal access token (one provider token is required)
+#   GITLAB_TOKEN        GitLab personal access token (one provider token is required)
 #   PID_FILE            Custom PID file location (default: .prdiffer-server.pid)
 
 set -euo pipefail
@@ -316,33 +317,30 @@ else
 fi
 echo ""
 
-# Check if GITHUB_TOKEN environment variable is set
-log_info "Checking GitHub authentication..."
-if [[ -z "${GITHUB_TOKEN:-}" ]]; then
-    log_error "GITHUB_TOKEN environment variable is not set"
+# Check if either provider token environment variable is set
+log_info "Checking provider authentication..."
+if [[ -z "${GITHUB_TOKEN:-}" && -z "${GITLAB_TOKEN:-}" ]]; then
+    log_error "Either GITHUB_TOKEN or GITLAB_TOKEN environment variable must be set"
     echo ""
-    echo -e "${YELLOW}GitHub authentication is required to run PRDiffer MCP Server.${NC}"
+    echo -e "${YELLOW}GitHub or GitLab authentication is required to run PRDiffer MCP Server.${NC}"
     echo ""
-    echo -e "${CYAN}To set up authentication, choose one of these options:${NC}"
+    echo -e "${CYAN}Set a token for either provider using one of these options:${NC}"
     echo ""
     echo -e "${PURPLE}Option 1: Set environment variable${NC}"
     echo -e "  export GITHUB_TOKEN=\"your_github_personal_access_token\""
+    echo -e "  export GITLAB_TOKEN=\"your_gitlab_personal_access_token\""
     echo ""
     echo -e "${PURPLE}Option 2: Create a .env file${NC}"
     echo -e "  echo \"GITHUB_TOKEN=your_github_personal_access_token\" > .env"
+    echo -e "  echo \"GITLAB_TOKEN=your_gitlab_personal_access_token\" > .env"
     echo ""
-    echo -e "${CYAN}To generate a GitHub Personal Access Token:${NC}"
-    echo -e "  1. Go to: ${BLUE}https://github.com/settings/tokens${NC}"
-    echo -e "  2. Click 'Generate new token (classic)'"
-    echo -e "  3. Select scopes: repo, read:org, read:user"
-    echo -e "  4. Generate and copy the token"
-    echo -e "  5. Set it using one of the options above"
+    echo -e "${CYAN}Generate a personal access token in your selected provider account, then set its environment variable.${NC}"
     echo ""
     echo -e "${YELLOW}For more information, see the Authentication section in README.md${NC}"
     echo ""
     exit 1
 else
-    log_success "GITHUB_TOKEN is set"
+    log_success "A provider authentication token is set"
 fi
 echo ""
 

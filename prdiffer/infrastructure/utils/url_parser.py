@@ -72,6 +72,41 @@ def parse_github_pr_url(pr_url: str) -> tuple[str, str, int]:
     return owner, repo_name, pr_number
 
 
+def parse_gitlab_merge_request_url(pr_url: str) -> tuple[str, str, int]:
+    """Parse a canonical GitLab.com merge request URL."""
+    if not pr_url:
+        raise InvalidURLError("PR URL cannot be None or empty")
+
+    pr_url = pr_url.strip()
+    if not pr_url:
+        raise InvalidURLError("PR URL cannot be empty or whitespace-only")
+    if len(pr_url) > 2000:
+        raise InvalidURLError("URL too long (max 2000 characters)")
+    if not pr_url.startswith("https://gitlab.com/"):
+        raise InvalidURLError(
+            "URL must start with https://gitlab.com/",
+            details={"url": pr_url[:100]},
+        )
+
+    pattern = re.compile(r"^https://gitlab\.com/([a-zA-Z0-9_-]+)/([a-zA-Z0-9._-]+)/-/merge_requests/(\d+)/?$")
+    match = pattern.match(pr_url)
+    if not match:
+        raise InvalidURLError(
+            "Invalid GitLab merge request URL format. Expected: https://gitlab.com/owner/repo/-/merge_requests/123",
+            details={"url": pr_url[:100]},
+        )
+
+    owner, repo_name, pr_number_str = match.groups()
+    _validate_owner(owner)
+    _validate_repo_name(repo_name)
+    pr_number = int(pr_number_str)
+    if pr_number <= 0:
+        raise InvalidPRNumberError("PR number must be positive")
+    if pr_number > 1000000:
+        raise InvalidPRNumberError("PR number too large (max 1000000)")
+    return owner, repo_name, pr_number
+
+
 def _validate_owner(owner: str) -> None:
     """Validate GitHub owner/organization name."""
     if not owner:

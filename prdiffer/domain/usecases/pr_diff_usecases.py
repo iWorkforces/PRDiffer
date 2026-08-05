@@ -1,6 +1,19 @@
+from typing import Protocol
+
 from prdiffer.domain.entities.pr_diff import PRDiff
 from prdiffer.domain.services.cache import CacheServiceInterface
-from prdiffer.domain.services.pr_diff_service import PRDiffServiceInterface
+
+
+class PRDiffReader(Protocol):
+    """Read the diff and current commit SHA for one pull request."""
+
+    async def get_pr_diff(self, repo_owner: str, repo_name: str, pr_number: int, /) -> PRDiff | None:
+        """Return the structured pull request diff."""
+        ...
+
+    async def get_latest_commit_sha(self, repo_owner: str, repo_name: str, pr_number: int, /) -> str | None:
+        """Return the latest pull request commit SHA."""
+        ...
 
 
 class GetPRDiffUseCase:
@@ -8,13 +21,16 @@ class GetPRDiffUseCase:
 
     def __init__(
         self,
-        pr_diff_service: PRDiffServiceInterface,
+        pr_diff_service: PRDiffReader,
         cache_service: CacheServiceInterface,
         cache_hit_optimization_enabled: bool = False,
+        *,
+        cache_namespace: str | None = None,
     ):
-        self._pr_diff_service: PRDiffServiceInterface = pr_diff_service
+        self._pr_diff_service: PRDiffReader = pr_diff_service
         self._cache_service: CacheServiceInterface = cache_service
         self._cache_hit_optimization_enabled = cache_hit_optimization_enabled
+        self._cache_namespace = cache_namespace
 
     async def execute(
         self,
@@ -28,6 +44,8 @@ class GetPRDiffUseCase:
         ensuring fresh data is always returned when the PR changes.
         """
         cache_key = self._cache_service.get_cache_key(repo_owner, repo_name, pr_number)
+        if self._cache_namespace:
+            cache_key = f"{self._cache_namespace}:{cache_key}"
 
         if self._cache_hit_optimization_enabled:
             cached_result, cached_commit_sha = await self._cache_service.get_optimistic(cache_key)

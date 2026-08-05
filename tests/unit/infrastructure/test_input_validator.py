@@ -1,5 +1,7 @@
 """Unit tests for InputValidator security component."""
 
+from collections.abc import Callable
+
 import pytest
 from typing import cast, Any
 from prdiffer.infrastructure.security.input_validator import (
@@ -96,6 +98,20 @@ class TestGitHubURLValidation:
         assert owner == "test"
         assert repo == "repo"
         assert pr_number == 789
+
+
+@pytest.mark.unit
+class TestGitLabURLValidation:
+    def test_validate_gitlab_merge_request_url(self, validator: InputValidator) -> None:
+        # Given
+        url = "https://gitlab.com/owner/repo/-/merge_requests/17"
+        validate_gitlab_url: Callable[[str], tuple[str, str, int]] = getattr(validator, "validate_gitlab_url")
+
+        # When
+        owner, repo, merge_request_number = validate_gitlab_url(url)
+
+        # Then
+        assert (owner, repo, merge_request_number) == ("owner", "repo", 17)
 
 
 @pytest.mark.unit

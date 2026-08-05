@@ -1,6 +1,9 @@
-from typing import Any
+from dataclasses import is_dataclass
+from collections.abc import Callable
+from typing import Any, Protocol
 
 import pytest
+from prdiffer.application.utils import pr_url_parser
 from prdiffer.application.utils.pr_url_parser import parse_pr_url
 from prdiffer.domain.exceptions import (
     InvalidURLError,
@@ -8,6 +11,13 @@ from prdiffer.domain.exceptions import (
     SuspiciousOperationError,
 )
 from prdiffer.infrastructure.security.input_validator import InputValidator
+
+
+class PRTarget(Protocol):
+    provider: str
+    repo_owner: str
+    repo_name: str
+    pr_number: int
 
 
 @pytest.mark.unit
@@ -174,3 +184,35 @@ class TestParsePRURL:
         repo = "a" * 101
         with pytest.raises(InvalidURLError, match="Repository name too long"):
             parse_pr_url(f"https://github.com/owner/{repo}/pull/123")
+
+
+@pytest.mark.unit
+class TestParsePRTarget:
+    @pytest.mark.parametrize(
+        ("url", "provider", "owner", "repository", "number"),
+        [
+            ("https://github.com/owner/repo/pull/17", "github", "owner", "repo", 17),
+            ("https://gitlab.com/owner/repo/-/merge_requests/17", "gitlab", "owner", "repo", 17),
+        ],
+    )
+    def test_parse_pr_target_returns_provider_aware_dataclass(
+        self,
+        url: str,
+        provider: str,
+        owner: str,
+        repository: str,
+        number: int,
+    ) -> None:
+        # Given
+        validator = InputValidator()
+        parse_pr_target: Callable[[str, InputValidator], PRTarget] = getattr(pr_url_parser, "parse_pr_target")
+
+        # When
+        target = parse_pr_target(url, validator)
+
+        # Then
+        assert is_dataclass(type(target))
+        assert target.provider == provider
+        assert target.repo_owner == owner
+        assert target.repo_name == repository
+        assert target.pr_number == number
