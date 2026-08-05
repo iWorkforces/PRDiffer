@@ -1,15 +1,15 @@
 # AGENTS.md - Domain Use Case Unit Tests
 
-5 test modules, ~690 lines.
+5 test modules, ~790 lines.
 
 ## STRUCTURE
 ```
 tests/unit/domain/usecases/
 ├── test_pr_diff_usecases.py           # 235 — GetPRDiff + cache keying
+├── test_session_pr_diff_usecase.py    # 232 — session-capable vs legacy reader dispatch
 ├── test_pr_approval_usecases.py       # 159
 ├── test_pr_description_usecases.py    # 136
-├── test_session_pr_diff_usecase.py    # 131 — session-capable vs legacy reader dispatch
-└── test_pr_diff_usecases_purity.py    # 31 — AST import purity checks
+└── test_pr_diff_usecases_purity.py    # AST import purity checks
 ```
 
 ## WHERE TO LOOK

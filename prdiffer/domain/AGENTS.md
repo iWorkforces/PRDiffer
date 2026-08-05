@@ -9,8 +9,8 @@ Package **0.6.0**, Python **3.14.3+**.
 ## STRUCTURE
 ```
 prdiffer/domain/
-├── entities/                 # PRDiff, FilePatchInfo (~347), FileDiffResponse, content/cache types
-├── services/                 # Service interfaces (ABC only; 9 ports)
+├── entities/                 # PRDiff, FilePatchInfo (~347), FileDiffResponse, content/cache + multi-ref types
+├── services/                 # Service interfaces (ABC only; 9 ports; multi-ref on github_api)
 ├── usecases/                 # GetPRDiff (session + legacy), DescribePR, ApprovePR
 ├── repositories/             # PRDiffRepositoryInterface
 ├── interfaces/               # VCS, PRDiffReader session, input validation, coalescing, app Protocols
@@ -27,17 +27,18 @@ prdiffer/domain/
 |------|----------|-------|
 | **Rich domain model** | `entities/file_patch.py` | ~347 lines; priority, smells, modes, validate, stats |
 | **MCP response shape** | `entities/file_diff_response.py`, `entities/pr_diff.py` | Frozen; `previous_path` on renames |
-| **Typed content** | `entities/file_content.py` | `FileContentAvailable` / `FileContentUnavailable` |
+| **Typed content** | `entities/file_content.py` | Available/Unavailable + `FileContentRequest`/`Response` |
 | **Generated diff unit** | `entities/generated_file_diff.py` | `GeneratedFileDiff` (index, path, previous_path, diff) |
 | **Strict cache identity** | `entities/pr_diff_cache.py` | GitHub v2 + GitLab v1 (host-aware) keys |
 | **Session PR path** | `interfaces/pr_diff_reader.py` + `usecases/pr_diff_usecases.py` | Session reader vs legacy two-call path |
 | **Service interfaces** | `services/*.py` | ABC + `@abstractmethod` |
+| **Multi-ref content port** | `services/github_api.py` | `get_files_content_multi_ref_batch` |
 | **VCS provider contract** | `interfaces/vcs_provider.py` | `VCSDiffRepositoryInterface` |
 | **App component Protocols** | `interfaces/protocols.py` | RateLimiter, Auth, Metrics, Health, … (~180) |
 | **Provider registry** | `vcs_provider_registry.py` | `supports_repository()` auto-detect |
 | **Error codes** | `error_codes.py` + `errors.py` | Structured E-codes |
 | **Full-diff incomplete** | `exceptions.py` | `FullDiffIncompleteError` + `FullDiffIncompleteReason` |
-| **GitHub config VO** | `config/github_config.py` | Size limits, request timeout, parallel flags default `true` |
+| **GitHub config VO** | `config/github_config.py` | Size limits (`max_total_chars` 600k), parallel flags default `true` |
 | **GitLab config VO** | `config/gitlab_config.py` | Limits + `allowed_hosts` (default `gitlab.com`) |
 | **Factory contracts** | `factories/` | Dependency inversion for outer layers |
 
@@ -48,6 +49,7 @@ prdiffer/domain/
 | `FileDiffResponse` | Entity | `entities/file_diff_response.py` | path/status/stats/diff/`previous_path` |
 | `FilePatchInfo` | Entity | `entities/file_patch.py` | Rich review model (~347) |
 | `FileContentAvailable` / `Unavailable` | Entity | `entities/file_content.py` | Typed content acquisition |
+| `FileContentRequest` / `Response` | Entity | `entities/file_content.py` | Multi-ref content identity |
 | `GeneratedFileDiff` | Entity | `entities/generated_file_diff.py` | One generated full-context file |
 | `StrictPRDiffCacheIdentity` | Entity | `entities/pr_diff_cache.py` | Provider-neutral cache key + token |
 | `PRDiffCacheEntryV2` | Entity | `entities/pr_diff_cache.py` | Schema-versioned cache wrapper |
@@ -97,6 +99,8 @@ prdiffer/domain/
 - Success responses are complete by construction (no completeness boolean).
 - `FileDiffResponse.previous_path` only for `EDIT_TYPE.RENAMED`.
 - Content union: available empty text ≠ deterministic unavailability; operational failures raise.
+- Multi-ref: `FileContentRequest`/`Response` + `get_files_content_multi_ref_batch` preserve path+ref identity and request order.
+- Aggregate response budget: `max_total_chars` default **600_000** (E5020/`RESPONSE_SIZE_LIMIT` on overflow).
 - Cache: `github-full-diff-v2` and host-aware `gitlab-full-diff-v1:{host}:…`; ignore unversioned/wrong-schema on read.
 - Sessions expose `StrictPRDiffCacheIdentity` (provider-neutral key + validation token).
 

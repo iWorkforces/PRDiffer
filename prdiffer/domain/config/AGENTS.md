@@ -34,7 +34,7 @@ prdiffer/domain/config/
 | `timeout` | 30 | Provider/GitHub SDK timeout (seconds) |
 | `pr_diff_request_timeout_seconds` | 180.0 | Absolute request/coalescing deadline; must be `> timeout` |
 | `max_file_size_bytes` | 10_485_760 (10 MiB) | Content size admission |
-| `max_total_chars` | 200_000 | Aggregate public diff char budget |
+| `max_total_chars` | 600_000 | Aggregate public diff char budget |
 | `max_files_allowed` | 50 | Selected-file admission limit |
 | `parallel_file_fetch_enabled` | `true` | Bounded batch fetch; capacity 1 when off |
 | `parallel_head_base_fetch_enabled` | `true` | Concurrent head + base content loads |
@@ -53,7 +53,7 @@ Also: retry/circuit-breaker knobs, `ignore_patterns` / `valid_extensions` as tup
 | `obey_rate_limit` | `true` | python-gitlab rate-limit obedience |
 | `max_file_size_bytes` | 10_485_760 | Content size admission |
 | `max_files_allowed` | 50 | From `app.max_files_allowed` when wired |
-| `max_total_chars` | 200_000 | From `diff.max_total_chars` when wired |
+| `max_total_chars` | 600_000 | From `diff.max_total_chars` when wired |
 | `pr_diff_request_timeout_seconds` | 180.0 | From `mcp.pr_diff_request_timeout_seconds` when wired |
 | `allowed_hosts` | `("gitlab.com",)` | Bare hostnames only; opt-in custom hosts via settings |
 
