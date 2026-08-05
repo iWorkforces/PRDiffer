@@ -2,7 +2,7 @@
 
 from abc import ABC, abstractmethod
 
-from prdiffer.domain.entities.file_content import FileContentResult
+from prdiffer.domain.entities.file_content import FileContentRequest, FileContentResponse, FileContentResult
 from prdiffer.domain.entities.pull_request import PullRequest
 from prdiffer.domain.entities.repository import Repository
 
@@ -75,4 +75,9 @@ class GitHubAPIServiceInterface(ABC):
         Returns:
             Mapping of path → FileContentResult. Only available texts are cached.
         """
+        pass
+
+    @abstractmethod
+    def get_files_content_multi_ref_batch(self, requests: tuple[FileContentRequest, ...]) -> tuple[FileContentResponse, ...]:
+        """Batch retrieve typed content across immutable refs in request order."""
         pass
