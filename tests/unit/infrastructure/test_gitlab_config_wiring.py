@@ -51,3 +51,18 @@ class TestSettingsTomlGitLabDefaults:
         third = service.get_gitlab_config()
         assert third is not first
         assert third == first
+
+    def test_gitlab_allowed_hosts_env_overrides_toml(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """GITLAB_ALLOWED_HOSTS (CSV) wins over settings.toml — used by .env / start script."""
+        monkeypatch.setenv("GITLAB_ALLOWED_HOSTS", "gitlab.com, GitLab.Example.COM ,self-hosted.local")
+        service = SettingsService(settings_files=["settings.toml"])
+        service.clear_cache()
+        config = service.get_gitlab_config()
+        assert config.allowed_hosts == ("gitlab.com", "gitlab.example.com", "self-hosted.local")
+
+    def test_empty_gitlab_allowed_hosts_env_falls_back_to_toml(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("GITLAB_ALLOWED_HOSTS", "   ")
+        service = SettingsService(settings_files=["settings.toml"])
+        service.clear_cache()
+        config = service.get_gitlab_config()
+        assert config.allowed_hosts == ("gitlab.com",)

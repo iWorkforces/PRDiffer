@@ -200,8 +200,16 @@ class SettingsService(SettingsServiceInterface):
             if request_timeout is None:
                 request_timeout = get_with_fallback("mcp.pr_diff_request_timeout_seconds", 180.0)
 
-            # Host allowlist: list/tuple/CSV via GitLabConfig.from_dict normalization.
-            hosts_cfg = GitLabConfig.from_dict({"allowed_hosts": get_with_fallback("gitlab.allowed_hosts", None)})
+            # Host allowlist priority:
+            # 1) GITLAB_ALLOWED_HOSTS env (CSV) — works with start-prdiffer-mcp-server.sh /.env
+            # 2) settings.toml gitlab.allowed_hosts (list/CSV)
+            # 3) GitLabConfig default ("gitlab.com",)
+            env_hosts = os.getenv("GITLAB_ALLOWED_HOSTS")
+            if env_hosts is not None and env_hosts.strip():
+                allowed_hosts_raw: Any = env_hosts
+            else:
+                allowed_hosts_raw = get_with_fallback("gitlab.allowed_hosts", None)
+            hosts_cfg = GitLabConfig.from_dict({"allowed_hosts": allowed_hosts_raw})
 
             self._gitlab_config_cache = GitLabConfig(
                 timeout=int(get_with_fallback("gitlab.timeout", 30)),

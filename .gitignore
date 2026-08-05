@@ -208,6 +208,8 @@ __marimo__/
 .secrets.toml
 *.env
 .env.*
+# Track the committed template (not a secret)
+!.env.example
 
 *.DS_Store
 
