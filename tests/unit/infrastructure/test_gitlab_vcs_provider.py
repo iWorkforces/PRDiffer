@@ -55,8 +55,11 @@ class TestGitLabVCSRepository:
         assert provider.provider_name == "gitlab"
         assert provider.provider_version == "v4"
         assert provider.supports_repository("https://gitlab.com/owner/repo/-/merge_requests/17")
+        assert provider.supports_repository("https://gitlab.com/group/subgroup/project/-/merge_requests/42")
         assert provider.supports_repository("https://gitlab.com/owner/repo/-/tree/abc123")
         assert not provider.supports_repository("https://github.com/owner/repo/pull/17")
+        assert not provider.supports_repository("https://gitlab.com/group/../project/-/merge_requests/1")
+        assert not provider.supports_repository("https://gitlab.example.com/a/b/-/merge_requests/1")
 
     @pytest.mark.anyio
     async def test_async_methods_use_one_worker_and_store_only_operations(self, monkeypatch: pytest.MonkeyPatch) -> None:

@@ -193,6 +193,13 @@ class TestParsePRTarget:
         [
             ("https://github.com/owner/repo/pull/17", "github", "owner", "repo", 17),
             ("https://gitlab.com/owner/repo/-/merge_requests/17", "gitlab", "owner", "repo", 17),
+            (
+                "https://gitlab.com/group/subgroup/project/-/merge_requests/42",
+                "gitlab",
+                "group/subgroup",
+                "project",
+                42,
+            ),
         ],
     )
     def test_parse_pr_target_returns_provider_aware_dataclass(
@@ -216,3 +223,31 @@ class TestParsePRTarget:
         assert target.repo_owner == owner
         assert target.repo_name == repository
         assert target.pr_number == number
+
+    @pytest.mark.parametrize(
+        "bad_url",
+        [
+            "https://gitlab.example.com/group/project/-/merge_requests/1",
+            "https://gitlab.com/group/project/-/tree/main",
+            "https://gitlab.com/only-one/-/merge_requests/1",
+            "https://gitlab.com/group//project/-/merge_requests/1",
+            "https://gitlab.com/group/../project/-/merge_requests/1",
+            "https://gitlab.com/group/%2e%2e/project/-/merge_requests/1",
+            "https://gitlab.com/group/sub%2Fproject/-/merge_requests/1",
+            "https://gitlab.com/group/project/-/merge_requests/0",
+            "https://gitlab.com/group/project/-/merge_requests/abc",
+            "https://gitlab.com/group/project/-/merge_requests/1?x=1",
+            "https://gitlab.com/group/project/-/merge_requests/1#frag",
+            "https://gitlab.com/group/project/-/merge_requests/1000001",
+        ],
+    )
+    def test_parse_pr_target_rejects_malformed_gitlab_urls(self, bad_url: str) -> None:
+        from prdiffer.domain.exceptions import (
+            InvalidPRNumberError,
+            InvalidURLError,
+            SuspiciousOperationError,
+        )
+
+        validator = InputValidator()
+        with pytest.raises((InvalidURLError, InvalidPRNumberError, SuspiciousOperationError)):
+            pr_url_parser.parse_pr_target(bad_url, validator)

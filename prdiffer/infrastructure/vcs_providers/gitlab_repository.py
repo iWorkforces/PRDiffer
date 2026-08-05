@@ -89,6 +89,24 @@ class GitLabVCSRepository(VCSDiffRepositoryInterface):
         )
 
     def supports_repository(self, url: str) -> bool:
-        """Check whether the URL belongs to a supported canonical GitLab resource."""
-        pattern = r"https://gitlab\.com/([^/]+)/([^/]+)(/-)?/(merge_requests|tree)/([a-zA-Z0-9]+)"
-        return bool(re.match(pattern, url))
+        """Check whether the URL belongs to a supported canonical GitLab resource.
+
+        Merge request URLs accept nested namespaces (group/subgroup/project).
+        """
+        if not isinstance(url, str) or not url:
+            return False
+        from prdiffer.infrastructure.utils.url_parser import parse_gitlab_merge_request_url
+        from prdiffer.domain.exceptions import InvalidPRNumberError, InvalidURLError
+
+        try:
+            parse_gitlab_merge_request_url(url)
+            return True
+        except InvalidURLError, InvalidPRNumberError:
+            pass
+
+        # Legacy simple/nested tree URLs on GitLab.com (read-only support check).
+        tree_pattern = re.compile(
+            r"^https://gitlab\.com/(?:[a-zA-Z0-9](?:[a-zA-Z0-9._-]*[a-zA-Z0-9])?/)+"
+            r"-/tree/[a-zA-Z0-9._/-]+/?$"
+        )
+        return bool(tree_pattern.match(url.strip()))

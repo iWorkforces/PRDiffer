@@ -136,7 +136,7 @@ Your next move: start the plan in a worker session or request the optional dual 
   - QA scenarios: Happy - `uv run pytest tests/unit/infrastructure/vcs_providers/test_gitlab_runtime.py -v --tb=short` with four concurrent operations and configured capacity two; Failure - inject 401/403/404/429/500/timeout/connection cases and assert exact type/code/retry count plus cleanup. Evidence: `<attemptDir>/task-5-gitlab-strict-full-diff.txt`.
   - Commit: N | proposed `feat(gitlab): bound SDK operations and map statuses`.
 
-- [ ] 6. Support canonical nested GitLab.com namespaces end to end
+- [x] 6. Support canonical nested GitLab.com namespaces end to end
   - Recommended task executor category: `quick` - deterministic parser/matcher hardening with existing validation seams.
   - What to do: Update `prdiffer/application/utils/pr_url_parser.py`, `prdiffer/infrastructure/utils/url_parser.py`, `prdiffer/infrastructure/security/input_validator.py`, and `GitLabVCSRepository.supports_repository()` to parse the complete project path immediately before `/-/merge_requests/<iid>`, split only at its final slash, carry `group/subgroup` in `PRTarget.repo_owner`, and pass `group/subgroup/project` unencoded to python-gitlab `projects.get`. Fully anchor GitLab.com canonical URLs with optional trailing slash only.
   - Must NOT do: Do not route nested GitLab owners through GitHub `_validate_owner`; do not accept self-managed hosts, `/tree`, missing project segments, duplicate separators, dot/traversal segments, percent-encoded `/` or `\\`, nonnumeric/zero/overflow IID, query strings, or fragments.
