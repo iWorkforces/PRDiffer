@@ -4,12 +4,13 @@ Frozen domain models for PR diffs and repository metadata.
 
 ## STRUCTURE
 ```
-prdiffer/domain/entities/          # 488 lines total
-├── file_patch.py                  # FilePatchInfo + EDIT_TYPE (329) — rich model
-├── file_diff_response.py          # FileDiffResponse, FileStats (43)
-├── pr_diff.py                     # PRDiff (17) — files tuple of FileDiffResponse
-├── pull_request.py                # PullRequest (61)
-├── repository.py                  # Repository (37)
+prdiffer/domain/entities/          # + typed content results
+├── file_patch.py                  # FilePatchInfo + EDIT_TYPE — rich model
+├── file_diff_response.py          # FileDiffResponse, FileStats
+├── file_content.py                # FileContentAvailable | FileContentUnavailable
+├── pr_diff.py                     # PRDiff — files tuple of FileDiffResponse
+├── pull_request.py                # PullRequest
+├── repository.py                  # Repository
 └── __init__.py
 ```
 
@@ -18,6 +19,7 @@ prdiffer/domain/entities/          # 488 lines total
 |------|----------|-------|
 | **Business methods** | `file_patch.py` | `calculate_review_priority`, `detect_code_smells`, `validate` |
 | **MCP file payload** | `file_diff_response.py` | path, status, stats, diff, `previous_path` (renames only) |
+| **Typed content** | `file_content.py` | Available empty text vs deterministic unavailability |
 | **Aggregate response** | `pr_diff.py` | `files: tuple[FileDiffResponse, ...]` |
 
 ## CONVENTIONS

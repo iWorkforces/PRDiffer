@@ -23,6 +23,7 @@ from typing import Any, Literal, cast
 
 import anyio
 
+from prdiffer.domain.entities.file_content import FileContentAvailable, FileContentResult
 from prdiffer.domain.entities.file_patch import FilePatchInfo
 from prdiffer.domain.entities.pull_request import PullRequest as DomainPullRequest
 from prdiffer.domain.entities.repository import Repository as DomainRepository
@@ -181,7 +182,7 @@ class InstrumentedAPIService(GitHubAPIServiceInterface):
             # Intentional sync sleep for event-loop blocking negative control.
             time.sleep(self._block_ms / 1000.0)
 
-    def get_file_content(self, repo_full_name: str, file_path: str, branch: str) -> str:
+    def get_file_content(self, repo_full_name: str, file_path: str, branch: str) -> FileContentResult:
         if self._network_guard_enabled and repo_full_name.startswith("http"):
             raise RuntimeError("Network access is forbidden in the benchmark harness")
         self._counters.begin()
@@ -189,7 +190,7 @@ class InstrumentedAPIService(GitHubAPIServiceInterface):
             self._maybe_block()
             content = self._content_map.get((file_path, branch), "")
             self._counters.end(len(content.encode("utf-8")))
-            return content
+            return FileContentAvailable(text=content)
         except Exception:
             self._counters.end(0)
             raise
@@ -199,17 +200,17 @@ class InstrumentedAPIService(GitHubAPIServiceInterface):
         repo_full_name: str,
         file_paths: list[str],
         branch: str,
-    ) -> dict[str, str]:
+    ) -> dict[str, FileContentResult]:
         if self._network_guard_enabled and repo_full_name.startswith("http"):
             raise RuntimeError("Network access is forbidden in the benchmark harness")
         self._counters.begin()
         try:
             self._maybe_block()
-            result: dict[str, str] = {}
+            result: dict[str, FileContentResult] = {}
             total = 0
             for path in file_paths:
                 content = self._content_map.get((path, branch), "")
-                result[path] = content
+                result[path] = FileContentAvailable(text=content)
                 total += len(content.encode("utf-8"))
             self._counters.end(total)
             return result
@@ -223,7 +224,7 @@ class InstrumentedAPIService(GitHubAPIServiceInterface):
         file_paths: list[str],
         branch: str,
         max_workers: int = 4,
-    ) -> dict[str, str]:
+    ) -> dict[str, FileContentResult]:
         return self.get_files_content_batch(repo_full_name, file_paths, branch)
 
 

@@ -11,6 +11,8 @@ from github.PullRequest import PullRequest as PyGithubPullRequest
 from github.Repository import Repository
 
 from prdiffer.domain.entities.file_patch import FilePatchInfo, EDIT_TYPE
+from prdiffer.domain.entities.file_content import FileContentAvailable, FileContentResult, FileContentUnavailable
+from prdiffer.domain.exceptions import FullDiffIncompleteError, FullDiffIncompleteReason
 from prdiffer.domain.services.github_api import GitHubAPIServiceInterface
 from prdiffer.domain.services.pattern_matching import PatternMatchingServiceInterface
 from prdiffer.domain.services.diff import DiffServiceInterface
@@ -103,6 +105,41 @@ class FileProcessor:
     def filter_files(self, files: Sequence[File]) -> list[File]:
         """Filter files based on pattern matching configuration."""
         return [file for file in files if self._pattern_matcher.is_valid_file(file.filename)]
+
+    def _require_text(self, result: FileContentResult | str | None, *, path: str, ref: str) -> str:
+        """Unwrap typed content; raise E5020 on deterministic unavailability.
+
+        Accepts legacy bare strings from incomplete fakes during transition.
+        """
+        if result is None:
+            raise FullDiffIncompleteError(
+                FullDiffIncompleteReason.CONTENT_UNAVAILABLE,
+                path=path,
+            )
+        if isinstance(result, str):
+            return result
+        if isinstance(result, FileContentAvailable):
+            return result.text
+        unavailable = cast(FileContentUnavailable, result)
+        reason_map = {
+            "BINARY_CONTENT": FullDiffIncompleteReason.BINARY_CONTENT,
+            "FILE_SIZE_LIMIT": FullDiffIncompleteReason.FILE_SIZE_LIMIT,
+            "DIRECTORY": FullDiffIncompleteReason.CONTENT_UNAVAILABLE,
+            "NOT_FOUND": FullDiffIncompleteReason.CONTENT_UNAVAILABLE,
+            "CONTENT_DECODE_FAILED": FullDiffIncompleteReason.CONTENT_DECODE_FAILED,
+        }
+        raise FullDiffIncompleteError(
+            reason_map.get(unavailable.reason.value, FullDiffIncompleteReason.CONTENT_UNAVAILABLE),
+            path=path,
+            observed=unavailable.observed_size,
+        )
+
+    def _text_map(self, results: dict[str, Any], *, ref: str) -> dict[str, str]:
+        """Convert typed batch results to path→text, raising on unavailable entries."""
+        texts: dict[str, str] = {}
+        for path, value in results.items():
+            texts[path] = self._require_text(value, path=path, ref=ref)
+        return texts
 
     def process_files_to_patches(self, files: list[File], repository: Repository, head_sha: str, base_sha: str) -> list[FilePatchInfo]:
         diff_files: list[FilePatchInfo] = []
@@ -227,13 +264,15 @@ class FileProcessor:
             if inspect.iscoroutine(head_result):
                 head_result = await head_result
             if isinstance(head_result, dict):
-                head_contents = cast(dict[str, str], head_result)
+                head_contents = self._text_map(cast(dict[str, Any], head_result), ref=head_sha)
 
             base_result: Any = fetch_tasks[1] if base_files else {}
             if inspect.iscoroutine(base_result):
                 base_result = await base_result
             if isinstance(base_result, dict):
-                base_contents = cast(dict[str, str], base_result)
+                base_contents = self._text_map(cast(dict[str, Any], base_result), ref=base_sha)
+        except FullDiffIncompleteError:
+            raise
         except (AttributeError, TypeError) as e:
             self._logger.warning(
                 "Tasks not awaitable, using empty contents",
@@ -300,11 +339,14 @@ class FileProcessor:
                 else:
                     base_files.append(file.filename)
 
-        head_contents: dict[str, str] = {}
-        base_contents: dict[str, str] = {}
-
-        head_contents = self._github_api_service.get_files_content_batch(repository.full_name, head_files, head_sha) if head_files else {}
-        base_contents = self._github_api_service.get_files_content_batch(repository.full_name, base_files, base_sha) if base_files else {}
+        head_raw = (
+            self._github_api_service.get_files_content_batch(repository.full_name, head_files, head_sha) if head_files else {}
+        )
+        base_raw = (
+            self._github_api_service.get_files_content_batch(repository.full_name, base_files, base_sha) if base_files else {}
+        )
+        head_contents = self._text_map(cast(dict[str, Any], head_raw), ref=head_sha)
+        base_contents = self._text_map(cast(dict[str, Any], base_raw), ref=base_sha)
 
         for file in files:
             if file.status == "added":

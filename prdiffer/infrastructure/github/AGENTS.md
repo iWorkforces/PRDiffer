@@ -28,7 +28,12 @@ prdiffer/infrastructure/github/
 - Never return raw PyGithub objects past this package boundary.
 - Respect rate limits (403/429) via retry utilities.
 - Honor file ignore patterns / extension allowlists from settings.
+- **Typed content**: `get_file_content` / batch APIs return `FileContentAvailable | FileContentUnavailable`.
+  - Empty text is available (`text == ""`).
+  - Cache key is `(repo_full_name, path, immutable_ref)`; only available text is cached.
+  - Auth/rate-limit/transport/retry-exhausted failures raise operational exceptions — never become unavailable union values.
 
 ## ANTI-PATTERNS
 - NO domain imports of `github.*` SDK.
 - NO unbounded file downloads without limits.
+- NO caching unavailable sentinels or empty-string error stand-ins.

@@ -123,7 +123,7 @@ class GitHubAPIClient(GitHubAPIClientOperationsMixin, GitHubAPIServiceInterface)
                 secondary_rate_limit_backoff=secondary_rate_limit_backoff,
             )
 
-        self._file_content_cache: OrderedDict[tuple[str, str], dict[str, Any]] = OrderedDict()
+        self._file_content_cache: OrderedDict[tuple[str, str, str], dict[str, Any]] = OrderedDict()
         self._cache_hits = 0
         self._cache_misses = 0
         self._cache_evictions = 0
