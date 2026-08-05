@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TypeGuard
 
 import gitlab
 import requests
@@ -108,7 +108,7 @@ class GitLabOperations:
 
     def select_with_client(
         self,
-        client: Any,
+        client: gitlab.Gitlab,
         project_path: str,
         iid: int,
     ) -> GitLabDiffSnapshot:
@@ -209,10 +209,10 @@ class GitLabOperations:
                     message="MR diff version real_size is malformed",
                 ) from None
 
-        raw_diffs = getattr(version, "diffs", None)
+        raw_diffs: object = getattr(version, "diffs", None)
         if raw_diffs is None:
             raw_diffs = []
-        if not isinstance(raw_diffs, list):
+        if not _is_object_list(raw_diffs):
             raise FullDiffIncompleteError(
                 FullDiffIncompleteReason.INVENTORY_TRUNCATED,
                 message="MR diff version diffs payload is malformed",
@@ -221,7 +221,8 @@ class GitLabOperations:
         records: list[GitLabDiffRecord] = []
         for item in raw_diffs:
             try:
-                records.append(GitLabDiffRecord.from_mapping(item if isinstance(item, dict) else _as_dict(item)))
+                record = item if _is_object_dict(item) else _as_dict(item)
+                records.append(GitLabDiffRecord.from_mapping(record))
             except ValueError as exc:
                 raise FullDiffIncompleteError(
                     FullDiffIncompleteReason.INVENTORY_TRUNCATED,
@@ -241,15 +242,23 @@ class GitLabOperations:
         )
 
 
-def _as_dict(raw: object) -> dict[str, Any]:
+def _is_object_list(value: object) -> TypeGuard[list[object]]:
+    return isinstance(value, list)
+
+
+def _is_object_dict(value: object) -> TypeGuard[dict[object, object]]:
+    return isinstance(value, dict)
+
+
+def _as_dict(raw: object) -> dict[str, object]:
     as_dict = getattr(raw, "asdict", None)
     if callable(as_dict):
         data = as_dict()
-        if isinstance(data, dict):
+        if _is_object_dict(data):
             return {str(k): v for k, v in data.items()}
     attributes = getattr(raw, "attributes", None)
-    if isinstance(attributes, dict):
+    if _is_object_dict(attributes):
         return {str(k): v for k, v in attributes.items()}
-    if isinstance(raw, dict):
+    if _is_object_dict(raw):
         return {str(k): v for k, v in raw.items()}
     raise ValueError("cannot coerce diff record")
