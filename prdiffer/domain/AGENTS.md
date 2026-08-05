@@ -16,7 +16,7 @@ prdiffer/domain/
 ├── interfaces/               # VCS, PRDiffReader session, input validation, coalescing, app Protocols
 ├── config/                   # GitHubConfig + GitHubConfigInterface
 ├── factories/                # ApplicationFactoryInterface, InfrastructureFactoryInterface
-├── error_codes.py            # E1xxx–E5xxx constants (~386), incl. E5020_FULL_DIFF_INCOMPLETE
+├── error_codes.py            # E1xxx–E5xxx constants, incl. E5020 + GitLab E2006/E2007/E3006/E5021
 ├── errors.py                 # ErrorCode, MCPError helpers (~218)
 ├── exceptions.py             # PRDifferException hierarchy (~562); FullDiffIncompleteError
 └── vcs_provider_registry.py  # VCSProviderRegistry (~110)
@@ -52,6 +52,11 @@ prdiffer/domain/
 | `SessionPRDiffReader` | Protocol | `interfaces/pr_diff_reader.py` | `open_pr_diff_session` |
 | `GetPRDiffUseCase` | Use case | `usecases/pr_diff_usecases.py` | Session path (~61–100) vs legacy |
 | `E5020_FULL_DIFF_INCOMPLETE` | ErrorCode | `error_codes.py` | Full-diff incompleteness |
+| `E2006_GITLAB_AUTH_FAILED` | ErrorCode | `error_codes.py` | GitLab 401 auth failure |
+| `E2007_GITLAB_INSUFFICIENT_PERMISSIONS` | ErrorCode | `error_codes.py` | GitLab 403 permission failure |
+| `E3006_GITLAB_RATE_LIMITED` | ErrorCode | `error_codes.py` | GitLab 429 rate limit |
+| `E5021_GITLAB_API_ERROR` | ErrorCode | `error_codes.py` | GitLab 5xx / exhausted upstream |
+| `GitLabAPIError` | Exception | `exceptions.py` | Operational GitLab errors; optional status_code |
 | `FullDiffIncompleteError` | Exception | `exceptions.py` | Maps to E5020; safe details only |
 | `GitHubConfig` | Config VO | `config/github_config.py` | Frozen; full-diff admission limits |
 | `VCSProviderRegistry` | Registry | `vcs_provider_registry.py` | Multi-provider URL selection |
@@ -82,6 +87,7 @@ prdiffer/domain/
   - `INVENTORY_TRUNCATED`, `FILE_COUNT_LIMIT`, `BINARY_CONTENT`, `FILE_SIZE_LIMIT`, `CONTENT_UNAVAILABLE`, `CONTENT_DECODE_FAILED`, `UNSUPPORTED_FILE_STATUS`, `DIFF_GENERATION_FAILED`, `RESPONSE_SIZE_LIMIT`
   - Safe details only: `reason`, `path`, `previous_path`, `observed`, `limit` — never tokens or raw content.
 - Do **not** remap auth/permission/rate-limit/retry-exhausted network failures to E5020; unexpected algorithm defects stay `E5003_DIFF_GENERATION_ERROR`.
+- GitLab operational mapping: 401→E2006, 403→E2007, 429→E3006, 5xx→E5021; reuse E4001/E4002 for verified project/MR 404, E5004 timeout, E5019 connection. Never put `response_body`/tokens/credentials in details.
 
 ### Full-diff correctness (0.6.0)
 - Success responses are complete by construction (no completeness boolean).

@@ -20,6 +20,7 @@ from prdiffer.domain.exceptions import (
     InvalidPRNumberError,
     UnsupportedFormatError,
     GitHubAPIError,
+    GitLabAPIError,
     RepositoryNotFoundError,
     PRNotFoundError,
     FileNotFoundError,
@@ -201,6 +202,51 @@ class TestGitHubAPIError:
     def test_status_code_none(self):
         exc = GitHubAPIError("fail")
         assert exc.status_code is None
+
+
+# ---------------------------------------------------------------------------
+# GitLabAPIError with status_code (safe details only)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+class TestGitLabAPIError:
+    """Test GitLabAPIError preserves safe status/details only."""
+
+    def test_status_code_stored(self):
+        from prdiffer.domain.error_codes import E5021_GITLAB_API_ERROR
+
+        exc = GitLabAPIError(
+            "GitLab upstream failure",
+            status_code=500,
+            error_code=E5021_GITLAB_API_ERROR,
+            details={"operation": "mergerequests.get"},
+        )
+        assert isinstance(exc, PRDifferException)
+        assert exc.status_code == 500
+        assert exc.error_code is E5021_GITLAB_API_ERROR
+        assert exc.details == {"operation": "mergerequests.get"}
+
+    def test_never_copies_secret_like_upstream_fields(self):
+        from prdiffer.domain.error_codes import E2006_GITLAB_AUTH_FAILED
+
+        # Callers must not pass secrets; constructor stores only what it is given.
+        # This test documents the safe allowlist contract: no response_body/token/url.
+        exc = GitLabAPIError(
+            "GitLab authentication failed",
+            status_code=401,
+            error_code=E2006_GITLAB_AUTH_FAILED,
+            details={"status_code": 401},
+        )
+        assert "response_body" not in exc.details
+        assert "token" not in exc.details
+        assert "private_token" not in exc.details
+        assert "url" not in exc.details
+        assert set(exc.details) == {"status_code"}
+
+        logged = get_exception_details(exc)
+        assert logged["status_code"] == 401
+        assert "token" not in str(logged["details"])
 
 
 # ---------------------------------------------------------------------------

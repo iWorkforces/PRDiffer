@@ -106,7 +106,7 @@ Your next move: start the plan in a worker session or request the optional dual 
   - QA scenarios: Happy - `uv run pytest tests/unit/domain/config/test_gitlab_config.py tests/unit/infrastructure/test_gitlab_config_wiring.py tests/unit/infrastructure/test_settings_manual_cache.py -v --tb=short`; Failure - parameterized invalid boundary values raise `ValueError` before any SDK client can be built. Evidence: `<attemptDir>/task-2-gitlab-strict-full-diff.txt`.
   - Commit: N | proposed `feat(config): add GitLab strict diff limits and resilience settings`.
 
-- [ ] 3. Define GitLab-specific operational error taxonomy and safe mappings
+- [x] 3. Define GitLab-specific operational error taxonomy and safe mappings
   - Recommended task executor category: `quick` - additive domain constants and focused exception types with strict uniqueness tests.
   - What to do: Add `E2006_GITLAB_AUTH_FAILED`, `E2007_GITLAB_INSUFFICIENT_PERMISSIONS`, `E3006_GITLAB_RATE_LIMITED`, and `E5021_GITLAB_API_ERROR` in `prdiffer/domain/error_codes.py` and re-export through `prdiffer/domain/errors.py`. Add `GitLabAPIError(PRDifferException)` with optional `status_code` in `prdiffer/domain/exceptions.py`. Reuse existing `AuthenticationError`, `AuthorizationError`, `RateLimitError`, `TimeoutError`, `E4001_REPO_NOT_FOUND`, `E4002_PR_NOT_FOUND`, `E5004_TIMEOUT_ERROR`, `E5019_CONNECTION_ERROR`, and `FullDiffIncompleteError` rather than inventing parallel categories.
   - Must NOT do: Do not alter GitHub error messages/codes, include `response_body`, tokens, URLs with credentials, or raw file content in details, and do not map operational auth/rate/network failures to E5020.
