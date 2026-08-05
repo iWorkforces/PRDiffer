@@ -224,7 +224,7 @@ start-oc-zai.sh
 # OpenCode/Claude development files
 .claude/agents/
 .claude/commands/openspec/
-.claude/commands/*.md
+
 .env copy.cc
 
 .coverage
