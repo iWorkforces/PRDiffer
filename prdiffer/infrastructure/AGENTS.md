@@ -31,7 +31,7 @@ prdiffer/infrastructure/
 |------|----------|-------|
 | **DI / singletons** | `di_container.py` | `ServiceContainer`, `get_container()` |
 | **Wire services** | `factories/infrastructure_factory.py` | GitHubConfig + GitLabRuntime/session reader |
-| **Settings** | `settings.py` → `GitHubConfig` / `GitLabConfig` | 30s provider / 180s request; `GITLAB_ALLOWED_HOSTS` / `MAX_FILES_ALLOWED` env |
+| **Settings** | `settings.py` → `GitHubConfig` / `GitLabConfig` | 30s provider / 180s request; `GITLAB_ALLOWED_HOSTS` / `MAX_FILES_ALLOWED` / `GITHUB_IGNORE_PATTERNS` env |
 | **PR repository (GitHub)** | `github_repository.py` | Main PRDiff repository |
 | **Full-diff orchestration (GitHub)** | `services/pr_diff_service.py` | Maps `GeneratedFileDiff` → `FileDiffResponse`, size limits, session path |
 | **GitHub API + content** | `github/` | Typed content, inventory, ordered processing |
@@ -66,6 +66,7 @@ prdiffer/infrastructure/
 - Authoritative GitLab config: `SettingsService.get_gitlab_config()` → frozen slotted `GitLabConfig`.
   - Priority for allowlist: `GITLAB_ALLOWED_HOSTS` env (CSV) → `settings.toml` `gitlab.allowed_hosts` → default `gitlab.com`.
   - Priority for file admission: `MAX_FILES_ALLOWED` env → `gitlab.max_files_allowed` / `app.max_files_allowed` → default `50`.
+  - Priority for GitHub ignore list: `GITHUB_IGNORE_PATTERNS` env (CSV, replaces) → `settings.toml` `github.ignore_patterns`.
 - Manual settings cache with `RLock` (Dynaconf unhashable → no `@lru_cache`); `clear_cache` drops GitHub and GitLab config caches.
 - Parallel performance flags default **true** (bounded by `max_concurrent` / `diff_max_workers`).
 

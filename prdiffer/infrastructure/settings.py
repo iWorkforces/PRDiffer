@@ -107,7 +107,7 @@ class SettingsService(SettingsServiceInterface):
                 "max_adaptive_delay": get_with_fallback("github.max_adaptive_delay", 30),
                 "api_health_tracking": get_with_fallback("github.api_health_tracking", True),
                 "context_aware_retry": get_with_fallback("github.context_aware_retry", True),
-                "ignore_patterns": tuple(get_with_fallback("github.ignore_patterns", [])),
+                "ignore_patterns": self._resolve_ignore_patterns(get_with_fallback),
                 "valid_extensions": tuple(get_with_fallback("github.valid_extensions", [])),
                 "diff_parallel_enabled": get_with_fallback("github.diff_parallel_enabled", True),
                 "diff_parallel_threshold": get_with_fallback("github.diff_parallel_threshold", 3),
@@ -152,7 +152,7 @@ class SettingsService(SettingsServiceInterface):
                 max_adaptive_delay=int(get_with_fallback("github.max_adaptive_delay", 30)),
                 api_health_tracking=bool(get_with_fallback("github.api_health_tracking", True)),
                 context_aware_retry=bool(get_with_fallback("github.context_aware_retry", True)),
-                ignore_patterns=tuple(get_with_fallback("github.ignore_patterns", [])),
+                ignore_patterns=self._resolve_ignore_patterns(get_with_fallback),
                 valid_extensions=tuple(get_with_fallback("github.valid_extensions", [])),
                 diff_parallel_enabled=bool(get_with_fallback("github.diff_parallel_enabled", True)),
                 diff_parallel_threshold=int(get_with_fallback("github.diff_parallel_threshold", 3)),
@@ -327,6 +327,30 @@ class SettingsService(SettingsServiceInterface):
                 return int(provider_val)
 
         return int(get_with_fallback("app.max_files_allowed", default))
+
+    @staticmethod
+    def _resolve_ignore_patterns(get_with_fallback: Any) -> tuple[str, ...]:
+        """Resolve GitHub ignore file patterns.
+
+        Priority:
+        1) ``GITHUB_IGNORE_PATTERNS`` env (CSV) — works with start script / ``.env``
+        2) ``github.ignore_patterns`` from settings.toml
+        3) empty tuple
+
+        When set, the env value **replaces** the toml list (does not append).
+        Patterns support globs (``*.lock``, ``node_modules/``) and regex strings.
+        """
+        env_val = os.getenv("GITHUB_IGNORE_PATTERNS")
+        if env_val is not None and env_val.strip():
+            patterns = [part.strip() for part in env_val.split(",") if part.strip()]
+            return tuple(patterns)
+
+        raw = get_with_fallback("github.ignore_patterns", [])
+        if raw is None:
+            return ()
+        if isinstance(raw, str):
+            return tuple(part.strip() for part in raw.split(",") if part.strip())
+        return tuple(str(p) for p in raw)
 
     def _get_loaded_config_files(self) -> list[str]:
         try:

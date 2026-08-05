@@ -21,11 +21,13 @@
 #                          e.g. gitlab.com,gitlab.example.com
 #   MAX_FILES_ALLOWED      Max selected files for full-context PR/MR diffs (default: 50
 #                          from settings.toml app.max_files_allowed; positive integer)
+#   GITHUB_IGNORE_PATTERNS Comma-separated ignore globs for GitHub PR file filtering
+#                          (replaces settings.toml github.ignore_patterns when set)
 #   PID_FILE               Custom PID file location (default: .prdiffer-server.pid)
 #
 # Configuration:
-#   Copy .env.example to .env and fill in tokens / allowlist / limits. This script
-#   sources .env automatically before starting the server.
+#   Copy .env.example to .env and fill in tokens / allowlist / limits / ignore list.
+#   This script sources .env automatically before starting the server.
 
 set -euo pipefail
 
@@ -171,18 +173,18 @@ check_existing_server() {
     fi
 }
 
-# Load .env file if it exists (see .env.example for keys including GITLAB_ALLOWED_HOSTS, MAX_FILES_ALLOWED)
+# Load .env file if it exists (see .env.example for keys including GITLAB_ALLOWED_HOSTS, MAX_FILES_ALLOWED, GITHUB_IGNORE_PATTERNS)
 load_env_file() {
     if [[ -f .env ]]; then
         log_info "Loading environment variables from .env file"
-        # Export variables from .env file (GITHUB_TOKEN, GITLAB_TOKEN, GITLAB_ALLOWED_HOSTS, MAX_FILES_ALLOWED, …)
+        # Export variables from .env (GITHUB_TOKEN, GITLAB_TOKEN, GITLAB_ALLOWED_HOSTS, MAX_FILES_ALLOWED, GITHUB_IGNORE_PATTERNS, …)
         set -a
         # shellcheck source=/dev/null
         source .env
         set +a
-        log_debug "Loaded .env (GITLAB_ALLOWED_HOSTS=${GITLAB_ALLOWED_HOSTS:-<unset, use settings.toml>}, MAX_FILES_ALLOWED=${MAX_FILES_ALLOWED:-<unset, use settings.toml>})"
+        log_debug "Loaded .env (GITLAB_ALLOWED_HOSTS=${GITLAB_ALLOWED_HOSTS:-<unset>}, MAX_FILES_ALLOWED=${MAX_FILES_ALLOWED:-<unset>}, GITHUB_IGNORE_PATTERNS=${GITHUB_IGNORE_PATTERNS:-<unset, use settings.toml>})"
     elif [[ -f .env.example ]]; then
-        log_debug "No .env file found; copy .env.example to .env to configure tokens, GitLab hosts, and limits"
+        log_debug "No .env file found; copy .env.example to .env to configure tokens, hosts, limits, and ignore list"
     fi
 }
 
@@ -371,6 +373,16 @@ if [[ -n "${MAX_FILES_ALLOWED:-}" ]]; then
 else
     log_info "Max files allowed: settings.toml app.max_files_allowed (default 50)"
     log_debug "Set MAX_FILES_ALLOWED=N to raise/lower the full-diff selected-file admission limit"
+fi
+
+# Surface GitHub ignore patterns when overridden via env
+if [[ -n "${GITHUB_TOKEN:-}" ]]; then
+    if [[ -n "${GITHUB_IGNORE_PATTERNS:-}" ]]; then
+        log_info "GitHub ignore patterns (GITHUB_IGNORE_PATTERNS): ${GITHUB_IGNORE_PATTERNS}"
+    else
+        log_info "GitHub ignore patterns: settings.toml github.ignore_patterns"
+        log_debug "Set GITHUB_IGNORE_PATTERNS=*.lock,node_modules/ to replace the default ignore list"
+    fi
 fi
 echo ""
 

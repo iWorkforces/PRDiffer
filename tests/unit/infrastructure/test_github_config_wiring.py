@@ -47,6 +47,7 @@ class TestSettingsTomlDefaults:
     def test_real_settings_resolve_timeouts_and_parallel_flags(self, monkeypatch: pytest.MonkeyPatch) -> None:
         # Blank env (not delenv): Dynaconf load_dotenv must not re-inject developer .env values.
         monkeypatch.setenv("MAX_FILES_ALLOWED", "")
+        monkeypatch.setenv("GITHUB_IGNORE_PATTERNS", "")
         service = SettingsService(settings_files=["settings.toml"])
         service.clear_cache()
         config = service.get_github_config()
@@ -55,6 +56,8 @@ class TestSettingsTomlDefaults:
         assert config.max_file_size_bytes == 10_485_760
         assert config.max_total_chars == 200_000
         assert config.max_files_allowed == 50
+        assert len(config.ignore_patterns) > 0
+        assert "*.lock" in config.ignore_patterns
         assert config.parallel_file_fetch_enabled is True
         assert config.parallel_head_base_fetch_enabled is True
         assert config.parallel_diff_generation_enabled is True
@@ -75,6 +78,24 @@ class TestSettingsTomlDefaults:
         service.clear_cache()
         config = service.get_github_config()
         assert config.max_files_allowed == 50
+
+    def test_github_ignore_patterns_env_overrides_toml(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """GITHUB_IGNORE_PATTERNS (CSV) replaces settings.toml — used by .env / start script."""
+        monkeypatch.setenv("GITHUB_IGNORE_PATTERNS", " *.lock , node_modules/ , dist/ ")
+        service = SettingsService(settings_files=["settings.toml"])
+        service.clear_cache()
+        config = service.get_github_config()
+        assert config.ignore_patterns == ("*.lock", "node_modules/", "dist/")
+        assert service.get_github_settings()["ignore_patterns"] == ("*.lock", "node_modules/", "dist/")
+
+    def test_empty_github_ignore_patterns_env_falls_back_to_toml(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("GITHUB_IGNORE_PATTERNS", "   ")
+        service = SettingsService(settings_files=["settings.toml"])
+        service.clear_cache()
+        config = service.get_github_config()
+        # settings.toml ships a non-empty default ignore list
+        assert len(config.ignore_patterns) > 0
+        assert "*.lock" in config.ignore_patterns
 
 
 @pytest.mark.unit
