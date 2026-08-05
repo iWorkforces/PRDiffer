@@ -29,9 +29,9 @@ def _is_session_reader(reader: object) -> bool:
 class GetPRDiffUseCase:
     """Use case for getting PR diff data with automatic caching.
 
-    Session-capable readers (GitHub) open one request session, use
-    ``snapshot.head_sha`` for cache selection, and always close the session.
-    Non-session readers (e.g. GitLab) keep the legacy two-method path.
+    Session-capable readers open one request session, use
+    ``session.cache_identity`` for cache selection, and always close the session.
+    Non-session readers keep the legacy two-method path.
     """
 
     def __init__(
@@ -65,7 +65,6 @@ class GetPRDiffUseCase:
         pr_number: int,
     ) -> PRDiff | None:
         from prdiffer.domain.entities.pr_diff_cache import (
-            github_full_diff_v2_key,
             unwrap_pr_diff_cache_value,
             wrap_pr_diff_for_cache,
         )
@@ -73,28 +72,26 @@ class GetPRDiffUseCase:
         open_session = getattr(self._pr_diff_service, "open_pr_diff_session")
         session = await open_session(repo_owner, repo_name, pr_number)
         try:
-            snapshot = session.snapshot
-            # Exact v2 key; ignores unversioned/v1/raw/wrong-schema values on read.
-            cache_key = github_full_diff_v2_key(repo_owner, repo_name, pr_number, snapshot.head_sha)
-            if self._cache_namespace:
-                cache_key = f"{self._cache_namespace}:{cache_key}"
+            identity = session.cache_identity
+            # Provider-neutral key from session; ignore cache_namespace on strict path.
+            cache_key = identity.cache_key
+            validation_token = identity.validation_token
 
             if self._cache_hit_optimization_enabled:
-                cached_result, cached_commit_sha = await self._cache_service.get_optimistic(cache_key)
-                unwrapped = unwrap_pr_diff_cache_value(cached_result, key=cache_key) if cached_result is not None else None
-                if unwrapped is not None and cached_commit_sha and cached_commit_sha == snapshot.head_sha:
+                cached_result, cached_token = await self._cache_service.get_optimistic(cache_key)
+                unwrapped = unwrap_pr_diff_cache_value(cached_result, key=cache_key, identity=identity) if cached_result is not None else None
+                if unwrapped is not None and cached_token and cached_token == validation_token:
                     return unwrapped
 
-            cached_result = await self._cache_service.get(cache_key, snapshot.head_sha)
-            unwrapped = unwrap_pr_diff_cache_value(cached_result, key=cache_key) if cached_result is not None else None
+            cached_result = await self._cache_service.get(cache_key, validation_token)
+            unwrapped = unwrap_pr_diff_cache_value(cached_result, key=cache_key, identity=identity) if cached_result is not None else None
             if unwrapped is not None:
                 return unwrapped
 
             result = await session.build_pr_diff()
             if result:
-                # v2 key implies schema; store PRDiff under the versioned key only.
                 _ = wrap_pr_diff_for_cache(result)  # validate constructibility
-                await self._cache_service.set(cache_key, snapshot.head_sha, result)
+                await self._cache_service.set(cache_key, validation_token, result)
             return result
         finally:
             await session.aclose()
@@ -105,7 +102,7 @@ class GetPRDiffUseCase:
         repo_name: str,
         pr_number: int,
     ) -> PRDiff | None:
-        """Legacy get_latest_commit_sha → cache → get_pr_diff path (GitLab)."""
+        """Legacy get_latest_commit_sha → cache → get_pr_diff path (non-session readers)."""
         cache_key = self._cache_service.get_cache_key(repo_owner, repo_name, pr_number)
         if self._cache_namespace:
             cache_key = f"{self._cache_namespace}:{cache_key}"

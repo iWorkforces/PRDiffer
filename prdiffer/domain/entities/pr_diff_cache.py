@@ -92,17 +92,33 @@ def gitlab_full_diff_v1_identity(
     )
 
 
-def unwrap_pr_diff_cache_value(raw: object, *, key: str = "") -> PRDiff | None:
-    """Accept v2 entries; ignore unversioned/v1/raw/wrong-schema values.
+def unwrap_pr_diff_cache_value(
+    raw: object,
+    *,
+    key: str = "",
+    identity: StrictPRDiffCacheIdentity | None = None,
+) -> PRDiff | None:
+    """Accept strict bare PRDiff under GitHub-v2 or GitLab-v1 key prefixes.
 
-    When ``key`` starts with the v2 prefix, a bare PRDiff stored under that key
-    is accepted (key implies schema). Wrong-type/wrong-version values return None.
+    When ``identity`` is provided, the key must match ``identity.cache_key``
+    (or start with a known strict prefix). Legacy/unversioned/wrong values return None.
     """
     if isinstance(raw, PRDiffCacheEntryV2):
         if raw.schema_version != PRDIFF_CACHE_SCHEMA_V2:
             return None
         return raw.value
-    if isinstance(raw, PRDiff) and key.startswith(GITHUB_FULL_DIFF_CACHE_PREFIX):
+    if not isinstance(raw, PRDiff):
+        return None
+    if identity is not None:
+        if key and key != identity.cache_key and not key.endswith(identity.cache_key):
+            # Allow only exact identity key for strict path (no namespace prepend on session path).
+            return None
+        if identity.cache_key.startswith(GITHUB_FULL_DIFF_CACHE_PREFIX):
+            return raw if key.startswith(GITHUB_FULL_DIFF_CACHE_PREFIX) or key == identity.cache_key else None
+        if identity.cache_key.startswith(GITLAB_FULL_DIFF_CACHE_PREFIX):
+            return raw if key.startswith(GITLAB_FULL_DIFF_CACHE_PREFIX) or key == identity.cache_key else None
+        return None
+    if key.startswith(GITHUB_FULL_DIFF_CACHE_PREFIX) or key.startswith(GITLAB_FULL_DIFF_CACHE_PREFIX):
         return raw
     return None
 
