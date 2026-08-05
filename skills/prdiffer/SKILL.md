@@ -53,14 +53,22 @@ Each `FileDiffResponse` contains:
 ```
 FileDiffResponse {
   path: string                // File path (e.g., "src/main.py")
-  status: EDIT_TYPE           // One of: "added", "deleted", "modified", "renamed", "unknown"
+  status: EDIT_TYPE           // One of: "added", "deleted", "modified", "renamed"
+  previous_path: string|null  // Prior path for renames only; null otherwise
   stats: FileStats {
     additions: int             // Lines added
     deletions: int             // Lines deleted
   }
-  diff: string                 // Full unified diff/patch content for this file
+  diff: string                 // Generated full-context unified diff (not hunk-only)
 }
 ```
+
+**Strict completeness:** A successful response is complete by construction for every
+file selected by ignore/extension policy. Partial/truncated file lists are never
+returned. Failures use `E5020_FULL_DIFF_INCOMPLETE` with a stable `reason`:
+`INVENTORY_TRUNCATED`, `FILE_COUNT_LIMIT`, `BINARY_CONTENT`, `FILE_SIZE_LIMIT`,
+`CONTENT_UNAVAILABLE`, `CONTENT_DECODE_FAILED`, `UNSUPPORTED_FILE_STATUS`,
+`DIFF_GENERATION_FAILED`, `RESPONSE_SIZE_LIMIT`.
 
 **Errors:**
 
@@ -71,6 +79,7 @@ FileDiffResponse {
 | `E2002_AUTH_FAILED` | Missing or invalid API key | Provide valid `api_key` parameter |
 | `E3001_RATE_LIMITED` | Request rate limit exceeded | Wait and retry; implement exponential backoff |
 | `E5002_GITHUB_API_ERROR` | GitHub API failure or PR not found | Verify repository access and PR existence |
+| `E5020_FULL_DIFF_INCOMPLETE` | Selected files cannot all be fully reconstructed | Reduce file count/size; exclude binary; see `reason` |
 
 **Example:**
 

@@ -238,25 +238,27 @@ class ToolRegistry(_CoalescedPRDiffExecutionMixin):
 
         @mcp.tool()
         async def get_pr_diff(pr_url: str, api_key: str | None = None) -> PRDiff:
-            """Get the structured file-level diff content for a GitHub PR or GitLab MR.
+            """Get a complete structured full-context PR/MR diff (all-or-nothing).
 
-            Returns per-file diff information including:
-            - File paths
-            - Edit status (added, modified, deleted, renamed, unknown)
-            - Line statistics (additions, deletions)
-            - Full patch content for each file
+            Successful responses include every selected file in provider order with:
+            - ``path`` / optional ``previous_path`` (renames only)
+            - ``status`` (added, modified, deleted, renamed)
+            - ``stats`` (additions/deletions)
+            - ``diff``: **generated full-context** unified text (not a hunk-only provider patch)
+
+            Completeness is strict: if any selected file cannot be fully reconstructed
+            (inventory truncation, file count limit, binary/oversized/undecodable content,
+            unsupported status, generation failure, or response size limit), the tool fails
+            with ``E5020_FULL_DIFF_INCOMPLETE`` and a stable ``reason`` — never a partial
+            ``files`` array.
 
             Args:
-                pr_url: A GitHub PR URL or GitLab MR URL (e.g., https://github.com/owner/repo/pull/123 or https://gitlab.com/owner/repo/-/merge_requests/123)
-                api_key: Optional API key for authentication (required if auth enabled)
+                pr_url: GitHub PR or GitLab MR URL
+                api_key: Optional API key when server authentication is enabled
 
             Raises:
-                ValueError: If authentication fails or URL is invalid
-                RuntimeError: If rate limit is exceeded or API request fails
-
-            Note:
-                Breaking Change: Response now returns structured files array instead of concatenated diff_content string.
-                Automatic commit-based caching ensures fresh data is returned when PR changes.
+                Authentication/validation/rate-limit errors for request gate failures
+                GitHubAPIError / FullDiffIncompleteError for provider and completeness failures
             """
             request_id = self._generate_request_id()
             start_time = time.time()

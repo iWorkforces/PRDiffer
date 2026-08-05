@@ -9,6 +9,7 @@ tests/integration/
 ├── test_error_scenarios.py        # Error paths (519)
 ├── test_security.py               # Security integration (731)
 ├── test_webhook_invalidation.py   # Cache invalidation (266)
+├── test_full_diff_mcp_surface.py  # Strict full-diff FastMCP surface
 ├── test_real_github_api.py        # Optional real API (224)
 ├── test_server_launcher.py        # Process/launcher (98)
 ├── test_metrics_endpoint.py       # Metrics (77)
