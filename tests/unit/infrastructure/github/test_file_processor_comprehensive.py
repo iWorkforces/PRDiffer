@@ -11,7 +11,26 @@ from prdiffer.infrastructure.github.file_processor import (
     FileProcessor,
     get_file_processor,
 )
+from prdiffer.domain.entities.file_content import FileContentAvailable, FileContentRequest, FileContentResponse, FileContentResult
 from prdiffer.domain.entities.file_patch import EDIT_TYPE
+
+
+def _install_multi_ref_batch_adapter(api: Mock) -> None:
+    def get_multi_ref_batch(requests: tuple[FileContentRequest, ...]) -> tuple[FileContentResponse, ...]:
+        responses: list[FileContentResponse] = []
+        for request in requests:
+            batch = api.get_files_content_batch(request.repo_full_name, [request.path], request.ref)
+            value = batch.get(request.path)
+            if isinstance(value, str):
+                content: FileContentResult = FileContentAvailable(text=value)
+            elif value is None:
+                content = FileContentAvailable(text="")
+            else:
+                content = value
+            responses.append(FileContentResponse(request=request, content=content))
+        return tuple(responses)
+
+    api.get_files_content_multi_ref_batch.side_effect = get_multi_ref_batch
 
 
 @pytest.fixture
@@ -19,6 +38,7 @@ def mock_github_api():
     """Create mock GitHub API service."""
     api = Mock()
     api.get_files_content_batch = Mock(return_value={})
+    _install_multi_ref_batch_adapter(api)
     return api
 
 

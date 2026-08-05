@@ -2,7 +2,6 @@
 
 import inspect
 import time
-from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Sequence, cast
 
 import anyio
@@ -13,7 +12,7 @@ from github.PullRequest import PullRequest as PyGithubPullRequest
 from github.Repository import Repository
 
 from prdiffer.domain.entities.file_patch import FilePatchInfo, EDIT_TYPE
-from prdiffer.domain.entities.file_content import FileContentAvailable, FileContentResult, FileContentUnavailable
+from prdiffer.domain.entities.file_content import FileContentAvailable, FileContentRequest, FileContentResult, FileContentUnavailable
 from prdiffer.domain.exceptions import FullDiffIncompleteError, FullDiffIncompleteReason
 from prdiffer.domain.services.github_api import GitHubAPIServiceInterface
 from prdiffer.domain.services.pattern_matching import PatternMatchingServiceInterface
@@ -162,10 +161,24 @@ class FileProcessor:
             )
 
         if self._parallel_head_base_fetch_enabled and head_paths and base_paths:
-            with ThreadPoolExecutor(max_workers=2) as pool:
-                head_future = pool.submit(_fetch, head_paths, head_sha)
-                base_future = pool.submit(_fetch, base_paths, base_sha)
-                return head_future.result(), base_future.result()
+            requests: list[FileContentRequest] = []
+            for index in range(max(len(head_paths), len(base_paths))):
+                if index < len(head_paths):
+                    requests.append(FileContentRequest(repo_full_name, head_paths[index], head_sha))
+                if index < len(base_paths):
+                    requests.append(FileContentRequest(repo_full_name, base_paths[index], base_sha))
+            unique_requests = tuple(dict.fromkeys(requests))
+            responses = self._github_api_service.get_files_content_multi_ref_batch(unique_requests)
+            content_by_request = {response.request: response.content for response in responses}
+            head_raw = {
+                path: content_by_request[FileContentRequest(repo_full_name, path, head_sha)]
+                for path in head_paths
+            }
+            base_raw = {
+                path: content_by_request[FileContentRequest(repo_full_name, path, base_sha)]
+                for path in base_paths
+            }
+            return head_raw, base_raw
 
         head_raw = _fetch(head_paths, head_sha)
         base_raw = _fetch(base_paths, base_sha)

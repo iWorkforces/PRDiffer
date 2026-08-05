@@ -9,8 +9,27 @@ import anyio
 from unittest.mock import Mock
 
 from prdiffer.infrastructure.github.file_processor import FileProcessor
+from prdiffer.domain.entities.file_content import FileContentAvailable, FileContentRequest, FileContentResponse, FileContentResult
 from github.PullRequest import PullRequest
 from github.File import File
+
+
+def _install_multi_ref_batch_adapter(api: Mock) -> None:
+    def get_multi_ref_batch(requests: tuple[FileContentRequest, ...]) -> tuple[FileContentResponse, ...]:
+        responses: list[FileContentResponse] = []
+        for request in requests:
+            batch = api.get_files_content_batch(request.repo_full_name, [request.path], request.ref)
+            value = batch.get(request.path)
+            if isinstance(value, str):
+                content: FileContentResult = FileContentAvailable(text=value)
+            elif value is None:
+                content = FileContentAvailable(text="")
+            else:
+                content = value
+            responses.append(FileContentResponse(request=request, content=content))
+        return tuple(responses)
+
+    api.get_files_content_multi_ref_batch.side_effect = get_multi_ref_batch
 
 
 class TestFileProcessor:
@@ -28,6 +47,7 @@ class TestFileProcessor:
         mock_matcher = Mock(spec=PatternMatcher)
         mock_diff_utils = Mock(spec=DiffUtils)
         mock_logger = get_logger()
+        _install_multi_ref_batch_adapter(mock_api)
 
         return FileProcessor(
             github_api_service=mock_api,
@@ -76,6 +96,7 @@ class TestFileProcessorThreadSafety:
         mock_matcher = Mock(spec=PatternMatcher)
         mock_diff_utils = Mock(spec=DiffUtils)
         mock_logger = get_logger()
+        _install_multi_ref_batch_adapter(mock_api)
 
         return FileProcessor(
             github_api_service=mock_api,
@@ -142,6 +163,7 @@ class TestFileProcessorBatchProcessing:
         mock_matcher = Mock(spec=PatternMatcher)
         mock_diff_utils = Mock(spec=DiffUtils)
         mock_logger = get_logger()
+        _install_multi_ref_batch_adapter(mock_api)
 
         return FileProcessor(
             github_api_service=mock_api,
@@ -192,6 +214,7 @@ class TestFileProcessorBatchProcessing:
         mock_matcher = Mock(spec=PatternMatcher)
         mock_diff_utils = Mock(spec=DiffUtils)
         mock_logger = get_logger()
+        _install_multi_ref_batch_adapter(mock_api)
 
         limited_processor = FileProcessor(
             github_api_service=mock_api,
