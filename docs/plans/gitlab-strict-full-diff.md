@@ -226,7 +226,7 @@ Your next move: start the plan in a worker session or request the optional dual 
   - QA scenarios: Happy - `uv run pytest tests/unit/infrastructure/factories/test_infrastructure_factory.py tests/unit/test_server_gitlab_composition.py tests/unit/application/test_tool_registry.py -v --tb=short`; Failure - invalid config fails before registration, missing optional token preserves prior public behavior, and two created sessions share limiter but not SDK client objects. Evidence: `<attemptDir>/task-14-gitlab-strict-full-diff.txt`.
   - Commit: N | proposed `refactor(gitlab): compose strict reader through factory`.
 
-- [ ] 15. Add a no-network GitLab strict full-diff integration state matrix
+- [x] 15. Add a no-network GitLab strict full-diff integration state matrix
   - Recommended task executor category: `unspecified-high` - end-to-end provider/use-case/cache behavior needs realistic fake SDK managers rather than isolated mocks.
   - What to do: Add `tests/integration/test_gitlab_strict_full_diff.py` with a stateful fake python-gitlab project/MR/diff-version/file API and real domain use case, in-memory cache, runtime, session, content, generator, and repository. Cover ordered mixed files: modified, nonempty/empty add/delete, rename with content, rename-only, mode-only, generated, collapsed, too-large, and null provider patch. Cover immutable version selection under shuffled version order and target-ref refresh, legacy cache rejection, strict cache hit, provider coalescing namespace isolation, and close behavior.
   - Must NOT do: Do not call GitLab.com, mock the final `PRDiff`, assert implementation call trivia unrelated to contract, or preserve current tests that expect successful empty collapsed/too-large output.
@@ -236,7 +236,7 @@ Your next move: start the plan in a worker session or request the optional dual 
   - QA scenarios: Happy - `uv run pytest tests/integration/test_gitlab_strict_full_diff.py -v --tb=short -k 'success or cache or snapshot'`; Failure - run `-k 'incomplete or binary or oversized or decode or unavailable or conflict'` and assert exact E5020 reasons plus all-or-nothing cache/session state. Evidence: `<attemptDir>/task-15-gitlab-strict-full-diff.txt`.
   - Commit: N | proposed `test(gitlab): prove strict full-diff integration contract`.
 
-- [ ] 16. Prove GitLab success and structured failures through the raw MCP protocol surface
+- [x] 16. Prove GitLab success and structured failures through the raw MCP protocol surface
   - Recommended task executor category: `unspecified-high` - public protocol behavior must be asserted after actual ToolRegistry registration and routing.
   - What to do: Strengthen `tests/integration/test_full_diff_mcp_surface.py` to register the real tool with a fake strict GitLab session reader and call `FastMCP.call_tool`. Success fixture uses a nested namespace and ordered rename/mode content. Failure fixture raises representative E5020 reasons and operational GitLab 401/403/429/5xx errors. Parse raw content instead of only checking that an exception occurred.
   - Must NOT do: Do not assert only prose substrings, use a GitHub target as a proxy for GitLab, accept `E5002_GITHUB_API_ERROR`, or expose `files` in an error result.
@@ -246,7 +246,7 @@ Your next move: start the plan in a worker session or request the optional dual 
   - QA scenarios: Happy - `uv run pytest tests/integration/test_full_diff_mcp_surface.py -v --tb=short -k gitlab_success`; Failure - run the GitLab E5020 and operational-error parameter matrix and persist decoded raw results in evidence. Evidence: `<attemptDir>/task-16-gitlab-strict-full-diff.txt`.
   - Commit: N | proposed `test(mcp): assert GitLab raw full-diff contract`.
 
-- [ ] 17. Add deterministic concurrency, deadline, and ordering performance regressions
+- [x] 17. Add deterministic concurrency, deadline, and ordering performance regressions
   - Recommended task executor category: `unspecified-high` - resource behavior requires coordinated AnyIO tests and invariant-based evidence, not wall-clock benchmarks.
   - What to do: Add `tests/performance/test_gitlab_strict_full_diff.py` using AnyIO events/barriers and fake SDK operations. Run the same 50-file inventory with capacities one and four; record peak active operations, output identity/order, operation count, and deterministic completion. Add owner-deadline and per-call timeout scenarios with injected blocking events, plus transient retry attempt accounting and cancellation cleanup.
   - Must NOT do: Do not use `sleep`, flaky elapsed-time throughput thresholds, live network, modify GitHub's `scripts/bench_diff_generation.py`, or claim current unbounded memory behavior.
@@ -256,7 +256,7 @@ Your next move: start the plan in a worker session or request the optional dual 
   - QA scenarios: Happy - invoke `uv run pytest tests/performance/test_gitlab_strict_full_diff.py -v --tb=short` three separate times and require identical assertions/order each run; Failure - hold the barrier past the injected deadline and assert E5004, zero cache write, one session close, and eventual worker-client cleanup. Evidence: `<attemptDir>/task-17-gitlab-strict-full-diff.txt`.
   - Commit: N | proposed `test(gitlab): lock concurrency deadline and ordering`.
 
-- [ ] 18. Document the strict GitLab contract, configuration, and cache migration
+- [x] 18. Document the strict GitLab contract, configuration, and cache migration
   - Recommended task executor category: `writing` - public/operator documentation must mirror the verified behavior without changing implementation.
   - What to do: Update `README.md`, `settings.toml` comments, and `skills/prdiffer/SKILL.md` where GitLab/get_pr_diff behavior is described. State that GitLab success is immutable-version, generated full-context, ordered, all-or-nothing; list new `gitlab.*` settings under `[default]` and the nested namespace format; document that legacy GitLab hunk cache entries are ignored automatically; describe structured E5020 and provider-operational codes; state binary/oversized/unavailable files fail the whole request.
   - Must NOT do: Do not promise self-managed GitLab, raw diff endpoint support, partial output, live retry guarantees beyond configured SDK behavior, or change package version/release notes for an unreleased implementation.

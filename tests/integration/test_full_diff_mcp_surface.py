@@ -159,3 +159,62 @@ async def test_registered_get_pr_diff_strict_binary_failure() -> None:
     assert payload["details"]["limit"] == 8
     assert "files" not in payload
     assert "files" not in json.dumps(payload)
+
+
+@pytest.mark.integration
+@pytest.mark.anyio
+async def test_gitlab_nested_success_and_e5020_surface() -> None:
+    import json
+    from fastmcp.exceptions import ToolError
+
+    mcp = FastMCP("test-gitlab-mcp")
+    success = PRDiff(
+        files=(
+            FileDiffResponse(
+                path="new.py",
+                status=EDIT_TYPE.RENAMED,
+                stats=FileStats(additions=0, deletions=0),
+                diff="old mode 100644\nnew mode 100755\nrename from old.py\nrename to new.py\n",
+                previous_path="old.py",
+            ),
+        )
+    )
+    registry = _registry(success)
+    # Force GitLab routing
+    registry._gitlab_reader = MagicMock()
+    registry.register_tools(mcp)
+
+    with patch(
+        "prdiffer.application.tool_registry.parse_pr_target",
+        return_value=MagicMock(provider="gitlab", repo_owner="group/sub", repo_name="project", pr_number=42),
+    ):
+        result = await mcp.call_tool(
+            "get_pr_diff",
+            {"pr_url": "https://gitlab.com/group/sub/project/-/merge_requests/42"},
+        )
+    if hasattr(result, "structured_content") and result.structured_content:
+        payload = result.structured_content
+    else:
+        payload = json.loads(result.content[0].text)
+    files = payload.get("files", [])
+    assert len(files) == 1
+    assert files[0]["previous_path"] == "old.py"
+
+    # E5020 path
+    mcp2 = FastMCP("test-gitlab-e5020")
+    err = FullDiffIncompleteError(FullDiffIncompleteReason.BINARY_CONTENT, path="x.bin")
+    reg2 = _registry(fail=err)
+    reg2._gitlab_reader = MagicMock()
+    reg2.register_tools(mcp2)
+    with patch(
+        "prdiffer.application.tool_registry.parse_pr_target",
+        return_value=MagicMock(provider="gitlab", repo_owner="group/sub", repo_name="project", pr_number=42),
+    ):
+        with pytest.raises(ToolError) as exc:
+            await mcp2.call_tool(
+                "get_pr_diff",
+                {"pr_url": "https://gitlab.com/group/sub/project/-/merge_requests/42"},
+            )
+    body = json.loads(str(exc.value))
+    assert body["error_code"] == "E5020_FULL_DIFF_INCOMPLETE"
+    assert "files" not in body
