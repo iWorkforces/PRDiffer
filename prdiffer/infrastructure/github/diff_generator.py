@@ -209,6 +209,16 @@ class DiffGenerator:
             return ""
         return f"old mode {old_mode}\nnew mode {new_mode}\n"
 
+    # Whole-body sentinels only (legacy builders). Do NOT substring-scan unified
+    # text: real source may contain "DIFF TRUNCATED" / "[DIFF TRUNCATED]" (e.g.
+    # settings.toml, tests) and must not trip E5020 RESPONSE_SIZE_LIMIT.
+    _TRUNCATION_BODY_SENTINELS: frozenset[str] = frozenset(
+        {
+            "[DIFF TRUNCATED]",
+            "DIFF TRUNCATED",
+        }
+    )
+
     def _build_full_context_body(self, base_text: str, head_text: str, *, provider_patch: str) -> str:
         """Build full-file unified body from required text; provider patch is fallback input only."""
         # Prefer full-file generation from complete base/head (not hunk-only provider patch).
@@ -232,16 +242,20 @@ class DiffGenerator:
                 FullDiffIncompleteReason.DIFF_GENERATION_FAILED,
                 message="Diff builder returned no output",
             )
-        if isinstance(body, str) and body.startswith("[BINARY FILE"):
-            raise FullDiffIncompleteError(
-                FullDiffIncompleteReason.BINARY_CONTENT,
-                message="Binary content cannot produce a full-context text diff",
-            )
-        if isinstance(body, str) and "DIFF TRUNCATED" in body:
-            raise FullDiffIncompleteError(
-                FullDiffIncompleteReason.RESPONSE_SIZE_LIMIT,
-                message="Diff builder produced a truncation marker instead of full context",
-            )
+        # Binary / pure-truncation are whole-response sentinels, not content scans.
+        # Never substring-search for "DIFF TRUNCATED" — real source may contain that text.
+        if isinstance(body, str):
+            stripped = body.strip()
+            if stripped.startswith("[BINARY FILE"):
+                raise FullDiffIncompleteError(
+                    FullDiffIncompleteReason.BINARY_CONTENT,
+                    message="Binary content cannot produce a full-context text diff",
+                )
+            if stripped in self._TRUNCATION_BODY_SENTINELS:
+                raise FullDiffIncompleteError(
+                    FullDiffIncompleteReason.RESPONSE_SIZE_LIMIT,
+                    message="Diff builder produced a truncation marker instead of full context",
+                )
         return body
 
     def _decouple_and_convert_to_hunks_with_lines_numbers(self, patch: str, file: FilePatchInfo, is_first_file: bool = False) -> str:
