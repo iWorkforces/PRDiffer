@@ -16,6 +16,17 @@ class _CoalescedPRDiffExecutionMixin:
     _logger: LoggerServiceInterface
     _request_coalescing: RequestCoalescingProtocol
     _cache_hit_optimization_enabled: bool
+    _pr_diff_request_timeout_seconds: float | None
+
+    def _resolve_pr_diff_request_timeout(self) -> float:
+        """Return owner deadline for coalesced PR diff work (seconds)."""
+        configured = getattr(self, "_pr_diff_request_timeout_seconds", None)
+        if configured is not None:
+            return float(configured)
+        service_timeout = getattr(self._pr_diff_service, "_pr_diff_request_timeout_seconds", None)
+        if service_timeout is not None:
+            return float(service_timeout)
+        return 180.0
 
     async def _execute_use_case_with_coalescing(
         self,
@@ -31,6 +42,7 @@ class _CoalescedPRDiffExecutionMixin:
         if cache_namespace:
             coalesce_key = f"{cache_namespace}:{coalesce_key}"
         reader = self._pr_diff_service if pr_diff_reader is None else pr_diff_reader
+        owner_deadline = self._resolve_pr_diff_request_timeout()
 
         async def fetch_pr_diff() -> PRDiff:
             """Fetch PR diff - will be coalesced if multiple requests arrive."""
@@ -57,4 +69,8 @@ class _CoalescedPRDiffExecutionMixin:
 
             return result
 
-        return await self._request_coalescing.coalesce(coalesce_key, fetch_pr_diff)
+        return await self._request_coalescing.coalesce(
+            coalesce_key,
+            fetch_pr_diff,
+            timeout=owner_deadline,
+        )

@@ -94,7 +94,14 @@ class DiffUtils(LazyLoggerMixin, DiffServiceInterface):
 
         max_lines = max(len(orig_lines), len(new_lines))
         if max_lines > max_diff_size:
-            return "[LARGE FILE - DIFF TRUNCATED: File exceeds maximum diff size]"
+            from prdiffer.domain.exceptions import FullDiffIncompleteError, FullDiffIncompleteReason
+
+            raise FullDiffIncompleteError(
+                FullDiffIncompleteReason.RESPONSE_SIZE_LIMIT,
+                message=f"File line count {max_lines} exceeds max_diff_size {max_diff_size}",
+                observed=max_lines,
+                limit=max_diff_size,
+            )
 
         if max_lines <= large_file_threshold:
             return self.build_full_file_patch(original_file_str, new_file_str)

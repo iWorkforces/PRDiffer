@@ -1,63 +1,51 @@
-# AGENTS.md - Domain/Usecases
+# AGENTS.md - Domain/Use Cases
 
-Use cases orchestrating domain logic.
+Thin business orchestration over injected ports (~258 lines). Package 0.6.0.
 
-## Guidelines
-
-- Single responsibility per use case
-- No I/O operations directly (use services via DI)
-- Return domain entities or value objects
-- Error handling via exceptions
-- **Inject services via constructor** (DI pattern)
-- **Orchestrate, don't implement** → Call services, don't do I/O
-
-## Common Patterns
-
-### Use Case with DI
-```python
-from typing import Optional
-from prdiffer.domain.entities import PRDiff
-from prdiffer.domain.services import GitHubAPIServiceInterface, CacheServiceInterface
-
-class GetPRDiffUseCase:
-    '''Use case orchestrates services via dependency injection'''
-    
-    def __init__(
-        self,
-        github_service: GitHubAPIServiceInterface,
-        cache_service: CacheServiceInterface,
-    ):
-        self._github_service = github_service
-        self._cache_service = cache_service
-    
-    def execute(self, pr_url: str) -> Optional[PRDiff]:
-        # 1. Parse URL
-        # 2. Check cache
-        # 3. Fetch from GitHub if needed
-        # 4. Update cache
-        # 5. Return result
-        pass
+## STRUCTURE
+```
+prdiffer/domain/usecases/
+├── pr_diff_usecases.py          # GetPRDiffUseCase + PRDiffReader Protocol (~134)
+├── pr_description_usecases.py   # UpdatePRDescriptionUseCase (~62)
+├── pr_approval_usecases.py      # ApprovePRUseCase (~62)
+└── __init__.py
 ```
 
-### Use Case with Error Handling
-```python
-from prdiffer.domain.exceptions import PRDifferException
+## WHERE TO LOOK
+| Task | Location | Notes |
+|------|----------|-------|
+| **Fetch structured diff** | `pr_diff_usecases.py` | Session (GitHub v2) vs legacy (GitLab) paths |
+| **Update description** | `pr_description_usecases.py` | Validates then `update_pr_description` |
+| **Approve PR** | `pr_approval_usecases.py` | Validates then `approve_pr_with_comment` |
 
-class GetPRDiffUseCase:
-    def execute(self, pr_url: str) -> PRDiff:
-        try:
-            return self._github_service.get_pr_diff(pr_url)
-        except Exception as e:
-            raise PRDifferException(f'Failed to get PR diff: {e}')
-```
+## CODE MAP
+| Symbol | Type | Location | Role |
+|--------|------|----------|------|
+| `PRDiffReader` | Protocol | `pr_diff_usecases.py` | `get_pr_diff` + `get_latest_commit_sha` |
+| `GetPRDiffUseCase` | Use case | `pr_diff_usecases.py` | Cache + reader orchestration |
+| `_is_session_reader` | Helper | `pr_diff_usecases.py` | Type-level session capability check |
+| `_execute_session_path` | Method | `pr_diff_usecases.py` (~61–100) | open session → v2 cache → build → aclose |
+| `_execute_legacy_path` | Method | `pr_diff_usecases.py` (~102–134) | SHA → cache → get_pr_diff |
+| `UpdatePRDescriptionUseCase` | Use case | `pr_description_usecases.py` | Description update |
+| `ApprovePRUseCase` | Use case | `pr_approval_usecases.py` | Approve + compliment |
 
-## Anti-Patterns
+## SESSION VS LEGACY (GetPRDiffUseCase)
+1. **Session path** (GitHub full-diff v2): if reader type has `open_pr_diff_session`:
+   - Open session; use `snapshot.head_sha`
+   - Cache key: `github_full_diff_v2_key(owner, repo, pr, head_sha)` (+ optional namespace)
+   - Read via `unwrap_pr_diff_cache_value` (ignore unversioned/v1/wrong-schema)
+   - On miss: `session.build_pr_diff()`, store under v2 key, always `session.aclose()`
+2. **Legacy path** (e.g. GitLab): `get_latest_commit_sha` → cache get/set → `get_pr_diff`
+3. Optional `cache_hit_optimization_enabled` uses `get_optimistic` before authoritative get.
 
-- ❌ Direct I/O operations (use services)
-- ❌ Multiple responsibilities (single use case per class)
-- ❌ Business logic in use case (belongs in entities/services)
-- ❌ Missing dependency injection (pass services via constructor)
+## CONVENTIONS
+- Constructor-inject interfaces only (`PRDiffReader` / `CacheServiceInterface` / `PRDiffRepositoryInterface`).
+- No framework, auth, or HTTP concerns (those live in application tools).
+- Keep use cases short; push provider details to infrastructure.
+- Structural session detection inspects the **concrete type** so MagicMock doubles do not take the session path accidentally.
 
-## Files
-
-- `pr_diff_usecases.py`: PR diff related use cases
+## ANTI-PATTERNS
+- NO direct VCS SDK usage.
+- NO caching/retry implementation details beyond port calls.
+- NO skipping `aclose` on the session path.
+- NO writing unversioned cache payloads under `github-full-diff-v2` keys without schema discipline.

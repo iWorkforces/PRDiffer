@@ -38,6 +38,13 @@ class GitHubConfigDict(TypedDict, total=False):
     large_file_threshold: int
     chunk_size: int
     max_diff_size: int
+    max_file_size_bytes: int
+    max_total_chars: int
+    parallel_file_fetch_enabled: bool
+    parallel_head_base_fetch_enabled: bool
+    parallel_diff_generation_enabled: bool
+    pr_diff_request_timeout_seconds: float
+    max_concurrent: int
 
 
 @runtime_checkable
@@ -62,6 +69,13 @@ class GitHubConfigInterface(Protocol):
     ignore_patterns: tuple[str, ...]
     valid_extensions: tuple[str, ...]
     max_files_allowed: int
+    max_file_size_bytes: int
+    max_total_chars: int
+    parallel_file_fetch_enabled: bool
+    parallel_head_base_fetch_enabled: bool
+    parallel_diff_generation_enabled: bool
+    pr_diff_request_timeout_seconds: float
+    max_concurrent: int
 
     def to_dict(self) -> "GitHubConfigDict":
         """Convert configuration to dictionary."""

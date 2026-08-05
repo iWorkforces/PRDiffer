@@ -54,7 +54,8 @@ class TestInputValidatorPerformance:
         elapsed = time.perf_counter() - start
 
         total_ops = iterations * len(test_strings)
-        assert elapsed < 2.0, f"Sanitization too slow: {elapsed:.3f}s for {total_ops} operations"
+        # CI shared runners can be ~2x slower than local; keep a wide margin.
+        assert elapsed < 5.0, f"Sanitization too slow: {elapsed:.3f}s for {total_ops} operations"
         print(f"Sanitization: {total_ops} operations in {elapsed:.3f}s ({total_ops / elapsed:.0f} ops/sec)")
 
 

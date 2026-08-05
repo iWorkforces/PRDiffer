@@ -1,85 +1,62 @@
 # AGENTS.md - Domain/Entities
 
-Domain models representing core business objects.
+Frozen (mostly) domain models for PR diffs, content results, cache entries, and repository metadata. Package 0.6.0.
 
-## Guidelines
-
-- Use Pydantic BaseModel for data validation
-- **Immutable by design:** Always `frozen=True` for dataclasses
-- Include computed properties (@property) for derived values
-- Add Field descriptions for API documentation
-- Validation in `__init__` or using Pydantic validators
-- **Use `tuple[T, ...]` for collections** (hashability in frozen dataclasses)
-
-## Common Patterns
-
-### Rich Entity (FilePatchInfo)
-```python
-from dataclasses import dataclass
-from typing import Optional
-
-@dataclass(frozen=True)
-class FilePatchInfo:
-    '''Rich entity with business logic (350+ lines)'''
-    file_path: str
-    patch_lines: tuple[str, ...]  # NOT list (frozen dataclass)
-    additions: int
-    deletions: int
-    
-    def validate(self) -> bool:
-        '''Business validation logic'''
-        return self.additions >= 0 and self.deletions >= 0
-    
-    def calculate_review_priority(self) -> int:
-        '''Complex business logic'''
-        return self.additions + self.deletions * 2
-    
-    @property
-    def total_changes(self) -> int:
-        return self.additions + self.deletions
+## STRUCTURE
+```
+prdiffer/domain/entities/
+├── file_patch.py            # FilePatchInfo + EDIT_TYPE — rich model (~329)
+├── file_diff_response.py    # FileDiffResponse, FileStats (~54)
+├── file_content.py          # FileContentAvailable | FileContentUnavailable (~41)
+├── generated_file_diff.py   # GeneratedFileDiff (~19)
+├── pr_diff_cache.py         # PRDiffCacheEntryV2 + github-full-diff-v2 helpers (~46)
+├── pr_diff.py               # PRDiff — files tuple of FileDiffResponse (~17)
+├── pull_request.py          # PullRequest + PRState (~61)
+├── repository.py            # Repository (~37)
+└── __init__.py
 ```
 
-### Anemic Entity (PRDiff)
-```python
-from pydantic import BaseModel, Field
+## WHERE TO LOOK
+| Task | Location | Notes |
+|------|----------|-------|
+| **Business methods** | `file_patch.py` | `calculate_review_priority`, `detect_code_smells`, `validate` |
+| **MCP file payload** | `file_diff_response.py` | path, status, stats, diff, `previous_path` (renames only) |
+| **Typed content** | `file_content.py` | Available empty text vs deterministic unavailability |
+| **Generated unit** | `generated_file_diff.py` | index + path + previous_path + full-context `diff` |
+| **Cache schema v2** | `pr_diff_cache.py` | wrap/unwrap; prefix `github-full-diff-v2` |
+| **Aggregate response** | `pr_diff.py` | `files: tuple[FileDiffResponse, ...]` |
+| **PR / repo VO** | `pull_request.py`, `repository.py` | Pure metadata (non-frozen dataclasses) |
 
-class PRDiff(BaseModel):
-    '''Anemic entity - data container only'''
-    diff_content: str = Field(
-        default='',
-        description='Combined diff content for all files'
-    )
+## CODE MAP
+| Symbol | Type | Location | Role |
+|--------|------|----------|------|
+| `EDIT_TYPE` | StrEnum | `file_patch.py` | added/deleted/modified/renamed/unknown |
+| `FilePatchInfo` | Frozen dataclass | `file_patch.py` | Rich file change model |
+| `FileStats` | Frozen dataclass | `file_diff_response.py` | additions/deletions |
+| `FileDiffResponse` | Frozen dataclass | `file_diff_response.py` | Public MCP file payload |
+| `FileContentAvailable` | Frozen dataclass | `file_content.py` | Successful text (incl. empty) |
+| `FileContentUnavailable` | Frozen dataclass | `file_content.py` | Deterministic unavailability |
+| `FileContentUnavailableReason` | StrEnum | `file_content.py` | BINARY, SIZE, DIRECTORY, NOT_FOUND, DECODE |
+| `FileContentResult` | Alias | `file_content.py` | Available \| Unavailable |
+| `GeneratedFileDiff` | Frozen dataclass | `generated_file_diff.py` | One generated full-context file |
+| `PRDiff` | Frozen dataclass | `pr_diff.py` | Aggregate files tuple |
+| `PRDiffCacheEntryV2` | Frozen dataclass | `pr_diff_cache.py` | schema_version=2 + PRDiff |
+| `github_full_diff_v2_key` | Function | `pr_diff_cache.py` | Exact session/v2 cache key |
+| `PullRequest` / `PRState` | Entity | `pull_request.py` | PR metadata |
+| `Repository` | Entity | `repository.py` | Repo metadata |
 
-    @property
-    def has_content(self) -> bool:
-        return bool(self.diff_content and self.diff_content.strip())
-```
+## CONVENTIONS
+- Prefer `@dataclass(frozen=True)` for diff/content/cache models.
+- Rich logic stays on `FilePatchInfo`; response DTOs stay thin.
+- Map infrastructure patches → `FileDiffResponse` at the adapter boundary.
+- `FileDiffResponse.previous_path` is optional and valid **only** for `EDIT_TYPE.RENAMED` (`__post_init__` invariant; must differ from `path`). Success responses remain complete by construction — no completeness boolean.
+- GitLab maps `old_path` → `previous_path` on renames only; otherwise `None`.
+- Content: operational failures (auth, rate limit, transport) **raise**; do not fold into `FileContentUnavailable`.
+- Cache helpers: `wrap_pr_diff_for_cache`, `unwrap_pr_diff_cache_value` (accept v2 entry or bare `PRDiff` under v2-prefix key only).
 
-### Entity with Enum
-```python
-from enum import Enum
-from pydantic import BaseModel
-
-class EDIT_TYPE(str, Enum):
-    ADDED = 'added'
-    MODIFIED = 'modified'
-    DELETED = 'deleted'
-
-class FilePatchInfo(BaseModel):
-    filename: str
-    patch: str
-    edit_type: EDIT_TYPE
-```
-
-## Anti-Patterns
-
-- ❌ Using `list` in frozen dataclasses (not hashable)
-- ❌ Mutable dataclasses (always use frozen=True)
-- ❌ Business logic in anemic entities
-- ❌ Missing computed properties for derived values
-- ❌ External dependencies in domain entities
-
-## Files
-
-- `pr_diff.py`: PR diff content entity (anemic)
-- `file_patch.py`: File patch information entity (rich, 350+ lines)
+## ANTI-PATTERNS
+- NO I/O or framework types.
+- NO Pydantic `BaseModel` in this package.
+- NO mutating frozen fields after construction.
+- NO storing unversioned/v1 PRDiff under the full-diff-v2 path without key/schema discipline.
+- NO treating binary/size/decode limits as soft partial success in the public response.

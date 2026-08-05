@@ -1,70 +1,37 @@
 # AGENTS.md - Domain/Repositories
 
-Data access contracts and repository interfaces.
+Repository ports for PR diff access. Package 0.6.0.
 
-## Guidelines
-
-- Define repository interfaces only (no implementations)
-- No concrete implementations in domain
-- Use Protocol or ABC for definitions
-- Async methods should have `_async` suffix in interface
-- **Repository pattern:** Abstract data access operations
-- **Dual sync/async methods** for infrastructure flexibility
-
-## Common Patterns
-
-### Repository Protocol
-```python
-from typing import Protocol, Optional
-from prdiffer.domain.entities import PRDiff
-
-class PRDiffRepositoryInterface(Protocol):
-    def get_diff(self, owner: str, repo: str, pr_number: int) -> Optional[PRDiff]:
-        ...
-    
-    def save_diff(self, pr_diff: PRDiff) -> None:
-        ...
-    
-    def delete_diff(self, owner: str, repo: str, pr_number: int) -> None:
-        ...
+## STRUCTURE
+```
+prdiffer/domain/repositories/
+├── pr_diff_repository.py   # PRDiffRepositoryInterface (~116)
+└── __init__.py
 ```
 
-### Async Repository
-```python
-class AsyncPRDiffRepositoryInterface(Protocol):
-    async def get_diff_async(
-        self, owner: str, repo: str, pr_number: int
-    ) -> Optional[PRDiff]:
-        ...
-    
-    async def save_diff_async(self, pr_diff: PRDiff) -> None:
-        ...
-```
+## WHERE TO LOOK
+| Task | Location | Notes |
+|------|----------|-------|
+| **PR diff port** | `pr_diff_repository.py` | Implemented by GitHub/GitLab repositories |
 
-### VCS Repository Interface
-```python
-from abc import ABC, abstractmethod
+## CODE MAP
+| Symbol | Type | Location | Role |
+|--------|------|----------|------|
+| `PRDiffRepositoryInterface` | ABC | `pr_diff_repository.py` | Repo-scoped PR operations |
 
-class VCSDiffRepositoryInterface(ABC):
-    '''VCS provider contract for multi-provider support'''
-    
-    @abstractmethod
-    def supports_repository(self, url: str) -> bool:
-        '''Auto-detect if this provider supports the URL'''
-        pass
-    
-    @abstractmethod
-    def get_pr_diff(self, url: str) -> PRDiff:
-        pass
-```
+### Methods / properties
+- Properties: `repo_owner`, `repo_name`, `pr_number`
+- `initialize()` — connect/validate before ops
+- `get_pr_diff()` → `PRDiff`
+- `get_latest_commit_sha()` → `str`
+- `approve_pr_with_comment(pr_url, compliment)` → success message
+- `update_pr_description(pr_url, description)` → success message
 
-## Anti-Patterns
+## CONVENTIONS
+- Repositories return domain entities, not raw API models.
+- Implementations: `infrastructure/github_repository.py`, `infrastructure/vcs_providers/`.
+- Use cases for approve/describe inject this interface; diff fetch may also use service/reader ports.
 
-- ❌ Implementing data access in domain (use infrastructure)
-- ❌ Missing async variants (_async suffix)
-- ❌ Large repository interfaces (interface segregation)
-- ❌ Concrete database/API calls in domain
-
-## Files
-
-- `pr_diff_repository.py`: PR diff repository interface
+## ANTI-PATTERNS
+- NO PyGithub / httpx / python-gitlab types in signatures.
+- NO I/O defaults or concrete clients in this package.

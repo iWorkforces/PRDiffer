@@ -1,80 +1,86 @@
-# INFRASTRUCTURE KNOWLEDGE BASE
+# AGENTS.md - Infrastructure Layer
+
+**Package:** 0.6.0  
+External integrations: GitHub/GitLab APIs, cache, security, resilience, DI, settings.
 
 ## OVERVIEW
-External integrations layer: GitHub API, VCS providers, caching, security, async execution, fault tolerance.
+~72 Python files. Implements domain ports; owns I/O and third-party SDKs (PyGithub, python-gitlab, Dynaconf). Clean Architecture outer layer — depends on domain only.
 
 ## STRUCTURE
 ```
 prdiffer/infrastructure/
-├── utils/           # Resilience patterns, diff utilities, URL parsing
-├── github/          # GitHub API client, ETag adapter, diff generator
-├── vcs_providers/   # GitHub/GitLab repository implementations
-├── security/        # Input validation, injection detection
-├── logging/         # Exception handling, console logging
-├── factories/       # Infrastructure factory, dependency wiring
-├── services/        # PR diff service orchestration
-└── *.py             # DI container, cache service, async executor, request coalescing
+├── cache/                      # CacheService, decorators, repository cache, keys, store
+├── factories/                  # InfrastructureFactory (184)
+├── github/                     # Full-diff path: client, inventory, file_processor, diff_generator, session
+├── interfaces/                 # Empty reserved placeholder
+├── logging/                    # ConsoleLogger, exception sanitization
+├── security/                   # InputValidator, InjectionDetector, InputSanitizer
+├── services/                   # GitHubPRDiffService (527)
+├── utils/                      # Retry, CB, parallel, coalescing, diff limits, URL, metrics
+├── vcs_providers/              # GitHub + GitLab VCS adapters
+├── di_container.py             # ServiceContainer (203)
+├── github_repository.py        # GitHubPRDiffRepository (461)
+├── github_repository_operations.py  # PR ops (209)
+├── github_repository_utils.py  # Filtering/logging helpers (127)
+├── service_factory.py          # Convenience factory wrapper (102)
+└── settings.py                 # SettingsService Dynaconf + RLock (267)
 ```
 
 ## WHERE TO LOOK
 | Task | Location | Notes |
 |------|----------|-------|
-| **Retry logic** | `utils/retry/` package | Split into base.py (339), handler.py (135), models.py, factories.py |
-| **Circuit breaker** | `utils/circuit_breaker/core.py` | State machine: CLOSED → OPEN → HALF_OPEN, failure threshold, timeout |
-| **Caching** | `cache/` package | Commit-based MD5 invalidation, LRU eviction, TTL support |
-| **ETag handling** | `github/etag_adapter.py` | HTTP 304 conditional requests to reduce bandwidth |
-| **Async execution** | `utils/parallel/executor.py` | 443-line anyio task groups, Semaphore/Lock/Event primitives |
-| **Request coalescing** | `utils/coalescing/` | Deduplicate concurrent requests for same resource |
-| **Security** | `security/input_validator.py` | 517-line injection detection: command, path traversal, SQL |
-| **GitHub API** | `github/client.py` | 537-line PyGithub wrapper with retry/circuit breaker integration |
-| **VCS providers** | `vcs_providers/{github,gitlab}_repository.py` | VCSDiffRepositoryInterface implementations |
+| **DI / singletons** | `di_container.py` | `ServiceContainer`, `get_container()` |
+| **Wire services** | `factories/infrastructure_factory.py` | `GitHubConfig` sentinels; parallel flags default **true** |
+| **Settings** | `settings.py` → `GitHubConfig` | 30s GitHub timeout / 180s request timeout |
+| **PR repository** | `github_repository.py` | Main PRDiff repository |
+| **Full-diff orchestration** | `services/pr_diff_service.py` | Maps `GeneratedFileDiff` → `FileDiffResponse`, size limits, session path |
+| **GitHub API + content** | `github/` | Typed content, inventory, ordered processing |
+| **Retry** | `utils/retry/` | base / handler / models / factories |
+| **Circuit breaker** | `utils/circuit_breaker_core.py` | Canonical; package path is shim |
+| **Parallel I/O** | `utils/parallel/executor.py` | ~608; `execute_indexed_batch` |
+| **Coalescing** | `utils/coalescing_service.py` | Deduplicate in-flight requests |
+| **Cache** | `cache/service.py`, `cache/cache_decorators.py` | Canonical modules; subpackages are shims |
+| **Security** | `security/input_validator.py` | Orchestrates detector + sanitizer |
+| **GitLab** | `vcs_providers/gitlab_*.py` | python-gitlab provider |
+| **Diff size hard limits** | `utils/diff_limits.py` | Strict rejection (no truncation) |
 
 ## CONVENTIONS
 
-### Fault Tolerance
-- **Three-tier resilience**: Retry → Circuit Breaker → API Health Tracker (optional)
-- **Never retry 404s for file content** → Added/removed files, not transient errors
-- **Retryable status codes**: 403, 429, 500+ (configurable via settings)
-- **Exponential backoff**: Base delay + jitter, max cap, attempt limit
-- **Circuit breaker**: Opens on N failures, half-open after timeout, close on success
+### Clean Architecture
+- Implement domain interfaces/Protocols; map SDK types → domain entities at the boundary.
+- No MCP/tool registration here (application layer).
 
-### Async Patterns
-- **anyio primitives** > threading for async ops (Semaphore, Lock, Event, create_task_group())
-- **AsyncParallelExecutor** > ParallelExecutor for non-blocking calls
-- **Dual sync/async APIs**: `method()` and `method_async()` for critical utilities
-- **Request coalescing**: Deduplicate in-flight requests using anyio.Lock + dict
-- **NO asyncio** → Use anyio throughout (backend-agnostic)
+### Resilience
+- Retry + circuit breaker + optional API health tracker.
+- **Never retry file-content 404s** (added/removed files).
+- Exponential backoff with jitter via `delay_calculator.py`.
 
-### Caching
-- **Commit-based keys**: MD5 hash of {commit_sha + file_path} for precise invalidation
-- **Manual caching with RLock** for settings (no @lru_cache due to Dynaconf unhashability)
-- **LRU eviction**: Configurable max_entries, TTL per cache entry
-- **Cache decorators**: `@cache_result()` for function-level caching with invalidation
+### Async
+- anyio-first; `AsyncParallelExecutor` for fan-out.
+- Request coalescing and PR sessions use anyio primitives (`to_thread`, CapacityLimiter).
 
-### GitHub Integration
-- **ETag support**: Store/compare ETags, return cached data on 304, reduce API calls
-- **Rate limiting**: Detect 403/429, apply smart retry with backoff
-- **API client**: Thin PyGithub wrapper, integrates retry/circuit breaker
+### Configuration
+- Authoritative config is `SettingsService.get_github_config()` → frozen `GitHubConfig`.
+- Manual settings cache with `RLock` (Dynaconf unhashable → no `@lru_cache`).
+- Parallel performance flags (`parallel_file_fetch_enabled`, `parallel_head_base_fetch_enabled`, `parallel_diff_generation_enabled`) default **true** (bounded by `max_concurrent` / `diff_max_workers`).
 
-### LazyLoggerMixin Pattern
-- **66-line mixin** to prevent circular imports in infrastructure services
-- `self._logger` property with lazy initialization
-- Pattern: `if not hasattr(self, '_logger_instance'): self._logger_instance = LoggerFactory.get_logger(...)`
+### Flattened modules + package shims
+Several packages re-export flattened canonical modules for import stability:
+- `utils/circuit_breaker/*` → `circuit_breaker_core.py` / `circuit_breaker_registry.py`
+- `utils/coalescing/*` → `coalescing_service.py` (package may re-export or mirror)
+- `cache/decorators/*` → `cache_decorators.py`
+- `cache/repository/*` → `cache_repository.py`
 
-### Thread Safety
-- **anyio.Lock** for async operations (not asyncio.Lock)
-- **threading.RLock** for sync operations (double-check locking)
-- Manual caching pattern: `_instance = None` + `_lock = threading.RLock()`
+Prefer importing the **canonical flattened module** in new code.
+
+### Full-diff hard fails
+- Inventory / admission / content / generation / size failures raise `FullDiffIncompleteError` → **E5020**.
+- Unexpected algorithm defects may surface as E5003.
 
 ## ANTI-PATTERNS
-
-- **NO async/await mixed with blocking I/O** → Use AsyncParallelExecutor for network calls
-- **NO direct PyGithub in application** → Wrap in infrastructure services with retry logic
-- **NO retry 404s for file content** → Not transient, indicates added/removed files
-- **NO @lru_cache on settings** → Use manual caching (Dynaconf objects unhashable)
-- **NO empty catch blocks in retry/circuit breaker** → Always log failures, track state
-- **NO thread-based async** → Use anyio primitives for backend-agnostic async
-- **NO bypassing circuit breaker** → Always go through CircuitBreaker for external APIs
-- **NO cache without invalidation** → Commit-based keys prevent stale data
-- **NO asyncio in infrastructure** → Use anyio.Lock, anyio.Semaphore, anyio.create_task_group()
-- **NO old-style typing** → Project uses `from typing import List` (63 violations, documented deviation)
+- NO leaking SDK types (PyGithub/python-gitlab) into domain entities or MCP tools.
+- NO `@lru_cache` on Dynaconf-backed settings.
+- NO bypassing retry/CB for GitHub rate limits without reason.
+- NO logging secrets or raw tokens.
+- NO unbounded file downloads / unbounded parallel fan-out against VCS APIs.
+- NO truncating full-diff public content — hard-fail via `diff_limits` / E5020.

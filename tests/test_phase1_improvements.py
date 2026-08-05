@@ -44,8 +44,8 @@ class TestLRUCacheEviction:
         client._cache_set(("file4.py", "branch1"), "content4")
 
         assert len(client._file_content_cache) == 3
-        assert ("file1.py", "branch1") not in client._file_content_cache
-        assert ("file4.py", "branch1") in client._file_content_cache
+        assert client._normalize_cache_key(("file1.py", "branch1")) not in client._file_content_cache
+        assert client._normalize_cache_key(("file4.py", "branch1")) in client._file_content_cache
 
     @patch("prdiffer.infrastructure.github.client.get_logger")
     def test_cache_lru_ordering(self, mock_get_logger):
@@ -70,8 +70,8 @@ class TestLRUCacheEviction:
 
         client._cache_set(("file4.py", "branch1"), "content4")
 
-        assert ("file2.py", "branch1") not in client._file_content_cache
-        assert ("file1.py", "branch1") in client._file_content_cache
+        assert client._normalize_cache_key(("file2.py", "branch1")) not in client._file_content_cache
+        assert client._normalize_cache_key(("file1.py", "branch1")) in client._file_content_cache
 
     @patch("prdiffer.infrastructure.github.client.get_logger")
     def test_cache_statistics_tracking(self, mock_get_logger):

@@ -67,6 +67,7 @@ class TestDiffGeneratorInit:
 
         assert generator._diff_utils is mock_diff_utils
         assert generator._parallel_executor is None
+        # Bare ctor stays sequential; factory/settings opt into parallel generation.
         assert generator._parallel_enabled is False
         assert generator._parallel_threshold == 3
 
@@ -122,15 +123,17 @@ class TestGenerateExtendedDiff:
         assert result == []
 
     def test_sequential_processing_below_threshold(self, mock_diff_utils, sample_file_patch):
-        """Test sequential processing when below threshold."""
+        """Strict path builds full context from base/head (not provider hunk alone)."""
+        mock_diff_utils.build_full_file_patch_chunked.return_value = "\n@@ -1 +1 @@\n-old\n+new"
         generator = DiffGenerator(diff_utils=mock_diff_utils)
         result = generator.generate_extended_diff([sample_file_patch])
 
         assert len(result) == 1
-        mock_diff_utils.extend_patch.assert_called_once()
+        mock_diff_utils.build_full_file_patch_chunked.assert_called()
 
     def test_sequential_processing_parallel_disabled(self, mock_diff_utils, mock_parallel_executor, sample_file_patches):
-        """Test sequential processing when parallel is disabled."""
+        """Ordered generation does not depend on the legacy parallel executor."""
+        mock_diff_utils.build_full_file_patch_chunked.return_value = "\n@@ -1 +1 @@\n-old\n+new"
         generator = DiffGenerator(
             diff_utils=mock_diff_utils,
             parallel_executor=mock_parallel_executor,
@@ -141,8 +144,9 @@ class TestGenerateExtendedDiff:
         assert len(result) == 2
         assert mock_parallel_executor.execute_batch.call_count == 0
 
-    def test_parallel_processing_enabled(self, mock_diff_utils, mock_parallel_executor):
-        """Test parallel processing when enabled and above threshold."""
+    def test_parallel_flag_still_returns_one_result_per_file(self, mock_diff_utils, mock_parallel_executor):
+        """Even with parallel enabled, strict ordered generation returns N results."""
+        mock_diff_utils.build_full_file_patch_chunked.return_value = "\n@@ -1 +1 @@\n-old\n+new"
         files = [
             FilePatchInfo(
                 filename=f"file{i}.py",
@@ -156,14 +160,6 @@ class TestGenerateExtendedDiff:
             for i in range(5)
         ]
 
-        mock_parallel_executor.execute_batch.return_value = [
-            (0, "diff0"),
-            (1, "diff1"),
-            (2, "diff2"),
-            (3, "diff3"),
-            (4, "diff4"),
-        ]
-
         generator = DiffGenerator(
             diff_utils=mock_diff_utils,
             parallel_executor=mock_parallel_executor,
@@ -172,25 +168,26 @@ class TestGenerateExtendedDiff:
         )
         result = generator.generate_extended_diff(files)
 
-        mock_parallel_executor.execute_batch.assert_called_once()
         assert len(result) == 5
 
-    def test_file_without_patch_skipped(self, mock_diff_utils):
-        """Test that files without patches are skipped."""
+    def test_file_without_patch_recovered_from_content(self, mock_diff_utils):
+        """Missing provider patch is recovered from complete base/head text."""
+        mock_diff_utils.build_full_file_patch_chunked.return_value = "\n@@ -1 +1 @@\n-old\n+new"
         file_no_patch = FilePatchInfo(
             filename="empty.py",
-            base_file="",
-            head_file="",
+            base_file="old\n",
+            head_file="new\n",
             patch="",
             edit_type=EDIT_TYPE.MODIFIED,
-            num_plus_lines=0,
-            num_minus_lines=0,
+            num_plus_lines=1,
+            num_minus_lines=1,
         )
 
         generator = DiffGenerator(diff_utils=mock_diff_utils)
         result = generator.generate_extended_diff([file_no_patch])
 
-        assert result == []
+        assert len(result) == 1
+        assert result[0]
 
     def test_with_line_numbers(self, mock_diff_utils, sample_file_patch):
         """Test generation with line numbers."""
@@ -714,8 +711,9 @@ class TestSequentialVsParallel:
 
         mock_parallel_executor.execute_batch.assert_not_called()
 
-    def test_at_threshold_uses_parallel(self, mock_diff_utils, mock_parallel_executor):
-        """Test that files at threshold use parallel processing."""
+    def test_at_threshold_returns_ordered_results(self, mock_diff_utils, mock_parallel_executor):
+        """Strict ordered generation returns one result per file regardless of parallel flags."""
+        mock_diff_utils.build_full_file_patch_chunked.return_value = "\n@@ -1 +1 @@\n-old\n+new"
         files = [
             FilePatchInfo(
                 filename=f"file{i}.py",
@@ -729,8 +727,6 @@ class TestSequentialVsParallel:
             for i in range(3)
         ]
 
-        mock_parallel_executor.execute_batch.return_value = [(i, f"diff{i}") for i in range(3)]
-
         generator = DiffGenerator(
             diff_utils=mock_diff_utils,
             parallel_executor=mock_parallel_executor,
@@ -738,6 +734,5 @@ class TestSequentialVsParallel:
             parallel_threshold=3,
         )
 
-        generator.generate_extended_diff(files)
-
-        mock_parallel_executor.execute_batch.assert_called_once()
+        result = generator.generate_extended_diff(files)
+        assert len(result) == 3

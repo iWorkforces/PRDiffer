@@ -2,15 +2,19 @@
 
 import inspect
 import time
+from concurrent.futures import ThreadPoolExecutor
+from typing import Any, Sequence, cast
+
 import anyio
 import asyncer
-from typing import Any, Sequence, cast
 from github.File import File
 from github.PaginatedList import PaginatedList
 from github.PullRequest import PullRequest as PyGithubPullRequest
 from github.Repository import Repository
 
 from prdiffer.domain.entities.file_patch import FilePatchInfo, EDIT_TYPE
+from prdiffer.domain.entities.file_content import FileContentAvailable, FileContentResult, FileContentUnavailable
+from prdiffer.domain.exceptions import FullDiffIncompleteError, FullDiffIncompleteReason
 from prdiffer.domain.services.github_api import GitHubAPIServiceInterface
 from prdiffer.domain.services.pattern_matching import PatternMatchingServiceInterface
 from prdiffer.domain.services.diff import DiffServiceInterface
@@ -52,6 +56,7 @@ class FileProcessor:
         parallel_fetch_threshold: int = 10,
         max_parallel_workers: int = 4,
         logger: ConsoleLogger | None = None,
+        parallel_head_base_fetch_enabled: bool | None = None,
     ) -> None:
         self._github_api_service = github_api_service
         self._pattern_matcher = pattern_matcher
@@ -72,10 +77,13 @@ class FileProcessor:
             logger=logger,
         )
 
-        from prdiffer.infrastructure.settings import get_settings_service
+        if parallel_head_base_fetch_enabled is None:
+            from prdiffer.infrastructure.settings import get_settings_service
 
-        settings = get_settings_service()
-        self._parallel_head_base_fetch_enabled = settings.get("performance.parallel_head_base_fetch_enabled", False)
+            settings = get_settings_service()
+            self._parallel_head_base_fetch_enabled = bool(settings.get("performance.parallel_head_base_fetch_enabled", True))
+        else:
+            self._parallel_head_base_fetch_enabled = parallel_head_base_fetch_enabled
 
     async def get_pr_files(self, pull_request: PyGithubPullRequest) -> PaginatedList[File]:
         """Get all files from the pull request with caching (double-check locking, 5min TTL)."""
@@ -98,82 +106,202 @@ class FileProcessor:
         """Filter files based on pattern matching configuration."""
         return [file for file in files if self._pattern_matcher.is_valid_file(file.filename)]
 
-    def process_files_to_patches(self, files: list[File], repository: Repository, head_sha: str, base_sha: str) -> list[FilePatchInfo]:
-        diff_files: list[FilePatchInfo] = []
-        invalid_files_names: list[str] = []
+    def _require_text(self, result: FileContentResult | str | None, *, path: str, ref: str) -> str:
+        """Unwrap typed content; raise E5020 on deterministic unavailability.
 
-        counter_valid = 0
-        files_to_load: list[File] = []
+        Accepts legacy bare strings from incomplete fakes during transition.
+        """
+        if result is None:
+            raise FullDiffIncompleteError(
+                FullDiffIncompleteReason.CONTENT_UNAVAILABLE,
+                path=path,
+            )
+        if isinstance(result, str):
+            return result
+        if isinstance(result, FileContentAvailable):
+            return result.text
+        unavailable = cast(FileContentUnavailable, result)
+        reason_map = {
+            "BINARY_CONTENT": FullDiffIncompleteReason.BINARY_CONTENT,
+            "FILE_SIZE_LIMIT": FullDiffIncompleteReason.FILE_SIZE_LIMIT,
+            "DIRECTORY": FullDiffIncompleteReason.CONTENT_UNAVAILABLE,
+            "NOT_FOUND": FullDiffIncompleteReason.CONTENT_UNAVAILABLE,
+            "CONTENT_DECODE_FAILED": FullDiffIncompleteReason.CONTENT_DECODE_FAILED,
+        }
+        raise FullDiffIncompleteError(
+            reason_map.get(unavailable.reason.value, FullDiffIncompleteReason.CONTENT_UNAVAILABLE),
+            path=path,
+            observed=unavailable.observed_size,
+        )
 
-        for file in files:
-            if not self._pattern_matcher.is_valid_file(file.filename):
-                invalid_files_names.append(file.filename)
-                continue
+    def _text_map(self, results: dict[str, Any], *, ref: str) -> dict[str, str]:
+        """Convert typed batch results to path→text, raising on unavailable entries."""
+        texts: dict[str, str] = {}
+        for path, value in results.items():
+            texts[path] = self._require_text(value, path=path, ref=ref)
+        return texts
 
-            patch = file.patch
-            counter_valid += 1
+    def _fetch_head_base_batches(
+        self,
+        repo_full_name: str,
+        head_paths: list[str],
+        base_paths: list[str],
+        head_sha: str,
+        base_sha: str,
+    ) -> tuple[dict[str, Any], dict[str, Any]]:
+        """Load head/base content batches; optionally concurrent when enabled."""
+        if not head_paths and not base_paths:
+            return {}, {}
 
-            avoid_load = False
-            if counter_valid >= self.max_files_allowed and patch:
-                avoid_load = True
-                if counter_valid == self.max_files_allowed:
-                    self._logger.info("Too many files in PR, will avoid loading full content for rest of files")
+        def _fetch(paths: list[str], ref: str) -> dict[str, Any]:
+            if not paths:
+                return {}
+            return cast(
+                dict[str, Any],
+                self._github_api_service.get_files_content_batch(repo_full_name, paths, ref),
+            )
 
-            if avoid_load:
-                file_patch = self._create_file_patch_without_content(file)
-                diff_files.append(file_patch)
-            else:
-                files_to_load.append(file)
+        if self._parallel_head_base_fetch_enabled and head_paths and base_paths:
+            with ThreadPoolExecutor(max_workers=2) as pool:
+                head_future = pool.submit(_fetch, head_paths, head_sha)
+                base_future = pool.submit(_fetch, base_paths, base_sha)
+                return head_future.result(), base_future.result()
 
-        if files_to_load:
-            processed_files = self._process_files_with_content(files_to_load, repository, head_sha, base_sha)
-            diff_files.extend(processed_files)
+        head_raw = _fetch(head_paths, head_sha)
+        base_raw = _fetch(base_paths, base_sha)
+        return head_raw, base_raw
 
-        if invalid_files_names:
-            self._logger.info(f"Filtered out files with invalid extensions: {invalid_files_names}")
+    def process_files_to_patches(self, files: list[Any], repository: Any, head_sha: str, base_sha: str) -> list[FilePatchInfo]:
+        """Assemble FilePatchInfo list in provider order (strict, no soft skips)."""
+        classified = self._classify_selected_files(files)
+        if not classified:
+            return []
+        head_paths, base_paths, rename_map = self._required_content_keys(classified)
+        head_raw, base_raw = self._fetch_head_base_batches(
+            repository.full_name,
+            head_paths,
+            base_paths,
+            head_sha,
+            base_sha,
+        )
+        head_contents = self._text_map(head_raw, ref=head_sha)
+        base_contents = self._text_map(base_raw, ref=base_sha)
+        return self._assemble_patches_in_order(classified, head_contents, base_contents, rename_map)
 
-        return diff_files
+    async def process_files_to_patches_async(self, files: list[Any], repository: Any, head_sha: str, base_sha: str) -> list[FilePatchInfo]:
+        """Async assembly with the same ordered strict semantics as the sync path."""
+        classified = self._classify_selected_files(files)
+        if not classified:
+            return []
+        head_paths, base_paths, rename_map = self._required_content_keys(classified)
 
-    async def process_files_to_patches_async(self, files: list[File], repository: Repository, head_sha: str, base_sha: str) -> list[FilePatchInfo]:
-        diff_files: list[FilePatchInfo] = []
-        invalid_files_names: list[str] = []
-
-        counter_valid = 0
-        files_to_load: list[File] = []
-
-        for file in files:
-            if not self._pattern_matcher.is_valid_file(file.filename):
-                invalid_files_names.append(file.filename)
-                continue
-
-            patch = file.patch
-            counter_valid += 1
-
-            avoid_load = False
-            if counter_valid >= self.max_files_allowed and patch:
-                avoid_load = True
-                if counter_valid == self.max_files_allowed:
-                    self._logger.info("Too many files in PR, will avoid loading full content for rest of files")
-
-            if avoid_load:
-                file_patch = self._create_file_patch_without_content(file)
-                diff_files.append(file_patch)
-            else:
-                files_to_load.append(file)
-
-        if files_to_load:
-            processed_files = await self._process_files_with_content_parallel_async(
-                files_to_load,
-                repository,
+        # Blocking batch APIs may nest anyio.run; run concurrent head/base on worker threads.
+        run_sync = getattr(anyio.to_thread, "run_sync")
+        head_raw, base_raw = await run_sync(
+            lambda: self._fetch_head_base_batches(
+                repository.full_name,
+                head_paths,
+                base_paths,
                 head_sha,
                 base_sha,
+            ),
+        )
+        head_contents = self._text_map(head_raw, ref=head_sha)
+        base_contents = self._text_map(base_raw, ref=base_sha)
+
+        return self._assemble_patches_in_order(classified, head_contents, base_contents, rename_map)
+
+    def _classify_selected_files(self, files: Sequence[Any]) -> list[tuple[int, Any, EDIT_TYPE]]:
+        """Classify selected provider files with original indices; reject UNKNOWN."""
+        classified: list[tuple[int, Any, EDIT_TYPE]] = []
+        for index, file in enumerate(files):
+            if not self._pattern_matcher.is_valid_file(file.filename):
+                continue
+            status = getattr(file, "status", "") or ""
+            edit_type = self.STATUS_TO_EDIT_TYPE.get(status, EDIT_TYPE.UNKNOWN)
+            if edit_type is EDIT_TYPE.UNKNOWN:
+                raise FullDiffIncompleteError(
+                    FullDiffIncompleteReason.UNSUPPORTED_FILE_STATUS,
+                    path=file.filename,
+                )
+            classified.append((index, file, edit_type))
+        return classified
+
+    def _required_content_keys(
+        self,
+        classified: list[tuple[int, Any, EDIT_TYPE]],
+    ) -> tuple[list[str], list[str], dict[str, str]]:
+        """Build head/base path lists and rename base-path mapping."""
+        head_paths: list[str] = []
+        base_paths: list[str] = []
+        rename_map: dict[str, str] = {}
+        for _index, file, edit_type in classified:
+            if edit_type in (EDIT_TYPE.ADDED, EDIT_TYPE.MODIFIED, EDIT_TYPE.RENAMED):
+                head_paths.append(file.filename)
+            if edit_type is EDIT_TYPE.MODIFIED:
+                base_paths.append(file.filename)
+            elif edit_type is EDIT_TYPE.DELETED:
+                base_paths.append(file.filename)
+            elif edit_type is EDIT_TYPE.RENAMED:
+                previous_name = getattr(file, "previous_filename", None)
+                base_key = previous_name if previous_name else file.filename
+                base_paths.append(base_key)
+                if previous_name:
+                    rename_map[file.filename] = previous_name
+
+        # Preserve order, drop duplicates while keeping first occurrence.
+        def _unique(paths: list[str]) -> list[str]:
+            seen: set[str] = set()
+            out: list[str] = []
+            for path in paths:
+                if path not in seen:
+                    seen.add(path)
+                    out.append(path)
+            return out
+
+        return _unique(head_paths), _unique(base_paths), rename_map
+
+    def _assemble_patches_in_order(
+        self,
+        classified: list[tuple[int, Any, EDIT_TYPE]],
+        head_contents: dict[str, str],
+        base_contents: dict[str, str],
+        rename_map: dict[str, str],
+    ) -> list[FilePatchInfo]:
+        """Reconstruct FilePatchInfo rows in original provider order (no skips)."""
+        # Sort by original index to preserve provider order even if input shuffled.
+        ordered = sorted(classified, key=lambda item: item[0])
+        results: list[FilePatchInfo] = []
+        for _index, file, edit_type in ordered:
+            if edit_type is EDIT_TYPE.ADDED:
+                original = ""
+                new = head_contents.get(file.filename, "")
+            elif edit_type is EDIT_TYPE.DELETED:
+                original = base_contents.get(file.filename, "")
+                new = ""
+            elif edit_type is EDIT_TYPE.RENAMED:
+                base_key = rename_map.get(file.filename, file.filename)
+                original = base_contents.get(base_key, "")
+                new = head_contents.get(file.filename, "")
+            else:  # MODIFIED
+                original = base_contents.get(file.filename, "")
+                new = head_contents.get(file.filename, "")
+
+            patch = file.patch or ""
+            if not patch:
+                patch = self._generate_patch_from_content(file.filename, new, original)
+
+            results.append(
+                self._create_file_patch_with_content(
+                    file,
+                    original,
+                    new,
+                    patch,
+                    edit_type=edit_type,
+                    old_filename=rename_map.get(file.filename) if edit_type is EDIT_TYPE.RENAMED else None,
+                )
             )
-            diff_files.extend(processed_files)
-
-        if invalid_files_names:
-            self._logger.info(f"Filtered out files with invalid extensions: {invalid_files_names}")
-
-        return diff_files
+        return results
 
     async def _process_files_with_content_parallel_async(
         self,
@@ -221,13 +349,15 @@ class FileProcessor:
             if inspect.iscoroutine(head_result):
                 head_result = await head_result
             if isinstance(head_result, dict):
-                head_contents = cast(dict[str, str], head_result)
+                head_contents = self._text_map(cast(dict[str, Any], head_result), ref=head_sha)
 
             base_result: Any = fetch_tasks[1] if base_files else {}
             if inspect.iscoroutine(base_result):
                 base_result = await base_result
             if isinstance(base_result, dict):
-                base_contents = cast(dict[str, str], base_result)
+                base_contents = self._text_map(cast(dict[str, Any], base_result), ref=base_sha)
+        except FullDiffIncompleteError:
+            raise
         except (AttributeError, TypeError) as e:
             self._logger.warning(
                 "Tasks not awaitable, using empty contents",
@@ -294,11 +424,10 @@ class FileProcessor:
                 else:
                     base_files.append(file.filename)
 
-        head_contents: dict[str, str] = {}
-        base_contents: dict[str, str] = {}
-
-        head_contents = self._github_api_service.get_files_content_batch(repository.full_name, head_files, head_sha) if head_files else {}
-        base_contents = self._github_api_service.get_files_content_batch(repository.full_name, base_files, base_sha) if base_files else {}
+        head_raw = self._github_api_service.get_files_content_batch(repository.full_name, head_files, head_sha) if head_files else {}
+        base_raw = self._github_api_service.get_files_content_batch(repository.full_name, base_files, base_sha) if base_files else {}
+        head_contents = self._text_map(cast(dict[str, Any], head_raw), ref=head_sha)
+        base_contents = self._text_map(cast(dict[str, Any], base_raw), ref=base_sha)
 
         for file in files:
             if file.status == "added":
@@ -348,20 +477,36 @@ class FileProcessor:
             num_minus_lines=num_minus_lines,
         )
 
-    def _create_file_patch_with_content(self, file: File, original_content: str, new_content: str, patch: str) -> FilePatchInfo:
+    def _create_file_patch_with_content(
+        self,
+        file: Any,
+        original_content: str,
+        new_content: str,
+        patch: str,
+        *,
+        edit_type: EDIT_TYPE | None = None,
+        old_filename: str | None = None,
+    ) -> FilePatchInfo:
         """Create FilePatchInfo with loaded file content."""
-        edit_type: EDIT_TYPE = self.STATUS_TO_EDIT_TYPE.get(file.status, EDIT_TYPE.UNKNOWN)
-        if edit_type == EDIT_TYPE.UNKNOWN:
-            self._logger.error(f"Unknown edit type: {file.status}")
+        resolved_type = edit_type or self.STATUS_TO_EDIT_TYPE.get(file.status, EDIT_TYPE.UNKNOWN)
+        if resolved_type is EDIT_TYPE.UNKNOWN:
+            raise FullDiffIncompleteError(
+                FullDiffIncompleteReason.UNSUPPORTED_FILE_STATUS,
+                path=file.filename,
+            )
 
         num_plus_lines, num_minus_lines = self._count_patch_lines(file, patch)
+        previous = old_filename
+        if previous is None and resolved_type is EDIT_TYPE.RENAMED:
+            previous = getattr(file, "previous_filename", None)
 
         return FilePatchInfo(
             base_file=original_content,
             head_file=new_content,
             patch=patch,
             filename=file.filename,
-            edit_type=edit_type,
+            edit_type=resolved_type,
+            old_filename=previous,
             num_plus_lines=num_plus_lines,
             num_minus_lines=num_minus_lines,
         )

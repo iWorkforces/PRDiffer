@@ -191,7 +191,7 @@ def cached_method(ttl: int | None = None, key_prefix: str | None = None) -> Call
                 f"does not inherit from CachingMixin."
             )
 
-            method_name = method.__name__
+            method_name = getattr(method, "__name__", "unknown")
             if key_prefix:
                 method_name = f"{key_prefix}_{method_name}"
 
@@ -232,7 +232,7 @@ def cached_method(ttl: int | None = None, key_prefix: str | None = None) -> Call
 
         def clear_method_cache(self: CachingMixin) -> None:
             """Clear cache entries for this specific method."""
-            method_name = method.__name__
+            method_name = getattr(method, "__name__", "unknown")
             if key_prefix:
                 method_name = f"{key_prefix}_{method_name}"
 

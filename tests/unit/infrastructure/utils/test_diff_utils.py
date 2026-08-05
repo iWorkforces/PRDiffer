@@ -187,13 +187,16 @@ class TestBuildFullFilePatchChunked:
         result = diff_utils.build_full_file_patch_chunked(original, new)
         assert "+line3" in result
 
-    def test_large_file_truncation(self):
-        """Test that very large files are truncated."""
+    def test_large_file_exceeds_limit_raises(self):
+        """Very large files raise RESPONSE_SIZE_LIMIT (no truncation)."""
+        from prdiffer.domain.exceptions import FullDiffIncompleteError, FullDiffIncompleteReason
+
         config = DiffProcessingConfig(max_diff_size=1000)
         diff_utils = DiffUtils(config=config)
         large_content = "\n".join([f"line{i}" for i in range(2000)])
-        result = diff_utils.build_full_file_patch_chunked(large_content, large_content)
-        assert "LARGE FILE - DIFF TRUNCATED" in result
+        with pytest.raises(FullDiffIncompleteError) as exc:
+            diff_utils.build_full_file_patch_chunked(large_content, large_content)
+        assert exc.value.reason is FullDiffIncompleteReason.RESPONSE_SIZE_LIMIT
 
     def test_custom_chunk_size(self):
         """Test custom chunk size parameter."""

@@ -1,127 +1,40 @@
 # AGENTS.md - Application/Components
 
-MCP server components with constructor DI pattern (`container=None` for testability).
+Cross-cutting MCP components (~1.3K lines). Constructor DI + mixin composition.
 
-## Guidelines
-
-- Single responsibility per component
-- Use domain service interfaces (not concrete infrastructure types)
-- **Constructor DI with singleton fallbacks:** `container=None, logger=None`
-- Log operations with sanitized data (no tokens/passwords)
-- Return structured responses (Pydantic models)
-- **Thread-safe operations** (RLock for sync, anyio.Lock for async)
-
-## Common Patterns
-
-### Component with Optional DI (Testability)
-```python
-from prdiffer.infrastructure.di_container import get_container
-from prdiffer.infrastructure.service_factory import get_service_factory
-from prdiffer.domain.services.logger import LoggerServiceInterface
-
-class SomeComponent:
-    '''Constructor DI with singleton fallbacks for testability'''
-    
-    def __init__(self, container=None, logger=None):
-        self._container = container or get_container()
-        factory = get_service_factory(logger=logger)
-        self._logger = logger or factory.get_logger()
+## STRUCTURE
+```
+prdiffer/application/components/
+├── authentication.py        # AuthenticationMiddleware (350) + AuthFailureRecord
+├── jwt_handler.py           # JWTHandlerMixin (161)
+├── api_key_manager.py       # APIKeyManagerMixin (135)
+├── rate_limiter.py          # RateLimiter (136)
+├── metrics_tracker.py       # MetricsTracker (145)
+├── health_monitor.py        # HealthMonitor (99)
+├── pr_operation_handler.py  # PROperationHandler (133)
+├── server_configuration.py  # ServerConfiguration (118)
+└── __init__.py
 ```
 
-### Component Factory Pattern
-```python
-def create_component(container=None, logger=None):
-    '''Factory function for component creation'''
-    factory = get_service_factory(logger=logger)
-    container = container or get_container()
-    return SomeComponent(
-        container=container,
-        logger=logger or factory.get_logger()
-    )
-```
+## WHERE TO LOOK
+| Task | Location | Notes |
+|------|----------|-------|
+| **API key / lockout** | `authentication.py`, `api_key_manager.py` | SHA-256 keys, failure window, RLock |
+| **JWT metadata** | `jwt_handler.py` | Metadata only unless verified path; not primary auth |
+| **Rate limits** | `rate_limiter.py` | Per-client limits, thread-safe |
+| **Metrics / health** | `metrics_tracker.py`, `health_monitor.py` | Request success rate, degraded thresholds |
+| **PR orchestration** | `pr_operation_handler.py` | Coordinates ops for tools (legacy/helper path) |
+| **Transport config** | `server_configuration.py` | Logging, MCP instructions, stdio/http/sse/streamable-http |
 
-### Thread-Safe Component (RLock)
-```python
-import threading
+## CONVENTIONS
+- Mixins for auth concerns; `AuthenticationMiddleware` composes `JWTHandlerMixin` + `APIKeyManagerMixin`.
+- Inject `InputValidatorProtocol` when possible; infrastructure factory fallback is transitional.
+- Sanitize logs (never log raw tokens/API keys).
+- Thread safety: `threading.RLock` for sync shared state.
+- Implement domain Protocols (`AuthenticationProtocol`, `RateLimiterProtocol`, etc.) for DI.
 
-class RateLimiter:
-    '''Thread-safe rate limiter with RLock'''
-    
-    def __init__(self):
-        self._lock = threading.RLock()
-        self._clients = {}
-    
-    def check_rate_limit(self, client_id: str) -> bool:
-        with self._lock:
-            # Thread-safe access
-            return self._clients.get(client_id, 0) < 100
-```
-
-## Component Descriptions
-
-### AuthenticationMiddleware
-- **API key-based authentication** with SHA-256 hashing
-- **JWT token verification** (metadata extraction only, not auth decisions)
-- Admin API key support with elevated privileges
-- Per-client rate limiting and lockout mechanism
-- Runtime API key management (add/remove)
-- **Thread-safe operations** with RLock
-- **Architecture violation:** Directly imports `infrastructure.security.input_validator`
-
-### RateLimiter
-- **Token bucket algorithm:** 100 requests per minute per client
-- Automatic cleanup of inactive clients (1 hour TTL)
-- Global rate monitoring across all clients
-- **Thread-safe operations** with RLock
-
-### MetricsTracker
-- Request counting (total, successful, failed)
-- Operation-specific metrics (execution time, success rate)
-- Uptime tracking with human-readable format
-- Request ID generation (REQ-{timestamp}-{counter})
-
-### HealthMonitor
-- Aggregates metrics from MetricsTracker and RateLimiter
-- Health status: healthy/degraded/unhealthy
-- Status thresholds: success rate < 80% OR remaining rate limit < 10% = degraded
-- GitHub API health checking via GitHubAPIClient
-
-### ServerConfiguration
-- Logging configuration from settings
-- Transport validation (stdio, http, sse, streamable-http)
-- Port validation (1-65535 for non-stdio transports)
-- Configuration validation with warnings/errors
-
-### PROperationHandler
-- PR diff fetching via GitHub API
-- Repository caching for efficiency
-- URL parsing with regex: `r'https://github\\.com/([^/]+)/([^/]+)/pull/(\\d+)'`
-- Lazy repository initialization
-- Coordinates MetricsTracker, RateLimiter, HealthMonitor for PR operations
-- **Architecture violation:** Imports infrastructure services directly
-
-### PluginManager
-- Plugin discovery and registration
-- Enabled/disabled state management
-- Tool execution orchestration
-- Supports MCP tool plugins via MCPToolPlugin interface
-- Auto-discovers plugins from `prdiffer.application.plugins`
-- **Current state:** Exists but not integrated (production uses @mcp.tool())
-
-## Anti-Patterns
-
-- ❌ Direct infrastructure imports (9 violations in authentication.py, etc.)
-- ❌ Business logic in components (belongs in domain)
-- ❌ Missing thread safety (use RLock/anyio.Lock)
-- ❌ Logging sensitive data (tokens, passwords, API keys)
-- ❌ Mutable global state (use ServiceContainer)
-
-## Files
-
-- `authentication.py`: API key authentication with SHA-256 hashing (9 violations)
-- `rate_limiter.py`: Per-client rate limiting
-- `metrics_tracker.py`: Request metrics tracking
-- `health_monitor.py`: Server health checks
-- `server_configuration.py`: Runtime configuration
-- `pr_operation_handler.py`: PR operations coordination (violations)
-- `plugin_manager.py`: Plugin system manager (not yet integrated)
+## ANTI-PATTERNS
+- NO domain business logic (priority/smells/full-diff completeness) in components.
+- NO trusting unverified JWT for authorization decisions (API keys are primary).
+- NO unbounded failure-record maps (auth caps tracked clients).
+- NO VCS SDK imports (PyGithub/python-gitlab).

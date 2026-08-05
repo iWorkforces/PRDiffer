@@ -1,60 +1,25 @@
-# AGENTS.md - Cache/Repository
+# AGENTS.md - Cache Repository (Shim)
 
-Repository-specific caching with commit-based invalidation and @with_lock decorator.
+**Package:** 0.6.0  
+**Backward-compatibility shim.** Canonical implementation: `prdiffer/infrastructure/cache/cache_repository.py` (259 lines).
 
-## OVERVIEW
-RepositoryCacheService for GitHub data with TTL, LRU eviction, thread-safe operations.
+## EXPORTS
+- `RepositoryCacheService`
+- `get_repository_cache_service`
 
 ## STRUCTURE
 ```
 prdiffer/infrastructure/cache/repository/
-├── service.py   # RepositoryCacheService (251 lines)
-├── models.py    # CacheEntry dataclass, @with_lock decorator
-└── __init__.py  # Exports: RepositoryCacheService, CacheEntry, with_lock
+├── __init__.py
+├── service.py   # re-exports RepositoryCacheService
+└── models.py    # thin models / re-exports if present
 ```
 
-## WHERE TO LOOK
-| Task | Location | Notes |
-|------|----------|-------|
-| **Repository caching** | `service.py` | get_file_content, invalidate_repository |
-| **Cache entry model** | `models.py` | CacheEntry dataclass |
-| **Thread safety** | `models.py` | @with_lock decorator |
-
-## CONVENTIONS
-
-### Commit-Based Keys
-```python
-def _generate_cache_key(self, commit_sha: str, file_path: str) -> str:
-    '''MD5 hash of {commit_sha}:{file_path}'''
-    key = f'{commit_sha}:{file_path}'
-    return hashlib.md5(key.encode()).hexdigest()
-```
-
-### @with_lock Decorator
-```python
-def with_lock(func):
-    '''Automatic RLock management on methods'''
-    @wraps(func)
-    def wrapper(self, *args, **kwargs):
-        with self._lock:
-            return func(self, *args, **kwargs)
-    return wrapper
-```
-
-### TTL Extension on Access
-- `extend_ttl` parameter in `_get_valid_entry()` for fresh data access
-- Lazy eviction via `_evict_if_needed()` only called on insert
-
-### Case-Insensitive Keys
-- Repository keys: `repo_owner.lower(), repo_name.lower()`
+## GUIDANCE
+- New code should import from `prdiffer.infrastructure.cache.cache_repository`.
+- Models/service files here re-export only; keep logic in the flattened module.
+- Pattern matches other flattened-module + package-shim pairs under infrastructure.
 
 ## ANTI-PATTERNS
-
-- NO missing @with_lock on write operations
-- NO direct cache access without lock
-- NO cache keys without commit_sha (stale data risk)
-
-## Files
-
-- `service.py`: RepositoryCacheService with TTL/LRU
-- `models.py`: CacheEntry, @with_lock decorator
+- NO divergent implementations between shim and canonical module.
+- NO unbounded repository instance caches without eviction/invalidation hooks.

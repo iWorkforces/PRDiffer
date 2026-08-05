@@ -1,51 +1,41 @@
 # AGENTS.md - Infrastructure/Cache
 
-Caching infrastructure with commit-based invalidation, LRU eviction, TTL support.
+**Package:** 0.6.0  
+In-process caching with commit-aware keys, TTL/LRU, and repository-scoped caches.
 
 ## STRUCTURE
 ```
 prdiffer/infrastructure/cache/
-├── service.py       # CacheService (PR diff caching)
-├── store.py         # CacheStore (LRU with TTL eviction)
-├── keys.py          # CacheKeyManager (MD5/SHA256 key generation)
-├── repository/      # Repository-specific caching
-└── decorators/      # @cached_method decorator, CachingMixin
+├── service.py              # CacheService (340) — primary general cache
+├── cache_decorators.py     # CachingMixin, cached_method (248)
+├── cache_repository.py     # RepositoryCacheService (259)
+├── keys.py                 # Key builders / hashing (88)
+├── store.py                # Low-level TTL store (77)
+├── decorators/             # SHIM → cache_decorators
+├── repository/             # SHIM → cache_repository (+ thin models re-export)
+└── __init__.py
 ```
 
 ## WHERE TO LOOK
 | Task | Location | Notes |
 |------|----------|-------|
-| **General caching** | `service.py` | CacheService with get/set/invalidate |
-| **LRU storage** | `store.py` | OrderedDict-based LRU eviction |
-| **Key generation** | `keys.py` | MD5/SHA256 hashing for cache keys |
-| **Method caching** | `decorators/` | @cached_method decorator, CachingMixin |
-| **Repository cache** | `repository/` | Commit-based invalidation for PR data |
+| **General cache** | `service.py` | `get_cache_service()` singleton |
+| **Method caching** | `cache_decorators.py` | Mixin for services (`CachingMixin`, `cached_method`) |
+| **Repo / instance cache** | `cache_repository.py` | PR/repo invalidation; `get_repository_cache_service()` |
+| **Key format** | `keys.py` | Stable construction + optional hashing |
+| **Store eviction** | `store.py` | TTL / size eviction primitives |
 
 ## CONVENTIONS
-
-### Key Generation
-- **Commit-based keys**: MD5 hash of `{commit_sha}:{file_path}` for precise invalidation
-- **Hashed keys**: Configurable MD5 (32 chars) or SHA256 (64 chars) via settings.toml
-- **Key mapping**: Store original key for debugging (store_key_mapping = true)
-
-### LRU Eviction
-- **OrderedDict**: `move_to_end()` on access for access-time ordering
-- **Size limit**: `max_size` parameter (default 1000)
-- **TTL support**: `evict_expired()` removes stale entries
-
-### Thread Safety
-- **RLock**: All cache operations use threading.RLock
-- **@with_lock**: Decorator in repository/ for automatic lock management
+- Import **canonical flattened modules**:
+  - `prdiffer.infrastructure.cache.service`
+  - `prdiffer.infrastructure.cache.cache_decorators`
+  - `prdiffer.infrastructure.cache.cache_repository`
+- `decorators/` and `repository/` are **backward-compatibility shims** only — do not add new logic there.
+- Thread-safe access; support invalidation on webhook events.
+- Commit-aware / repo-scoped keys where applicable (avoid cross-repo collisions).
 
 ## ANTI-PATTERNS
-
-- NO cache without invalidation → Commit-based keys prevent stale data
-- NO unbounded cache → Always set max_size
-- NO missing TTL → Set appropriate ttl for data freshness
-- NO asyncio in cache → Use threading.RLock (sync-only)
-
-## Files
-
-- `service.py`: CacheService for PR diff caching
-- `store.py`: CacheStore (LRU with TTL)
-- `keys.py`: CacheKeyManager (key hashing)
+- NO unbounded growth without eviction/TTL.
+- NO caching secrets or raw auth tokens.
+- NO caching unavailable file-content sentinels (see `github/` content cache rules).
+- NO new business logic inside shim packages.

@@ -67,15 +67,16 @@ class TestGitHubAPIClient:
         client = GitHubAPIClient()
         client.initialize_client()
 
-        cache_key = ("path/to/file.py", "main")
+        cache_key = ("owner/repo", "path/to/file.py", "main")
         content = "file content here"
 
-        # Set cache entry
-        client._cache_set(cache_key, content)
+        # Set cache entry (available content only)
+        client._cache_set_available(cache_key, content)
 
         # Verify cache was set
         assert cache_key in client._file_content_cache
         assert client._file_content_cache[cache_key]["content"] == content
+        assert client._cache_get_available(cache_key) == content
 
     def test_cache_eviction_oldest_entries(self):
         """Test LRU eviction when cache exceeds max size."""
@@ -85,8 +86,8 @@ class TestGitHubAPIClient:
 
         # Add 5 entries to cache (should trigger eviction after 3)
         for i in range(5):
-            cache_key = (f"file{i}.py", "main")
-            client._cache_set(cache_key, f"content{i}")
+            cache_key = ("owner/repo", f"file{i}.py", "main")
+            client._cache_set_available(cache_key, f"content{i}")
 
         # Should only have 3 entries after eviction
         assert len(client._file_content_cache) <= 3

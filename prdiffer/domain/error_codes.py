@@ -376,3 +376,11 @@ E5019_CONNECTION_ERROR = ErrorCode(
     remediation="Check network connectivity and service availability",
     category=ErrorCategory.INTERNAL,
 )
+
+E5020_FULL_DIFF_INCOMPLETE = ErrorCode(
+    code="E5020",
+    name="FULL_DIFF_INCOMPLETE",
+    message="Selected PR files cannot be returned as a complete full-context diff",
+    remediation=("Reduce selected file count/size, ensure provider inventory is complete, and exclude binary or undecodable selected files"),
+    category=ErrorCategory.INTERNAL,
+)

@@ -1,7 +1,7 @@
 """Infrastructure implementation of PRDiffServiceInterface using GitHub API."""
 
 import os
-from typing import cast, TYPE_CHECKING
+from typing import Any, cast, TYPE_CHECKING
 
 import asyncer
 from github import GithubException
@@ -9,13 +9,12 @@ from github import GithubException
 if TYPE_CHECKING:
     from github.Repository import Repository
     from github.PullRequest import PullRequest
-    from github.File import File
-    from github.PaginatedList import PaginatedList
 from prdiffer.domain.services.pr_diff_service import PRDiffServiceInterface
 from prdiffer.domain.services.logger import LoggerServiceInterface
 from prdiffer.domain.entities.pr_diff import PRDiff
 from prdiffer.domain.entities.file_patch import FilePatchInfo, EDIT_TYPE
 from prdiffer.domain.entities.file_diff_response import FileDiffResponse, FileStats
+from prdiffer.domain.exceptions import FullDiffIncompleteError, FullDiffIncompleteReason
 from prdiffer.infrastructure.github.client import GitHubAPIClient
 from prdiffer.infrastructure.github.diff_generator import DiffGenerator
 from prdiffer.infrastructure.github.file_processor import FileProcessor
@@ -29,6 +28,8 @@ from prdiffer.infrastructure.cache.cache_decorators import (
     CachingMixin,
     cached_method,
 )
+from prdiffer.infrastructure.github.inventory import prepare_selected_inventory
+from prdiffer.infrastructure.utils.diff_limits import assert_aggregate_within_limit, assert_diff_within_limit
 
 
 # Exceptions to catch in PR diff service operations
@@ -60,24 +61,56 @@ class GitHubPRDiffService(CachingMixin, PRDiffServiceInterface):
         diff_generator: DiffGenerator | None = None,
         file_processor: FileProcessor | None = None,
         logger: LoggerServiceInterface | None = None,
+        *,
+        max_total_chars: int | None = None,
+        github_timeout_seconds: int | None = None,
+        pr_diff_request_timeout_seconds: float | None = None,
     ):
         super().__init__(max_cache_size=1000, default_ttl=300)
 
         self._github_api: GitHubAPIClient = github_api_client or GitHubAPIClient()
         self._logger = logger or get_logger()
 
+        settings_service = get_settings_service()
+        config = settings_service.get_github_config()
+
         github_token = os.getenv("GITHUB_TOKEN")
-        timeout = int(os.getenv("GITHUB_TIMEOUT", "30"))
+        timeout = int(github_timeout_seconds if github_timeout_seconds is not None else config.timeout)
 
         self._github_api.initialize_client(github_token=github_token, timeout=timeout)
 
         self._diff_generator = diff_generator
         self._file_processor = file_processor
 
-        settings_service = get_settings_service()
         self._diff_truncate_enabled = settings_service.get("diff.truncate_enabled", False)
-        self._diff_max_total_chars = int(settings_service.get("diff.max_total_chars", 200000))
+        self._diff_max_total_chars = int(max_total_chars if max_total_chars is not None else config.max_total_chars)
         self._diff_truncation_notice = settings_service.get("diff.truncation_notice", "[DIFF TRUNCATED]")
+        self._pr_diff_request_timeout_seconds = float(
+            pr_diff_request_timeout_seconds if pr_diff_request_timeout_seconds is not None else config.pr_diff_request_timeout_seconds
+        )
+        self._github_timeout_seconds = timeout
+        self._parallel_file_fetch_enabled = config.parallel_file_fetch_enabled
+        self._max_concurrent = config.github_worker_capacity
+        self._session_reader = None
+
+    def _get_session_reader(self):
+        """Lazy session-capable wrapper (structural SessionPRDiffReader)."""
+        if self._session_reader is None:
+            from prdiffer.infrastructure.github.pr_diff_session import GitHubSessionPRDiffReader
+
+            self._session_reader = GitHubSessionPRDiffReader(
+                self,
+                github_timeout_seconds=self._github_timeout_seconds,
+                request_timeout_seconds=self._pr_diff_request_timeout_seconds,
+                parallel_file_fetch_enabled=self._parallel_file_fetch_enabled,
+                max_concurrent=self._max_concurrent,
+                logger=self._logger,
+            )
+        return self._session_reader
+
+    async def open_pr_diff_session(self, repo_owner: str, repo_name: str, pr_number: int, /):
+        """Open a request-local GitHub session (enables use-case session path)."""
+        return await self._get_session_reader().open_pr_diff_session(repo_owner, repo_name, pr_number)
 
     async def get_pr_diff(
         self,
@@ -116,23 +149,23 @@ class GitHubPRDiffService(CachingMixin, PRDiffServiceInterface):
 
             _, diff_files = await self._generate_diff_content_async(repository, pull_request)
 
-            file_responses = [self._convert_file_patch_info_to_response(file_patch) for file_patch in diff_files]
-
-            pr_diff = PRDiff(files=tuple(file_responses))
+            pr_diff = self._build_pr_diff_strict(diff_files)
 
             self._logger.info(
                 "Generated diff content (async parallel)",
                 repo_owner=repo_owner,
                 repo_name=repo_name,
                 pr_number=pr_number,
-                num_files=len(file_responses),
+                num_files=len(pr_diff.files),
             )
 
-            preview = InputValidator.sanitize_for_logging(f"Files: {len(file_responses)}", max_length=1000)
+            preview = InputValidator.sanitize_for_logging(f"Files: {len(pr_diff.files)}", max_length=1000)
             self._logger.debug("Diff content preview", preview=preview)
 
             return pr_diff
 
+        except FullDiffIncompleteError:
+            raise
         except PR_SERVICE_EXCEPTIONS as e:
             exc = cast(Exception, e)
             sanitized = sanitize_exception_for_logging(exc)
@@ -162,21 +195,30 @@ class GitHubPRDiffService(CachingMixin, PRDiffServiceInterface):
                 return "", []
 
             github_files = pull_request.get_files()
-            if not github_files:
+            max_files = self._file_processor.max_files_allowed if self._file_processor is not None else 50
+            is_valid = self._file_processor._pattern_matcher.is_valid_file if self._file_processor is not None else (lambda _name: True)
+            selected_files = prepare_selected_inventory(
+                authoritative_changed_files=None,
+                provider_files=github_files,
+                is_valid_file=is_valid,
+                max_files_allowed=max_files,
+                pull_request=pull_request,
+            )
+            if not selected_files:
                 return "", []
 
             if self._file_processor and hasattr(self._file_processor, "process_files_to_patches_async"):
-                diff_files = await self._file_processor.process_files_to_patches_async(list(github_files), repository, latest_commit_sha, base_commit_sha)
+                diff_files = await self._file_processor.process_files_to_patches_async(list(selected_files), repository, latest_commit_sha, base_commit_sha)
             else:
                 diff_files = (
                     self._file_processor.process_files_to_patches(
-                        list(github_files),
+                        list(selected_files),
                         repository,
                         latest_commit_sha,
                         base_commit_sha,
                     )
                     if self._file_processor
-                    else self._convert_github_files_to_file_patch_info(github_files)
+                    else self._convert_github_files_to_file_patch_info(selected_files)
                 )
 
             if self._diff_generator and diff_files:
@@ -189,6 +231,8 @@ class GitHubPRDiffService(CachingMixin, PRDiffServiceInterface):
                         diff_content_parts.append(f"## File: {file_patch.filename}\n{file_patch.patch}")
                 return "\n\n".join(diff_content_parts), diff_files
 
+        except FullDiffIncompleteError:
+            raise
         except PR_SERVICE_EXCEPTIONS as e:
             exc = cast(Exception, e)
             sanitized = sanitize_exception_for_logging(exc)
@@ -227,23 +271,23 @@ class GitHubPRDiffService(CachingMixin, PRDiffServiceInterface):
 
             diff_files = self._generate_diff_content(repository, pull_request)
 
-            file_responses = [self._convert_file_patch_info_to_response(file_patch) for file_patch in diff_files]
-
-            pr_diff = PRDiff(files=tuple(file_responses))
+            pr_diff = self._build_pr_diff_strict(diff_files)
 
             self._logger.info(
                 "Generated diff content",
                 repo_owner=repo_owner,
                 repo_name=repo_name,
                 pr_number=pr_number,
-                num_files=len(file_responses),
+                num_files=len(pr_diff.files),
             )
 
-            preview = InputValidator.sanitize_for_logging(f"Files: {len(file_responses)}", max_length=1000)
+            preview = InputValidator.sanitize_for_logging(f"Files: {len(pr_diff.files)}", max_length=1000)
             self._logger.debug("Diff content preview", preview=preview)
 
             return pr_diff
 
+        except FullDiffIncompleteError:
+            raise
         except PR_SERVICE_EXCEPTIONS as e:
             exc = cast(Exception, e)
             sanitized = sanitize_exception_for_logging(exc)
@@ -285,7 +329,7 @@ class GitHubPRDiffService(CachingMixin, PRDiffServiceInterface):
             )
             return None
 
-    def _convert_github_files_to_file_patch_info(self, github_files: "PaginatedList[File]") -> list[FilePatchInfo]:
+    def _convert_github_files_to_file_patch_info(self, github_files: Any) -> list[FilePatchInfo]:
         """Convert GitHub File objects to FilePatchInfo domain entities."""
         file_patch_infos: list[FilePatchInfo] = []
 
@@ -329,12 +373,76 @@ class GitHubPRDiffService(CachingMixin, PRDiffServiceInterface):
         num_plus_lines→stats.additions, num_minus_lines→stats.deletions, patch→diff
         """
         stats = FileStats(additions=file_patch.num_plus_lines, deletions=file_patch.num_minus_lines)
+        diff_text = file_patch.patch or ""
+        # Per-file public diff character limit (max_diff_size is line-oriented for builders;
+        # character budget for the public string is max_total_chars / files enforced in aggregate).
         return FileDiffResponse(
             path=file_patch.filename,
             status=file_patch.edit_type,
             stats=stats,
-            diff=file_patch.patch or "",
+            diff=diff_text,
+            previous_path=file_patch.old_filename,
         )
+
+    def _build_pr_diff_strict(self, file_patches: list[FilePatchInfo]) -> PRDiff:
+        """Build PRDiff from ordered full-context generation after size checks."""
+        if not file_patches:
+            return PRDiff(files=())
+
+        try:
+            if self._diff_generator is not None and hasattr(self._diff_generator, "generate_ordered_file_diffs"):
+                generated = self._diff_generator.generate_ordered_file_diffs(file_patches)
+            else:
+                # Fallback: map patches without full-context regeneration.
+                generated = None
+        except FullDiffIncompleteError:
+            raise
+        except Exception as exc:
+            from prdiffer.domain.errors import E5003_DIFF_GENERATION_ERROR
+            from prdiffer.domain.exceptions import DiffGenerationError
+
+            raise DiffGenerationError(
+                "Unexpected algorithm/runtime error during full-context generation",
+                error_code=E5003_DIFF_GENERATION_ERROR,
+            ) from exc
+
+        responses: list[FileDiffResponse] = []
+        diffs: list[str] = []
+        if generated is not None:
+            if len(generated) != len(file_patches):
+                raise FullDiffIncompleteError(
+                    FullDiffIncompleteReason.DIFF_GENERATION_FAILED,
+                    message=f"Generator returned {len(generated)} results for {len(file_patches)} files",
+                    observed=len(generated),
+                    limit=len(file_patches),
+                )
+            for item, file_patch in zip(generated, file_patches, strict=True):
+                if item.path != file_patch.filename:
+                    raise FullDiffIncompleteError(
+                        FullDiffIncompleteReason.DIFF_GENERATION_FAILED,
+                        message="Generated path identity mismatch",
+                        path=item.path,
+                    )
+                stats = FileStats(additions=file_patch.num_plus_lines, deletions=file_patch.num_minus_lines)
+                response = FileDiffResponse(
+                    path=item.path,
+                    status=file_patch.edit_type,
+                    stats=stats,
+                    diff=item.diff,
+                    previous_path=item.previous_path,
+                )
+                assert_diff_within_limit(response.diff, self._diff_max_total_chars, path=response.path)
+                responses.append(response)
+                diffs.append(response.diff)
+        else:
+            for file_patch in file_patches:
+                response = self._convert_file_patch_info_to_response(file_patch)
+                assert_diff_within_limit(response.diff, self._diff_max_total_chars, path=response.path)
+                responses.append(response)
+                diffs.append(response.diff)
+
+        assert_aggregate_within_limit(diffs, self._diff_max_total_chars)
+        return PRDiff(files=tuple(responses))
 
     def _generate_diff_content(self, repository: Repository, pull_request: PullRequest) -> list[FilePatchInfo]:
         """Generate diff content for a pull request.
@@ -351,16 +459,27 @@ class GitHubPRDiffService(CachingMixin, PRDiffServiceInterface):
                 return []
 
             github_files = pull_request.get_files()
-            if not github_files:
+            max_files = self._file_processor.max_files_allowed if self._file_processor is not None else 50
+            is_valid = self._file_processor._pattern_matcher.is_valid_file if self._file_processor is not None else (lambda _name: True)
+            selected_files = prepare_selected_inventory(
+                authoritative_changed_files=None,
+                provider_files=github_files,
+                is_valid_file=is_valid,
+                max_files_allowed=max_files,
+                pull_request=pull_request,
+            )
+            if not selected_files:
                 return []
 
             if self._file_processor:
-                diff_files = self._file_processor.process_files_to_patches(list(github_files), repository, latest_commit_sha, base_commit_sha)
+                diff_files = self._file_processor.process_files_to_patches(list(selected_files), repository, latest_commit_sha, base_commit_sha)
             else:
-                diff_files = self._convert_github_files_to_file_patch_info(github_files)
+                diff_files = self._convert_github_files_to_file_patch_info(selected_files)
 
             return diff_files
 
+        except FullDiffIncompleteError:
+            raise
         except PR_SERVICE_EXCEPTIONS as e:
             exc = cast(Exception, e)
             sanitized = sanitize_exception_for_logging(exc)

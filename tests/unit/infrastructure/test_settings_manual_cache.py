@@ -278,11 +278,10 @@ class TestSettingsValues:
 
 class TestNoLruCacheImport:
     def test_no_lru_cache_decorator_in_code(self):
-        with open(
-            "/Volumes/Data/GitHub/cc/PRDifferMCP/prdiffer/infrastructure/settings.py",
-            "r",
-        ) as f:
-            lines = f.readlines()
+        from pathlib import Path
+
+        settings_path = Path(__file__).resolve().parents[3] / "prdiffer" / "infrastructure" / "settings.py"
+        lines = settings_path.read_text(encoding="utf-8").splitlines(keepends=True)
 
         for line in lines:
             stripped = line.lstrip()

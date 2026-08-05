@@ -2,6 +2,7 @@
 
 [![Python Version](https://img.shields.io/badge/python-3.14+-blue.svg)](https://www.python.org/downloads/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![PR Quality](https://github.com/iWorkforces/PRDifferMCP/actions/workflows/pr-quality.yml/badge.svg)](https://github.com/iWorkforces/PRDifferMCP/actions/workflows/pr-quality.yml)
 
 A Model Context Protocol (MCP) server that provides comprehensive GitHub Pull Request diff analysis with full file context for AI assistants and code review tools.
 
@@ -151,6 +152,12 @@ Once the `prdiffer` skill is installed and the MCP server is running, you can pr
 ---
 
 ### `prdiffer__get_pr_diff` — Fetch & Analyze a PR
+
+> **Strict full-context diffs:** Successful responses include every selected file with
+> generated full-context `diff` text and optional `previous_path` on renames. Incomplete
+> inventories, oversize/binary content, or generation failures return `E5020_FULL_DIFF_INCOMPLETE`
+> with a stable `reason` — never a partial `files` list.
+
 
 Use this to retrieve the full structured diff and perform a thorough code review.
 

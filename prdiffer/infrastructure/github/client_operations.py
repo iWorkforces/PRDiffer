@@ -20,11 +20,21 @@ from prdiffer.infrastructure.logging.console_logger import ConsoleLogger
 from prdiffer.infrastructure.logging.exception_utils import (
     sanitize_exception_for_logging,
 )
+
+from prdiffer.domain.entities.file_content import (
+    FileContentAvailable,
+    FileContentResult,
+    FileContentUnavailable,
+    FileContentUnavailableReason,
+)
 from prdiffer.domain.exceptions import PRDifferException
-from prdiffer.domain.errors import E5009_CONFIGURATION_ERROR
+from prdiffer.domain.errors import E5002_GITHUB_API_ERROR, E5009_CONFIGURATION_ERROR
 from prdiffer.infrastructure.github.client_models import GITHUB_API_EXCEPTIONS
 from prdiffer.infrastructure.utils.parallel.executor import AsyncParallelExecutor
 from prdiffer.infrastructure.github.etag_adapter import ETagRequestAdapter
+
+# Cache key: (repo_full_name, path, immutable_ref)
+FileContentCacheKey = tuple[str, str, str]
 
 
 class GitHubAPIClientOperationsMixin:
@@ -52,7 +62,7 @@ class GitHubAPIClientOperationsMixin:
     _github_client: Github | None
     _retry_handler: BaseUnifiedRetryHandler
     _logger: ConsoleLogger
-    _file_content_cache: OrderedDict[tuple[str, str], dict[str, Any]]
+    _file_content_cache: OrderedDict[FileContentCacheKey, dict[str, Any]]
     _cache_ttl: float
     _cache_max_size: int
     _cache_hits: int
@@ -65,17 +75,13 @@ class GitHubAPIClientOperationsMixin:
     _max_file_size_bytes: int
     _etag_request_adapter: ETagRequestAdapter
 
-    def _is_cache_entry_valid(self, cache_key: tuple[str, str]) -> bool:
-        if cache_key not in self._file_content_cache:
-            return False
-        entry = self._file_content_cache[cache_key]
-        age = time.time() - float(entry["timestamp"])
-        return bool(age < self._cache_ttl)
+    def _content_cache_key(self, repo_full_name: str, file_path: str, ref: str) -> FileContentCacheKey:
+        return (repo_full_name, file_path, ref)
 
     def _evict_oldest_entries(self) -> None:
         current_time = time.time()
 
-        expired_keys: list[tuple[str, str]] = []
+        expired_keys: list[FileContentCacheKey] = []
         for key, entry in self._file_content_cache.items():
             age = current_time - float(entry["timestamp"])
             if age >= self._cache_ttl:
@@ -94,41 +100,92 @@ class GitHubAPIClientOperationsMixin:
             evicted_key, _ = self._file_content_cache.popitem(last=False)
             self._cache_evictions_size += 1
             self._cache_evictions += 1
-            self._logger.debug(f"Cache eviction (LRU): {evicted_key[0][:50]}... [size={len(self._file_content_cache)}/{self._cache_max_size}]")
+            self._logger.debug(f"Cache eviction (LRU): {evicted_key[1][:50]}... [size={len(self._file_content_cache)}/{self._cache_max_size}]")
 
-    def _cache_set(self, cache_key: tuple[str, str], content: str) -> None:
-        if cache_key in self._file_content_cache:
-            del self._file_content_cache[cache_key]
+    def _normalize_cache_key(self, cache_key: tuple[str, ...] | FileContentCacheKey) -> FileContentCacheKey:
+        """Accept legacy (path, ref) or full (repo, path, ref) keys."""
+        if len(cache_key) == 3:
+            return cache_key
+        if len(cache_key) == 2:
+            path, ref = cache_key
+            return ("", path, ref)
+        raise ValueError(f"Invalid content cache key: {cache_key!r}")
+
+    def _is_cache_entry_valid(self, cache_key: tuple[str, ...] | FileContentCacheKey) -> bool:
+        key = self._normalize_cache_key(cache_key)
+        if key not in self._file_content_cache:
+            return False
+        entry = self._file_content_cache[key]
+        age = time.time() - float(entry["timestamp"])
+        return bool(age < self._cache_ttl)
+
+    def _cache_set_available(self, cache_key: FileContentCacheKey | tuple[str, ...], content: str) -> None:
+        """Cache only available text content — never unavailable sentinels."""
+        key = self._normalize_cache_key(cache_key)
+        if key in self._file_content_cache:
+            del self._file_content_cache[key]
         else:
             self._evict_oldest_entries()
 
-        self._file_content_cache[cache_key] = {
+        self._file_content_cache[key] = {
             "content": content,
             "timestamp": time.time(),
         }
 
-    def _cache_get(self, cache_key: tuple[str, str]) -> str | None:
-        if not self._is_cache_entry_valid(cache_key):
-            if cache_key in self._file_content_cache:
-                del self._file_content_cache[cache_key]
+    def _cache_get_available(self, cache_key: FileContentCacheKey | tuple[str, ...]) -> str | None:
+        key = self._normalize_cache_key(cache_key)
+        if not self._is_cache_entry_valid(key):
+            if key in self._file_content_cache:
+                del self._file_content_cache[key]
             self._cache_misses += 1
             return None
 
-        self._file_content_cache.move_to_end(cache_key)
+        self._file_content_cache.move_to_end(key)
         self._cache_hits += 1
-        return str(self._file_content_cache[cache_key]["content"])
+        return str(self._file_content_cache[key]["content"])
 
-    def get_file_content(self, repo_full_name: str, file_path: str, branch: str) -> str:
+    # Compatibility aliases used by older tests/call sites.
+    def _cache_set(self, cache_key: tuple[str, ...] | FileContentCacheKey, content: str) -> None:
+        self._cache_set_available(cache_key, content)
+
+    def _cache_get(self, cache_key: tuple[str, ...] | FileContentCacheKey) -> str | None:
+        return self._cache_get_available(cache_key)
+
+    def _extract_file_content(self, content: ContentFile) -> str:
+        """Legacy string extractor (empty string on deterministic unavailability)."""
+        path = str(getattr(content, "path", "unknown") or "unknown")
+        result = self._extract_file_content_result(content, path, "")
+        if isinstance(result, FileContentAvailable):
+            return result.text
+        return ""
+
+    def _unavailable(
+        self,
+        reason: FileContentUnavailableReason,
+        path: str,
+        ref: str,
+        observed_size: int | None = None,
+    ) -> FileContentUnavailable:
+        return FileContentUnavailable(reason=reason, path=path, ref=ref, observed_size=observed_size)
+
+    def _is_not_found(self, exc: BaseException) -> bool:
+        status = getattr(exc, "status", None)
+        if status == 404:
+            return True
+        message = str(exc).lower()
+        return "404" in message and ("not found" in message or "not exist" in message)
+
+    def get_file_content(self, repo_full_name: str, file_path: str, branch: str) -> FileContentResult:
         if not self._github_client:
             raise PRDifferException(
                 "GitHub client not initialized. Call initialize_client() before using get_file_content().",
                 error_code=E5009_CONFIGURATION_ERROR,
             )
 
-        cache_key = (file_path, branch)
-        cached_content = self._cache_get(cache_key)
+        cache_key = self._content_cache_key(repo_full_name, file_path, branch)
+        cached_content = self._cache_get_available(cache_key)
         if cached_content is not None:
-            return cached_content
+            return FileContentAvailable(text=cached_content)
 
         try:
             pygithub_repo = self._retry_handler.execute_with_retry(
@@ -137,7 +194,10 @@ class GitHubAPIClientOperationsMixin:
                 context=OperationContext.REPOSITORY_ACCESS,
             )
             if not pygithub_repo:
-                return ""
+                raise PRDifferException(
+                    f"Repository not accessible: {repo_full_name}",
+                    error_code=E5002_GITHUB_API_ERROR,
+                )
 
             content = self._retry_handler.execute_with_retry(
                 pygithub_repo.get_contents,
@@ -148,28 +208,33 @@ class GitHubAPIClientOperationsMixin:
 
             if isinstance(content, list):
                 self._logger.warning(f"Expected single file but got directory for path '{file_path}' in branch '{branch}'. Found {len(content)} items.")
-                file_content = ""
-            else:
-                file_content = self._extract_file_content(content)
+                return self._unavailable(FileContentUnavailableReason.DIRECTORY, file_path, branch)
 
-            self._cache_set(cache_key, file_content)
-            return file_content
+            result = self._extract_file_content_result(content, file_path, branch)
+            if isinstance(result, FileContentAvailable):
+                self._cache_set_available(cache_key, result.text)
+            return result
 
         except GITHUB_API_EXCEPTIONS as e:
             exc = cast(Exception, e)
+            if self._is_not_found(exc):
+                return self._unavailable(FileContentUnavailableReason.NOT_FOUND, file_path, branch)
+            # Operational failures (auth, rate limit, transport, retry exhaustion) propagate.
             sanitized = sanitize_exception_for_logging(exc)
             self._logger.warning(
-                f"Failed to get content for file '{file_path}' in branch '{branch}'",
+                f"Operational failure fetching file '{file_path}' in branch '{branch}'",
                 extra=sanitized,
             )
-            file_content = ""
-            self._cache_set(cache_key, file_content)
-            return file_content
+            raise
 
-    def get_files_content_batch(self, repo_full_name: str, file_paths: list[str], branch: str) -> dict[str, str]:
-        """Get content for multiple files with caching and optional parallel fetching."""
+    def get_files_content_batch(
+        self,
+        repo_full_name: str,
+        file_paths: list[str],
+        branch: str,
+    ) -> dict[str, FileContentResult]:
+        """Get typed content for multiple files with caching and optional parallel fetching."""
         if self._parallel_file_fetch_enabled:
-            # Use anyio.run to call async method from sync context
             import anyio
 
             return anyio.run(
@@ -179,25 +244,28 @@ class GitHubAPIClientOperationsMixin:
                 branch,
             )
 
-        # Legacy sequential path (default)
-        results: dict[str, str] = {}
+        results: dict[str, FileContentResult] = {}
         files_to_fetch: list[str] = []
 
         for file_path in file_paths:
-            cache_key = (file_path, branch)
-            cached_content = self._cache_get(cache_key)
+            cache_key = self._content_cache_key(repo_full_name, file_path, branch)
+            cached_content = self._cache_get_available(cache_key)
             if cached_content is not None:
-                results[file_path] = cached_content
+                results[file_path] = FileContentAvailable(text=cached_content)
             else:
                 files_to_fetch.append(file_path)
 
         for file_path in files_to_fetch:
-            content = self.get_file_content(repo_full_name, file_path, branch)
-            results[file_path] = content
+            results[file_path] = self.get_file_content(repo_full_name, file_path, branch)
 
         return results
 
-    async def _get_file_content_async(self, repo_full_name: str, file_path: str, branch: str) -> str:
+    async def _get_file_content_async(
+        self,
+        repo_full_name: str,
+        file_path: str,
+        branch: str,
+    ) -> FileContentResult:
         if not self._github_client:
             raise PRDifferException(
                 "GitHub client not initialized. Call initialize_client() before using _get_file_content_async().",
@@ -206,10 +274,10 @@ class GitHubAPIClientOperationsMixin:
 
         github_client = self._github_client
 
-        cache_key = (file_path, branch)
-        cached_content = self._cache_get(cache_key)
+        cache_key = self._content_cache_key(repo_full_name, file_path, branch)
+        cached_content = self._cache_get_available(cache_key)
         if cached_content is not None:
-            return cached_content
+            return FileContentAvailable(text=cached_content)
 
         try:
 
@@ -224,7 +292,10 @@ class GitHubAPIClientOperationsMixin:
 
             pygithub_repo = await get_repo_async()
             if not pygithub_repo:
-                return ""
+                raise PRDifferException(
+                    f"Repository not accessible: {repo_full_name}",
+                    error_code=E5002_GITHUB_API_ERROR,
+                )
 
             async def get_contents_async():
                 return await asyncer.asyncify(
@@ -240,23 +311,23 @@ class GitHubAPIClientOperationsMixin:
 
             if isinstance(content, list):
                 self._logger.warning(f"Expected single file but got directory for path '{file_path}' in branch '{branch}'. Found {len(content)} items.")
-                file_content = ""
-            else:
-                file_content = self._extract_file_content(content)
+                return self._unavailable(FileContentUnavailableReason.DIRECTORY, file_path, branch)
 
-            self._cache_set(cache_key, file_content)
-            return file_content
+            result = self._extract_file_content_result(content, file_path, branch)
+            if isinstance(result, FileContentAvailable):
+                self._cache_set_available(cache_key, result.text)
+            return result
 
         except GITHUB_API_EXCEPTIONS as e:
             exc = cast(Exception, e)
+            if self._is_not_found(exc):
+                return self._unavailable(FileContentUnavailableReason.NOT_FOUND, file_path, branch)
             sanitized = sanitize_exception_for_logging(exc)
             self._logger.warning(
-                f"Failed to get content for file '{file_path}' in branch '{branch}'",
+                f"Operational failure fetching file '{file_path}' in branch '{branch}'",
                 extra=sanitized,
             )
-            file_content = ""
-            self._cache_set(cache_key, file_content)
-            return file_content
+            raise
 
     async def _get_files_content_batch_parallel_async(
         self,
@@ -264,15 +335,15 @@ class GitHubAPIClientOperationsMixin:
         file_paths: list[str],
         branch: str,
         max_workers: int = 4,
-    ) -> dict[str, str]:
-        results: dict[str, str] = {}
+    ) -> dict[str, FileContentResult]:
+        results: dict[str, FileContentResult] = {}
         files_to_fetch: list[str] = []
 
         for file_path in file_paths:
-            cache_key = (file_path, branch)
-            cached_content = self._cache_get(cache_key)
+            cache_key = self._content_cache_key(repo_full_name, file_path, branch)
+            cached_content = self._cache_get_available(cache_key)
             if cached_content is not None:
-                results[file_path] = cached_content
+                results[file_path] = FileContentAvailable(text=cached_content)
             else:
                 files_to_fetch.append(file_path)
 
@@ -280,49 +351,78 @@ class GitHubAPIClientOperationsMixin:
             return results
 
         start_time = time.time()
-        fetched_contents = await self._async_executor.execute_batch(
+        fetched = await self._async_executor.execute_indexed_batch(
             lambda fp: self._get_file_content_async(repo_full_name, fp, branch),
             files_to_fetch,
+            keys=files_to_fetch,
+            strict=True,
         )
-
-        for file_path, content in zip(files_to_fetch, fetched_contents):
-            results[file_path] = content
+        for outcome in fetched.outcomes:
+            if outcome.value is None:
+                raise RuntimeError(f"Missing indexed content outcome for {outcome.key}")
+            results[str(outcome.key)] = outcome.value
 
         elapsed = time.time() - start_time
         self._logger.debug(f"Async parallel batch fetch: {len(files_to_fetch)} files in {elapsed:.2f}s ({elapsed / len(files_to_fetch) * 1000:.1f}ms/file avg)")
 
         return results
 
-    def _extract_file_content(self, content: ContentFile) -> str:
-        """Extract file content with size validation (DoS prevention).
-
-        Handles files with encoding: none (binary files, submodules, empty files)
-        by returning empty string instead of crashing on decoded_content access.
-        """
-        # Check encoding first - PyGithub's decoded_content asserts encoding == "base64"
-        # GitHub returns encoding: none for binary files, submodules, empty files
+    def _extract_file_content_result(
+        self,
+        content: ContentFile,
+        file_path: str,
+        ref: str,
+    ) -> FileContentResult:
+        """Extract typed content with size/encoding validation (DoS prevention)."""
         if not content:
-            return ""
+            return FileContentAvailable(text="")
 
         encoding = getattr(content, "encoding", None)
-        if encoding != "base64":
-            # Log for debugging but don't crash - return empty content
-            file_path = getattr(content, "path", "unknown")
-            self._logger.debug(f"File '{file_path}' has non-base64 encoding '{encoding}'. Skipping content extraction.")
-            return ""
+        size = int(getattr(content, "size", 0) or 0)
 
-        # Check file size before loading into memory (DoS prevention)
-        if hasattr(content, "size") and content.size > self._max_file_size_bytes:
-            file_path = getattr(content, "path", "unknown")
-            self._logger.warning(
-                f"File too large to load: {file_path} ({content.size} bytes > {self._max_file_size_bytes} bytes max). Skipping file to prevent OOM."
+        if encoding is None or encoding == "none":
+            # GitHub uses encoding:none for binary, submodules; empty files may also appear.
+            if size == 0:
+                return FileContentAvailable(text="")
+            return self._unavailable(
+                FileContentUnavailableReason.BINARY_CONTENT,
+                file_path,
+                ref,
+                observed_size=size,
             )
-            return ""
 
-        # Now safe to access decoded_content - encoding is confirmed base64
-        if content.decoded_content:
-            return str(content.decoded_content.decode())
-        return ""
+        if encoding != "base64":
+            return self._unavailable(
+                FileContentUnavailableReason.BINARY_CONTENT,
+                file_path,
+                ref,
+                observed_size=size,
+            )
+
+        if size > self._max_file_size_bytes:
+            self._logger.warning(f"File too large to load: {file_path} ({size} bytes > {self._max_file_size_bytes} bytes max).")
+            return self._unavailable(
+                FileContentUnavailableReason.FILE_SIZE_LIMIT,
+                file_path,
+                ref,
+                observed_size=size,
+            )
+
+        try:
+            if content.decoded_content:
+                return FileContentAvailable(text=str(content.decoded_content.decode("utf-8")))
+            return FileContentAvailable(text="")
+        except (UnicodeDecodeError, AttributeError, TypeError) as exc:
+            self._logger.warning(
+                f"Failed to decode file content for '{file_path}'",
+                extra={"error": str(exc), "error_type": type(exc).__name__},
+            )
+            return self._unavailable(
+                FileContentUnavailableReason.CONTENT_DECODE_FAILED,
+                file_path,
+                ref,
+                observed_size=size,
+            )
 
     def get_etag_stats(self) -> dict[str, Any]:
         return self._etag_request_adapter.get_stats()

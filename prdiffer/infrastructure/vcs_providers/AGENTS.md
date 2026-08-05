@@ -1,81 +1,34 @@
-# AGENTS.md - Infrastructure VCS Providers
+# AGENTS.md - VCS Providers
 
-Multi-provider VCS abstraction: GitHub, GitLab, Bitbucket (extensible).
-
-## OVERVIEW
-VCS provider implementations with VCSDiffRepositoryInterface. Auto-detection via registry pattern.
+**Package:** 0.6.0  
+GitHub and GitLab adapters implementing domain VCS/repository ports.
 
 ## STRUCTURE
 ```
 prdiffer/infrastructure/vcs_providers/
-├── github_repository.py    # GitHubVCSRepository (production)
-├── gitlab_repository.py    # GitLabVCSRepository (mock/stub)
-└── *_repository.py         # Additional providers (extensible)
+├── github_repository.py    # GitHubVCSRepository + factory (147)
+├── gitlab_repository.py    # GitLabVCSRepository (94)
+├── gitlab_operations.py    # GitLab API operations / pagination (94)
+└── __init__.py
 ```
 
 ## WHERE TO LOOK
 | Task | Location | Notes |
 |------|----------|-------|
-| **Add provider** | New `*_repository.py` | Implement VCSDiffRepositoryInterface |
-| **Register provider** | `domain/vcs_provider_registry.py` | Use `register_provider()` |
-| **GitHub impl** | `github_repository.py` | Wraps GitHubPRDiffRepository |
-| **GitLab impl** | `gitlab_repository.py` | Stub implementation |
+| **GitHub adapter** | `github_repository.py` | Wraps `infrastructure/github_repository.GitHubPRDiffRepository` |
+| **Primary GitHub PR repo** | `../github_repository.py` | Main implementation (sibling module, not this package) |
+| **GitLab adapter** | `gitlab_repository.py` | anyio `to_thread` for blocking python-gitlab |
+| **GitLab ops** | `gitlab_operations.py` | Pagination, unidiff records, MR fetch |
+| **Register provider** | `domain/vcs_provider_registry.py` | `supports_repository(url)` auto-detect |
 
 ## CONVENTIONS
+- Map provider models → domain entities at the boundary (`FileDiffResponse`, `PRDiff`).
+- Use shared retry/security utilities where applicable.
+- URL detection must not false-positive across hosts (`github.com` vs `gitlab.com` patterns).
+- GitLab renames set `FileDiffResponse.previous_path` from `old_path` when distinct; no retrieval redesign.
+- Prefer domain interfaces (`PRDiffRepositoryInterface` / `VCSDiffRepositoryInterface`) for registration.
 
-- **Implement VCSDiffRepositoryInterface** (domain layer contract)
-- **Async methods only** (anyio primitives)
-- **URL pattern matching** via `supports_repository()` method
-- **Register in VCSProviderRegistry** for auto-detection
-- **Wrap with retry + circuit breaker** for external API calls
-
-## Common Patterns
-
-### VCS Repository Implementation
-```python
-from prdiffer.domain.interfaces.vcs_provider import VCSDiffRepositoryInterface
-from prdiffer.infrastructure.utils.retry_handler import get_retry_handler
-import anyio
-
-class GitHubVCSRepository(VCSDiffRepositoryInterface):
-    '''GitHub VCS provider with retry + circuit breaker'''
-    
-    def __init__(self):
-        self._retry_handler = get_retry_handler()
-    
-    def supports_repository(self, url: str) -> bool:
-        '''Auto-detect GitHub URLs'''
-        return 'github.com' in url
-    
-    async def get_pr_diff_async(self, url: str) -> PRDiff:
-        '''Async diff retrieval with retry'''
-        return await self._retry_handler.retry_async(
-            lambda: self._fetch_diff(url)
-        )
-```
-
-### Provider Registration (Auto-Detection)
-```python
-from prdiffer.domain.vcs_provider_registry import VCSProviderRegistry
-
-# Register providers in registry
-registry = VCSProviderRegistry()
-registry.register_provider(GitHubVCSRepository())
-registry.register_provider(GitLabVCSRepository())
-
-# Auto-detect provider from URL
-provider = registry.get_provider('https://github.com/owner/repo/pull/123')
-```
-
-## Anti-Patterns
-
-- ❌ Synchronous blocking code (use async/await with anyio)
-- ❌ Direct API calls without retry wrapper
-- ❌ Missing circuit breaker integration
-- ❌ Hardcoded provider selection (use registry auto-detection)
-- ❌ Using asyncio primitives (use anyio instead)
-
-## Files
-
-- `github_repository.py`: GitHub VCS repository (production)
-- `gitlab_repository.py`: GitLab VCS repository (stub)
+## ANTI-PATTERNS
+- NO provider-specific types leaking to application tools.
+- NO live API calls in unit tests.
+- NO registering providers only in infrastructure without domain registry support.

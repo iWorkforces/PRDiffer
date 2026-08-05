@@ -183,20 +183,31 @@ class TestFileProcessorProcessFilesToPatches:
         assert result[0].filename == "test.py"
         assert result[0].edit_type == EDIT_TYPE.ADDED
 
-    def test_process_removed_file_skipped(self, file_processor, mock_github_api, mock_pattern_matcher):
-        """Test that removed files are skipped."""
+    def test_process_removed_file_included(self, file_processor, mock_github_api, mock_pattern_matcher):
+        """Deleted files are included with base content and empty head."""
+        from prdiffer.domain.entities.file_content import FileContentAvailable
+
         mock_pattern_matcher.is_valid_file.return_value = True
+        mock_github_api.get_files_content_batch.return_value = {
+            "deleted.py": FileContentAvailable(text="old\n"),
+        }
 
         mock_file = Mock()
         mock_file.filename = "deleted.py"
         mock_file.status = "removed"
+        mock_file.patch = "-old\n"
+        mock_file.additions = 0
+        mock_file.deletions = 1
 
         mock_repo = Mock()
         mock_repo.full_name = "owner/repo"
 
         result = file_processor.process_files_to_patches([mock_file], mock_repo, "head123", "base123")
 
-        assert len(result) == 0
+        assert len(result) == 1
+        assert result[0].edit_type == EDIT_TYPE.DELETED
+        assert result[0].base_file == "old\n"
+        assert result[0].head_file == ""
 
     def test_process_max_files_limit(self, mock_github_api, mock_pattern_matcher, mock_diff_utils, mock_logger):
         """Test that max files limit is enforced."""
@@ -535,7 +546,9 @@ class TestFileProcessorUnknownStatus:
     """Tests for handling unknown file statuses."""
 
     def test_process_unknown_status(self, file_processor, mock_github_api, mock_pattern_matcher, mock_logger):
-        """Test processing file with unknown status."""
+        """Unknown statuses raise E5020 UNSUPPORTED_FILE_STATUS."""
+        from prdiffer.domain.exceptions import FullDiffIncompleteError, FullDiffIncompleteReason
+
         mock_pattern_matcher.is_valid_file.return_value = True
         mock_github_api.get_files_content_batch.return_value = {}
 
@@ -549,8 +562,6 @@ class TestFileProcessorUnknownStatus:
         mock_repo = Mock()
         mock_repo.full_name = "owner/repo"
 
-        result = file_processor.process_files_to_patches([mock_file], mock_repo, "head123", "base123")
-
-        assert len(result) == 1
-        assert result[0].edit_type == EDIT_TYPE.UNKNOWN
-        mock_logger.error.assert_called()
+        with pytest.raises(FullDiffIncompleteError) as exc:
+            file_processor.process_files_to_patches([mock_file], mock_repo, "head123", "base123")
+        assert exc.value.reason is FullDiffIncompleteReason.UNSUPPORTED_FILE_STATUS

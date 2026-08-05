@@ -55,7 +55,12 @@ class RecordingCache:
 class RecordingCoalescer:
     keys: list[str] = field(default_factory=list[str])
 
-    async def coalesce(self, key: str, fetch: Callable[[], Awaitable[PRDiff]]) -> PRDiff:
+    async def coalesce(
+        self,
+        key: str,
+        fetch: Callable[[], Awaitable[PRDiff]],
+        timeout: float | None = 30.0,
+    ) -> PRDiff:
         self.keys.append(key)
         return await fetch()
 
@@ -158,7 +163,7 @@ def mock_input_validator():
 def mock_request_coalescing():
     """Create mock request coalescing service."""
     mock = MagicMock()
-    mock.coalesce = AsyncMock(side_effect=lambda key, fn: fn())
+    mock.coalesce = AsyncMock(side_effect=lambda key, fn, timeout=None: fn())
     return mock
 
 
@@ -464,7 +469,7 @@ class TestExecuteUseCaseWithCoalescing:
             MockUseCase.return_value = mock_use_case
 
             # The coalesce will call the inner function which raises GitHubAPIError
-            async def side_effect(key, fn):
+            async def side_effect(key, fn, timeout=None):
                 return await fn()
 
             mock_request_coalescing.coalesce = AsyncMock(side_effect=side_effect)

@@ -71,6 +71,12 @@ class GitLabVCSRepository(VCSDiffRepositoryInterface):
             case _:
                 raise PRDifferException("GitLab diff record has conflicting change flags", error_code=E5002_GITHUB_API_ERROR)
 
+        previous_path: str | None = None
+        if status is EDIT_TYPE.RENAMED:
+            # Mechanical mapping: use GitLab old_path when present and distinct.
+            if record.old_path and record.old_path != path:
+                previous_path = record.old_path
+
         return FileDiffResponse(
             path=path,
             status=status,
@@ -79,6 +85,7 @@ class GitLabVCSRepository(VCSDiffRepositoryInterface):
                 deletions=sum(line.startswith("-") and not line.startswith("---") for line in patch.splitlines()),
             ),
             diff=patch,
+            previous_path=previous_path,
         )
 
     def supports_repository(self, url: str) -> bool:

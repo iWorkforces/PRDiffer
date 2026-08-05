@@ -1,82 +1,52 @@
 # AGENTS.md - Domain/Services
 
-Business logic interfaces and service contracts.
+Service interfaces (ABC) only — 9 ports, ~559 lines. Package 0.6.0.
 
-## Guidelines
-
-- Define service interfaces (no implementation)
-- Use ABC or Protocol for definitions
-- All public methods require type hints
-- Async methods named with `_async` suffix
-- **Return interfaces, not concrete types**
-- **NO infrastructure imports** → Domain remains pure
-
-## Common Patterns
-
-### Service Interface
-```python
-from abc import ABC, abstractmethod
-from typing import Optional, Dict, Any
-
-class GitHubAPIServiceInterface(ABC):
-    @abstractmethod
-    def get_repository(self, repo_full_name: str) -> Optional[Repository]:
-        pass
-    
-    @abstractmethod
-    def get_file_content(
-        self, repository: Repository, file_path: str, branch: str
-    ) -> str:
-        pass
+## STRUCTURE
+```
+prdiffer/domain/services/
+├── cache.py                 # CacheServiceInterface (~100)
+├── repository_cache.py      # RepositoryCacheServiceInterface (~107)
+├── github_api.py            # GitHubAPIServiceInterface (~78)
+├── diff.py                  # DiffServiceInterface (~50)
+├── pr_diff_service.py       # PRDiffServiceInterface (~80)
+├── pattern_matching.py      # PatternMatchingServiceInterface (~35)
+├── retry.py                 # RetryServiceInterface (~17)
+├── settings.py              # SettingsServiceInterface (~60)
+├── logger.py                # LoggerServiceInterface + LogLevel (~32)
+└── __init__.py
 ```
 
-### Dual Sync/Async Interface
-```python
-from abc import ABC, abstractmethod
+## WHERE TO LOOK
+| Task | Location | Notes |
+|------|----------|-------|
+| **Add service port** | New `*.py` ABC here | Implement under infrastructure |
+| **PR orchestration port** | `pr_diff_service.py` | High-level diff + commit SHA |
+| **Typed file content** | `github_api.py` | `get_file_content` → `FileContentResult` |
+| **Commit-based cache** | `cache.py` | get/set with commit SHA; optimistic get |
+| **Full-context patches** | `diff.py` | `build_full_file_patch`, `extend_patch` |
 
-class RetryServiceInterface(ABC):
-    '''Interface for both sync and async retry logic'''
-    
-    @abstractmethod
-    def retry_sync(self, func, *args, **kwargs):
-        '''Synchronous retry with backoff'''
-        pass
-    
-    @abstractmethod
-    async def retry_async(self, func, *args, **kwargs):
-        '''Async retry with backoff'''
-        pass
-```
+## CODE MAP
+| Symbol | Type | Location | Role |
+|--------|------|----------|------|
+| `CacheServiceInterface` | ABC | `cache.py` | Commit-keyed PRDiff cache |
+| `RepositoryCacheServiceInterface` | ABC | `repository_cache.py` | Cache of repository instances |
+| `GitHubAPIServiceInterface` | ABC | `github_api.py` | Repo/PR/content API |
+| `DiffServiceInterface` | ABC | `diff.py` | Full-file / extended patches |
+| `PRDiffServiceInterface` | ABC | `pr_diff_service.py` | Domain-level PR diff ops |
+| `PatternMatchingServiceInterface` | ABC | `pattern_matching.py` | File filter/validation |
+| `RetryServiceInterface` | ABC | `retry.py` | Retry with backoff |
+| `SettingsServiceInterface` | ABC | `settings.py` | Config access (+ optional `get_github_config`) |
+| `LoggerServiceInterface` | ABC | `logger.py` | Logging contract |
+| `LogLevel` | StrEnum | `logger.py` | DEBUG…CRITICAL |
 
-### Service with Error Handling
-```python
-class DiffServiceInterface(ABC):
-    @abstractmethod
-    def generate_diff(
-        self, owner: str, repo: str, pr_number: int
-    ) -> PRDiff:
-        pass
-    
-    @abstractmethod
-    def validate_diff(self, diff: PRDiff) -> bool:
-        pass
-```
+## CONVENTIONS
+- Abstract methods only; no default I/O.
+- Implementations registered via `InfrastructureFactory`.
+- `GitHubAPIServiceInterface.get_file_content` returns `FileContentAvailable | FileContentUnavailable`; operational failures raise (auth, rate limit, transport, retry exhaustion).
+- Batch content API returns `dict[str, FileContentResult]`; only available texts should be cached by adapters.
 
-## Anti-Patterns
-
-- ❌ Implementing logic in domain services (interfaces only)
-- ❌ Missing `@abstractmethod` decorators
-- ❌ Returning concrete types (return interfaces)
-- ❌ Importing infrastructure classes
-
-## Files
-
-- `github_api.py`: GitHub API service interface
-- `cache.py`: Cache service interface
-- `logger.py`: Logger interface
-- `diff.py`: Diff generation service interface
-- `pr_diff_service.py`: PR diff service interface
-- `retry.py`: Retry policy interface
-- `repository_cache.py`: Repository cache interface
-- `pattern_matching.py`: Pattern matching interface
-- `settings.py`: Settings service interface
+## ANTI-PATTERNS
+- NO concrete classes with network/cache logic here.
+- NO mapping operational API failures into `FileContentUnavailable`.
+- NO SDK types in method signatures.
