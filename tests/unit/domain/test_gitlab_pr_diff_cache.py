@@ -55,10 +55,10 @@ def test_gitlab_v1_key_includes_custom_host() -> None:
         base_sha="b",
         start_sha="s",
         head_sha="h",
-        host="nova.teachx.ai",
+        host="gitlab.example.com",
     )
     assert key == (
-        f"{GITLAB_FULL_DIFF_CACHE_PREFIX}:nova.teachx.ai:trace-analysis:oh-my-grokbuild:1:3:b:s:h"
+        f"{GITLAB_FULL_DIFF_CACHE_PREFIX}:gitlab.example.com:trace-analysis:oh-my-grokbuild:1:3:b:s:h"
     )
 
 

@@ -20,7 +20,7 @@ class PRTarget:
     repo_owner: str
     repo_name: str
     pr_number: int
-    # GitLab base URL (e.g. https://gitlab.com or https://nova.teachx.ai); None for GitHub.
+    # GitLab base URL (e.g. https://gitlab.com or https://gitlab.example.com); None for GitHub.
     base_url: str | None = None
 
 

@@ -132,7 +132,7 @@ def parse_gitlab_merge_request_parts(pr_url: str) -> GitLabURLParts:
 
     Accepts HTTPS MR URLs whose path ends with ``/-/merge_requests/<iid>``,
     including nested namespaces and self-managed hosts
-    (e.g. ``https://nova.teachx.ai/group/project/-/merge_requests/1``).
+    (e.g. ``https://gitlab.example.com/group/project/-/merge_requests/1``).
     Optional trailing slash only; no query string, fragment, or userinfo.
     """
     if not pr_url:

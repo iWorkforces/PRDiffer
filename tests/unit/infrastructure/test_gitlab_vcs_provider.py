@@ -21,12 +21,12 @@ class TestGitLabVCSRepository:
         assert provider.supports_repository("https://gitlab.com/owner/repo/-/merge_requests/17")
         assert provider.supports_repository("https://gitlab.com/group/subgroup/project/-/merge_requests/42")
         assert provider.supports_repository(
-            "https://nova.teachx.ai/trace-analysis/oh-my-grokbuild/-/merge_requests/1"
+            "https://gitlab.example.com/trace-analysis/oh-my-grokbuild/-/merge_requests/1"
         )
         assert provider.supports_repository("https://gitlab.com/owner/repo/-/tree/abc123")
         assert not provider.supports_repository("https://github.com/owner/repo/pull/17")
         assert not provider.supports_repository("https://gitlab.com/group/../project/-/merge_requests/1")
-        assert not provider.supports_repository("http://nova.teachx.ai/a/b/-/merge_requests/1")
+        assert not provider.supports_repository("http://gitlab.example.com/a/b/-/merge_requests/1")
 
     def test_to_file_diff_mapping_preserves_semantics(self) -> None:
         added_diff = "--- /dev/null\n+++ b/src/added.py\n+first\n+second"

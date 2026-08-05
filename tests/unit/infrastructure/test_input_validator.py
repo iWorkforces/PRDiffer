@@ -120,7 +120,7 @@ class TestGitLabURLValidation:
         assert (owner, repo, iid) == ("group/subgroup", "project", 42)
 
     def test_validate_custom_hosted_gitlab_url(self, validator: InputValidator) -> None:
-        url = "https://nova.teachx.ai/trace-analysis/oh-my-grokbuild/-/merge_requests/1"
+        url = "https://gitlab.example.com/trace-analysis/oh-my-grokbuild/-/merge_requests/1"
         validate_gitlab_url: Callable[[str], tuple[str, str, int]] = getattr(validator, "validate_gitlab_url")
         owner, repo, iid = validate_gitlab_url(url)
         assert (owner, repo, iid) == ("trace-analysis", "oh-my-grokbuild", 1)

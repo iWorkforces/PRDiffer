@@ -91,7 +91,7 @@ class GitLabOperations:
 
         ``project_path`` is the unencoded GitLab project path (e.g.
         ``group/subgroup/project``). ``base_url`` selects GitLab.com or a
-        custom-hosted instance (e.g. ``https://nova.teachx.ai``).
+        custom-hosted instance (e.g. ``https://gitlab.example.com``).
         """
         url = (base_url or self._base_url).rstrip("/")
         try:

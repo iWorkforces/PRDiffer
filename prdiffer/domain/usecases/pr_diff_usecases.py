@@ -58,7 +58,7 @@ class GetPRDiffUseCase:
         """Execute the use case with automatic commit-based caching.
 
         ``base_url`` is optional and used by GitLab session readers for
-        custom-hosted instances (e.g. ``https://nova.teachx.ai``).
+        custom-hosted instances (e.g. ``https://gitlab.example.com``).
         """
         if _is_session_reader(self._pr_diff_service):
             return await self._execute_session_path(repo_owner, repo_name, pr_number, base_url=base_url)
