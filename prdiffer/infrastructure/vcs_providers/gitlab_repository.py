@@ -10,7 +10,8 @@ from prdiffer.domain.entities.pr_diff import PRDiff
 from prdiffer.domain.errors import E5002_GITHUB_API_ERROR
 from prdiffer.domain.exceptions import PRDifferException
 from prdiffer.domain.interfaces.vcs_provider import VCSDiffRepositoryInterface
-from prdiffer.infrastructure.vcs_providers.gitlab_operations import GitLabDiffRecord, GitLabOperations
+from prdiffer.infrastructure.vcs_providers.gitlab_models import GitLabDiffRecord
+from prdiffer.infrastructure.vcs_providers.gitlab_operations import GitLabOperations
 
 
 class GitLabVCSRepository(VCSDiffRepositoryInterface):

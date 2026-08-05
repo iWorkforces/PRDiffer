@@ -1,50 +1,54 @@
-"""Synchronous python-gitlab lifecycle and merge request operations."""
+"""Synchronous python-gitlab lifecycle and immutable MR diff version selection."""
 
-from urllib.parse import quote
+from __future__ import annotations
+
+from typing import Any
 
 import gitlab
 import requests
-from pydantic import BaseModel, ConfigDict, ValidationError
 
-from prdiffer.domain.errors import E4002_PR_NOT_FOUND, E5002_GITHUB_API_ERROR, E5019_CONNECTION_ERROR
-from prdiffer.domain.exceptions import PRDifferException
-
-
-_NOT_FOUND_ERRORS = (
-    gitlab.GitlabAuthenticationError,
-    gitlab.GitlabGetError,
-    gitlab.GitlabListError,
-    gitlab.GitlabHttpError,
+from prdiffer.domain.error_codes import (
+    E4001_REPO_NOT_FOUND,
+    E4002_PR_NOT_FOUND,
+    E5019_CONNECTION_ERROR,
+    E5021_GITLAB_API_ERROR,
 )
-_READ_FAILURES = (
-    gitlab.GitlabConnectionError,
-    gitlab.GitlabParsingError,
-    requests.RequestException,
-    gitlab.GitlabError,
-    ValidationError,
+from prdiffer.domain.exceptions import (
+    FullDiffIncompleteError,
+    FullDiffIncompleteReason,
+    GitLabAPIError,
+    PRDifferException,
+)
+from prdiffer.infrastructure.vcs_providers.gitlab_models import (
+    GitLabDiffRecord,
+    GitLabDiffRefs,
+    GitLabDiffSnapshot,
+    GitLabVersionSummary,
+)
+from prdiffer.infrastructure.vcs_providers.gitlab_runtime import (
+    GitLabNotFoundContext,
+    GitLabNotFoundKind,
+    map_gitlab_exception,
 )
 
-
-class GitLabDiffRecord(BaseModel):
-    """Structured file diff response returned by GitLab's documented endpoint."""
-
-    model_config = ConfigDict(frozen=True)
-
-    old_path: str
-    new_path: str
-    new_file: bool
-    deleted_file: bool
-    renamed_file: bool
-    diff: str | None = ""
-    collapsed: bool = False
-    too_large: bool = False
+# Re-export for backward-compatible imports from gitlab_operations.
+__all__ = [
+    "GitLabDiffRecord",
+    "GitLabDiffRefs",
+    "GitLabDiffSnapshot",
+    "GitLabOperations",
+    "GitLabVersionSummary",
+]
 
 
 class GitLabOperations:
-    """Execute isolated synchronous GitLab operations with fresh SDK clients."""
+    """Execute isolated synchronous GitLab operations with fresh SDK clients.
+
+    Strict full-diff path pins one MR diff version whose base/start/head SHAs
+    exactly match the MR's current ``diff_refs``.
+    """
 
     def __init__(self, gitlab_token: str | None = None) -> None:
-        """Store only the token used to construct operation-scoped SDK clients."""
         self._gitlab_token = gitlab_token
 
     def initialize(self) -> None:
@@ -52,43 +56,197 @@ class GitLabOperations:
         try:
             with gitlab.Gitlab(url="https://gitlab.com", private_token=self._gitlab_token) as client:
                 client.auth()
-        except gitlab.GitlabError, requests.RequestException:
-            raise PRDifferException("Failed to initialize GitLab connection", error_code=E5019_CONNECTION_ERROR) from None
+        except (gitlab.GitlabError, requests.RequestException):
+            raise PRDifferException(
+                "Failed to initialize GitLab connection",
+                error_code=E5019_CONNECTION_ERROR,
+            ) from None
 
     def get_latest_commit_sha(self, owner: str, repo: str, pr: int) -> str:
-        """Read the nonempty current head SHA using GitLab's project managers."""
-        try:
-            with gitlab.Gitlab(url="https://gitlab.com", private_token=self._gitlab_token) as client:
-                project = client.projects.get(f"{owner}/{repo}")
-                merge_request = project.mergerequests.get(pr)
-                sha = getattr(merge_request, "sha", None)
-        except _NOT_FOUND_ERRORS:
-            raise PRDifferException("Merge request not found", error_code=E4002_PR_NOT_FOUND) from None
-        except _READ_FAILURES:
-            raise PRDifferException("GitLab API error", error_code=E5002_GITHUB_API_ERROR) from None
-
-        if not isinstance(sha, str) or not sha:
-            raise PRDifferException("Merge request SHA is missing", error_code=E5002_GITHUB_API_ERROR)
-        return sha
+        """Return the head SHA from a pinned snapshot (compat surface)."""
+        return self.select_diff_snapshot(f"{owner}/{repo}", pr).head_sha
 
     def get_diff_records(self, owner: str, repo: str, pr: int) -> tuple[GitLabDiffRecord, ...]:
-        """Read structured merge request diffs and compensate for absent paging headers."""
-        path = f"/projects/{quote(f'{owner}/{repo}', safe='')}/merge_requests/{pr}/diffs"
+        """Return ordered records from the pinned immutable version (compat)."""
+        return self.select_diff_snapshot(f"{owner}/{repo}", pr).records
+    def select_diff_snapshot(self, project_path: str, iid: int) -> GitLabDiffSnapshot:
+        """Select and fetch exactly one MR diff version matching current diff_refs.
+
+        ``project_path`` is the unencoded GitLab project path (e.g.
+        ``group/subgroup/project``).
+        """
         try:
             with gitlab.Gitlab(url="https://gitlab.com", private_token=self._gitlab_token) as client:
-                records = [GitLabDiffRecord.model_validate(record) for record in client.http_list(path, get_all=True, per_page=100, unidiff=True)]
-                if not records or len(records) % 100:
-                    return tuple(records)
+                return self._select_diff_snapshot_with_client(client, project_path, iid)
+        except FullDiffIncompleteError:
+            raise
+        except Exception as exc:
+            # Prefer runtime mapper for HTTP statuses.
+            not_found = GitLabNotFoundContext(GitLabNotFoundKind.MERGE_REQUEST)
+            # Heuristic: project get failures often surface first
+            mapped = map_gitlab_exception(exc, not_found=not_found)
+            if isinstance(mapped, Exception) and mapped is not exc:
+                # Refine project vs MR 404 using message when available
+                if getattr(mapped, "error_code", None) is E4002_PR_NOT_FOUND:
+                    status = getattr(exc, "response_code", None)
+                    if status == 404 and "Project" in type(exc).__name__:
+                        raise GitLabAPIError(
+                            "Repository not found",
+                            status_code=404,
+                            error_code=E4001_REPO_NOT_FOUND,
+                            details={"status_code": 404},
+                        ) from None
+                raise mapped from None
+            if isinstance(exc, (gitlab.GitlabAuthenticationError, gitlab.GitlabGetError, gitlab.GitlabHttpError)):
+                raise PRDifferException("Merge request not found", error_code=E4002_PR_NOT_FOUND) from None
+            if isinstance(exc, (gitlab.GitlabConnectionError, requests.RequestException)):
+                raise PRDifferException("GitLab API error", error_code=E5021_GITLAB_API_ERROR) from None
+            raise
 
-                page = len(records) // 100 + 1
-                while True:
-                    raw_next_records = client.http_list(path, page=page, get_all=False, per_page=100, unidiff=True)
-                    next_records = [GitLabDiffRecord.model_validate(record) for record in raw_next_records]
-                    records.extend(next_records)
-                    if len(next_records) < 100:
-                        return tuple(records)
-                    page += 1
-        except _NOT_FOUND_ERRORS:
-            raise PRDifferException("Merge request not found", error_code=E4002_PR_NOT_FOUND) from None
-        except _READ_FAILURES:
-            raise PRDifferException("GitLab API error", error_code=E5002_GITHUB_API_ERROR) from None
+    def _select_diff_snapshot_with_client(
+        self,
+        client: Any,
+        project_path: str,
+        iid: int,
+    ) -> GitLabDiffSnapshot:
+        try:
+            project = client.projects.get(project_path)
+        except Exception as exc:
+            mapped = map_gitlab_exception(
+                exc,
+                not_found=GitLabNotFoundContext(GitLabNotFoundKind.PROJECT),
+            )
+            if mapped is not exc:
+                raise mapped from None
+            raise
+
+        try:
+            merge_request = project.mergerequests.get(iid)
+        except Exception as exc:
+            mapped = map_gitlab_exception(
+                exc,
+                not_found=GitLabNotFoundContext(GitLabNotFoundKind.MERGE_REQUEST),
+            )
+            if mapped is not exc:
+                raise mapped from None
+            raise
+
+        try:
+            refs = GitLabDiffRefs.from_mapping(getattr(merge_request, "diff_refs", None))
+        except ValueError as exc:
+            raise FullDiffIncompleteError(
+                FullDiffIncompleteReason.INVENTORY_TRUNCATED,
+                message=f"MR diff_refs incomplete or malformed: {exc}",
+            ) from None
+
+        try:
+            version_list = list(merge_request.diffs.list(get_all=True))
+        except Exception as exc:
+            mapped = map_gitlab_exception(
+                exc,
+                not_found=GitLabNotFoundContext(GitLabNotFoundKind.MERGE_REQUEST),
+            )
+            if mapped is not exc:
+                raise mapped from None
+            raise
+
+        matches: list[GitLabVersionSummary] = []
+        for item in version_list:
+            try:
+                summary = GitLabVersionSummary.from_object(item)
+            except ValueError:
+                # Skip unparsable list entries; selection still requires exact match
+                continue
+            if summary.matches_refs(refs):
+                matches.append(summary)
+
+        if len(matches) != 1:
+            raise FullDiffIncompleteError(
+                FullDiffIncompleteReason.INVENTORY_TRUNCATED,
+                message=(
+                    f"Expected exactly one MR diff version matching diff_refs; found {len(matches)}"
+                ),
+                observed=len(matches),
+                limit=1,
+            )
+
+        selected = matches[0]
+        try:
+            version = merge_request.diffs.get(selected.version_id)
+        except Exception as exc:
+            mapped = map_gitlab_exception(
+                exc,
+                not_found=GitLabNotFoundContext(GitLabNotFoundKind.MERGE_REQUEST),
+            )
+            if mapped is not exc:
+                raise mapped from None
+            raise
+
+        fetched = GitLabVersionSummary.from_object(version)
+        if (
+            fetched.version_id != selected.version_id
+            or not fetched.matches_refs(refs)
+        ):
+            raise FullDiffIncompleteError(
+                FullDiffIncompleteReason.INVENTORY_TRUNCATED,
+                message="Fetched MR diff version id/refs drifted from selection",
+            )
+
+        state = str(getattr(version, "state", "") or "")
+        real_size_raw = getattr(version, "real_size", None)
+        real_size: int | None
+        if real_size_raw is None or real_size_raw == "":
+            real_size = None
+        else:
+            try:
+                real_size = int(real_size_raw)
+            except (TypeError, ValueError):
+                raise FullDiffIncompleteError(
+                    FullDiffIncompleteReason.INVENTORY_TRUNCATED,
+                    message="MR diff version real_size is malformed",
+                ) from None
+
+        raw_diffs = getattr(version, "diffs", None)
+        if raw_diffs is None:
+            raw_diffs = []
+        if not isinstance(raw_diffs, list):
+            raise FullDiffIncompleteError(
+                FullDiffIncompleteReason.INVENTORY_TRUNCATED,
+                message="MR diff version diffs payload is malformed",
+            )
+
+        records: list[GitLabDiffRecord] = []
+        for item in raw_diffs:
+            try:
+                records.append(GitLabDiffRecord.from_mapping(item if isinstance(item, dict) else _as_dict(item)))
+            except ValueError as exc:
+                raise FullDiffIncompleteError(
+                    FullDiffIncompleteReason.INVENTORY_TRUNCATED,
+                    message=f"Malformed embedded diff record: {exc}",
+                ) from None
+
+        return GitLabDiffSnapshot(
+            project_path=project_path,
+            iid=iid,
+            version_id=selected.version_id,
+            base_sha=refs.base_sha,
+            start_sha=refs.start_sha,
+            head_sha=refs.head_sha,
+            state=state,
+            real_size=real_size,
+            records=tuple(records),
+        )
+
+
+def _as_dict(raw: object) -> dict[str, Any]:
+    as_dict = getattr(raw, "asdict", None)
+    if callable(as_dict):
+        data = as_dict()
+        if isinstance(data, dict):
+            return data
+    attributes = getattr(raw, "attributes", None)
+    if isinstance(attributes, dict):
+        return attributes
+    if isinstance(raw, dict):
+        return raw
+    raise ValueError("cannot coerce diff record")
