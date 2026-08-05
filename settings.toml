@@ -2,6 +2,8 @@
 # Application settings
 app.debug = false
 app.log_level = "INFO"
+# Selected-file admission limit for full-context diffs (GitHub + GitLab).
+# Runtime override via MAX_FILES_ALLOWED in .env (see .env.example / start script).
 app.max_files_allowed = 50
 app.incremental_mode = false
 
@@ -58,15 +60,15 @@ gitlab.allowed_hosts = ["gitlab.com"]
 # from app.max_files_allowed, diff.max_total_chars, mcp.pr_diff_request_timeout_seconds
 # when gitlab.* overrides are absent.
 
-# Performance optimization feature flags
+# Performance optimization feature flags (dotted keys under [default]; not a Dynaconf env)
 # Bounded concurrency (indexed batch, session CapacityLimiter, max_concurrent).
-[performance]
-cache_hit_optimization_enabled = true  # Optimistic cache lookup before commit SHA check (40-60% latency reduction)
-parallel_file_fetch_enabled = true  # Bounded parallel file content fetch (github.max_concurrent)
-parallel_head_base_fetch_enabled = true  # Concurrent head and base content loads
-parallel_diff_generation_enabled = true  # Parallel full-context per-file generation
+performance.cache_hit_optimization_enabled = true  # Optimistic cache lookup before commit SHA check
+performance.parallel_file_fetch_enabled = true  # Bounded parallel file content fetch (github.max_concurrent)
+performance.parallel_head_base_fetch_enabled = true  # Concurrent head and base content loads
+performance.parallel_diff_generation_enabled = true  # Parallel full-context per-file generation
 
-# File filtering patterns
+# File filtering patterns (GitHub only; GitLab has no ignore filter).
+# Runtime override via GITHUB_IGNORE_PATTERNS CSV in .env (replaces this list).
 github.ignore_patterns = [
     # Hidden files and directories (matches .* and */.* patterns)
     "(^\\..*|.*/\\..*)",
@@ -138,50 +140,6 @@ mcp.port = 9102
 mcp.host = "127.0.0.1"
 mcp.path = "/mcp"
 
-# Authentication settings
-[default.auth]
-enabled = true  # Enable/disable API key authentication (SECURITY: enabled by default for production)
-# To disable authentication for development/local use, set MCP_AUTH_ENABLED=false environment variable
-# API keys can be configured via environment variable MCP_API_KEYS (comma-separated)
-# Or MCP_ADMIN_API_KEY for admin access
-# Example: MCP_API_KEYS="key1,key2,key3"
-
-# Authentication brute-force protection settings
-max_failures_per_minute = 5
-lockout_duration = 60  # seconds
-failure_window = 300  # 5 minutes
-
-# Security headers for HTTP/SSE transports
-# NOTE: FastMCP runs on uvicorn. For production deployments, use a reverse proxy
-# (nginx, Apache, Caddy) to add security headers. Recommended headers:
-# - X-Content-Type-Options: nosniff
-# - X-Frame-Options: DENY or SAMEORIGIN
-# - X-XSS-Protection: 1; mode=block
-# - Content-Security-Policy: default-src 'self'
-# - Strict-Transport-Security: max-age=31536000; includeSubDomains (HTTPS only)
-# - Referrer-Policy: strict-origin-when-cross-origin
-
-# Example nginx configuration for security headers:
-# server {
-#     listen 443 ssl http2;
-#     server_name your-domain.com;
-#
-#     add_header X-Content-Type-Options "nosniff" always;
-#     add_header X-Frame-Options "DENY" always;
-#     add_header X-XSS-Protection "1; mode=block" always;
-#     add_header Content-Security-Policy "default-src 'self'" always;
-#     add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
-#     add_header Referrer-Policy "strict-origin-when-cross-origin" always;
-#
-#     location /mcp {
-#         proxy_pass http://127.0.0.1:9102;
-#         proxy_set_header Host $host;
-#         proxy_set_header X-Real-IP $remote_addr;
-#         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-#         proxy_set_header X-Forwarded-Proto $scheme;
-#     }
-# }
- 
 # File processing settings
 file_processing.concurrent_downloads = 3
 file_processing.parallel_fetch_threshold = 10
@@ -253,3 +211,47 @@ security.sql_injection_patterns = [
 # Logging settings
 logging.format = "simple"  # Options: simple, json, structured
 logging.json_pretty = false  # Pretty-print JSON output (development only)
+
+# Authentication settings (nested under default.auth)
+[default.auth]
+enabled = true  # Enable/disable API key authentication (SECURITY: enabled by default for production)
+# To disable authentication for development/local use, set MCP_AUTH_ENABLED=false environment variable
+# API keys can be configured via environment variable MCP_API_KEYS (comma-separated)
+# Or MCP_ADMIN_API_KEY for admin access
+# Example: MCP_API_KEYS="key1,key2,key3"
+
+# Authentication brute-force protection settings
+max_failures_per_minute = 5
+lockout_duration = 60  # seconds
+failure_window = 300  # 5 minutes
+
+# Security headers for HTTP/SSE transports
+# NOTE: FastMCP runs on uvicorn. For production deployments, use a reverse proxy
+# (nginx, Apache, Caddy) to add security headers. Recommended headers:
+# - X-Content-Type-Options: nosniff
+# - X-Frame-Options: DENY or SAMEORIGIN
+# - X-XSS-Protection: 1; mode=block
+# - Content-Security-Policy: default-src 'self'
+# - Strict-Transport-Security: max-age=31536000; includeSubDomains (HTTPS only)
+# - Referrer-Policy: strict-origin-when-cross-origin
+
+# Example nginx configuration for security headers:
+# server {
+#     listen 443 ssl http2;
+#     server_name your-domain.com;
+#
+#     add_header X-Content-Type-Options "nosniff" always;
+#     add_header X-Frame-Options "DENY" always;
+#     add_header X-XSS-Protection "1; mode=block" always;
+#     add_header Content-Security-Policy "default-src 'self'" always;
+#     add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+#     add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+#
+#     location /mcp {
+#         proxy_pass http://127.0.0.1:9102;
+#         proxy_set_header Host $host;
+#         proxy_set_header X-Real-IP $remote_addr;
+#         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+#         proxy_set_header X-Forwarded-Proto $scheme;
+#     }
+# }

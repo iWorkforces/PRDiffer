@@ -26,7 +26,10 @@ class TestGitLabConfigDefaults:
 
 @pytest.mark.unit
 class TestSettingsTomlGitLabDefaults:
-    def test_real_settings_resolve_gitlab_config(self) -> None:
+    def test_real_settings_resolve_gitlab_config(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        # Blank env (not delenv): Dynaconf load_dotenv must not re-inject developer .env values.
+        monkeypatch.setenv("GITLAB_ALLOWED_HOSTS", "")
+        monkeypatch.setenv("MAX_FILES_ALLOWED", "")
         service = SettingsService(settings_files=["settings.toml"])
         service.clear_cache()
         config = service.get_gitlab_config()
@@ -66,3 +69,18 @@ class TestSettingsTomlGitLabDefaults:
         service.clear_cache()
         config = service.get_gitlab_config()
         assert config.allowed_hosts == ("gitlab.com",)
+
+    def test_max_files_allowed_env_overrides_toml(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """MAX_FILES_ALLOWED wins over settings.toml for GitLab — used by .env / start script."""
+        monkeypatch.setenv("MAX_FILES_ALLOWED", "  25  ")
+        service = SettingsService(settings_files=["settings.toml"])
+        service.clear_cache()
+        config = service.get_gitlab_config()
+        assert config.max_files_allowed == 25
+
+    def test_empty_max_files_allowed_env_falls_back_to_toml(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("MAX_FILES_ALLOWED", "   ")
+        service = SettingsService(settings_files=["settings.toml"])
+        service.clear_cache()
+        config = service.get_gitlab_config()
+        assert config.max_files_allowed == 50

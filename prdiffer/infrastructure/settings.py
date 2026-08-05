@@ -107,7 +107,7 @@ class SettingsService(SettingsServiceInterface):
                 "max_adaptive_delay": get_with_fallback("github.max_adaptive_delay", 30),
                 "api_health_tracking": get_with_fallback("github.api_health_tracking", True),
                 "context_aware_retry": get_with_fallback("github.context_aware_retry", True),
-                "ignore_patterns": tuple(get_with_fallback("github.ignore_patterns", [])),
+                "ignore_patterns": self._resolve_ignore_patterns(get_with_fallback),
                 "valid_extensions": tuple(get_with_fallback("github.valid_extensions", [])),
                 "diff_parallel_enabled": get_with_fallback("github.diff_parallel_enabled", True),
                 "diff_parallel_threshold": get_with_fallback("github.diff_parallel_threshold", 3),
@@ -152,13 +152,13 @@ class SettingsService(SettingsServiceInterface):
                 max_adaptive_delay=int(get_with_fallback("github.max_adaptive_delay", 30)),
                 api_health_tracking=bool(get_with_fallback("github.api_health_tracking", True)),
                 context_aware_retry=bool(get_with_fallback("github.context_aware_retry", True)),
-                ignore_patterns=tuple(get_with_fallback("github.ignore_patterns", [])),
+                ignore_patterns=self._resolve_ignore_patterns(get_with_fallback),
                 valid_extensions=tuple(get_with_fallback("github.valid_extensions", [])),
                 diff_parallel_enabled=bool(get_with_fallback("github.diff_parallel_enabled", True)),
                 diff_parallel_threshold=int(get_with_fallback("github.diff_parallel_threshold", 3)),
                 diff_max_workers=int(get_with_fallback("github.diff_max_workers", 4)),
                 diff_worker_timeout=float(get_with_fallback("github.diff_worker_timeout", 30.0)),
-                max_files_allowed=int(get_with_fallback("app.max_files_allowed", 50)),
+                max_files_allowed=self._resolve_max_files_allowed(get_with_fallback),
                 large_file_threshold=int(get_with_fallback("diff.large_file_threshold", 5000)),
                 chunk_size=int(get_with_fallback("diff.chunk_size", 1000)),
                 max_diff_size=int(get_with_fallback("diff.max_diff_size", 100000)),
@@ -188,9 +188,13 @@ class SettingsService(SettingsServiceInterface):
                     value = default_settings.get(key, default) if default_settings else None
                 return value if value is not None else default
 
-            max_files = get_with_fallback("gitlab.max_files_allowed", None)
-            if max_files is None:
-                max_files = get_with_fallback("app.max_files_allowed", 50)
+            # max_files_allowed priority:
+            # 1) MAX_FILES_ALLOWED env — works with start-prdiffer-mcp-server.sh /.env
+            # 2) gitlab.max_files_allowed → app.max_files_allowed → 50
+            max_files = self._resolve_max_files_allowed(
+                get_with_fallback,
+                gitlab_key="gitlab.max_files_allowed",
+            )
 
             max_total = get_with_fallback("gitlab.max_total_chars", None)
             if max_total is None:
@@ -242,10 +246,17 @@ class SettingsService(SettingsServiceInterface):
             if self._app_settings_cache is not None:
                 return self._app_settings_cache
 
+            def get_with_fallback(key: str, default: Any = None) -> Any:
+                value = self.get(key)
+                if value is None and hasattr(self.settings, "from_env"):
+                    default_settings = self.settings.from_env("default")
+                    value = default_settings.get(key, default) if default_settings else None
+                return value if value is not None else default
+
             self._app_settings_cache = {
                 "debug": self.get("app.debug", False),
                 "log_level": self.get("app.log_level", "INFO"),
-                "max_files_allowed": self.get("app.max_files_allowed", 50),
+                "max_files_allowed": self._resolve_max_files_allowed(get_with_fallback),
                 "incremental_mode": self.get("app.incremental_mode", False),
                 "logging_enabled": self.get("app.logging_enabled", True),
                 "log_format": self.get("app.log_format", "simple"),
@@ -290,6 +301,56 @@ class SettingsService(SettingsServiceInterface):
 
     def is_development_mode(self) -> bool:
         return self.get("app.debug", False) or os.getenv("ENV_FOR_DYNACONF") == "development"
+
+    @staticmethod
+    def _resolve_max_files_allowed(
+        get_with_fallback: Any,
+        *,
+        gitlab_key: str | None = None,
+        default: int = 50,
+    ) -> int:
+        """Resolve selected-file admission limit.
+
+        Priority:
+        1) ``MAX_FILES_ALLOWED`` env (works with ``start-prdiffer-mcp-server.sh`` / ``.env``)
+        2) optional provider key (e.g. ``gitlab.max_files_allowed``)
+        3) ``app.max_files_allowed`` from settings.toml
+        4) ``default`` (50)
+        """
+        env_val = os.getenv("MAX_FILES_ALLOWED")
+        if env_val is not None and env_val.strip():
+            return int(env_val.strip())
+
+        if gitlab_key is not None:
+            provider_val = get_with_fallback(gitlab_key, None)
+            if provider_val is not None:
+                return int(provider_val)
+
+        return int(get_with_fallback("app.max_files_allowed", default))
+
+    @staticmethod
+    def _resolve_ignore_patterns(get_with_fallback: Any) -> tuple[str, ...]:
+        """Resolve GitHub ignore file patterns.
+
+        Priority:
+        1) ``GITHUB_IGNORE_PATTERNS`` env (CSV) — works with start script / ``.env``
+        2) ``github.ignore_patterns`` from settings.toml
+        3) empty tuple
+
+        When set, the env value **replaces** the toml list (does not append).
+        Patterns support globs (``*.lock``, ``node_modules/``) and regex strings.
+        """
+        env_val = os.getenv("GITHUB_IGNORE_PATTERNS")
+        if env_val is not None and env_val.strip():
+            patterns = [part.strip() for part in env_val.split(",") if part.strip()]
+            return tuple(patterns)
+
+        raw = get_with_fallback("github.ignore_patterns", [])
+        if raw is None:
+            return ()
+        if isinstance(raw, str):
+            return tuple(part.strip() for part in raw.split(",") if part.strip())
+        return tuple(str(p) for p in raw)
 
     def _get_loaded_config_files(self) -> list[str]:
         try:
