@@ -44,8 +44,12 @@ Review the pull request identified by `$1`. `$1` is the sole argument and is
      read-only. Do not edit files, write reports, call skills or more agents,
      delegate, mutate git, or perform any other mutation.
    - Return a coverage manifest showing every reviewed snapshot file in provider
-     order and structured candidate findings. Each candidate uses this internal
-     schema:
+     order and structured candidate findings. Every candidate must be anchored
+     to a contiguous range of newly added code lines on the new side of the
+     diff. Both `start_line` and `end_line` must be new-file line numbers whose
+     diff lines are marked `+`. Do not anchor a candidate to unchanged context,
+     removed lines, old-side line numbers, or arbitrary full-file lines. Each
+     candidate uses this internal schema:
 
       ```yaml
       reviewer_lens: correctness
@@ -82,12 +86,16 @@ Review the pull request identified by `$1`. `$1` is the sole argument and is
    full-context `diff`, using the same LSP and local-source requirements above.
    For each candidate, independently confirm it against the full diff and local
    or LSP context. Validate that `relevant_file` is the matching entry `path`,
-   never `previous_path` or another file, and that the inclusive range and side
-   are accurate. Use new-side lines for added, modified, and renamed files, and
-   old-side lines for deleted files. Reject speculation, style-only feedback,
-   informational notes, and generic coverage requests. Independently assess the
-   impact, severity, evidence, and recommended fix. Record only confirmed,
-   concrete, actionable defects. Use the available `tavily-mcp` tools when
+   never `previous_path` or another file. Confirm that the entire inclusive
+   range contains only newly added code lines marked `+` on the new side and
+   that `start_line` and `end_line` are their new-file line numbers. Reject any
+   candidate anchored to unchanged context, removed or old-side lines, or
+   arbitrary full-file lines. Deleted files have no new-side added lines, so
+   review them for context but do not produce findings for them. Reject
+   speculation, style-only feedback, informational notes, and generic coverage
+   requests. Independently assess the impact, severity, evidence, and
+   recommended fix. Record only confirmed, concrete, actionable defects. Use
+   the available `tavily-mcp` tools when
    confirmation requires current external knowledge, when an API, library,
    standard, vulnerability, or other external behavior is uncertain, or in any
    similar case that needs an online check. Prefer official primary sources and
@@ -103,9 +111,11 @@ Review the pull request identified by `$1`. `$1` is the sole argument and is
    `pr-{pr_number}-review-report.yml` if it exists. Preserve its prior
    findings. It must be valid YAML whose only top-level key is a `findings`
    sequence. If the existing report is malformed or incompatible with this
-   structure, stop with a clear error and do not overwrite it. Compare the
-   remaining confirmed new findings with existing findings and remove only true
-   duplicates.
+   structure, stop with a clear error and do not overwrite it. Validate that
+   every existing finding's inclusive `start_line` through `end_line` range
+   contains only added `+` lines on the new side of its `relevant_file`; if not,
+   stop without changing the report. Compare the remaining confirmed new
+   findings with existing findings and remove only true duplicates.
 8. If confirmed new findings remain after the existing-finding comparison, call
    the `Skill` tool exactly once with skill name `humanizer`. Give it only those
    immutable validated findings. Require its draft, remaining-AI audit, and
@@ -120,9 +130,12 @@ Review the pull request identified by `$1`. `$1` is the sole argument and is
    rewrite changes meaning, stop without changing the report. Otherwise use only
    the approved final `issue_content` values for the new findings.
 10. Append only the remaining non-duplicate confirmed findings to the sole
-    `findings` sequence. For every finding, set `relevant_file` to the `path`
-    of the matching `result.files` entry. Each finding must use exactly these
-    keys:
+     `findings` sequence. For every finding, set `relevant_file` to the `path`
+     of the matching `result.files` entry. Immediately before writing, verify
+     every final finding again: `start_line` and `end_line` must be new-file line
+     numbers, and every line in that inclusive range must be newly added code
+     marked `+` in the full diff. Never emit a range containing context, removed,
+     or old-side lines. Each finding must use exactly these keys:
 
    ```yaml
    - relevant_file: |
@@ -132,7 +145,7 @@ Review the pull request identified by `$1`. `$1` is the sole argument and is
      issue_content: |
        Explain the defect, impact, and correction needed.
      start_line: 1
-     end_line: 1
+     end_line: 3
    ```
 
     `issue_content` must always be a YAML literal block. Do not add required
