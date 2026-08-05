@@ -178,3 +178,29 @@ class TestGenerateOrderedFileDiffs:
         with pytest.raises(DiffGenerationError) as exc:
             generator.generate_ordered_file_diffs(files)
         assert exc.value.error_code.code == "E5003"
+
+    def test_source_mentioning_diff_truncated_is_not_false_positive(self) -> None:
+        """Real file content may include the truncation notice string (settings/tests)."""
+        utils = DiffUtils()
+        generator = DiffGenerator(diff_utils=utils, parallel_enabled=False)
+        base = 'notice = "legacy"\n'
+        head = 'diff.truncation_notice = "[DIFF TRUNCATED]"\nother = 1\n'
+        files = [_patch(name="settings.toml", edit=EDIT_TYPE.MODIFIED, base=base, head=head)]
+        results = generator.generate_ordered_file_diffs(files)
+        assert len(results) == 1
+        assert "[DIFF TRUNCATED]" in results[0].diff
+        assert "truncation_notice" in results[0].diff
+
+    def test_whole_body_truncation_sentinel_still_raises_e5020(self) -> None:
+        class TruncatingUtils(DiffUtils):
+            def build_full_file_patch(self, original_file_str: str, new_file_str: str) -> str:
+                return "[DIFF TRUNCATED]"
+
+            def build_full_file_patch_chunked(self, original_file_str: str, new_file_str: str, **kwargs) -> str:
+                return "[DIFF TRUNCATED]"
+
+        generator = DiffGenerator(diff_utils=TruncatingUtils(), parallel_enabled=False)
+        files = [_patch(name="x.py", edit=EDIT_TYPE.MODIFIED, base="a\n", head="b\n")]
+        with pytest.raises(FullDiffIncompleteError) as exc:
+            generator.generate_ordered_file_diffs(files)
+        assert exc.value.reason is FullDiffIncompleteReason.RESPONSE_SIZE_LIMIT

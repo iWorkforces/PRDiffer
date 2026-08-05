@@ -5,9 +5,9 @@ Adapters, DI, cache, GitLab/GitHub, security, settings, full-diff plumbing.
 ## STRUCTURE (HIGH LEVEL)
 ```
 tests/unit/infrastructure/
-├── github/                              # Client, processor, generator, mappers, session, inventory
+├── github/                              # Client, processor, multi-ref, generator, mappers, session, inventory
 ├── vcs_providers/                       # GitLab runtime/session/assembler/models unit tests
-├── utils/                               # Retry, CB, cache decorator, parsers
+├── utils/                               # Retry, CB, cache decorator, parsers, cross-loop executor
 ├── cache/                               # Cache store/keys/decorators + repository/
 ├── security/                            # Detector, sanitizer, helpers
 ├── logging/                             # Exception utils
@@ -18,11 +18,11 @@ tests/unit/infrastructure/
 ├── test_pr_diff_service_comprehensive.py
 ├── test_pr_diff_service_full_context.py # Strict full-context PRDiff mapping
 ├── test_pr_diff_service_updates.py
-├── test_github_config_wiring.py         # GitHubConfig defaults through settings/factory
+├── test_github_config_wiring.py         # GitHubConfig defaults (max_total_chars 600k) through settings/factory
 ├── test_gitlab_config_wiring.py         # GitLabConfig + GITLAB_ALLOWED_HOSTS env override
 ├── test_full_diff_concurrency_defaults.py
 ├── test_diff_limits.py                  # Strict size limits (no silent truncate)
-├── test_async_parallel_executor.py      # anyio parallel executor
+├── test_async_parallel_executor.py      # anyio parallel executor (~832)
 ├── test_di_container.py
 ├── test_settings_*.py
 ├── test_request_coalescing.py
@@ -34,12 +34,13 @@ tests/unit/infrastructure/
 ## WHERE TO LOOK
 | Task | Location | Notes |
 |------|----------|-------|
-| **Full-diff config defaults** | `test_github_config_wiring.py`, `test_full_diff_concurrency_defaults.py` | Parallel flags, capacity |
+| **Full-diff config defaults** | `test_github_config_wiring.py`, `test_full_diff_concurrency_defaults.py` | Parallel flags, capacity, `max_total_chars` |
 | **GitLab config / allowlist** | `test_gitlab_config_wiring.py` | toml defaults + `GITLAB_ALLOWED_HOSTS` |
 | **GitLab runtime / session** | `vcs_providers/test_gitlab_*.py` | Per-call deadline/base_url, allowlist, equal-noop |
 | **Strict size limits** | `test_diff_limits.py` | `RESPONSE_SIZE_LIMIT` / E5020 |
 | **Service full-context** | `test_pr_diff_service_full_context.py` | Generated full-context → PRDiff |
-| **Parallel executor** | `test_async_parallel_executor.py` | anyio task groups, ordered batches |
+| **Parallel executor** | `test_async_parallel_executor.py` | anyio task groups, ordered batches, per-batch semaphore |
+| **Multi-ref content** | `github/test_file_content_multi_ref_batch.py`, `github/test_file_processor_multi_ref.py` | Cross-ref order + capacity |
 | **GitHub adapter details** | `github/` | See package AGENTS.md |
 | **Resilience** | `utils/` | Retry + circuit breaker |
 

@@ -23,6 +23,8 @@ from prdiffer.infrastructure.logging.exception_utils import (
 
 from prdiffer.domain.entities.file_content import (
     FileContentAvailable,
+    FileContentRequest,
+    FileContentResponse,
     FileContentResult,
     FileContentUnavailable,
     FileContentUnavailableReason,
@@ -234,31 +236,30 @@ class GitHubAPIClientOperationsMixin:
         branch: str,
     ) -> dict[str, FileContentResult]:
         """Get typed content for multiple files with caching and optional parallel fetching."""
+        requests = tuple(FileContentRequest(repo_full_name, file_path, branch) for file_path in file_paths)
+        return {response.request.path: response.content for response in self.get_files_content_multi_ref_batch(requests)}
+
+    def get_files_content_multi_ref_batch(self, requests: tuple[FileContentRequest, ...]) -> tuple[FileContentResponse, ...]:
+        """Get ref-qualified content in request order without partial responses."""
         if self._parallel_file_fetch_enabled:
             import anyio
 
-            return anyio.run(
-                self._get_files_content_batch_parallel_async,
-                repo_full_name,
-                file_paths,
-                branch,
-            )
+            return anyio.run(self._get_files_content_multi_ref_batch_parallel_async, requests)
+        return self._get_files_content_multi_ref_batch_sequential(requests)
 
-        results: dict[str, FileContentResult] = {}
-        files_to_fetch: list[str] = []
-
-        for file_path in file_paths:
-            cache_key = self._content_cache_key(repo_full_name, file_path, branch)
+    def _get_files_content_multi_ref_batch_sequential(self, requests: tuple[FileContentRequest, ...]) -> tuple[FileContentResponse, ...]:
+        content_by_request: dict[FileContentRequest, FileContentResult] = {}
+        for request in requests:
+            if request in content_by_request:
+                continue
+            cache_key = self._content_cache_key(request.repo_full_name, request.path, request.ref)
             cached_content = self._cache_get_available(cache_key)
-            if cached_content is not None:
-                results[file_path] = FileContentAvailable(text=cached_content)
-            else:
-                files_to_fetch.append(file_path)
-
-        for file_path in files_to_fetch:
-            results[file_path] = self.get_file_content(repo_full_name, file_path, branch)
-
-        return results
+            content_by_request[request] = (
+                FileContentAvailable(text=cached_content)
+                if cached_content is not None
+                else self.get_file_content(request.repo_full_name, request.path, request.ref)
+            )
+        return tuple(FileContentResponse(request=request, content=content_by_request[request]) for request in requests)
 
     async def _get_file_content_async(
         self,
@@ -329,43 +330,48 @@ class GitHubAPIClientOperationsMixin:
             )
             raise
 
+    async def _get_file_content_request_async(self, request: FileContentRequest) -> FileContentResult:
+        return await self._get_file_content_async(request.repo_full_name, request.path, request.ref)
+
+    async def _get_files_content_multi_ref_batch_parallel_async(
+        self,
+        requests: tuple[FileContentRequest, ...],
+    ) -> tuple[FileContentResponse, ...]:
+        content_by_request: dict[FileContentRequest, FileContentResult] = {}
+        misses: list[FileContentRequest] = []
+        for request in requests:
+            if request in content_by_request or request in misses:
+                continue
+            cache_key = self._content_cache_key(request.repo_full_name, request.path, request.ref)
+            cached_content = self._cache_get_available(cache_key)
+            if cached_content is None:
+                misses.append(request)
+            else:
+                content_by_request[request] = FileContentAvailable(text=cached_content)
+
+        if misses:
+            fetched = await self._async_executor.execute_indexed_batch(
+                self._get_file_content_request_async,
+                misses,
+                keys=misses,
+                strict=True,
+            )
+            for outcome in fetched.outcomes:
+                if outcome.value is None:
+                    raise RuntimeError(f"Missing indexed content outcome for {outcome.key}")
+                content_by_request[outcome.key] = outcome.value
+
+        return tuple(FileContentResponse(request=request, content=content_by_request[request]) for request in requests)
+
     async def _get_files_content_batch_parallel_async(
         self,
         repo_full_name: str,
         file_paths: list[str],
         branch: str,
-        max_workers: int = 4,
     ) -> dict[str, FileContentResult]:
-        results: dict[str, FileContentResult] = {}
-        files_to_fetch: list[str] = []
-
-        for file_path in file_paths:
-            cache_key = self._content_cache_key(repo_full_name, file_path, branch)
-            cached_content = self._cache_get_available(cache_key)
-            if cached_content is not None:
-                results[file_path] = FileContentAvailable(text=cached_content)
-            else:
-                files_to_fetch.append(file_path)
-
-        if not files_to_fetch:
-            return results
-
-        start_time = time.time()
-        fetched = await self._async_executor.execute_indexed_batch(
-            lambda fp: self._get_file_content_async(repo_full_name, fp, branch),
-            files_to_fetch,
-            keys=files_to_fetch,
-            strict=True,
-        )
-        for outcome in fetched.outcomes:
-            if outcome.value is None:
-                raise RuntimeError(f"Missing indexed content outcome for {outcome.key}")
-            results[str(outcome.key)] = outcome.value
-
-        elapsed = time.time() - start_time
-        self._logger.debug(f"Async parallel batch fetch: {len(files_to_fetch)} files in {elapsed:.2f}s ({elapsed / len(files_to_fetch) * 1000:.1f}ms/file avg)")
-
-        return results
+        requests = tuple(FileContentRequest(repo_full_name, file_path, branch) for file_path in file_paths)
+        responses = await self._get_files_content_multi_ref_batch_parallel_async(requests)
+        return {response.request.path: response.content for response in responses}
 
     def _extract_file_content_result(
         self,

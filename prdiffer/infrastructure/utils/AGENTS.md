@@ -7,7 +7,7 @@ Resilience, parallelism, parsing, and shared utilities (including subpackages).
 ```
 prdiffer/infrastructure/utils/
 ├── retry/                      # Unified retry package (base, handler, models, factories)
-├── parallel/                   # AsyncParallelExecutor (~608 in executor.py)
+├── parallel/                   # AsyncParallelExecutor (~601 in executor.py; per-batch semaphore)
 ├── coalescing/                 # Package path for coalescing
 ├── circuit_breaker/            # SHIM → circuit_breaker_core / registry
 ├── metrics/                    # Performance metrics package
@@ -32,7 +32,7 @@ prdiffer/infrastructure/utils/
 |------|----------|-------|
 | **Retry policy** | `retry/handler.py`, `retry/base.py` | Context-aware (skip file 404s) |
 | **CB state machine** | `circuit_breaker_core.py` | Prefer over shim package |
-| **Fan-out** | `parallel/executor.py` | anyio task groups + semaphores |
+| **Fan-out** | `parallel/executor.py` | anyio task groups + per-batch semaphores |
 | **Indexed identity** | `execute_indexed_batch` | Ordered outcomes; strict `IndexedBatchError` |
 | **Coalesce** | `coalescing_service.py` | Deduplicate concurrent work |
 | **Full-diff size** | `diff_limits.py` | `assert_*` → E5020 RESPONSE_SIZE_LIMIT |
@@ -47,6 +47,7 @@ prdiffer/infrastructure/utils/
   - Package `circuit_breaker/` re-exports only
 - Coalescing: prefer consistent imports (`coalescing_service` vs package) within a change set.
 - Parallel full-diff work must preserve identity/order via `execute_indexed_batch`.
+- Executor creates a fresh semaphore per batch (safe across independent anyio loops).
 
 ## ANTI-PATTERNS
 - NO sleeping without jitter/caps on hot paths.

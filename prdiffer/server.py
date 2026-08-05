@@ -1,14 +1,14 @@
 import sys
 import os
 import argparse
-from dotenv import load_dotenv
+from pathlib import Path
 
 # Add the current directory to Python path for direct execution
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from prdiffer.version import __version__
 from prdiffer.application.factory import create_mcp_server
-from prdiffer.infrastructure.settings import get_settings_service
+from prdiffer.infrastructure.settings import get_settings_service, load_project_dotenv
 from prdiffer.infrastructure.cache.service import get_cache_service
 from prdiffer.infrastructure.cache.cache_repository import (
     get_repository_cache_service,
@@ -119,8 +119,19 @@ def main() -> None:
     print(f"📦 Version: {__version__}", file=output_stream)
     print(f"🔧 Transport: {transport_mode}", file=output_stream)
 
-    # Load environment variables from .env file (if present)
-    load_dotenv()
+    # Load project-root .env (cwd-independent) so GITHUB_IGNORE_PATTERNS / tokens apply
+    # when MCP is started outside the repository working directory.
+    loaded_env = load_project_dotenv(override=False)
+    if loaded_env is not None:
+        print(f"📄 Loaded environment from {loaded_env}", file=output_stream)
+    else:
+        # Fallback: cwd-relative .env for non-checkout layouts
+        from dotenv import load_dotenv
+
+        cwd_env = Path.cwd() / ".env"
+        if cwd_env.is_file():
+            load_dotenv(cwd_env, override=False)
+            print(f"📄 Loaded environment from {cwd_env}", file=output_stream)
 
     # Initialize dependencies following clean architecture principles
     settings_service = get_settings_service()

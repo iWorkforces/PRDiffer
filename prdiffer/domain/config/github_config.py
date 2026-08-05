@@ -16,7 +16,7 @@ from .github_config_interface import GitHubConfigDict, GitHubConfigInterface
 DEFAULT_GITHUB_TIMEOUT_SECONDS = 30
 DEFAULT_PR_DIFF_REQUEST_TIMEOUT_SECONDS = 180.0
 DEFAULT_MAX_FILE_SIZE_BYTES = 10_485_760  # 10 MiB
-DEFAULT_MAX_TOTAL_CHARS = 200_000
+DEFAULT_MAX_TOTAL_CHARS = 600_000
 
 
 def _require_positive(name: str, value: int | float) -> None:

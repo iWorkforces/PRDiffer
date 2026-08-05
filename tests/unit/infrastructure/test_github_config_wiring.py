@@ -19,7 +19,7 @@ class TestGitHubConfigNewDefaults:
         assert config.timeout == 30
         assert config.pr_diff_request_timeout_seconds == 180.0
         assert config.max_file_size_bytes == 10_485_760
-        assert config.max_total_chars == 200_000
+        assert config.max_total_chars == 600_000
         assert config.parallel_file_fetch_enabled is True
         assert config.parallel_head_base_fetch_enabled is True
         assert config.parallel_diff_generation_enabled is True
@@ -54,7 +54,7 @@ class TestSettingsTomlDefaults:
         assert config.timeout == 30
         assert config.pr_diff_request_timeout_seconds == 180.0
         assert config.max_file_size_bytes == 10_485_760
-        assert config.max_total_chars == 200_000
+        assert config.max_total_chars == 600_000
         assert config.max_files_allowed == 50
         assert len(config.ignore_patterns) > 0
         assert "*.lock" in config.ignore_patterns
@@ -81,12 +81,24 @@ class TestSettingsTomlDefaults:
 
     def test_github_ignore_patterns_env_overrides_toml(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """GITHUB_IGNORE_PATTERNS (CSV) replaces settings.toml — used by .env / start script."""
-        monkeypatch.setenv("GITHUB_IGNORE_PATTERNS", " *.lock , node_modules/ , dist/ ")
+        monkeypatch.setenv("GITHUB_IGNORE_PATTERNS", " *.lock , node_modules/ , dist/ , *AGENTS.md ")
         service = SettingsService(settings_files=["settings.toml"])
         service.clear_cache()
         config = service.get_github_config()
-        assert config.ignore_patterns == ("*.lock", "node_modules/", "dist/")
-        assert service.get_github_settings()["ignore_patterns"] == ("*.lock", "node_modules/", "dist/")
+        assert config.ignore_patterns == ("*.lock", "node_modules/", "dist/", "*AGENTS.md")
+        assert service.get_github_settings()["ignore_patterns"] == ("*.lock", "node_modules/", "dist/", "*AGENTS.md")
+
+    def test_github_ignore_patterns_agents_md_glob_applies_to_nested_paths(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """*AGENTS.md from GITHUB_IGNORE_PATTERNS must drop nested AGENTS.md files."""
+        from prdiffer.infrastructure.utils.pattern_matcher import PatternMatcher
+
+        monkeypatch.setenv("GITHUB_IGNORE_PATTERNS", "*.lock,*AGENTS.md")
+        service = SettingsService(settings_files=["settings.toml"])
+        service.clear_cache()
+        matcher = PatternMatcher(list(service.get_github_config().ignore_patterns))
+        assert matcher.is_valid_file("prdiffer/domain/AGENTS.md") is False
+        assert matcher.is_valid_file("AGENTS.md") is False
+        assert matcher.is_valid_file("prdiffer/domain/entities/file_content.py") is True
 
     def test_empty_github_ignore_patterns_env_falls_back_to_toml(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv("GITHUB_IGNORE_PATTERNS", "   ")

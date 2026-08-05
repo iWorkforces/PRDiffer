@@ -19,11 +19,11 @@ prdiffer/infrastructure/
 ├── utils/                      # Retry, CB, parallel, coalescing, diff limits, URL, metrics
 ├── vcs_providers/              # GitHub adapter + full GitLab strict pipeline (gitlab_*.py)
 ├── di_container.py             # ServiceContainer (~203)
-├── github_repository.py        # GitHubPRDiffRepository (~461)
+├── github_repository.py        # GitHubPRDiffRepository (~462)
 ├── github_repository_operations.py  # PR ops
 ├── github_repository_utils.py  # Filtering/logging helpers
 ├── service_factory.py          # Convenience factory wrapper
-└── settings.py                 # SettingsService Dynaconf + RLock (GitHub + GitLab config) (~323)
+└── settings.py                 # SettingsService Dynaconf + RLock (GitHub + GitLab config) (~384)
 ```
 
 ## WHERE TO LOOK
@@ -31,19 +31,19 @@ prdiffer/infrastructure/
 |------|----------|-------|
 | **DI / singletons** | `di_container.py` | `ServiceContainer`, `get_container()` |
 | **Wire services** | `factories/infrastructure_factory.py` | GitHubConfig + GitLabRuntime/session reader |
-| **Settings** | `settings.py` → `GitHubConfig` / `GitLabConfig` | 30s provider / 180s request; `GITLAB_ALLOWED_HOSTS` / `MAX_FILES_ALLOWED` / `GITHUB_IGNORE_PATTERNS` env |
+| **Settings** | `settings.py` → `GitHubConfig` / `GitLabConfig` | 30s provider / 180s request; `max_total_chars` 600k; host/file env overrides |
 | **PR repository (GitHub)** | `github_repository.py` | Main PRDiff repository |
 | **Full-diff orchestration (GitHub)** | `services/pr_diff_service.py` | Maps `GeneratedFileDiff` → `FileDiffResponse`, size limits, session path |
-| **GitHub API + content** | `github/` | Typed content, inventory, ordered processing |
+| **GitHub API + content** | `github/` | Typed content, multi-ref batch, inventory, ordered processing |
 | **GitLab strict full-diff** | `vcs_providers/gitlab_*.py` | Runtime, ops, inventory, content, assembler, session |
 | **GitLab URL parse** | `utils/url_parser.py` | Nested NS + custom hosts (`parse_gitlab_merge_request_parts`) |
 | **Retry** | `utils/retry/` | base / handler / models / factories |
 | **Circuit breaker** | `utils/circuit_breaker_core.py` | Canonical; package path is shim |
-| **Parallel I/O** | `utils/parallel/executor.py` | ~608; `execute_indexed_batch` |
+| **Parallel I/O** | `utils/parallel/executor.py` | ~601; per-batch semaphore; `execute_indexed_batch` |
 | **Coalescing** | `utils/coalescing_service.py` | Deduplicate in-flight requests |
 | **Cache** | `cache/service.py`, `cache/cache_decorators.py` | Canonical modules; subpackages are shims |
 | **Security** | `security/input_validator.py` | Orchestrates detector + sanitizer; GitHub + GitLab URL validation |
-| **Diff size hard limits** | `utils/diff_limits.py` | Strict rejection (no truncation) |
+| **Diff size hard limits** | `utils/diff_limits.py` | Strict rejection (no truncation); default aggregate 600k chars |
 
 ## CONVENTIONS
 
@@ -57,7 +57,8 @@ prdiffer/infrastructure/
 - Exponential backoff with jitter via `delay_calculator.py`.
 
 ### Async
-- anyio-first; `AsyncParallelExecutor` for fan-out.
+- anyio-first; `AsyncParallelExecutor` for fan-out (fresh semaphore per batch — loop-safe reuse).
+- GitHub head/base may use one multi-ref content batch under a single capacity bound.
 - Request coalescing and PR sessions use anyio primitives (`to_thread`, CapacityLimiter).
 - **GitLabRuntime.run_blocking**: process-shared limiter; per-call `base_url` + `deadline_monotonic`; `abandon_on_cancel=False`; wall-clock deadline check after worker.
 

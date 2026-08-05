@@ -27,7 +27,7 @@ class TestGitLabConfigDefaults:
         assert config.obey_rate_limit is True
         assert config.max_file_size_bytes == DEFAULT_MAX_FILE_SIZE_BYTES == 10_485_760
         assert config.max_files_allowed == DEFAULT_MAX_FILES_ALLOWED == 50
-        assert config.max_total_chars == DEFAULT_MAX_TOTAL_CHARS == 200_000
+        assert config.max_total_chars == DEFAULT_MAX_TOTAL_CHARS == 600_000
         assert config.pr_diff_request_timeout_seconds == DEFAULT_PR_DIFF_REQUEST_TIMEOUT_SECONDS == 180.0
 
 

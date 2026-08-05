@@ -288,6 +288,32 @@ class TestGetPatternMatcher:
         assert matcher.valid_extensions == [".py"]
 
 
+class TestAgentsMdIgnorePatterns:
+    """GITHUB_IGNORE_PATTERNS-style globs for nested AGENTS.md paths."""
+
+    def test_star_agents_md_ignores_nested_paths(self):
+        matcher = PatternMatcher(ignore_patterns=["*AGENTS.md"])
+
+        assert matcher.is_valid_file("AGENTS.md") is False
+        assert matcher.is_valid_file("prdiffer/domain/AGENTS.md") is False
+        assert matcher.is_valid_file("tests/unit/infrastructure/utils/AGENTS.md") is False
+        assert matcher.is_valid_file("prdiffer/domain/entities/file_content.py") is True
+
+    def test_exact_agents_md_name_ignores_nested_paths(self):
+        matcher = PatternMatcher(ignore_patterns=["AGENTS.md"])
+
+        assert matcher.is_valid_file("AGENTS.md") is False
+        assert matcher.is_valid_file("prdiffer/domain/AGENTS.md") is False
+        assert matcher.is_valid_file("README.md") is True
+
+    def test_nested_directory_segment_match(self):
+        matcher = PatternMatcher(ignore_patterns=["node_modules/"])
+
+        assert matcher.is_valid_file("src/node_modules/pkg/index.js") is False
+        assert matcher.is_valid_file("node_modules/pkg/index.js") is False
+        assert matcher.is_valid_file("src/app.js") is True
+
+
 class TestEdgeCases:
     """Tests for edge cases."""
 

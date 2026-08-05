@@ -1,13 +1,38 @@
 import logging
 from typing import Any
 import os
+from pathlib import Path
 from threading import RLock
+
+from dotenv import load_dotenv
 from dynaconf import Dynaconf
 from prdiffer.domain.services.settings import SettingsServiceInterface
-from prdiffer.domain.config.github_config import GitHubConfig
+from prdiffer.domain.config.github_config import DEFAULT_MAX_TOTAL_CHARS, GitHubConfig
 from prdiffer.domain.config.gitlab_config import GitLabConfig
 
 logger = logging.getLogger(__name__)
+
+
+def project_root() -> Path:
+    """Repository root (parent of the ``prdiffer`` package)."""
+    # prdiffer/infrastructure/settings.py -> parents[2] == repo root
+    return Path(__file__).resolve().parents[2]
+
+
+def load_project_dotenv(*, override: bool = False) -> Path | None:
+    """Load ``.env`` from the project root (cwd-independent).
+
+    MCP servers and tools often start with a working directory that is not the
+    repository root. Bare ``load_dotenv()`` / Dynaconf ``load_dotenv=True`` only
+    search from cwd, so ``GITHUB_IGNORE_PATTERNS`` and tokens never apply.
+
+    Returns the path loaded, or ``None`` if no project ``.env`` exists.
+    """
+    env_path = project_root() / ".env"
+    if not env_path.is_file():
+        return None
+    load_dotenv(env_path, override=override)
+    return env_path
 
 
 class SettingsService(SettingsServiceInterface):
@@ -21,8 +46,18 @@ class SettingsService(SettingsServiceInterface):
         self,
         settings_files: list[str] | None = None,
     ) -> None:
+        # Always load project-root .env before Dynaconf so os.getenv-based
+        # overrides (GITHUB_IGNORE_PATTERNS, MAX_FILES_ALLOWED, …) work even
+        # when the process cwd is not the repository root.
+        load_project_dotenv(override=False)
+
         if settings_files is None:
-            settings_files = ["settings.toml", ".secrets.toml"]
+            root = project_root()
+            cwd_toml = Path.cwd() / "settings.toml"
+            if cwd_toml.is_file():
+                settings_files = ["settings.toml", ".secrets.toml"]
+            else:
+                settings_files = [str(root / "settings.toml"), str(root / ".secrets.toml")]
 
         self.settings = Dynaconf(
             settings_files=settings_files,
@@ -163,7 +198,7 @@ class SettingsService(SettingsServiceInterface):
                 chunk_size=int(get_with_fallback("diff.chunk_size", 1000)),
                 max_diff_size=int(get_with_fallback("diff.max_diff_size", 100000)),
                 max_file_size_bytes=int(get_with_fallback("github.max_file_size_bytes", 10_485_760)),
-                max_total_chars=int(get_with_fallback("diff.max_total_chars", 200_000)),
+                max_total_chars=int(get_with_fallback("diff.max_total_chars", DEFAULT_MAX_TOTAL_CHARS)),
                 parallel_file_fetch_enabled=bool(get_with_fallback("performance.parallel_file_fetch_enabled", True)),
                 parallel_head_base_fetch_enabled=bool(get_with_fallback("performance.parallel_head_base_fetch_enabled", True)),
                 parallel_diff_generation_enabled=bool(get_with_fallback("performance.parallel_diff_generation_enabled", True)),
@@ -198,7 +233,7 @@ class SettingsService(SettingsServiceInterface):
 
             max_total = get_with_fallback("gitlab.max_total_chars", None)
             if max_total is None:
-                max_total = get_with_fallback("diff.max_total_chars", 200_000)
+                max_total = get_with_fallback("diff.max_total_chars", DEFAULT_MAX_TOTAL_CHARS)
 
             request_timeout = get_with_fallback("gitlab.pr_diff_request_timeout_seconds", None)
             if request_timeout is None:

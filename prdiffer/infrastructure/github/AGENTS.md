@@ -7,9 +7,9 @@ PyGithub-backed API client, inventory admission, ordered file processing, full-c
 ```
 prdiffer/infrastructure/github/
 ├── client.py                # GitHubAPIClient facade (280)
-├── client_operations.py     # File content / batch / cache mixin (431)
+├── client_operations.py     # File content / multi-ref batch / cache mixin (437)
 ├── client_models.py         # Exception tuples + cache defaults (16)
-├── file_processor.py        # Ordered fetch/filter → FilePatchInfo (~582)
+├── file_processor.py        # Ordered fetch/filter → FilePatchInfo (~595)
 ├── diff_generator.py        # generate_ordered_file_diffs → GeneratedFileDiff (~517)
 ├── etag_adapter.py          # Conditional requests / 304 (121)
 ├── inventory.py             # Authoritative inventory + admission (126)
@@ -22,9 +22,10 @@ prdiffer/infrastructure/github/
 | Task | Location | Notes |
 |------|----------|-------|
 | **API client facade** | `client.py` | Implements `GitHubAPIServiceInterface`; retry/CB params |
-| **File content + batch** | `client_operations.py` | Typed content union; repo-scoped content cache |
+| **File content + batch** | `client_operations.py` | Typed content union; multi-ref batch; repo-scoped cache |
+| **Multi-ref batch** | `get_files_content_multi_ref_batch` | Ordered `FileContentResponse`; one capacity bound for all refs |
 | **Inventory admission** | `inventory.py` | Authoritative `changed_files` vs enumeration; selected N+1 → E5020 |
-| **Ordered file processing** | `file_processor.py` | Deleted/rename-only included; head/base fetch |
+| **Ordered file processing** | `file_processor.py` | Deleted/rename-only included; multi-ref head/base when enabled |
 | **Full-context diffs** | `diff_generator.py` | `GeneratedFileDiff` in provider order; hard-fail incompleteness |
 | **Request session** | `pr_diff_session.py` | anyio `to_thread` + CapacityLimiter; one metadata lookup per request |
 | **ETag bandwidth** | `etag_adapter.py` | Conditional GET / 304 |
@@ -38,6 +39,13 @@ prdiffer/infrastructure/github/
 - Cache key is `(repo_full_name, path, immutable_ref)`; **only available text** is cached.
 - Auth / rate-limit / transport / retry-exhausted failures raise operational exceptions — never become unavailable union values.
 
+### Multi-ref content batch
+- `get_files_content_multi_ref_batch(requests)` returns one `FileContentResponse` per request in **request order**.
+- Single-ref `get_files_content_batch` is implemented as a thin wrapper over multi-ref.
+- Parallel path uses `execute_indexed_batch` on cache misses only; mixed hit/miss preserves order and ref identity.
+- Operational failure → `IndexedBatchError` / raise — never a partial response list.
+- Deduplicates identical `FileContentRequest` values while still emitting one response per input slot.
+
 ### Inventory (strict)
 - Fully materialize provider file pages, then validate authoritative `changed_files` vs enumerated count.
 - Authoritative count > 3000 → inventory truncated (E5020 path).
@@ -45,6 +53,8 @@ prdiffer/infrastructure/github/
 
 ### Ordered processing + generation
 - `FileProcessor` assembles ordered `FilePatchInfo` (including deleted / rename-only).
+- When `parallel_head_base_fetch_enabled` and both head and base path sets are non-empty: one interleaved multi-ref batch (head/base alternating in provider order), then split into head/base maps.
+- Disabled flag or one-sided path sets: sequential single-ref batches.
 - `DiffGenerator.generate_ordered_file_diffs` returns one full-context `GeneratedFileDiff` per selected file in order, or hard-fails.
 - When `old_mode`/`new_mode` are both set and differ, prepend deterministic `old mode`/`new mode` headers (before rename headers).
 - Contract inability → **E5020** / `FullDiffIncompleteError`; unexpected defects → E5003.
@@ -66,3 +76,4 @@ prdiffer/infrastructure/github/
 - NO caching unavailable sentinels or empty-string error stand-ins.
 - NO completing full-diff with partial file sets when inventory/admission fails.
 - NO second metadata lookup inside an open session when handles already exist.
+- NO path-only batch identity when head and base share paths at different refs.
