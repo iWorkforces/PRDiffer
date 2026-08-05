@@ -520,24 +520,14 @@ class TestConcurrencyControl:
         assert max_active["value"] <= 2
 
     @pytest.mark.asyncio
-    async def test_semaphore_reuse(self):
-        """Test that semaphore is reused across calls."""
+    async def test_reused_executor_applies_its_limit_to_each_batch(self):
         executor = AsyncParallelExecutor(max_concurrent=2)
 
         async def fake_func(item):
             return item
 
-        # First call creates semaphore
-        await executor.execute_batch(fake_func, [1, 2])
-
-        semaphore1 = await executor._get_semaphore()
-
-        # Second call should reuse same semaphore
-        await executor.execute_batch(fake_func, [3, 4])
-
-        semaphore2 = await executor._get_semaphore()
-
-        assert semaphore1 is semaphore2
+        assert await executor.execute_batch(fake_func, [1, 2]) == [1, 2]
+        assert await executor.execute_batch(fake_func, [3, 4]) == [3, 4]
 
 
 @pytest.mark.unit

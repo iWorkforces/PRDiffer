@@ -115,13 +115,6 @@ class AsyncParallelExecutor:
         self.timeout = timeout
         self.error_strategy = error_strategy
         self._logger = logger or get_logger()
-        self._semaphore: anyio.Semaphore | None = None
-
-    async def _get_semaphore(self) -> anyio.Semaphore:
-        """Get or create the semaphore for concurrency control."""
-        if self._semaphore is None:
-            self._semaphore = anyio.Semaphore(self.max_concurrent)
-        return self._semaphore
 
     async def execute_batch(
         self,
@@ -145,7 +138,7 @@ class AsyncParallelExecutor:
 
         results: list[R] = []
         errors: list[tuple[T, Exception]] = []
-        semaphore = await self._get_semaphore()
+        semaphore = anyio.Semaphore(self.max_concurrent)
 
         async def process_item(item: T) -> None:
             async with semaphore:
@@ -200,7 +193,7 @@ class AsyncParallelExecutor:
 
         results: list[R] = []
         errors: list[tuple[T, Exception]] = []
-        semaphore = await self._get_semaphore()
+        semaphore = anyio.Semaphore(self.max_concurrent)
 
         async def process_item(item: T) -> None:
             async with semaphore:
@@ -255,7 +248,7 @@ class AsyncParallelExecutor:
 
         results: list[R] = []
         errors: list[tuple[Any, Exception]] = []
-        semaphore = await self._get_semaphore()
+        semaphore = anyio.Semaphore(self.max_concurrent)
 
         async def process_item(item: Any) -> None:
             # Determine which function to use
@@ -325,7 +318,7 @@ class AsyncParallelExecutor:
         errors: list[tuple[T, Exception]] = []
         completed = 0
         total = len(items)
-        semaphore = await self._get_semaphore()
+        semaphore = anyio.Semaphore(self.max_concurrent)
         lock = anyio.Lock()
 
         async def process_item(item: T) -> None:
@@ -387,7 +380,7 @@ class AsyncParallelExecutor:
             return BatchResult()
 
         result = BatchResult[R]()
-        semaphore = await self._get_semaphore()
+        semaphore = anyio.Semaphore(self.max_concurrent)
 
         async def process_item(item: T) -> None:
             async with semaphore:
@@ -454,7 +447,7 @@ class AsyncParallelExecutor:
 
         slot_count = len(items)
         outcomes: list[IndexedItemOutcome[K, R] | None] = [None] * slot_count
-        semaphore = await self._get_semaphore()
+        semaphore = anyio.Semaphore(self.max_concurrent)
         cancel_scope_box: dict[str, anyio.CancelScope | None] = {"scope": None}
 
         async def process_indexed(index: int, item: K, key: K) -> None:
