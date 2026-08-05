@@ -340,7 +340,7 @@ class GitHubPRDiffRepository(GitHubPROperationsMixin, PRDiffRepositoryInterface)
         )
         pr_files = list(pr_files_paginated) if not isinstance(pr_files_paginated, list) else pr_files_paginated
         if len(filtered_files) != len(pr_files):
-            self._log_filtered_files(pr_files, filtered_files)
+            self._log_filtered_files(list(pr_files), list(filtered_files))
 
         diff_files = self._file_processor.process_files_to_patches(filtered_files, self._repository, head_sha, base_sha)
 

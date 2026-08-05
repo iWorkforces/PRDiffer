@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Generic, TypeVar
+from typing import Any, Generic, TypeVar
 
 T = TypeVar("T")
 K = TypeVar("K")
@@ -21,7 +21,7 @@ class ErrorStrategy(str, Enum):
 @dataclass
 class BatchResult(Generic[T]):
     successful: list[T] = field(default_factory=list)
-    failed: list[tuple[T, Exception]] = field(default_factory=list)
+    failed: list[tuple[Any, Exception]] = field(default_factory=list)
 
     @property
     def total(self) -> int:
@@ -103,24 +103,22 @@ class IndexedBatchError(Exception):
         self,
         message: str,
         *,
-        outcomes: tuple[IndexedItemOutcome[object, object], ...] | tuple[IndexedItemOutcome[K, R], ...],
+        outcomes: tuple[IndexedItemOutcome[Any, Any], ...],
         cause: BaseException | None = None,
     ) -> None:
         super().__init__(message)
-        self.outcomes = outcomes
-        self.failed = tuple(o for o in outcomes if not o.ok)
+        self.outcomes: tuple[IndexedItemOutcome[Any, Any], ...] = outcomes
+        self.failed: tuple[IndexedItemOutcome[Any, Any], ...] = tuple(o for o in outcomes if not o.ok)
         if cause is not None:
             self.__cause__ = cause
 
     @property
-    def first_failure(self) -> IndexedItemOutcome[object, object] | None:
+    def first_failure(self) -> IndexedItemOutcome[Any, Any] | None:
         """First non-cancellation failure when present; else first failure."""
-        non_cancel = [
-            outcome
-            for outcome in self.failed
-            if outcome.error is not None
-            and type(outcome.error).__name__ not in {"CancelledError", "CancelledException"}
-        ]
-        if non_cancel:
-            return non_cancel[0]
+        for outcome in self.failed:
+            if outcome.error is not None and type(outcome.error).__name__ not in {
+                "CancelledError",
+                "CancelledException",
+            }:
+                return outcome
         return self.failed[0] if self.failed else None

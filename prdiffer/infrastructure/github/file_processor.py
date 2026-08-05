@@ -141,7 +141,7 @@ class FileProcessor:
             texts[path] = self._require_text(value, path=path, ref=ref)
         return texts
 
-    def process_files_to_patches(self, files: list[File], repository: Repository, head_sha: str, base_sha: str) -> list[FilePatchInfo]:
+    def process_files_to_patches(self, files: list[Any], repository: Any, head_sha: str, base_sha: str) -> list[FilePatchInfo]:
         """Assemble FilePatchInfo list in provider order (strict, no soft skips)."""
         classified = self._classify_selected_files(files)
         if not classified:
@@ -157,7 +157,7 @@ class FileProcessor:
         base_contents = self._text_map(cast(dict[str, Any], base_raw), ref=base_sha)
         return self._assemble_patches_in_order(classified, head_contents, base_contents, rename_map)
 
-    async def process_files_to_patches_async(self, files: list[File], repository: Repository, head_sha: str, base_sha: str) -> list[FilePatchInfo]:
+    async def process_files_to_patches_async(self, files: list[Any], repository: Any, head_sha: str, base_sha: str) -> list[FilePatchInfo]:
         """Async assembly with the same ordered strict semantics as the sync path."""
         classified = self._classify_selected_files(files)
         if not classified:
@@ -179,9 +179,9 @@ class FileProcessor:
 
         return self._assemble_patches_in_order(classified, head_contents, base_contents, rename_map)
 
-    def _classify_selected_files(self, files: Sequence[File]) -> list[tuple[int, File, EDIT_TYPE]]:
+    def _classify_selected_files(self, files: Sequence[Any]) -> list[tuple[int, Any, EDIT_TYPE]]:
         """Classify selected provider files with original indices; reject UNKNOWN."""
-        classified: list[tuple[int, File, EDIT_TYPE]] = []
+        classified: list[tuple[int, Any, EDIT_TYPE]] = []
         for index, file in enumerate(files):
             if not self._pattern_matcher.is_valid_file(file.filename):
                 continue
@@ -197,7 +197,7 @@ class FileProcessor:
 
     def _required_content_keys(
         self,
-        classified: list[tuple[int, File, EDIT_TYPE]],
+        classified: list[tuple[int, Any, EDIT_TYPE]],
     ) -> tuple[list[str], list[str], dict[str, str]]:
         """Build head/base path lists and rename base-path mapping."""
         head_paths: list[str] = []
@@ -230,7 +230,7 @@ class FileProcessor:
 
     def _assemble_patches_in_order(
         self,
-        classified: list[tuple[int, File, EDIT_TYPE]],
+        classified: list[tuple[int, Any, EDIT_TYPE]],
         head_contents: dict[str, str],
         base_contents: dict[str, str],
         rename_map: dict[str, str],
@@ -450,7 +450,7 @@ class FileProcessor:
 
     def _create_file_patch_with_content(
         self,
-        file: File,
+        file: Any,
         original_content: str,
         new_content: str,
         patch: str,

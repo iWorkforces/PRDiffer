@@ -602,28 +602,22 @@ def run_mode(
             validity={"status": "unsupported", "reason": "post-change mode not available in baseline phase"},
             unsupported_reason="post-change mode not available in baseline phase",
         )
-    if phase == "post" and mode in BASELINE_MODES:
-        # Allow re-running baseline modes in post for comparison if needed, but
-        # default post CLI lists post modes only.
-        pass
-    if phase == "post" and mode in POST_CHANGE_MODES:
-        # Until Todos 10/14 land, post worker modes remain unsupported.
-        return ModeRunResult(
-            mode=mode,
-            supported=False,
-            validity={
-                "status": "unsupported",
-                "reason": "serialized/bounded worker modes require later plan todos",
-            },
-            unsupported_reason="serialized/bounded worker modes require later plan todos",
-        )
 
     samples: list[SampleResult] = []
     validity: dict[str, Any] = {"status": "ok", "mode": mode}
 
-    def make_sync_runner(counters: ApiCounters) -> Callable[[], tuple[list[FilePatchInfo], list[str], int, bool | None]]:
+    def make_sync_runner(
+        counters: ApiCounters,
+        *,
+        max_workers: int = 1,
+    ) -> Callable[[], tuple[list[FilePatchInfo], list[str], int, bool | None]]:
         def _run() -> tuple[list[FilePatchInfo], list[str], int, bool | None]:
-            patches, diffs = _run_sync_pipeline(bundle, counters)
+            patches, diffs = _run_sync_pipeline(
+                bundle,
+                counters,
+                max_workers=max_workers,
+                parallel_threshold=10 if max_workers > 1 else 10**9,
+            )
             return patches, diffs, 0, None
 
         return _run
@@ -635,13 +629,22 @@ def run_mode(
 
         return _run
 
+    def _workers_for_mode(name: str) -> int:
+        if name == "serialized-worker-1":
+            return 1
+        if name.startswith("bounded-worker-"):
+            return int(name.rsplit("-", 1)[-1])
+        return 1
+
     total_runs = WARMUPS + bundle.workload.samples
     for run_idx in range(total_runs):
         counters = ApiCounters()
         if mode == "sync-current":
-            runner = make_sync_runner(counters)
+            runner = make_sync_runner(counters, max_workers=1)
         elif mode == "async-current-negative-control":
             runner = make_negative_runner(counters)
+        elif mode in POST_CHANGE_MODES:
+            runner = make_sync_runner(counters, max_workers=_workers_for_mode(mode))
         else:
             raise AssertionError(f"Supported mode not implemented: {mode}")
 

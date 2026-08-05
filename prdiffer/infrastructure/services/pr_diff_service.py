@@ -1,7 +1,7 @@
 """Infrastructure implementation of PRDiffServiceInterface using GitHub API."""
 
 import os
-from typing import cast, TYPE_CHECKING
+from typing import Any, cast, TYPE_CHECKING
 
 import asyncer
 from github import GithubException
@@ -343,7 +343,7 @@ class GitHubPRDiffService(CachingMixin, PRDiffServiceInterface):
             )
             return None
 
-    def _convert_github_files_to_file_patch_info(self, github_files: "PaginatedList[File]") -> list[FilePatchInfo]:
+    def _convert_github_files_to_file_patch_info(self, github_files: Any) -> list[FilePatchInfo]:
         """Convert GitHub File objects to FilePatchInfo domain entities."""
         file_patch_infos: list[FilePatchInfo] = []
 

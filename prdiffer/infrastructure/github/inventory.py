@@ -7,7 +7,7 @@ Provider inventory must be proven complete before selection.
 from __future__ import annotations
 
 from collections.abc import Iterable, Sequence
-from typing import Protocol, cast, Any
+from typing import Any, Protocol, cast
 
 from prdiffer.domain.exceptions import FullDiffIncompleteError, FullDiffIncompleteReason
 
@@ -112,7 +112,7 @@ def prepare_selected_inventory(
     is_valid_file,
     max_files_allowed: int,
     pull_request: object | None = None,
-) -> list[object]:
+) -> list[Any]:
     """Materialize, validate inventory, then select with hard admission limit."""
     enumerated = materialize_pr_files(provider_files)
     if authoritative_changed_files is None and pull_request is not None:
@@ -131,4 +131,4 @@ def prepare_selected_inventory(
         is_valid_file=is_valid_file,
         max_files_allowed=limit,
     )
-    return cast(list[object], selected)
+    return list(selected)

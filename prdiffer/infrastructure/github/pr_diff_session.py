@@ -75,7 +75,9 @@ class GitHubPRDiffSession(PRDiffReadSessionInterface):
         def _call():
             return func(*args)
 
-        return await anyio.to_thread.run_sync(
+        to_thread = anyio.to_thread
+        run_sync = getattr(to_thread, "run_sync")
+        return await run_sync(
             _call,
             abandon_on_cancel=False,
             limiter=self._limiter,
@@ -87,7 +89,11 @@ class GitHubPRDiffSession(PRDiffReadSessionInterface):
 
         def _build() -> PRDiff:
             # Reuse request-local repository/PR objects; avoid a second metadata lookup.
-            patches = self._service._generate_diff_content(self._repository, self._pull_request)
+            repo = self._repository
+            pr = self._pull_request
+            if repo is None or pr is None:
+                raise PRDifferException("Session closed", error_code=E5009_CONFIGURATION_ERROR)
+            patches = self._service._generate_diff_content(repo, pr)
             return self._service._build_pr_diff_strict(patches)
 
         return await self._run_sync(_build)
@@ -188,7 +194,9 @@ class GitHubSessionPRDiffReader:
                 error_code=E5004_TIMEOUT_ERROR,
             )
 
-        gh, repo, pr, snapshot = await anyio.to_thread.run_sync(
+        to_thread = anyio.to_thread
+        run_sync = getattr(to_thread, "run_sync")
+        gh, repo, pr, snapshot = await run_sync(
             _open,
             abandon_on_cancel=False,
             limiter=self._limiter,
