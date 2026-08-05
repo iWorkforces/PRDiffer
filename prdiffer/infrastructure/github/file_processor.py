@@ -142,81 +142,133 @@ class FileProcessor:
         return texts
 
     def process_files_to_patches(self, files: list[File], repository: Repository, head_sha: str, base_sha: str) -> list[FilePatchInfo]:
-        diff_files: list[FilePatchInfo] = []
-        invalid_files_names: list[str] = []
-
-        counter_valid = 0
-        files_to_load: list[File] = []
-
-        for file in files:
-            if not self._pattern_matcher.is_valid_file(file.filename):
-                invalid_files_names.append(file.filename)
-                continue
-
-            patch = file.patch
-            counter_valid += 1
-
-            avoid_load = False
-            if counter_valid >= self.max_files_allowed and patch:
-                avoid_load = True
-                if counter_valid == self.max_files_allowed:
-                    self._logger.info("Too many files in PR, will avoid loading full content for rest of files")
-
-            if avoid_load:
-                file_patch = self._create_file_patch_without_content(file)
-                diff_files.append(file_patch)
-            else:
-                files_to_load.append(file)
-
-        if files_to_load:
-            processed_files = self._process_files_with_content(files_to_load, repository, head_sha, base_sha)
-            diff_files.extend(processed_files)
-
-        if invalid_files_names:
-            self._logger.info(f"Filtered out files with invalid extensions: {invalid_files_names}")
-
-        return diff_files
+        """Assemble FilePatchInfo list in provider order (strict, no soft skips)."""
+        classified = self._classify_selected_files(files)
+        if not classified:
+            return []
+        head_paths, base_paths, rename_map = self._required_content_keys(classified)
+        head_raw = (
+            self._github_api_service.get_files_content_batch(repository.full_name, head_paths, head_sha) if head_paths else {}
+        )
+        base_raw = (
+            self._github_api_service.get_files_content_batch(repository.full_name, base_paths, base_sha) if base_paths else {}
+        )
+        head_contents = self._text_map(cast(dict[str, Any], head_raw), ref=head_sha)
+        base_contents = self._text_map(cast(dict[str, Any], base_raw), ref=base_sha)
+        return self._assemble_patches_in_order(classified, head_contents, base_contents, rename_map)
 
     async def process_files_to_patches_async(self, files: list[File], repository: Repository, head_sha: str, base_sha: str) -> list[FilePatchInfo]:
-        diff_files: list[FilePatchInfo] = []
-        invalid_files_names: list[str] = []
+        """Async assembly with the same ordered strict semantics as the sync path."""
+        classified = self._classify_selected_files(files)
+        if not classified:
+            return []
+        head_paths, base_paths, rename_map = self._required_content_keys(classified)
 
-        counter_valid = 0
-        files_to_load: list[File] = []
+        head_contents: dict[str, str] = {}
+        base_contents: dict[str, str] = {}
+        if head_paths:
+            head_result = self._github_api_service.get_files_content_batch(repository.full_name, head_paths, head_sha)
+            if inspect.iscoroutine(head_result):
+                head_result = await head_result
+            head_contents = self._text_map(cast(dict[str, Any], head_result), ref=head_sha)
+        if base_paths:
+            base_result = self._github_api_service.get_files_content_batch(repository.full_name, base_paths, base_sha)
+            if inspect.iscoroutine(base_result):
+                base_result = await base_result
+            base_contents = self._text_map(cast(dict[str, Any], base_result), ref=base_sha)
 
-        for file in files:
+        return self._assemble_patches_in_order(classified, head_contents, base_contents, rename_map)
+
+    def _classify_selected_files(self, files: Sequence[File]) -> list[tuple[int, File, EDIT_TYPE]]:
+        """Classify selected provider files with original indices; reject UNKNOWN."""
+        classified: list[tuple[int, File, EDIT_TYPE]] = []
+        for index, file in enumerate(files):
             if not self._pattern_matcher.is_valid_file(file.filename):
-                invalid_files_names.append(file.filename)
                 continue
+            status = getattr(file, "status", "") or ""
+            edit_type = self.STATUS_TO_EDIT_TYPE.get(status, EDIT_TYPE.UNKNOWN)
+            if edit_type is EDIT_TYPE.UNKNOWN:
+                raise FullDiffIncompleteError(
+                    FullDiffIncompleteReason.UNSUPPORTED_FILE_STATUS,
+                    path=file.filename,
+                )
+            classified.append((index, file, edit_type))
+        return classified
 
-            patch = file.patch
-            counter_valid += 1
+    def _required_content_keys(
+        self,
+        classified: list[tuple[int, File, EDIT_TYPE]],
+    ) -> tuple[list[str], list[str], dict[str, str]]:
+        """Build head/base path lists and rename base-path mapping."""
+        head_paths: list[str] = []
+        base_paths: list[str] = []
+        rename_map: dict[str, str] = {}
+        for _index, file, edit_type in classified:
+            if edit_type in (EDIT_TYPE.ADDED, EDIT_TYPE.MODIFIED, EDIT_TYPE.RENAMED):
+                head_paths.append(file.filename)
+            if edit_type is EDIT_TYPE.MODIFIED:
+                base_paths.append(file.filename)
+            elif edit_type is EDIT_TYPE.DELETED:
+                base_paths.append(file.filename)
+            elif edit_type is EDIT_TYPE.RENAMED:
+                previous_name = getattr(file, "previous_filename", None)
+                base_key = previous_name if previous_name else file.filename
+                base_paths.append(base_key)
+                if previous_name:
+                    rename_map[file.filename] = previous_name
+        # Preserve order, drop duplicates while keeping first occurrence.
+        def _unique(paths: list[str]) -> list[str]:
+            seen: set[str] = set()
+            out: list[str] = []
+            for path in paths:
+                if path not in seen:
+                    seen.add(path)
+                    out.append(path)
+            return out
 
-            avoid_load = False
-            if counter_valid >= self.max_files_allowed and patch:
-                avoid_load = True
-                if counter_valid == self.max_files_allowed:
-                    self._logger.info("Too many files in PR, will avoid loading full content for rest of files")
+        return _unique(head_paths), _unique(base_paths), rename_map
 
-            if avoid_load:
-                file_patch = self._create_file_patch_without_content(file)
-                diff_files.append(file_patch)
-            else:
-                files_to_load.append(file)
+    def _assemble_patches_in_order(
+        self,
+        classified: list[tuple[int, File, EDIT_TYPE]],
+        head_contents: dict[str, str],
+        base_contents: dict[str, str],
+        rename_map: dict[str, str],
+    ) -> list[FilePatchInfo]:
+        """Reconstruct FilePatchInfo rows in original provider order (no skips)."""
+        # Sort by original index to preserve provider order even if input shuffled.
+        ordered = sorted(classified, key=lambda item: item[0])
+        results: list[FilePatchInfo] = []
+        for _index, file, edit_type in ordered:
+            if edit_type is EDIT_TYPE.ADDED:
+                original = ""
+                new = head_contents.get(file.filename, "")
+            elif edit_type is EDIT_TYPE.DELETED:
+                original = base_contents.get(file.filename, "")
+                new = ""
+            elif edit_type is EDIT_TYPE.RENAMED:
+                base_key = rename_map.get(file.filename, file.filename)
+                original = base_contents.get(base_key, "")
+                new = head_contents.get(file.filename, "")
+            else:  # MODIFIED
+                original = base_contents.get(file.filename, "")
+                new = head_contents.get(file.filename, "")
 
-        if files_to_load:
-            processed_files = await self._process_files_with_content_parallel_async(
-                files_to_load,
-                repository,
-                head_sha,
-                base_sha,
+            patch = file.patch or ""
+            if not patch:
+                patch = self._generate_patch_from_content(file.filename, new, original)
+
+            results.append(
+                self._create_file_patch_with_content(
+                    file,
+                    original,
+                    new,
+                    patch,
+                    edit_type=edit_type,
+                    old_filename=rename_map.get(file.filename) if edit_type is EDIT_TYPE.RENAMED else None,
+                )
             )
-            diff_files.extend(processed_files)
-
-        if invalid_files_names:
-            self._logger.info(f"Filtered out files with invalid extensions: {invalid_files_names}")
-
-        return diff_files
+        return results
 
     async def _process_files_with_content_parallel_async(
         self,
@@ -396,20 +448,36 @@ class FileProcessor:
             num_minus_lines=num_minus_lines,
         )
 
-    def _create_file_patch_with_content(self, file: File, original_content: str, new_content: str, patch: str) -> FilePatchInfo:
+    def _create_file_patch_with_content(
+        self,
+        file: File,
+        original_content: str,
+        new_content: str,
+        patch: str,
+        *,
+        edit_type: EDIT_TYPE | None = None,
+        old_filename: str | None = None,
+    ) -> FilePatchInfo:
         """Create FilePatchInfo with loaded file content."""
-        edit_type: EDIT_TYPE = self.STATUS_TO_EDIT_TYPE.get(file.status, EDIT_TYPE.UNKNOWN)
-        if edit_type == EDIT_TYPE.UNKNOWN:
-            self._logger.error(f"Unknown edit type: {file.status}")
+        resolved_type = edit_type or self.STATUS_TO_EDIT_TYPE.get(file.status, EDIT_TYPE.UNKNOWN)
+        if resolved_type is EDIT_TYPE.UNKNOWN:
+            raise FullDiffIncompleteError(
+                FullDiffIncompleteReason.UNSUPPORTED_FILE_STATUS,
+                path=file.filename,
+            )
 
         num_plus_lines, num_minus_lines = self._count_patch_lines(file, patch)
+        previous = old_filename
+        if previous is None and resolved_type is EDIT_TYPE.RENAMED:
+            previous = getattr(file, "previous_filename", None)
 
         return FilePatchInfo(
             base_file=original_content,
             head_file=new_content,
             patch=patch,
             filename=file.filename,
-            edit_type=edit_type,
+            edit_type=resolved_type,
+            old_filename=previous,
             num_plus_lines=num_plus_lines,
             num_minus_lines=num_minus_lines,
         )

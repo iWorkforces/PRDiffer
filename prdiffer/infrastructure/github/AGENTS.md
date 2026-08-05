@@ -19,7 +19,7 @@ prdiffer/infrastructure/github/
 | Task | Location | Notes |
 |------|----------|-------|
 | **API calls** | `client.py`, `client_operations.py` | Retry/CB integration points |
-| **File handling** | `file_processor.py` | Filters, limits, parallel fetch |
+| **File handling** | `file_processor.py` | Ordered strict assembly (deleted/rename-only included) |
 | **Diff build** | `diff_generator.py` | `generate_ordered_file_diffs` → `GeneratedFileDiff` (full-context, ordered) |
 | **Bandwidth** | `etag_adapter.py` | ETag / 304 |
 | **Domain map** | `mappers.py` | To FilePatchInfo / responses |
