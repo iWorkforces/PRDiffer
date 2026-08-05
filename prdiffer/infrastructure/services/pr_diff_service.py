@@ -31,6 +31,7 @@ from prdiffer.infrastructure.cache.cache_decorators import (
     cached_method,
 )
 from prdiffer.infrastructure.github.inventory import prepare_selected_inventory
+from prdiffer.infrastructure.utils.diff_limits import assert_aggregate_within_limit, assert_diff_within_limit
 
 
 # Exceptions to catch in PR diff service operations
@@ -132,23 +133,23 @@ class GitHubPRDiffService(CachingMixin, PRDiffServiceInterface):
 
             _, diff_files = await self._generate_diff_content_async(repository, pull_request)
 
-            file_responses = [self._convert_file_patch_info_to_response(file_patch) for file_patch in diff_files]
-
-            pr_diff = PRDiff(files=tuple(file_responses))
+            pr_diff = self._build_pr_diff_strict(diff_files)
 
             self._logger.info(
                 "Generated diff content (async parallel)",
                 repo_owner=repo_owner,
                 repo_name=repo_name,
                 pr_number=pr_number,
-                num_files=len(file_responses),
+                num_files=len(pr_diff.files),
             )
 
-            preview = InputValidator.sanitize_for_logging(f"Files: {len(file_responses)}", max_length=1000)
+            preview = InputValidator.sanitize_for_logging(f"Files: {len(pr_diff.files)}", max_length=1000)
             self._logger.debug("Diff content preview", preview=preview)
 
             return pr_diff
 
+        except FullDiffIncompleteError:
+            raise
         except PR_SERVICE_EXCEPTIONS as e:
             exc = cast(Exception, e)
             sanitized = sanitize_exception_for_logging(exc)
@@ -262,23 +263,23 @@ class GitHubPRDiffService(CachingMixin, PRDiffServiceInterface):
 
             diff_files = self._generate_diff_content(repository, pull_request)
 
-            file_responses = [self._convert_file_patch_info_to_response(file_patch) for file_patch in diff_files]
-
-            pr_diff = PRDiff(files=tuple(file_responses))
+            pr_diff = self._build_pr_diff_strict(diff_files)
 
             self._logger.info(
                 "Generated diff content",
                 repo_owner=repo_owner,
                 repo_name=repo_name,
                 pr_number=pr_number,
-                num_files=len(file_responses),
+                num_files=len(pr_diff.files),
             )
 
-            preview = InputValidator.sanitize_for_logging(f"Files: {len(file_responses)}", max_length=1000)
+            preview = InputValidator.sanitize_for_logging(f"Files: {len(pr_diff.files)}", max_length=1000)
             self._logger.debug("Diff content preview", preview=preview)
 
             return pr_diff
 
+        except FullDiffIncompleteError:
+            raise
         except PR_SERVICE_EXCEPTIONS as e:
             exc = cast(Exception, e)
             sanitized = sanitize_exception_for_logging(exc)
@@ -364,12 +365,30 @@ class GitHubPRDiffService(CachingMixin, PRDiffServiceInterface):
         num_plus_lines→stats.additions, num_minus_lines→stats.deletions, patch→diff
         """
         stats = FileStats(additions=file_patch.num_plus_lines, deletions=file_patch.num_minus_lines)
+        diff_text = file_patch.patch or ""
+        # Per-file public diff character limit (max_diff_size is line-oriented for builders;
+        # character budget for the public string is max_total_chars / files enforced in aggregate).
         return FileDiffResponse(
             path=file_patch.filename,
             status=file_patch.edit_type,
             stats=stats,
-            diff=file_patch.patch or "",
+            diff=diff_text,
+            previous_path=file_patch.old_filename,
         )
+
+    def _build_pr_diff_strict(self, file_patches: list[FilePatchInfo]) -> PRDiff:
+        """Build PRDiff only after per-file/aggregate character limits pass."""
+        responses: list[FileDiffResponse] = []
+        diffs: list[str] = []
+        for file_patch in file_patches:
+            response = self._convert_file_patch_info_to_response(file_patch)
+            # Character limit for a single public diff uses max_total_chars as upper bound
+            # for isolated single-file responses; aggregate enforces the true budget.
+            assert_diff_within_limit(response.diff, self._diff_max_total_chars, path=response.path)
+            responses.append(response)
+            diffs.append(response.diff)
+        assert_aggregate_within_limit(diffs, self._diff_max_total_chars)
+        return PRDiff(files=tuple(responses))
 
     def _generate_diff_content(self, repository: Repository, pull_request: PullRequest) -> list[FilePatchInfo]:
         """Generate diff content for a pull request.
