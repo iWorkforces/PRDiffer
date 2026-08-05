@@ -9,6 +9,7 @@ prdiffer/infrastructure/vcs_providers/
 ├── github_repository.py    # GitHubVCSRepository + factory
 ├── gitlab_repository.py    # GitLabVCSRepository
 ├── gitlab_models.py        # Diff refs / version / snapshot / record models
+├── gitlab_inventory.py     # State/cardinality admission + edit classification
 ├── gitlab_operations.py    # Immutable MR version selection + snapshot
 ├── gitlab_runtime.py       # Bounded SDK runner + status mapper
 └── __init__.py

@@ -67,11 +67,7 @@ class GitLabVersionSummary:
         )
 
     def matches_refs(self, refs: GitLabDiffRefs) -> bool:
-        return (
-            self.base_commit_sha == refs.base_sha
-            and self.start_commit_sha == refs.start_sha
-            and self.head_commit_sha == refs.head_sha
-        )
+        return self.base_commit_sha == refs.base_sha and self.start_commit_sha == refs.start_sha and self.head_commit_sha == refs.head_sha
 
 
 @dataclass(frozen=True, slots=True)
@@ -89,6 +85,7 @@ class GitLabDiffRecord:
     collapsed: bool = False
     too_large: bool = False
     generated_file: bool | None = None
+
     @classmethod
     def from_mapping(cls, raw: object) -> GitLabDiffRecord:
         if not isinstance(raw, dict):
@@ -110,6 +107,7 @@ class GitLabDiffRecord:
             too_large=bool(raw.get("too_large", False)),
             generated_file=_optional_bool(raw.get("generated_file")),
         )
+
 
 @dataclass(frozen=True, slots=True)
 class GitLabDiffSnapshot:
