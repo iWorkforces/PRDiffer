@@ -80,16 +80,16 @@ class GitLabDiffAssembler:
                     path=gen.path,
                 )
 
-            # Equal-content equal-mode modified with no rename/mode headers is indeterminate.
+            # Equal-content equal-mode modified is indeterminate (no textual or mode change).
+            # Fail closed regardless of any incidental hunk text the generator may emit.
             if (
                 content.edit_type is EDIT_TYPE.MODIFIED
                 and content.base.text == content.head.text
                 and (content.old_mode is None or content.old_mode == content.new_mode)
-                and not (gen.diff or "").strip()
             ):
                 raise FullDiffIncompleteError(
                     FullDiffIncompleteReason.DIFF_GENERATION_FAILED,
-                    message="No-op modified record produced empty full-context diff",
+                    message="Equal-content equal-mode modified is not a valid strict full-diff change",
                     path=content.path,
                 )
 

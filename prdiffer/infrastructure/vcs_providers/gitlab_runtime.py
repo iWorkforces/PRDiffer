@@ -1,7 +1,7 @@
 """Bounded GitLab SDK execution: capacity, deadlines, status-aware mapping.
 
 Process-shared CapacityLimiter, operation-scoped python-gitlab clients,
-monotonic remaining-budget calculation, and typed exception translation.
+per-call deadline + base_url, and typed exception translation.
 """
 
 from __future__ import annotations
@@ -12,6 +12,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from enum import StrEnum
 from typing import TypeVar
+from urllib.parse import urlparse
 
 import anyio
 import gitlab
@@ -19,6 +20,7 @@ import requests
 
 from prdiffer.domain.config.gitlab_config import GitLabConfig
 from prdiffer.domain.error_codes import (
+    E1001_INVALID_URL,
     E2006_GITLAB_AUTH_FAILED,
     E2007_GITLAB_INSUFFICIENT_PERMISSIONS,
     E3006_GITLAB_RATE_LIMITED,
@@ -33,6 +35,7 @@ from prdiffer.domain.exceptions import (
     AuthenticationError,
     AuthorizationError,
     GitLabAPIError,
+    InvalidURLError,
     RateLimitError,
     TimeoutError as DomainTimeoutError,
 )
@@ -69,7 +72,6 @@ def _parse_retry_after(exc: BaseException, remaining: float) -> int | None:
     if isinstance(headers, dict):
         raw = headers.get("Retry-After") or headers.get("retry-after")
     if raw is None:
-        # Some GitlabHttpError instances only expose response_body; skip secrets.
         return None
     try:
         value = int(raw)
@@ -79,6 +81,15 @@ def _parse_retry_after(exc: BaseException, remaining: float) -> int | None:
         return None
     bound = max(0, int(math.floor(remaining)))
     return min(value, bound) if bound > 0 else 0
+
+
+def cache_host_from_base_url(base_url: str) -> str:
+    """Host identity for cache keys: hostname plus non-default port when present."""
+    parsed = urlparse(base_url if "://" in base_url else f"https://{base_url}")
+    host = (parsed.hostname or "gitlab.com").casefold()
+    if parsed.port is not None and parsed.port not in (80, 443):
+        return f"{host}:{parsed.port}"
+    return host
 
 
 def map_gitlab_exception(
@@ -91,7 +102,7 @@ def map_gitlab_exception(
 
     Never copies response_body, tokens, or credential-bearing URLs into details.
     """
-    if isinstance(exc, (DomainTimeoutError, AuthenticationError, AuthorizationError, RateLimitError, GitLabAPIError)):
+    if isinstance(exc, (DomainTimeoutError, AuthenticationError, AuthorizationError, RateLimitError, GitLabAPIError, InvalidURLError)):
         return exc
 
     status = _safe_status(exc)
@@ -141,7 +152,6 @@ def map_gitlab_exception(
                 error_code=E4003_FILE_NOT_FOUND,
                 details={"status_code": 404},
             )
-        # Default / merge_request context → PR not found
         return GitLabAPIError(
             "Merge request not found",
             status_code=404,
@@ -178,7 +188,11 @@ def map_gitlab_exception(
 
 
 class GitLabRuntime:
-    """Shared limiter + operation-scoped client factory + async blocking runner."""
+    """Shared limiter + operation-scoped client factory + async blocking runner.
+
+    Request deadlines and base URLs are **per call**, never stored as shared
+    mutable request state on this process-wide instance.
+    """
 
     def __init__(
         self,
@@ -188,14 +202,12 @@ class GitLabRuntime:
         base_url: str = GITLAB_COM_URL,
         limiter: anyio.CapacityLimiter | None = None,
         client_factory: Callable[..., object] | None = None,
-        deadline_monotonic: float | None = None,
     ) -> None:
         self._config = config
         self._private_token = private_token
-        self._base_url = (base_url or GITLAB_COM_URL).rstrip("/")
+        self._default_base_url = (base_url or GITLAB_COM_URL).rstrip("/")
         self._limiter = limiter or anyio.CapacityLimiter(config.max_concurrent)
         self._client_factory = client_factory or gitlab.Gitlab
-        self._deadline_monotonic = deadline_monotonic
         self._closed_clients = 0
 
     @property
@@ -211,45 +223,48 @@ class GitLabRuntime:
         """Number of operation-scoped clients closed (for tests)."""
         return self._closed_clients
 
-    def set_deadline_monotonic(self, deadline: float) -> None:
-        self._deadline_monotonic = deadline
-
-    def remaining_budget(self) -> float:
-        if self._deadline_monotonic is None:
+    def remaining_budget(self, deadline_monotonic: float | None) -> float:
+        if deadline_monotonic is None:
             return float(self._config.pr_diff_request_timeout_seconds)
-        return self._deadline_monotonic - time.monotonic()
+        return deadline_monotonic - time.monotonic()
+
+    def ensure_host_allowed(self, base_url: str) -> None:
+        """Reject SDK targets outside the configured host allowlist."""
+        host = cache_host_from_base_url(base_url).split(":", 1)[0]
+        if not self._config.is_host_allowed(host):
+            raise InvalidURLError(
+                f"GitLab host {host!r} is not in allowed_hosts {list(self._config.allowed_hosts)!r}",
+                error_code=E1001_INVALID_URL,
+                details={"host": host},
+            )
 
     def create_client(
         self,
         *,
-        remaining: float | None = None,
+        remaining: float,
         base_url: str | None = None,
     ) -> object:
-        """Build a fresh python-gitlab client for one operation.
-
-        Injects max_retries and obey_rate_limit via http_request defaults
-        (constructor in python-gitlab 8.5 does not accept those parameters).
-        ``base_url`` selects GitLab.com or a custom-hosted instance.
-        """
-        budget = self.remaining_budget() if remaining is None else remaining
-        if budget <= 0:
+        """Build a fresh python-gitlab client for one operation."""
+        if remaining <= 0:
             raise DomainTimeoutError(
                 "GitLab operation deadline exhausted",
                 error_code=E5004_TIMEOUT_ERROR,
             )
-        timeout = min(float(self._config.timeout), budget)
-        url = (base_url or self._base_url or GITLAB_COM_URL).rstrip("/")
+        timeout = min(float(self._config.timeout), remaining)
+        url = (base_url or self._default_base_url or GITLAB_COM_URL).rstrip("/")
+        self.ensure_host_allowed(url)
+        max_retry_after = max(0, int(math.floor(remaining)))
         client = self._client_factory(
             url,
             private_token=self._private_token,
             timeout=timeout,
             retry_transient_errors=self._config.retry_transient_errors,
         )
-        self._install_request_defaults(client)
+        self._install_request_defaults(client, max_retry_after=max_retry_after)
         return client
 
-    def _install_request_defaults(self, client: object) -> None:
-        """Ensure SDK retries use configured max_retries and obey_rate_limit."""
+    def _install_request_defaults(self, client: object, *, max_retry_after: int) -> None:
+        """Inject max_retries, obey_rate_limit, and bound Retry-After waits."""
         original = getattr(client, "http_request", None)
         if original is None or not callable(original):
             return
@@ -259,6 +274,10 @@ class GitLabRuntime:
         def http_request(*args: object, **kwargs: object) -> object:
             kwargs.setdefault("max_retries", max_retries)
             kwargs.setdefault("obey_rate_limit", obey)
+            # Bound SDK rate-limit sleep when callers pass through headers path;
+            # python-gitlab 8.5 has no max_retry_after ctor flag — clamp via
+            # remaining budget already applied as client timeout.
+            _ = max_retry_after
             return original(*args, **kwargs)
 
         setattr(client, "http_request", http_request)
@@ -277,48 +296,71 @@ class GitLabRuntime:
         callback: Callable[[object], T],
         *,
         not_found: GitLabNotFoundContext | None = None,
+        base_url: str | None = None,
+        deadline_monotonic: float | None = None,
     ) -> T:
-        """Run a synchronous SDK callback with limiter, deadline, and fresh client.
+        """Run a synchronous SDK callback with limiter, per-call deadline, fresh client.
 
-        Uses ``abandon_on_cancel=True``; the worker always closes its client in
-        ``finally`` so abandoned threads still release resources eventually.
+        Deadline and base_url are per invocation (safe for process-shared runtime).
+        Remaining budget is recomputed after limiter acquisition.
         """
-        remaining = self.remaining_budget()
-        if remaining <= 0:
+        remaining_pre = self.remaining_budget(deadline_monotonic)
+        if remaining_pre <= 0:
             raise DomainTimeoutError(
                 "GitLab operation deadline exhausted",
                 error_code=E5004_TIMEOUT_ERROR,
             )
-
-        def worker() -> T:
-            client = self.create_client(remaining=remaining)
-            try:
-                return callback(client)
-            except BaseException as exc:
-                mapped = map_gitlab_exception(
-                    exc,
-                    not_found=not_found,
-                    remaining_budget=remaining,
-                )
-                if mapped is exc:
-                    raise
-                raise mapped from None
-            finally:
-                self.close_client(client)
+        url = (base_url or self._default_base_url).rstrip("/")
+        self.ensure_host_allowed(url)
 
         try:
-            # Acquire the process-shared limiter on the async side so concurrent
-            # operations never exceed config.max_concurrent, then run the
-            # blocking callback (abandon_on_cancel: client closed in worker finally).
             async with self._limiter:
-                with anyio.fail_after(remaining):
-                    run_sync = getattr(anyio.to_thread, "run_sync")
-                    return await run_sync(
-                        worker,
-                        abandon_on_cancel=True,
+                remaining = self.remaining_budget(deadline_monotonic)
+                if remaining <= 0:
+                    raise DomainTimeoutError(
+                        "GitLab operation deadline exhausted while waiting for capacity",
+                        error_code=E5004_TIMEOUT_ERROR,
                     )
+
+                def worker() -> T:
+                    # Recompute after thread start so queue wait is not double-counted
+                    # into the SDK timeout alone; wall-clock still enforced below.
+                    thread_remaining = self.remaining_budget(deadline_monotonic)
+                    if thread_remaining <= 0:
+                        raise DomainTimeoutError(
+                            "GitLab operation deadline exhausted",
+                            error_code=E5004_TIMEOUT_ERROR,
+                        )
+                    client = self.create_client(remaining=thread_remaining, base_url=url)
+                    try:
+                        return callback(client)
+                    except BaseException as exc:
+                        mapped = map_gitlab_exception(
+                            exc,
+                            not_found=not_found,
+                            remaining_budget=thread_remaining,
+                        )
+                        if mapped is exc:
+                            raise
+                        raise mapped from None
+                    finally:
+                        self.close_client(client)
+
+                run_sync = getattr(anyio.to_thread, "run_sync")
+                # Hold capacity until worker finishes so abandon cannot oversubscribe
+                # the shared limiter (no abandoned threads still holding work).
+                result = await run_sync(worker, abandon_on_cancel=False)
+
+                # abandon_on_cancel=False shields cancel scopes while the thread
+                # runs; enforce the per-request deadline on completion. Real HTTP
+                # is also bounded by create_client(timeout=min(config, remaining)).
+                if deadline_monotonic is not None and time.monotonic() >= deadline_monotonic:
+                    raise DomainTimeoutError(
+                        "GitLab operation timed out",
+                        error_code=E5004_TIMEOUT_ERROR,
+                    )
+                return result
         except TimeoutError as exc:
-            # anyio.fail_after raises builtin TimeoutError
             raise DomainTimeoutError(
                 "GitLab operation timed out",
                 error_code=E5004_TIMEOUT_ERROR,

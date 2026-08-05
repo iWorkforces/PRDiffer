@@ -218,7 +218,10 @@ except Exception as e:
 
 ## GitLab strict full-diff notes
 
-- Nested GitLab.com namespaces: `group/subgroup` is `repo_owner`, project is `repo_name`.
-- Cache identity: `gitlab-full-diff-v1:{ns}:{repo}:{iid}:{version}:{base}:{start}:{head}`.
+- Nested namespaces: `group/subgroup` is `repo_owner`, project is `repo_name`.
+- Hosts: default allowlist is `gitlab.com` only. Custom/self-hosted instances require
+  server-side `gitlab.allowed_hosts` opt-in (bare hostnames). Disallowed hosts → `E1001_INVALID_URL`.
+- Cache identity: `gitlab-full-diff-v1:{host}:{ns}:{repo}:{iid}:{version}:{base}:{start}:{head}`
+  (`host` is port-aware for non-default ports).
 - Failures: E5020 (structured JSON at MCP boundary), E2006/E2007/E3006/E5021 operational.
-- No partial `files` array; no self-managed GitLab hosts.
+- No partial `files` array; equal-content equal-mode modified is E5020 fail-closed.

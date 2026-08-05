@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-
 from prdiffer.domain.config.gitlab_config import GitLabConfig
 from prdiffer.domain.entities.file_content import (
     FileContentAvailable,
@@ -59,13 +58,25 @@ class GitLabContentFetcher:
         self,
         snapshot: GitLabDiffSnapshot,
         inventory: tuple[GitLabInventoryFile, ...],
+        *,
+        base_url: str | None = None,
+        deadline_monotonic: float | None = None,
     ) -> tuple[GitLabFileContents, ...]:
-        """Fetch typed content for every admitted file in provider order."""
+        """Fetch typed content for every admitted file in provider order.
+
+        ``base_url`` and ``deadline_monotonic`` are per-request and forwarded to
+        every SDK call so custom hosts and request deadlines apply uniformly.
+        """
         if not inventory:
             return ()
 
         async def work(index: int) -> GitLabFileContents:
-            return await self._fetch_one(snapshot, inventory[index])
+            return await self._fetch_one(
+                snapshot,
+                inventory[index],
+                base_url=base_url,
+                deadline_monotonic=deadline_monotonic,
+            )
 
         indices = list(range(len(inventory)))
         try:
@@ -101,6 +112,9 @@ class GitLabContentFetcher:
         self,
         snapshot: GitLabDiffSnapshot,
         item: GitLabInventoryFile,
+        *,
+        base_url: str | None,
+        deadline_monotonic: float | None,
     ) -> GitLabFileContents:
         record = item.record
         edit = item.edit_type
@@ -108,20 +122,62 @@ class GitLabContentFetcher:
         previous = record.old_path if edit is EDIT_TYPE.RENAMED else None
 
         if edit is EDIT_TYPE.ADDED:
-            head = await self._raw(snapshot.project_path, record.new_path, snapshot.head_sha, required=True)
+            head = await self._raw(
+                snapshot.project_path,
+                record.new_path,
+                snapshot.head_sha,
+                required=True,
+                base_url=base_url,
+                deadline_monotonic=deadline_monotonic,
+            )
             base = FileContentAvailable(text="")
         elif edit is EDIT_TYPE.DELETED:
-            base = await self._raw(snapshot.project_path, record.old_path, snapshot.base_sha, required=True)
+            base = await self._raw(
+                snapshot.project_path,
+                record.old_path,
+                snapshot.base_sha,
+                required=True,
+                base_url=base_url,
+                deadline_monotonic=deadline_monotonic,
+            )
             head = FileContentAvailable(text="")
         elif edit is EDIT_TYPE.RENAMED:
-            base = await self._raw(snapshot.project_path, record.old_path, snapshot.base_sha, required=True)
-            head = await self._raw(snapshot.project_path, record.new_path, snapshot.head_sha, required=True)
+            base = await self._raw(
+                snapshot.project_path,
+                record.old_path,
+                snapshot.base_sha,
+                required=True,
+                base_url=base_url,
+                deadline_monotonic=deadline_monotonic,
+            )
+            head = await self._raw(
+                snapshot.project_path,
+                record.new_path,
+                snapshot.head_sha,
+                required=True,
+                base_url=base_url,
+                deadline_monotonic=deadline_monotonic,
+            )
         else:
             # modified / mode-only
             old_path = record.old_path or record.new_path
             new_path = record.new_path or record.old_path
-            base = await self._raw(snapshot.project_path, old_path, snapshot.base_sha, required=True)
-            head = await self._raw(snapshot.project_path, new_path, snapshot.head_sha, required=True)
+            base = await self._raw(
+                snapshot.project_path,
+                old_path,
+                snapshot.base_sha,
+                required=True,
+                base_url=base_url,
+                deadline_monotonic=deadline_monotonic,
+            )
+            head = await self._raw(
+                snapshot.project_path,
+                new_path,
+                snapshot.head_sha,
+                required=True,
+                base_url=base_url,
+                deadline_monotonic=deadline_monotonic,
+            )
 
         return GitLabFileContents(
             index=item.index,
@@ -141,7 +197,11 @@ class GitLabContentFetcher:
         ref: str,
         *,
         required: bool,
+        base_url: str | None,
+        deadline_monotonic: float | None,
     ) -> FileContentAvailable:
+        _ = required  # callers only request required sides; unavailable → E5020
+
         def callback(client: object) -> FileContentResult:
             projects = getattr(client, "projects")
             project = projects.get(project_path)
@@ -197,6 +257,8 @@ class GitLabContentFetcher:
         result = await self._runtime.run_blocking(
             callback,
             not_found=GitLabNotFoundContext(GitLabNotFoundKind.FILE),
+            base_url=base_url,
+            deadline_monotonic=deadline_monotonic,
         )
 
         if isinstance(result, FileContentAvailable):

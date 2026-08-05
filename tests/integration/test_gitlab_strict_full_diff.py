@@ -46,11 +46,20 @@ class FakeOps(GitLabOperations):
         self.snapshot = snapshot
         self.select_calls = 0
 
-    def select_diff_snapshot(
-        self, project_path: str, iid: int, *, base_url: str | None = None
-    ) -> GitLabDiffSnapshot:
+    def select_diff_snapshot(self, project_path: str, iid: int, *, base_url: str | None = None) -> GitLabDiffSnapshot:
         self.select_calls += 1
         self.last_base_url = base_url
+        return self.snapshot
+
+    def select_with_client(
+        self,
+        client: object,
+        project_path: str,
+        iid: int,
+    ) -> GitLabDiffSnapshot:
+        # Session path uses runtime.run_blocking → select_with_client.
+        _ = client
+        self.select_calls += 1
         return self.snapshot
 
 

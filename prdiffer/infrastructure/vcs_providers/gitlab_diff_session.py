@@ -18,7 +18,13 @@ from prdiffer.infrastructure.vcs_providers.gitlab_diff_generator import GitLabDi
 from prdiffer.infrastructure.vcs_providers.gitlab_inventory import admit_inventory
 from prdiffer.infrastructure.vcs_providers.gitlab_models import GitLabDiffSnapshot
 from prdiffer.infrastructure.vcs_providers.gitlab_operations import GitLabOperations
-from prdiffer.infrastructure.vcs_providers.gitlab_runtime import GitLabRuntime
+from prdiffer.infrastructure.vcs_providers.gitlab_runtime import (
+    GITLAB_COM_URL,
+    GitLabNotFoundContext,
+    GitLabNotFoundKind,
+    GitLabRuntime,
+    cache_host_from_base_url,
+)
 
 
 class GitLabPRDiffSession(PRDiffReadSessionInterface):
@@ -36,10 +42,6 @@ class GitLabPRDiffSession(PRDiffReadSessionInterface):
         deadline_monotonic: float,
         base_url: str | None = None,
     ) -> None:
-        from urllib.parse import urlparse
-
-        from prdiffer.infrastructure.vcs_providers.gitlab_runtime import GITLAB_COM_URL
-
         self._gitlab_snapshot = snapshot
         self._operations = operations
         self._content_fetcher = content_fetcher
@@ -64,7 +66,8 @@ class GitLabPRDiffSession(PRDiffReadSessionInterface):
             head_sha=snapshot.head_sha,
             authoritative_changed_files=len(snapshot.records),
         )
-        host = urlparse(self._base_url).hostname or "gitlab.com"
+        # Port-aware host identity (e.g. gitlab.example.com:8443).
+        host = cache_host_from_base_url(self._base_url)
         self._cache_identity = gitlab_full_diff_v1_identity(
             namespace=owner,
             repo=repo,
@@ -109,7 +112,12 @@ class GitLabPRDiffSession(PRDiffReadSessionInterface):
             self._gitlab_snapshot,
             max_files_allowed=self._config.max_files_allowed,
         )
-        contents = await self._content_fetcher.fetch_all(self._gitlab_snapshot, inventory)
+        contents = await self._content_fetcher.fetch_all(
+            self._gitlab_snapshot,
+            inventory,
+            base_url=self._base_url,
+            deadline_monotonic=self._deadline_monotonic,
+        )
         return self._assembler.assemble(inventory, contents)
 
     async def aclose(self) -> None:
@@ -147,9 +155,11 @@ class GitLabSessionPRDiffReader:
         *,
         base_url: str | None = None,
     ) -> GitLabPRDiffSession:
+        # Per-request deadline only (never stored on the process-shared runtime).
         deadline = time.monotonic() + self._request_timeout_seconds
-        self._runtime.set_deadline_monotonic(deadline)
-        project_path = f"{repo_owner}/{repo_name}"
+        url = (base_url or GITLAB_COM_URL).rstrip("/")
+        # Fail closed before any SDK work when host is not allowlisted.
+        self._runtime.ensure_host_allowed(url)
 
         remaining = deadline - time.monotonic()
         if remaining <= 0:
@@ -157,10 +167,18 @@ class GitLabSessionPRDiffReader:
                 "PR diff request deadline exhausted before session open",
                 error_code=E5004_TIMEOUT_ERROR,
             )
-        snapshot = self._operations.select_diff_snapshot(
-            project_path,
-            pr_number,
-            base_url=base_url,
+
+        project_path = f"{repo_owner}/{repo_name}"
+        operations = self._operations
+
+        def select(client: object) -> GitLabDiffSnapshot:
+            return operations.select_with_client(client, project_path, pr_number)
+
+        snapshot = await self._runtime.run_blocking(
+            select,
+            not_found=GitLabNotFoundContext(GitLabNotFoundKind.MERGE_REQUEST),
+            base_url=url,
+            deadline_monotonic=deadline,
         )
         return GitLabPRDiffSession(
             snapshot=snapshot,
@@ -170,7 +188,7 @@ class GitLabSessionPRDiffReader:
             config=self._config,
             runtime=self._runtime,
             deadline_monotonic=deadline,
-            base_url=base_url,
+            base_url=url,
         )
 
     async def get_pr_diff(

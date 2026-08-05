@@ -8,15 +8,11 @@ import gitlab
 import requests
 
 from prdiffer.domain.error_codes import (
-    E4001_REPO_NOT_FOUND,
-    E4002_PR_NOT_FOUND,
     E5019_CONNECTION_ERROR,
-    E5021_GITLAB_API_ERROR,
 )
 from prdiffer.domain.exceptions import (
     FullDiffIncompleteError,
     FullDiffIncompleteReason,
-    GitLabAPIError,
     PRDifferException,
 )
 from prdiffer.infrastructure.vcs_providers.gitlab_models import (
@@ -43,10 +39,14 @@ __all__ = [
 
 
 class GitLabOperations:
-    """Execute isolated synchronous GitLab operations with fresh SDK clients.
+    """Execute isolated synchronous GitLab operations with a provided SDK client.
 
     Strict full-diff path pins one MR diff version whose base/start/head SHAs
     exactly match the MR's current ``diff_refs``.
+
+    Production callers must obtain the client via :class:`GitLabRuntime`
+    (capacity, deadline, host allowlist). Synchronous helpers that open their
+    own clients exist only for isolated unit tests and initialization probes.
     """
 
     def __init__(
@@ -59,7 +59,7 @@ class GitLabOperations:
         self._base_url = (base_url or GITLAB_COM_URL).rstrip("/")
 
     def initialize(self, *, base_url: str | None = None) -> None:
-        """Authenticate a newly created GitLab client."""
+        """Authenticate a newly created GitLab client (blocking probe)."""
         url = (base_url or self._base_url).rstrip("/")
         try:
             with gitlab.Gitlab(url=url, private_token=self._gitlab_token) as client:
@@ -87,45 +87,36 @@ class GitLabOperations:
     ) -> GitLabDiffSnapshot:
         """Select and fetch exactly one MR diff version matching current diff_refs.
 
-        ``project_path`` is the unencoded GitLab project path (e.g.
-        ``group/subgroup/project``). ``base_url`` selects GitLab.com or a
-        custom-hosted instance (e.g. ``https://gitlab.example.com``).
+        Prefer :meth:`select_with_client` under :meth:`GitLabRuntime.run_blocking`
+        on the request path so capacity and deadlines apply. This method opens a
+        short-lived client for unit tests and non-session callers.
         """
         url = (base_url or self._base_url).rstrip("/")
         try:
             with gitlab.Gitlab(url=url, private_token=self._gitlab_token) as client:
-                return self._select_diff_snapshot_with_client(client, project_path, iid)
+                return self.select_with_client(client, project_path, iid)
         except FullDiffIncompleteError:
             raise
         except Exception as exc:
-            # Prefer runtime mapper for HTTP statuses.
-            not_found = GitLabNotFoundContext(GitLabNotFoundKind.MERGE_REQUEST)
-            # Heuristic: project get failures often surface first
-            mapped = map_gitlab_exception(exc, not_found=not_found)
-            if isinstance(mapped, Exception) and mapped is not exc:
-                # Refine project vs MR 404 using message when available
-                if getattr(mapped, "error_code", None) is E4002_PR_NOT_FOUND:
-                    status = getattr(exc, "response_code", None)
-                    if status == 404 and "Project" in type(exc).__name__:
-                        raise GitLabAPIError(
-                            "Repository not found",
-                            status_code=404,
-                            error_code=E4001_REPO_NOT_FOUND,
-                            details={"status_code": 404},
-                        ) from None
+            mapped = map_gitlab_exception(
+                exc,
+                not_found=GitLabNotFoundContext(GitLabNotFoundKind.MERGE_REQUEST),
+            )
+            if mapped is not exc:
                 raise mapped from None
-            if isinstance(exc, (gitlab.GitlabAuthenticationError, gitlab.GitlabGetError, gitlab.GitlabHttpError)):
-                raise PRDifferException("Merge request not found", error_code=E4002_PR_NOT_FOUND) from None
-            if isinstance(exc, (gitlab.GitlabConnectionError, requests.RequestException)):
-                raise PRDifferException("GitLab API error", error_code=E5021_GITLAB_API_ERROR) from None
             raise
 
-    def _select_diff_snapshot_with_client(
+    def select_with_client(
         self,
         client: Any,
         project_path: str,
         iid: int,
     ) -> GitLabDiffSnapshot:
+        """Pin one MR diff version using an already-created SDK client.
+
+        Exception mapping uses :func:`map_gitlab_exception` with project vs MR
+        not-found context. Does not open or close the client.
+        """
         try:
             project = client.projects.get(project_path)
         except Exception as exc:

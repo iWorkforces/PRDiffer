@@ -87,18 +87,44 @@ class TestGitLabDiffAssembler:
         # No provider hunk passthrough markers required; stats from generated text
         assert pr_diff.files[0].stats.additions >= 1
 
-    def test_equal_noop_modified_fails(self) -> None:
+    def test_equal_noop_modified_fails_hard(self) -> None:
+        """Equal content + equal/missing modes must always E5020, even if gen emits text."""
         gen = DiffGenerator(diff_utils=DiffUtils(), parallel_enabled=False)
         assembler = GitLabDiffAssembler(gen, GitLabConfig())
-        inv = (_item(0, EDIT_TYPE.MODIFIED, "a.py", "a.py"),)
-        # Force empty generated body by equal content — generator may still emit context lines.
-        # Use empty equal content which yields near-empty hunk.
-        contents = (_content(0, "a.py", EDIT_TYPE.MODIFIED, "", ""),)
-        # Empty equal may produce minimal hunk; if not empty, skip. Call and check:
-        try:
+        inv = (_item(0, EDIT_TYPE.MODIFIED, "a.py", "a.py", a_mode="100644", b_mode="100644"),)
+        contents = (
+            _content(
+                0,
+                "a.py",
+                EDIT_TYPE.MODIFIED,
+                "identical body\n",
+                "identical body\n",
+                old_mode="100644",
+                new_mode="100644",
+            ),
+        )
+        with pytest.raises(FullDiffIncompleteError) as exc:
             assembler.assemble(inv, contents)
-        except FullDiffIncompleteError as exc:
-            assert exc.reason is FullDiffIncompleteReason.DIFF_GENERATION_FAILED
+        assert exc.value.reason is FullDiffIncompleteReason.DIFF_GENERATION_FAILED
+        assert exc.value.details.get("path") == "a.py"
+
+    def test_equal_content_mode_change_allowed(self) -> None:
+        gen = DiffGenerator(diff_utils=DiffUtils(), parallel_enabled=False)
+        assembler = GitLabDiffAssembler(gen, GitLabConfig())
+        inv = (_item(0, EDIT_TYPE.MODIFIED, "mode.sh", "mode.sh", a_mode="100644", b_mode="100755"),)
+        contents = (
+            _content(
+                0,
+                "mode.sh",
+                EDIT_TYPE.MODIFIED,
+                "echo\n",
+                "echo\n",
+                old_mode="100644",
+                new_mode="100755",
+            ),
+        )
+        pr_diff = assembler.assemble(inv, contents)
+        assert pr_diff.files[0].diff.startswith("old mode 100644\nnew mode 100755\n")
 
     def test_aggregate_size_limit(self) -> None:
         gen = DiffGenerator(diff_utils=DiffUtils(), parallel_enabled=False)

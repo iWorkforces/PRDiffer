@@ -80,7 +80,6 @@ async def test_owner_deadline_returns_e5004() -> None:
     runtime = GitLabRuntime(
         GitLabConfig(timeout=30, pr_diff_request_timeout_seconds=180),
         client_factory=CountingClient,
-        deadline_monotonic=time.monotonic() + 0.05,
     )
 
     def slow(_c: object) -> str:
@@ -88,5 +87,5 @@ async def test_owner_deadline_returns_e5004() -> None:
         return "late"
 
     with pytest.raises(DomainTimeoutError) as exc:
-        await runtime.run_blocking(slow)
+        await runtime.run_blocking(slow, deadline_monotonic=time.monotonic() + 0.05)
     assert exc.value.error_code.code == "E5004"

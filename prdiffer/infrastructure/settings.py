@@ -200,6 +200,9 @@ class SettingsService(SettingsServiceInterface):
             if request_timeout is None:
                 request_timeout = get_with_fallback("mcp.pr_diff_request_timeout_seconds", 180.0)
 
+            # Host allowlist: list/tuple/CSV via GitLabConfig.from_dict normalization.
+            hosts_cfg = GitLabConfig.from_dict({"allowed_hosts": get_with_fallback("gitlab.allowed_hosts", None)})
+
             self._gitlab_config_cache = GitLabConfig(
                 timeout=int(get_with_fallback("gitlab.timeout", 30)),
                 max_retries=int(get_with_fallback("gitlab.max_retries", 3)),
@@ -210,6 +213,7 @@ class SettingsService(SettingsServiceInterface):
                 max_files_allowed=int(max_files),
                 max_total_chars=int(max_total),
                 pr_diff_request_timeout_seconds=float(request_timeout),
+                allowed_hosts=hosts_cfg.allowed_hosts,
             )
             return self._gitlab_config_cache
 

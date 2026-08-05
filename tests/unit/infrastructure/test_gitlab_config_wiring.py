@@ -21,6 +21,7 @@ class TestGitLabConfigDefaults:
         assert config.max_retries == 3
         assert config.retry_transient_errors is True
         assert config.obey_rate_limit is True
+        assert config.allowed_hosts == ("gitlab.com",)
 
 
 @pytest.mark.unit
@@ -38,6 +39,7 @@ class TestSettingsTomlGitLabDefaults:
         assert config.max_retries == 3
         assert config.retry_transient_errors is True
         assert config.obey_rate_limit is True
+        assert config.allowed_hosts == ("gitlab.com",)
 
     def test_gitlab_config_is_cached_and_cleared(self) -> None:
         service = SettingsService(settings_files=["settings.toml"])

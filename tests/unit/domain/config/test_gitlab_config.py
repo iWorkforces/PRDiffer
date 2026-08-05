@@ -92,3 +92,32 @@ class TestGitLabConfigFromDict:
         assert config.max_retries == 1
         assert config.max_concurrent == 2
         assert config.max_files_allowed == 10
+
+    def test_from_dict_allowed_hosts_list_and_csv(self) -> None:
+        from_list = GitLabConfig.from_dict({"allowed_hosts": ["gitlab.com", "GitLab.Example.COM"]})
+        assert from_list.allowed_hosts == ("gitlab.com", "gitlab.example.com")
+        from_csv = GitLabConfig.from_dict({"allowed_hosts": "gitlab.com, self-hosted.local"})
+        assert from_csv.allowed_hosts == ("gitlab.com", "self-hosted.local")
+
+
+@pytest.mark.unit
+class TestGitLabConfigAllowedHosts:
+    def test_default_is_gitlab_com_only(self) -> None:
+        config = GitLabConfig()
+        assert config.allowed_hosts == ("gitlab.com",)
+        assert config.is_host_allowed("gitlab.com")
+        assert config.is_host_allowed("GitLab.COM")
+        assert not config.is_host_allowed("evil.internal")
+
+    def test_is_host_allowed_strips_port(self) -> None:
+        config = GitLabConfig(allowed_hosts=("gitlab.example.com",))
+        assert config.is_host_allowed("gitlab.example.com:8443")
+        assert not config.is_host_allowed("other.example.com:8443")
+
+    def test_rejects_empty_or_invalid_hosts(self) -> None:
+        with pytest.raises(ValueError, match="at least one"):
+            GitLabConfig(allowed_hosts=())
+        with pytest.raises(ValueError, match="bare hostnames"):
+            GitLabConfig(allowed_hosts=("https://gitlab.com",))
+        with pytest.raises(ValueError, match="bare hostnames"):
+            GitLabConfig(allowed_hosts=("gitlab.com:443",))

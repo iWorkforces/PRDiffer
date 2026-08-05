@@ -23,7 +23,7 @@ prdiffer/domain/config/
 | Symbol | Type | Location | Role |
 |--------|------|----------|------|
 | `GitHubConfig` | Frozen dataclass | `github_config.py` | Central GitHub settings VO |
-| `GitLabConfig` | Frozen slotted dataclass | `gitlab_config.py` | GitLab.com strict-diff limits/resilience |
+| `GitLabConfig` | Frozen slotted dataclass | `gitlab_config.py` | GitLab strict-diff limits/resilience + host allowlist |
 | `GitHubConfigInterface` | Protocol | `github_config_interface.py` | DI / typing surface |
 | `GitHubConfigDict` | TypedDict | `github_config_interface.py` | `from_dict` / `with_overrides` keys |
 | `github_worker_capacity` | property | `GitHubConfig` | 1 when `parallel_file_fetch_enabled` is false |
@@ -55,6 +55,9 @@ Also: retry/circuit-breaker knobs, `ignore_patterns` / `valid_extensions` as tup
 | `max_files_allowed` | 50 | From `app.max_files_allowed` when wired |
 | `max_total_chars` | 200_000 | From `diff.max_total_chars` when wired |
 | `pr_diff_request_timeout_seconds` | 180.0 | From `mcp.pr_diff_request_timeout_seconds` when wired |
+| `allowed_hosts` | `("gitlab.com",)` | Bare hostnames only; opt-in custom hosts via settings |
+
+Helpers: `is_host_allowed(host)` (casefold; strips `:port`).
 
 ## CONVENTIONS
 - Immutable config objects only; `__post_init__` validates positives and `timeout < pr_diff_request_timeout_seconds`.
@@ -63,11 +66,12 @@ Also: retry/circuit-breaker knobs, `ignore_patterns` / `valid_extensions` as tup
 - Never read env/files from this package.
 - Helpers (GitHub): `should_ignore_file`, `has_valid_extension`, `should_process_file`, `with_overrides`.
 - GitLabConfig has **no** ignore-pattern / extension filtering.
+- Custom GitLab hosts require explicit `allowed_hosts` entries (no open-host default).
 
 ## ANTI-PATTERNS
 - NO Dynaconf / `os.environ` here.
 - NO silent coercion of zero/negative limits.
 - NO reusing `GitHubConfig` for GitLab.
-- NO self-managed GitLab base-URL configuration.
+- NO open/default-all host allowlist (SSRF with token).
 - NO mutable config bags shared across threads without care.
 - NO `@lru_cache` on settings construction (RLock manual cache only).

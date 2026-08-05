@@ -136,6 +136,27 @@ class TestGitLabContentFetcher:
             await fetcher.fetch_all(_snap(), (_item(EDIT_TYPE.MODIFIED, "m.py", "m.py"),))
         assert exc.value.reason is FullDiffIncompleteReason.CONTENT_UNAVAILABLE
 
+    async def test_fetch_forwards_base_url_to_runtime_client(self) -> None:
+        """Content fetch must construct SDK clients with the per-request base_url."""
+        store: dict[tuple[str, str], bytes | BaseException] = {("a.py", "head"): b"x"}
+        constructed: list[str] = []
+
+        def factory(url: str, private_token: str | None = None, **kwargs: object) -> FakeClient:
+            constructed.append(url)
+            return FakeClient(store)
+
+        config = GitLabConfig(allowed_hosts=("gitlab.com", "gitlab.example.com"), max_concurrent=1)
+        runtime = GitLabRuntime(config, client_factory=factory)
+        fetcher = GitLabContentFetcher(runtime, config, parallel_enabled=False)
+        await fetcher.fetch_all(
+            _snap(),
+            (_item(EDIT_TYPE.ADDED, "a.py", "a.py"),),
+            base_url="https://gitlab.example.com",
+            deadline_monotonic=None,
+        )
+        assert constructed
+        assert all(u == "https://gitlab.example.com" for u in constructed)
+
     async def test_oversized_binary_decode(self) -> None:
         runtime, _ = _runtime({("b.py", "base"): b"x" * 11, ("b.py", "head"): b"y"}, max_file_size_bytes=10)
         fetcher = GitLabContentFetcher(runtime, runtime.config, parallel_enabled=False)

@@ -1,7 +1,7 @@
 """Centralized GitLab strict full-diff configuration.
 
-Frozen, slotted value object for GitLab.com SDK timeouts, capacity, and
-content limits. Independent of GitHubConfig (no extension filtering).
+Frozen, slotted value object for GitLab SDK timeouts, capacity, content
+limits, and host allowlist. Independent of GitHubConfig (no extension filtering).
 """
 
 from __future__ import annotations
@@ -17,6 +17,7 @@ DEFAULT_MAX_TOTAL_CHARS = 200_000
 DEFAULT_MAX_FILES_ALLOWED = 50
 DEFAULT_MAX_RETRIES = 3
 DEFAULT_MAX_CONCURRENT = 4
+DEFAULT_ALLOWED_HOSTS: tuple[str, ...] = ("gitlab.com",)
 
 
 def _require_positive(name: str, value: int | float) -> None:
@@ -47,9 +48,21 @@ def _as_bool(raw: Any, default: bool) -> bool:
     return bool(raw)
 
 
+def _as_host_tuple(raw: Any, default: tuple[str, ...]) -> tuple[str, ...]:
+    if raw is None:
+        return default
+    if isinstance(raw, str):
+        parts = [p.strip().casefold() for p in raw.split(",") if p.strip()]
+        return tuple(parts) if parts else default
+    if isinstance(raw, (list, tuple)):
+        parts = [str(p).strip().casefold() for p in raw if str(p).strip()]
+        return tuple(parts) if parts else default
+    raise ValueError(f"allowed_hosts must be a list/tuple/str (got {type(raw)!r})")
+
+
 @dataclass(frozen=True, slots=True)
 class GitLabConfig:
-    """Immutable GitLab strict-diff limits and resilience settings."""
+    """Immutable GitLab strict-diff limits, resilience, and host policy."""
 
     timeout: int = DEFAULT_GITLAB_TIMEOUT_SECONDS
     max_retries: int = DEFAULT_MAX_RETRIES
@@ -60,6 +73,8 @@ class GitLabConfig:
     max_files_allowed: int = DEFAULT_MAX_FILES_ALLOWED
     max_total_chars: int = DEFAULT_MAX_TOTAL_CHARS
     pr_diff_request_timeout_seconds: float = DEFAULT_PR_DIFF_REQUEST_TIMEOUT_SECONDS
+    # Hostnames only (casefolded). Default GitLab.com-only; opt-in custom hosts via settings.
+    allowed_hosts: tuple[str, ...] = DEFAULT_ALLOWED_HOSTS
 
     def __post_init__(self) -> None:
         _require_positive("timeout", self.timeout)
@@ -75,6 +90,16 @@ class GitLabConfig:
                 "gitlab.timeout must be strictly less than mcp.pr_diff_request_timeout_seconds "
                 f"(got timeout={self.timeout}, request_timeout={self.pr_diff_request_timeout_seconds})"
             )
+        if not self.allowed_hosts:
+            raise ValueError("allowed_hosts must contain at least one hostname")
+        for host in self.allowed_hosts:
+            if not host or "/" in host or ":" in host or " " in host:
+                raise ValueError(f"allowed_hosts entries must be bare hostnames (got {host!r})")
+
+    def is_host_allowed(self, host: str) -> bool:
+        """True when hostname (or hostname:port netloc host part) is allowlisted."""
+        bare = host.casefold().split(":", 1)[0]
+        return bare in self.allowed_hosts
 
     @classmethod
     def from_dict(cls, config: dict[str, Any]) -> GitLabConfig:
@@ -92,4 +117,5 @@ class GitLabConfig:
                 config.get("pr_diff_request_timeout_seconds"),
                 DEFAULT_PR_DIFF_REQUEST_TIMEOUT_SECONDS,
             ),
+            allowed_hosts=_as_host_tuple(config.get("allowed_hosts"), DEFAULT_ALLOWED_HOSTS),
         )

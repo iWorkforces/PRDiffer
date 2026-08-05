@@ -12,6 +12,7 @@ import requests
 
 from prdiffer.domain.config.gitlab_config import GitLabConfig
 from prdiffer.domain.error_codes import (
+    E1001_INVALID_URL,
     E2006_GITLAB_AUTH_FAILED,
     E2007_GITLAB_INSUFFICIENT_PERMISSIONS,
     E3006_GITLAB_RATE_LIMITED,
@@ -26,6 +27,7 @@ from prdiffer.domain.exceptions import (
     AuthenticationError,
     AuthorizationError,
     GitLabAPIError,
+    InvalidURLError,
     RateLimitError,
     TimeoutError as DomainTimeoutError,
 )
@@ -34,6 +36,7 @@ from prdiffer.infrastructure.vcs_providers.gitlab_runtime import (
     GitLabNotFoundContext,
     GitLabNotFoundKind,
     GitLabRuntime,
+    cache_host_from_base_url,
     map_gitlab_exception,
 )
 
@@ -104,6 +107,7 @@ def _config(**overrides: Any) -> GitLabConfig:
         "retry_transient_errors": True,
         "obey_rate_limit": True,
         "pr_diff_request_timeout_seconds": 180.0,
+        "allowed_hosts": ("gitlab.com", "gitlab.example.com"),
     }
     base.update(overrides)
     return GitLabConfig(**base)
@@ -178,15 +182,38 @@ class TestMapGitlabException:
 
 
 @pytest.mark.unit
+class TestCacheHostAndAllowlist:
+    def test_cache_host_port_aware(self) -> None:
+        assert cache_host_from_base_url("https://gitlab.com") == "gitlab.com"
+        assert cache_host_from_base_url("https://gitlab.example.com:8443") == "gitlab.example.com:8443"
+        assert cache_host_from_base_url("https://gitlab.example.com:443") == "gitlab.example.com"
+
+    def test_disallowed_host_raises_before_client(self) -> None:
+        runtime = GitLabRuntime(_config(allowed_hosts=("gitlab.com",)), client_factory=FakeClient)
+        with pytest.raises(InvalidURLError) as exc:
+            runtime.create_client(remaining=30.0, base_url="https://evil.internal")
+        assert exc.value.error_code is E1001_INVALID_URL
+        assert FakeClient.constructed == []
+
+    def test_allowed_custom_host_accepted(self) -> None:
+        runtime = GitLabRuntime(
+            _config(allowed_hosts=("gitlab.com", "gitlab.example.com")),
+            client_factory=FakeClient,
+        )
+        client = runtime.create_client(remaining=30.0, base_url="https://gitlab.example.com")
+        assert FakeClient.constructed[0]["url"] == "https://gitlab.example.com"
+        runtime.close_client(client)
+
+
+@pytest.mark.unit
 class TestGitLabRuntimeClient:
     def test_create_client_exact_constructor_args(self) -> None:
         runtime = GitLabRuntime(
             _config(timeout=15, max_retries=2, retry_transient_errors=True, obey_rate_limit=True),
             private_token="tok",
             client_factory=FakeClient,
-            deadline_monotonic=time.monotonic() + 60,
         )
-        client = runtime.create_client()
+        client = runtime.create_client(remaining=60.0)
         assert isinstance(client, FakeClient)
         assert FakeClient.constructed[0]["url"] == GITLAB_COM_URL
         assert FakeClient.constructed[0]["private_token"] == "tok"
@@ -203,11 +230,23 @@ class TestGitLabRuntimeClient:
         runtime = GitLabRuntime(
             _config(timeout=30),
             client_factory=FakeClient,
-            deadline_monotonic=time.monotonic() + 5,
         )
-        client = runtime.create_client()
-        assert FakeClient.constructed[0]["timeout"] <= 5 + 0.01  # small clock slack
+        client = runtime.create_client(remaining=5.0)
+        assert FakeClient.constructed[0]["timeout"] == 5.0
         runtime.close_client(client)
+
+    def test_per_call_base_url_not_shared_state(self) -> None:
+        runtime = GitLabRuntime(
+            _config(allowed_hosts=("gitlab.com", "gitlab.example.com")),
+            client_factory=FakeClient,
+            base_url=GITLAB_COM_URL,
+        )
+        c1 = runtime.create_client(remaining=30.0, base_url="https://gitlab.example.com")
+        c2 = runtime.create_client(remaining=30.0)  # default
+        assert FakeClient.constructed[0]["url"] == "https://gitlab.example.com"
+        assert FakeClient.constructed[1]["url"] == GITLAB_COM_URL
+        runtime.close_client(c1)
+        runtime.close_client(c2)
 
 
 @pytest.mark.unit
@@ -218,20 +257,18 @@ class TestGitLabRuntimeAsync:
         runtime = GitLabRuntime(
             _config(max_concurrent=2),
             client_factory=FakeClient,
-            deadline_monotonic=time.monotonic() + 30,
             limiter=limiter,
         )
         release = threading.Event()
         peak_borrowed = 0
+        deadline = time.monotonic() + 30
 
         def work(_client: object) -> str:
             release.wait(timeout=5)
             return "ok"
 
         async def run_one() -> str:
-            nonlocal peak_borrowed
-            result = await runtime.run_blocking(work)
-            return result
+            return await runtime.run_blocking(work, deadline_monotonic=deadline)
 
         async def sample_borrowed() -> None:
             nonlocal peak_borrowed
@@ -260,11 +297,11 @@ class TestGitLabRuntimeAsync:
         runtime = GitLabRuntime(
             _config(),
             client_factory=FakeClient,
-            deadline_monotonic=time.monotonic() + 30,
         )
+        deadline = time.monotonic() + 30
 
         async def ok() -> int:
-            return await runtime.run_blocking(lambda _c: 1)
+            return await runtime.run_blocking(lambda _c: 1, deadline_monotonic=deadline)
 
         assert await ok() == 1
         assert runtime.closed_client_count == 1
@@ -273,7 +310,7 @@ class TestGitLabRuntimeAsync:
             raise FakeGitlabError("fail", response_code=500)
 
         with pytest.raises(GitLabAPIError) as exc:
-            await runtime.run_blocking(boom)
+            await runtime.run_blocking(boom, deadline_monotonic=deadline)
         assert exc.value.error_code is E5021_GITLAB_API_ERROR
         assert runtime.closed_client_count == 2
 
@@ -281,7 +318,6 @@ class TestGitLabRuntimeAsync:
         runtime = GitLabRuntime(
             _config(timeout=30, pr_diff_request_timeout_seconds=180),
             client_factory=FakeClient,
-            deadline_monotonic=time.monotonic() + 0.05,
         )
 
         def slow(_c: object) -> str:
@@ -289,15 +325,56 @@ class TestGitLabRuntimeAsync:
             return "late"
 
         with pytest.raises(DomainTimeoutError) as exc:
-            await runtime.run_blocking(slow)
+            await runtime.run_blocking(slow, deadline_monotonic=time.monotonic() + 0.05)
         assert exc.value.error_code is E5004_TIMEOUT_ERROR
+
+    async def test_run_blocking_forwards_base_url_to_sdk(self) -> None:
+        runtime = GitLabRuntime(
+            _config(allowed_hosts=("gitlab.com", "gitlab.example.com")),
+            private_token="tok",
+            client_factory=FakeClient,
+        )
+
+        def work(client: object) -> str:
+            assert isinstance(client, FakeClient)
+            return client.url
+
+        url = await runtime.run_blocking(
+            work,
+            base_url="https://gitlab.example.com",
+            deadline_monotonic=time.monotonic() + 30,
+        )
+        assert url == "https://gitlab.example.com"
+        assert FakeClient.constructed[0]["url"] == "https://gitlab.example.com"
+        assert FakeClient.constructed[0]["private_token"] == "tok"
+
+    async def test_per_call_deadlines_do_not_race(self) -> None:
+        """Two concurrent requests with different deadlines must not share deadline state."""
+        runtime = GitLabRuntime(_config(max_concurrent=2), client_factory=FakeClient)
+        results: list[str] = []
+
+        def work(_c: object) -> str:
+            time.sleep(0.05)
+            return "ok"
+
+        async def short() -> None:
+            with pytest.raises(DomainTimeoutError):
+                await runtime.run_blocking(work, deadline_monotonic=time.monotonic() + 0.01)
+
+        async def long() -> None:
+            results.append(await runtime.run_blocking(work, deadline_monotonic=time.monotonic() + 5.0))
+
+        async with anyio.create_task_group() as tg:
+            tg.start_soon(short)
+            tg.start_soon(long)
+
+        assert results == ["ok"]
 
     async def test_429_does_not_locally_reattempt(self) -> None:
         """Runtime maps 429 once; no second local retry loop."""
         runtime = GitLabRuntime(
             _config(max_retries=3),
             client_factory=FakeClient,
-            deadline_monotonic=time.monotonic() + 30,
         )
         calls = 0
 
@@ -307,7 +384,7 @@ class TestGitLabRuntimeAsync:
             raise FakeGitlabError("rl", response_code=429, response_headers={"Retry-After": "5"})
 
         with pytest.raises(RateLimitError) as exc:
-            await runtime.run_blocking(rate_limited)
+            await runtime.run_blocking(rate_limited, deadline_monotonic=time.monotonic() + 30)
         assert calls == 1
         assert exc.value.error_code is E3006_GITLAB_RATE_LIMITED
         assert runtime.closed_client_count == 1
