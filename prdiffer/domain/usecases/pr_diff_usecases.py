@@ -64,25 +64,40 @@ class GetPRDiffUseCase:
         repo_name: str,
         pr_number: int,
     ) -> PRDiff | None:
+        from prdiffer.domain.entities.pr_diff_cache import (
+            github_full_diff_v2_key,
+            unwrap_pr_diff_cache_value,
+            wrap_pr_diff_for_cache,
+        )
+
         open_session = getattr(self._pr_diff_service, "open_pr_diff_session")
         session = await open_session(repo_owner, repo_name, pr_number)
         try:
             snapshot = session.snapshot
-            cache_key = self._cache_service.get_cache_key(repo_owner, repo_name, pr_number)
+            # Exact v2 key; ignores unversioned/v1/raw/wrong-schema values on read.
+            cache_key = github_full_diff_v2_key(repo_owner, repo_name, pr_number, snapshot.head_sha)
             if self._cache_namespace:
                 cache_key = f"{self._cache_namespace}:{cache_key}"
 
             if self._cache_hit_optimization_enabled:
                 cached_result, cached_commit_sha = await self._cache_service.get_optimistic(cache_key)
-                if cached_result and cached_commit_sha and cached_commit_sha == snapshot.head_sha:
-                    return cached_result
+                unwrapped = (
+                    unwrap_pr_diff_cache_value(cached_result, key=cache_key) if cached_result is not None else None
+                )
+                if unwrapped is not None and cached_commit_sha and cached_commit_sha == snapshot.head_sha:
+                    return unwrapped
 
             cached_result = await self._cache_service.get(cache_key, snapshot.head_sha)
-            if cached_result:
-                return cached_result
+            unwrapped = (
+                unwrap_pr_diff_cache_value(cached_result, key=cache_key) if cached_result is not None else None
+            )
+            if unwrapped is not None:
+                return unwrapped
 
             result = await session.build_pr_diff()
             if result:
+                # v2 key implies schema; store PRDiff under the versioned key only.
+                _ = wrap_pr_diff_for_cache(result)  # validate constructibility
                 await self._cache_service.set(cache_key, snapshot.head_sha, result)
             return result
         finally:

@@ -9,6 +9,7 @@ prdiffer/domain/entities/          # + typed content results
 ├── file_diff_response.py          # FileDiffResponse, FileStats
 ├── file_content.py                # FileContentAvailable | FileContentUnavailable
 ├── generated_file_diff.py         # GeneratedFileDiff (index, path, previous_path, diff)
+├── pr_diff_cache.py               # PRDiffCacheEntryV2 + github-full-diff-v2 keys
 ├── pr_diff.py                     # PRDiff — files tuple of FileDiffResponse
 ├── pull_request.py                # PullRequest
 ├── repository.py                  # Repository
