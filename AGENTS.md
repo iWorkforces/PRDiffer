@@ -102,11 +102,11 @@ PRDifferMCP/
 - Auto-use fixtures: `set_test_environment`, `reset_singletons` in `tests/conftest.py`.
 
 ### Build/CI
-- **No GitHub Actions** (no `.github/` workflows).
+- **GitHub Actions**: `.github/workflows/pr-quality.yml` runs lint (`ruff check`), type check (`ty check`), and unit tests (`pytest`) on pull requests targeting `main` or `develop` (parallel matrix jobs, `uv sync --frozen --group dev`).
 - **Pre-commit** available (`.pre-commit-config.yaml`: ruff, pyright, basic hooks).
-- Quality gates: `start-lint.sh`, `start-type-check.sh` (ty + optional pyright), `start-unittest.sh`.
+- Local quality gates: `start-lint.sh`, `start-type-check.sh` (ty + optional pyright), `start-unittest.sh`.
 - Git hooks: `scripts/setup-git-hooks.sh` copies `scripts/git-hooks/pre-push` (type-check + lint).
-- Primary type checker in scripts: **ty** (Astral); pyright also configured (`pyrightconfig.json`, pre-commit).
+- Primary type checker in scripts/CI: **ty** (Astral); pyright also configured (`pyrightconfig.json`, pre-commit).
 
 ### Python Version
 - **requires-python**: `>=3.14.3` (`pyproject.toml`); `.python-version`: `3.14.6`.
@@ -156,8 +156,9 @@ PRDifferMCP/
 - Dev convenience: `sys.path` injection for direct execution.
 
 ### Build Patterns
-- Manual quality-gate shell scripts (no Makefile).
+- Manual quality-gate shell scripts (no Makefile) plus PR CI on `main`/`develop`.
 - Pre-push: type-check + lint via version-controlled hooks.
+- CI uses frozen lockfile installs (`uv sync --frozen`) — no auto tool upgrades on runners.
 - `start-lint.sh --quotes` can rewrite triple-quote style (project-specific).
 - Developer wrappers: `start-cc-mmax.sh`, `start-cc-zai.sh`.
 - Architecture analyzer exits non-zero on layer violations.
@@ -203,10 +204,17 @@ python3 scripts/analyze_dependencies.py --path prdiffer
 
 # Git hooks
 ./scripts/setup-git-hooks.sh
+
+# CI (PR to main/develop) — same gates as .github/workflows/pr-quality.yml
+uv sync --frozen --group dev
+uv run ruff check .
+uv run ty check
+uv run pytest tests -v --tb=short
 ```
 
 ## NOTES
 
+- **CI**: PRs targeting `main` or `develop` must pass Lint, Type check, and Unit tests (GitHub Actions).
 - **Auth**: Controlled by `MCP_AUTH_ENABLED` / settings `[default.auth]`; use API keys via `MCP_API_KEYS` when enabled.
 - **MCP tools**: `get_pr_diff`, `approve_pr`, `describe_pr`, plus health tool registration.
 - **VCS**: GitHub (primary) + GitLab provider implementations; registry auto-detects from URL.
