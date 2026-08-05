@@ -1,51 +1,32 @@
 # AGENTS.md - Infrastructure/Cache
 
-Caching infrastructure with commit-based invalidation, LRU eviction, TTL support.
+In-process caching with commit-aware keys, TTL, and repository-scoped caches (~1.1K lines).
 
 ## STRUCTURE
 ```
 prdiffer/infrastructure/cache/
-├── service.py       # CacheService (PR diff caching)
-├── store.py         # CacheStore (LRU with TTL eviction)
-├── keys.py          # CacheKeyManager (MD5/SHA256 key generation)
-├── repository/      # Repository-specific caching
-└── decorators/      # @cached_method decorator, CachingMixin
+├── service.py              # CacheService (340) — primary general cache
+├── cache_decorators.py     # CachingMixin, cached_method (248)
+├── cache_repository.py     # RepositoryCacheService (259)
+├── keys.py                 # Key builders (88)
+├── store.py                # Low-level store (77)
+├── decorators/             # SHIM → cache_decorators
+└── repository/             # SHIM → cache_repository
 ```
 
 ## WHERE TO LOOK
 | Task | Location | Notes |
 |------|----------|-------|
-| **General caching** | `service.py` | CacheService with get/set/invalidate |
-| **LRU storage** | `store.py` | OrderedDict-based LRU eviction |
-| **Key generation** | `keys.py` | MD5/SHA256 hashing for cache keys |
-| **Method caching** | `decorators/` | @cached_method decorator, CachingMixin |
-| **Repository cache** | `repository/` | Commit-based invalidation for PR data |
+| **General cache** | `service.py` | `get_cache_service()` |
+| **Method caching** | `cache_decorators.py` | Mixin for services |
+| **Repo cache** | `cache_repository.py` | PR/repo invalidation |
+| **Key format** | `keys.py` | Stable cache key construction |
 
 ## CONVENTIONS
-
-### Key Generation
-- **Commit-based keys**: MD5 hash of `{commit_sha}:{file_path}` for precise invalidation
-- **Hashed keys**: Configurable MD5 (32 chars) or SHA256 (64 chars) via settings.toml
-- **Key mapping**: Store original key for debugging (store_key_mapping = true)
-
-### LRU Eviction
-- **OrderedDict**: `move_to_end()` on access for access-time ordering
-- **Size limit**: `max_size` parameter (default 1000)
-- **TTL support**: `evict_expired()` removes stale entries
-
-### Thread Safety
-- **RLock**: All cache operations use threading.RLock
-- **@with_lock**: Decorator in repository/ for automatic lock management
+- Import canonical modules (`cache.service`, `cache.cache_decorators`, `cache.cache_repository`).
+- Shims exist only for backward-compatible import paths.
+- Thread-safe access; support invalidation on webhook events.
 
 ## ANTI-PATTERNS
-
-- NO cache without invalidation → Commit-based keys prevent stale data
-- NO unbounded cache → Always set max_size
-- NO missing TTL → Set appropriate ttl for data freshness
-- NO asyncio in cache → Use threading.RLock (sync-only)
-
-## Files
-
-- `service.py`: CacheService for PR diff caching
-- `store.py`: CacheStore (LRU with TTL)
-- `keys.py`: CacheKeyManager (key hashing)
+- NO unbounded growth without eviction/TTL.
+- NO caching secrets or raw auth tokens.
