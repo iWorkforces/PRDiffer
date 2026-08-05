@@ -84,7 +84,7 @@ class GitLabContentFetcher:
         except IndexedBatchError as exc:
             # Re-raise the first underlying item error (E5020 / operational).
             for outcome in exc.outcomes:
-                if outcome is not None and outcome.error is not None:
+                if outcome.error is not None:
                     raise outcome.error from None
             raise
 
