@@ -37,6 +37,7 @@ from prdiffer.infrastructure.security.input_validator import InputValidator
 from prdiffer.infrastructure.github.client import get_github_api_client
 from prdiffer.infrastructure.github.file_processor import get_file_processor
 from prdiffer.infrastructure.github.diff_generator import get_diff_generator
+from prdiffer.infrastructure.github.inventory import prepare_selected_inventory
 from prdiffer.infrastructure.utils.pattern_matcher import get_pattern_matcher
 from prdiffer.infrastructure.utils.diff_utils import get_diff_utils
 from prdiffer.infrastructure.services.pr_diff_service import GitHubPRDiffService
@@ -328,13 +329,16 @@ class GitHubPRDiffRepository(GitHubPROperationsMixin, PRDiffRepositoryInterface)
 
         base_sha, head_sha = await self._get_merge_base_commits()
 
-        # Materialize PaginatedList once to avoid duplicate API calls
+        # Materialize PaginatedList once, validate authoritative inventory, then admit selected files.
         pr_files_paginated = await self._file_processor.get_pr_files(self._pull_request)
-        pr_files = list(pr_files_paginated)  # Materialize once, reuse everywhere
-
-        # Pass materialized list to filter_files (not PaginatedList) to avoid double API calls
-        filtered_files = self._file_processor.filter_files(pr_files)
-
+        filtered_files = prepare_selected_inventory(
+            authoritative_changed_files=None,
+            provider_files=pr_files_paginated,
+            is_valid_file=self._file_processor._pattern_matcher.is_valid_file,
+            max_files_allowed=self._file_processor.max_files_allowed,
+            pull_request=self._pull_request,
+        )
+        pr_files = list(pr_files_paginated) if not isinstance(pr_files_paginated, list) else pr_files_paginated
         if len(filtered_files) != len(pr_files):
             self._log_filtered_files(pr_files, filtered_files)
 

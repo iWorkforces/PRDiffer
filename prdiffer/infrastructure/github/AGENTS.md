@@ -23,6 +23,7 @@ prdiffer/infrastructure/github/
 | **Diff build** | `diff_generator.py` | Patch assembly |
 | **Bandwidth** | `etag_adapter.py` | ETag / 304 |
 | **Domain map** | `mappers.py` | To FilePatchInfo / responses |
+| **Inventory admission** | `inventory.py` | Authoritative `changed_files` vs enumeration; selected N+1 → E5020 |
 
 ## CONVENTIONS
 - Never return raw PyGithub objects past this package boundary.

@@ -16,6 +16,7 @@ from prdiffer.domain.services.logger import LoggerServiceInterface
 from prdiffer.domain.entities.pr_diff import PRDiff
 from prdiffer.domain.entities.file_patch import FilePatchInfo, EDIT_TYPE
 from prdiffer.domain.entities.file_diff_response import FileDiffResponse, FileStats
+from prdiffer.domain.exceptions import FullDiffIncompleteError
 from prdiffer.infrastructure.github.client import GitHubAPIClient
 from prdiffer.infrastructure.github.diff_generator import DiffGenerator
 from prdiffer.infrastructure.github.file_processor import FileProcessor
@@ -29,6 +30,7 @@ from prdiffer.infrastructure.cache.cache_decorators import (
     CachingMixin,
     cached_method,
 )
+from prdiffer.infrastructure.github.inventory import prepare_selected_inventory
 
 
 # Exceptions to catch in PR diff service operations
@@ -176,21 +178,38 @@ class GitHubPRDiffService(CachingMixin, PRDiffServiceInterface):
                 return "", []
 
             github_files = pull_request.get_files()
-            if not github_files:
+            max_files = (
+                self._file_processor.max_files_allowed if self._file_processor is not None else 50
+            )
+            is_valid = (
+                self._file_processor._pattern_matcher.is_valid_file
+                if self._file_processor is not None
+                else (lambda _name: True)
+            )
+            selected_files = prepare_selected_inventory(
+                authoritative_changed_files=None,
+                provider_files=github_files,
+                is_valid_file=is_valid,
+                max_files_allowed=max_files,
+                pull_request=pull_request,
+            )
+            if not selected_files:
                 return "", []
 
             if self._file_processor and hasattr(self._file_processor, "process_files_to_patches_async"):
-                diff_files = await self._file_processor.process_files_to_patches_async(list(github_files), repository, latest_commit_sha, base_commit_sha)
+                diff_files = await self._file_processor.process_files_to_patches_async(
+                    list(selected_files), repository, latest_commit_sha, base_commit_sha
+                )
             else:
                 diff_files = (
                     self._file_processor.process_files_to_patches(
-                        list(github_files),
+                        list(selected_files),
                         repository,
                         latest_commit_sha,
                         base_commit_sha,
                     )
                     if self._file_processor
-                    else self._convert_github_files_to_file_patch_info(github_files)
+                    else self._convert_github_files_to_file_patch_info(selected_files)
                 )
 
             if self._diff_generator and diff_files:
@@ -203,6 +222,8 @@ class GitHubPRDiffService(CachingMixin, PRDiffServiceInterface):
                         diff_content_parts.append(f"## File: {file_patch.filename}\n{file_patch.patch}")
                 return "\n\n".join(diff_content_parts), diff_files
 
+        except FullDiffIncompleteError:
+            raise
         except PR_SERVICE_EXCEPTIONS as e:
             exc = cast(Exception, e)
             sanitized = sanitize_exception_for_logging(exc)
@@ -365,16 +386,35 @@ class GitHubPRDiffService(CachingMixin, PRDiffServiceInterface):
                 return []
 
             github_files = pull_request.get_files()
-            if not github_files:
+            max_files = (
+                self._file_processor.max_files_allowed if self._file_processor is not None else 50
+            )
+            is_valid = (
+                self._file_processor._pattern_matcher.is_valid_file
+                if self._file_processor is not None
+                else (lambda _name: True)
+            )
+            selected_files = prepare_selected_inventory(
+                authoritative_changed_files=None,
+                provider_files=github_files,
+                is_valid_file=is_valid,
+                max_files_allowed=max_files,
+                pull_request=pull_request,
+            )
+            if not selected_files:
                 return []
 
             if self._file_processor:
-                diff_files = self._file_processor.process_files_to_patches(list(github_files), repository, latest_commit_sha, base_commit_sha)
+                diff_files = self._file_processor.process_files_to_patches(
+                    list(selected_files), repository, latest_commit_sha, base_commit_sha
+                )
             else:
-                diff_files = self._convert_github_files_to_file_patch_info(github_files)
+                diff_files = self._convert_github_files_to_file_patch_info(selected_files)
 
             return diff_files
 
+        except FullDiffIncompleteError:
+            raise
         except PR_SERVICE_EXCEPTIONS as e:
             exc = cast(Exception, e)
             sanitized = sanitize_exception_for_logging(exc)
