@@ -2,6 +2,7 @@ import threading
 import time
 from prdiffer.infrastructure.settings import SettingsService
 from prdiffer.domain.config.github_config import GitHubConfig
+from prdiffer.domain.config.gitlab_config import GitLabConfig
 
 
 class TestSettingsCaching:
@@ -22,6 +23,15 @@ class TestSettingsCaching:
 
         assert result1 is result2
         assert isinstance(result1, GitHubConfig)
+
+    def test_get_gitlab_config_caches_result(self):
+        service = SettingsService()
+
+        result1 = service.get_gitlab_config()
+        result2 = service.get_gitlab_config()
+
+        assert result1 is result2
+        assert isinstance(result1, GitLabConfig)
 
     def test_get_cache_settings_caches_result(self):
         service = SettingsService()
@@ -62,6 +72,15 @@ class TestCacheInvalidation:
 
         assert result1 is not result2
 
+    def test_clear_cache_invalidates_gitlab_config(self):
+        service = SettingsService()
+
+        result1 = service.get_gitlab_config()
+        service.clear_cache()
+        result2 = service.get_gitlab_config()
+
+        assert result1 is not result2
+
     def test_clear_cache_invalidates_cache_settings(self):
         service = SettingsService()
 
@@ -87,6 +106,7 @@ class TestCacheInvalidation:
 
         github_settings_1 = service.get_github_settings()
         github_config_1 = service.get_github_config()
+        gitlab_config_1 = service.get_gitlab_config()
         cache_settings_1 = service.get_cache_settings()
         app_settings_1 = service.get_app_settings()
 
@@ -94,10 +114,12 @@ class TestCacheInvalidation:
 
         github_settings_2 = service.get_github_settings()
         github_config_2 = service.get_github_config()
+        gitlab_config_2 = service.get_gitlab_config()
         cache_settings_2 = service.get_cache_settings()
         app_settings_2 = service.get_app_settings()
 
         assert github_settings_1 is not github_settings_2
+        assert gitlab_config_1 is not gitlab_config_2
         assert github_config_1 is not github_config_2
         assert cache_settings_1 is not cache_settings_2
         assert app_settings_1 is not app_settings_2

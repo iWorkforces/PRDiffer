@@ -13,11 +13,17 @@
 #   --help              Show this help message
 #
 # Environment Variables:
-#   TRANSPORT           Transport mode (overrides --transport)
-#   PORT                Port number (overrides --port)
-#   GITHUB_TOKEN        GitHub personal access token (one provider token is required)
-#   GITLAB_TOKEN        GitLab personal access token (one provider token is required)
-#   PID_FILE            Custom PID file location (default: .prdiffer-server.pid)
+#   TRANSPORT              Transport mode (overrides --transport)
+#   PORT                   Port number (overrides --port)
+#   GITHUB_TOKEN           GitHub personal access token (one provider token is required)
+#   GITLAB_TOKEN           GitLab personal access token (one provider token is required)
+#   GITLAB_ALLOWED_HOSTS   Comma-separated GitLab host allowlist (default: gitlab.com)
+#                          e.g. gitlab.com,gitlab.example.com
+#   PID_FILE               Custom PID file location (default: .prdiffer-server.pid)
+#
+# Configuration:
+#   Copy .env.example to .env and fill in tokens / allowlist. This script sources
+#   .env automatically before starting the server.
 
 set -euo pipefail
 
@@ -163,14 +169,18 @@ check_existing_server() {
     fi
 }
 
-# Load .env file if it exists
+# Load .env file if it exists (see .env.example for keys including GITLAB_ALLOWED_HOSTS)
 load_env_file() {
     if [[ -f .env ]]; then
-        log_debug "Loading environment variables from .env file"
-        # Export variables from .env file
+        log_info "Loading environment variables from .env file"
+        # Export variables from .env file (GITHUB_TOKEN, GITLAB_TOKEN, GITLAB_ALLOWED_HOSTS, …)
         set -a
+        # shellcheck source=/dev/null
         source .env
         set +a
+        log_debug "Loaded .env (GITLAB_ALLOWED_HOSTS=${GITLAB_ALLOWED_HOSTS:-<unset, use settings.toml>})"
+    elif [[ -f .env.example ]]; then
+        log_debug "No .env file found; copy .env.example to .env to configure tokens and GitLab hosts"
     fi
 }
 
@@ -330,9 +340,9 @@ if [[ -z "${GITHUB_TOKEN:-}" && -z "${GITLAB_TOKEN:-}" ]]; then
     echo -e "  export GITHUB_TOKEN=\"your_github_personal_access_token\""
     echo -e "  export GITLAB_TOKEN=\"your_gitlab_personal_access_token\""
     echo ""
-    echo -e "${PURPLE}Option 2: Create a .env file${NC}"
-    echo -e "  echo \"GITHUB_TOKEN=your_github_personal_access_token\" > .env"
-    echo -e "  echo \"GITLAB_TOKEN=your_gitlab_personal_access_token\" > .env"
+    echo -e "${PURPLE}Option 2: Copy .env.example to .env${NC}"
+    echo -e "  cp .env.example .env"
+    echo -e "  # then edit .env: GITHUB_TOKEN / GITLAB_TOKEN / GITLAB_ALLOWED_HOSTS"
     echo ""
     echo -e "${CYAN}Generate a personal access token in your selected provider account, then set its environment variable.${NC}"
     echo ""
@@ -341,6 +351,16 @@ if [[ -z "${GITHUB_TOKEN:-}" && -z "${GITLAB_TOKEN:-}" ]]; then
     exit 1
 else
     log_success "A provider authentication token is set"
+fi
+
+# Surface GitLab host allowlist when GitLab is configured (env overrides settings.toml)
+if [[ -n "${GITLAB_TOKEN:-}" ]]; then
+    if [[ -n "${GITLAB_ALLOWED_HOSTS:-}" ]]; then
+        log_info "GitLab allowed hosts (GITLAB_ALLOWED_HOSTS): ${GITLAB_ALLOWED_HOSTS}"
+    else
+        log_info "GitLab allowed hosts: settings.toml gitlab.allowed_hosts (default gitlab.com)"
+        log_debug "Set GITLAB_ALLOWED_HOSTS=gitlab.com,your.gitlab.host for custom instances"
+    fi
 fi
 echo ""
 

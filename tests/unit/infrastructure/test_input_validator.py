@@ -113,6 +113,35 @@ class TestGitLabURLValidation:
         # Then
         assert (owner, repo, merge_request_number) == ("owner", "repo", 17)
 
+    def test_validate_nested_namespace_gitlab_url(self, validator: InputValidator) -> None:
+        url = "https://gitlab.com/group/subgroup/project/-/merge_requests/42"
+        validate_gitlab_url: Callable[[str], tuple[str, str, int]] = getattr(validator, "validate_gitlab_url")
+        owner, repo, iid = validate_gitlab_url(url)
+        assert (owner, repo, iid) == ("group/subgroup", "project", 42)
+
+    def test_validate_custom_hosted_gitlab_url(self, validator: InputValidator) -> None:
+        url = "https://gitlab.example.com/trace-analysis/oh-my-grokbuild/-/merge_requests/1"
+        validate_gitlab_url: Callable[[str], tuple[str, str, int]] = getattr(validator, "validate_gitlab_url")
+        owner, repo, iid = validate_gitlab_url(url)
+        assert (owner, repo, iid) == ("trace-analysis", "oh-my-grokbuild", 1)
+
+    @pytest.mark.parametrize(
+        "bad_url",
+        [
+            "http://gitlab.com/group/project/-/merge_requests/1",
+            "https://gitlab.com/a/b/-/merge_requests/1?foo=1",
+            "https://gitlab.com/a/b/-/merge_requests/1#x",
+            "https://gitlab.com/a/../b/-/merge_requests/1",
+            "https://gitlab.com/a//b/-/merge_requests/1",
+        ],
+    )
+    def test_reject_malformed_gitlab_urls(self, validator: InputValidator, bad_url: str) -> None:
+        from prdiffer.domain.exceptions import InvalidPRNumberError, InvalidURLError, SuspiciousOperationError
+
+        validate_gitlab_url: Callable[[str], tuple[str, str, int]] = getattr(validator, "validate_gitlab_url")
+        with pytest.raises((InvalidURLError, InvalidPRNumberError, SuspiciousOperationError)):
+            validate_gitlab_url(bad_url)
+
 
 @pytest.mark.unit
 class TestRepositoryIdentifierValidation:

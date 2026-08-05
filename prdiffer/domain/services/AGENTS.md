@@ -12,7 +12,7 @@ prdiffer/domain/services/
 ├── pr_diff_service.py       # PRDiffServiceInterface (~80)
 ├── pattern_matching.py      # PatternMatchingServiceInterface (~35)
 ├── retry.py                 # RetryServiceInterface (~17)
-├── settings.py              # SettingsServiceInterface (~60)
+├── settings.py              # SettingsServiceInterface (~63; get_github_config / get_gitlab_config)
 ├── logger.py                # LoggerServiceInterface + LogLevel (~32)
 └── __init__.py
 ```
@@ -36,7 +36,7 @@ prdiffer/domain/services/
 | `PRDiffServiceInterface` | ABC | `pr_diff_service.py` | Domain-level PR diff ops |
 | `PatternMatchingServiceInterface` | ABC | `pattern_matching.py` | File filter/validation |
 | `RetryServiceInterface` | ABC | `retry.py` | Retry with backoff |
-| `SettingsServiceInterface` | ABC | `settings.py` | Config access (+ optional `get_github_config`) |
+| `SettingsServiceInterface` | ABC | `settings.py` | Config access (`get_github_config` / `get_gitlab_config`) |
 | `LoggerServiceInterface` | ABC | `logger.py` | Logging contract |
 | `LogLevel` | StrEnum | `logger.py` | DEBUG…CRITICAL |
 

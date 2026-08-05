@@ -37,10 +37,13 @@ class _CoalescedPRDiffExecutionMixin:
         *,
         pr_diff_reader: PRDiffReader | None = None,
         cache_namespace: str | None = None,
+        base_url: str | None = None,
     ) -> PRDiff:
         coalesce_key = f"{repo_owner}/{repo_name}/pr/{pr_number}"
         if cache_namespace:
             coalesce_key = f"{cache_namespace}:{coalesce_key}"
+        if base_url:
+            coalesce_key = f"{base_url.rstrip('/')}:{coalesce_key}"
         reader = self._pr_diff_service if pr_diff_reader is None else pr_diff_reader
         owner_deadline = self._resolve_pr_diff_request_timeout()
 
@@ -52,7 +55,12 @@ class _CoalescedPRDiffExecutionMixin:
                 cache_hit_optimization_enabled=self._cache_hit_optimization_enabled,
                 cache_namespace=cache_namespace,
             )
-            result = await use_case.execute(repo_owner=repo_owner, repo_name=repo_name, pr_number=pr_number)
+            result = await use_case.execute(
+                repo_owner=repo_owner,
+                repo_name=repo_name,
+                pr_number=pr_number,
+                base_url=base_url,
+            )
 
             if result is None:
                 self._logger.error(

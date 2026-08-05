@@ -1,6 +1,10 @@
 from dataclasses import dataclass, field
 from enum import StrEnum
+import re
 from typing import Any
+
+# Git-style six-digit octal mode (e.g. 100644, 100755, 120000).
+_GIT_MODE_RE = re.compile(r"^[0-7]{6}$")
 
 
 class EDIT_TYPE(StrEnum):
@@ -11,6 +15,14 @@ class EDIT_TYPE(StrEnum):
     MODIFIED = "modified"
     RENAMED = "renamed"
     UNKNOWN = "unknown"
+
+
+def _validate_optional_git_mode(name: str, value: str | None) -> None:
+    """Reject present-but-malformed Git mode strings; None is allowed."""
+    if value is None:
+        return
+    if not isinstance(value, str) or not _GIT_MODE_RE.fullmatch(value):
+        raise ValueError(f"{name} must be a six-digit octal Git mode string (got {value!r})")
 
 
 @dataclass(frozen=True)
@@ -37,6 +49,10 @@ class FilePatchInfo:
     ai_file_summary: str | None = None
     tokens: int = -1
 
+    # Optional Git file modes (six-digit octal). Absent modes leave generation unchanged.
+    old_mode: str | None = None
+    new_mode: str | None = None
+
     # Phase 3: Extended metadata for API enhancement
     diff_metadata: dict[str, Any] | None = None
     code_smell_indicators: tuple[str, ...] | None = None
@@ -47,6 +63,8 @@ class FilePatchInfo:
     _change_percentage: float = field(init=False, default=0.0, compare=False)
 
     def __post_init__(self):
+        _validate_optional_git_mode("old_mode", self.old_mode)
+        _validate_optional_git_mode("new_mode", self.new_mode)
         object.__setattr__(self, "_file_extension", self._extract_file_extension())
         object.__setattr__(self, "_is_binary", self._detect_binary_file())
         object.__setattr__(self, "_change_percentage", self._calculate_change_percentage())

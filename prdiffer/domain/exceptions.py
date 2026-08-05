@@ -198,6 +198,24 @@ class GitHubAPIError(PRDifferException):
         self.status_code = status_code
 
 
+class GitLabAPIError(PRDifferException):
+    """Base exception for GitLab API operational errors.
+
+    Preserves an optional HTTP status code and safe structured details only.
+    Never include tokens, credentials, response bodies, or raw file content.
+    """
+
+    def __init__(
+        self,
+        message: str,
+        status_code: int | None = None,
+        error_code: ErrorCode | None = None,
+        details: dict[str, Any] | None = None,
+    ):
+        super().__init__(message, error_code, details)
+        self.status_code = status_code
+
+
 class RepositoryNotFoundError(GitHubAPIError):
     """Raised when GitHub repository is not found or not accessible."""
 
@@ -518,7 +536,7 @@ def get_exception_details(exception: Exception) -> dict[str, Any]:
     if isinstance(exception, PRDifferException):
         details["details"] = exception.details
 
-    if isinstance(exception, GitHubAPIError):
+    if isinstance(exception, (GitHubAPIError, GitLabAPIError)):
         details["status_code"] = exception.status_code
 
     if isinstance(exception, RateLimitError):

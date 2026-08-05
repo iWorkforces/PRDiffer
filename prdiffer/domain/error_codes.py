@@ -141,6 +141,22 @@ E2005_GITHUB_AUTH_FAILED = ErrorCode(
     category=ErrorCategory.AUTHENTICATION,
 )
 
+E2006_GITLAB_AUTH_FAILED = ErrorCode(
+    code="E2006",
+    name="GITLAB_AUTH_FAILED",
+    message="GitLab authentication failed",
+    remediation="Verify GITLAB_TOKEN is valid and has required scopes",
+    category=ErrorCategory.AUTHENTICATION,
+)
+
+E2007_GITLAB_INSUFFICIENT_PERMISSIONS = ErrorCode(
+    code="E2007",
+    name="GITLAB_INSUFFICIENT_PERMISSIONS",
+    message="Insufficient permissions for GitLab resource",
+    remediation="Ensure the token can read the project and merge request",
+    category=ErrorCategory.AUTHENTICATION,
+)
+
 # =============================================================================
 # Rate Limiting Errors (E3xxx)
 # =============================================================================
@@ -182,6 +198,14 @@ E3005_USER_RATE_LIMIT = ErrorCode(
     name="USER_RATE_LIMIT",
     message="Per-user rate limit exceeded",
     remediation="Wait for rate limit reset or use authenticated requests",
+    category=ErrorCategory.RATE_LIMITING,
+)
+
+E3006_GITLAB_RATE_LIMITED = ErrorCode(
+    code="E3006",
+    name="GITLAB_RATE_LIMITED",
+    message="GitLab API rate limit exceeded",
+    remediation="Wait for rate limit reset or reduce request frequency",
     category=ErrorCategory.RATE_LIMITING,
 )
 
@@ -382,5 +406,13 @@ E5020_FULL_DIFF_INCOMPLETE = ErrorCode(
     name="FULL_DIFF_INCOMPLETE",
     message="Selected PR files cannot be returned as a complete full-context diff",
     remediation=("Reduce selected file count/size, ensure provider inventory is complete, and exclude binary or undecodable selected files"),
+    category=ErrorCategory.INTERNAL,
+)
+
+E5021_GITLAB_API_ERROR = ErrorCode(
+    code="E5021",
+    name="GITLAB_API_ERROR",
+    message="GitLab API error occurred",
+    remediation="Retry the request; GitLab may be experiencing issues",
     category=ErrorCategory.INTERNAL,
 )
