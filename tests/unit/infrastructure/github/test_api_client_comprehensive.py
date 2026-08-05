@@ -4,6 +4,7 @@ from unittest.mock import MagicMock, patch
 from collections import OrderedDict
 from github import GithubException
 
+from prdiffer.domain.entities.file_content import FileContentAvailable, FileContentUnavailable
 from prdiffer.infrastructure.github.client import (
     GitHubAPIClient,
     get_github_api_client,
@@ -16,14 +17,15 @@ from prdiffer.domain.exceptions import PRDifferException
 
 @pytest.fixture
 def api_client():
-    client = GitHubAPIClient()
+    # Sequential batch path so unit tests can mock get_file_content deterministically.
+    client = GitHubAPIClient(parallel_file_fetch_enabled=False)
     client.initialize_client()
     return client
 
 
 @pytest.fixture
 def api_client_no_init():
-    return GitHubAPIClient()
+    return GitHubAPIClient(parallel_file_fetch_enabled=False)
 
 
 class TestGitHubAPIClientInit:
@@ -209,8 +211,9 @@ class TestFileContentCaching:
 
         api_client._cache_set(cache_key, content)
 
-        assert cache_key in api_client._file_content_cache
-        assert api_client._file_content_cache[cache_key]["content"] == content
+        stored_key = api_client._normalize_cache_key(cache_key)
+        assert stored_key in api_client._file_content_cache
+        assert api_client._file_content_cache[stored_key]["content"] == content
 
     def test_cache_get_valid_entry(self, api_client):
         cache_key = ("file.py", "main")
@@ -224,7 +227,8 @@ class TestFileContentCaching:
 
     def test_cache_get_expired_entry(self, api_client):
         cache_key = ("file.py", "main")
-        api_client._file_content_cache[cache_key] = {
+        stored_key = api_client._normalize_cache_key(cache_key)
+        api_client._file_content_cache[stored_key] = {
             "content": "old content",
             "timestamp": time.time() - api_client._cache_ttl - 100,
         }
@@ -233,7 +237,7 @@ class TestFileContentCaching:
 
         assert result is None
         assert api_client._cache_misses == 1
-        assert cache_key not in api_client._file_content_cache
+        assert stored_key not in api_client._file_content_cache
 
     def test_cache_get_nonexistent_entry(self, api_client):
         result = api_client._cache_get(("nonexistent.py", "main"))
@@ -278,7 +282,7 @@ class TestFileContentCaching:
         api_client._cache_get(("file1.py", "main"))
 
         keys = list(api_client._file_content_cache.keys())
-        assert keys[-1] == ("file1.py", "main")
+        assert keys[-1][1:] == ("file1.py", "main") or keys[-1] == ("", "file1.py", "main")
 
     def test_cache_update_moves_to_end(self, api_client):
         api_client._cache_set(("file1.py", "main"), "content1")
@@ -287,7 +291,7 @@ class TestFileContentCaching:
         api_client._cache_set(("file1.py", "main"), "updated content")
 
         keys = list(api_client._file_content_cache.keys())
-        assert keys[-1] == ("file1.py", "main")
+        assert keys[-1][1:] == ("file1.py", "main") or keys[-1] == ("", "file1.py", "main")
 
 
 class TestGetFileContent:
@@ -296,12 +300,13 @@ class TestGetFileContent:
             api_client_no_init.get_file_content("owner/repo", "file.py", "main")
 
     def test_get_file_content_from_cache(self, api_client):
-        cache_key = ("file.py", "main")
+        cache_key = ("owner/repo", "file.py", "main")
         api_client._cache_set(cache_key, "cached content")
 
         result = api_client.get_file_content("owner/repo", "file.py", "main")
 
-        assert result == "cached content"
+        assert isinstance(result, FileContentAvailable)
+        assert result.text == "cached content"
 
     def test_get_file_content_from_api(self, api_client):
         with patch.object(api_client._retry_handler, "execute_with_retry") as mock_retry:
@@ -314,7 +319,8 @@ class TestGetFileContent:
 
             result = api_client.get_file_content("owner/repo", "file.py", "main")
 
-            assert result == "file content from api"
+            assert isinstance(result, FileContentAvailable)
+            assert result.text == "file content from api"
 
     def test_get_file_content_directory(self, api_client):
         with patch.object(api_client._retry_handler, "execute_with_retry") as mock_retry:
@@ -323,45 +329,49 @@ class TestGetFileContent:
 
             result = api_client.get_file_content("owner/repo", "dir/", "main")
 
-            assert result == ""
+            assert isinstance(result, FileContentUnavailable)
 
     def test_get_file_content_error(self, api_client):
         with patch.object(api_client._retry_handler, "execute_with_retry") as mock_retry:
-            mock_retry.side_effect = GithubException(404, "Not Found", {})
+            mock_retry.side_effect = GithubException(404, {"message": "Not Found"}, None)
 
             result = api_client.get_file_content("owner/repo", "file.py", "main")
 
-            assert result == ""
+            assert isinstance(result, FileContentUnavailable)
 
     def test_get_file_content_repo_not_found(self, api_client):
         with patch.object(api_client._retry_handler, "execute_with_retry") as mock_retry:
             mock_retry.return_value = None
 
-            result = api_client.get_file_content("owner/repo", "file.py", "main")
-
-            assert result == ""
+            with pytest.raises(PRDifferException, match="Repository not accessible"):
+                api_client.get_file_content("owner/repo", "file.py", "main")
 
 
 class TestGetFilesContentBatch:
     def test_batch_all_cached(self, api_client):
-        api_client._cache_set(("file1.py", "main"), "content1")
-        api_client._cache_set(("file2.py", "main"), "content2")
+        api_client._cache_set(("owner/repo", "file1.py", "main"), "content1")
+        api_client._cache_set(("owner/repo", "file2.py", "main"), "content2")
 
         with patch.object(api_client, "get_file_content") as mock_get:
             result = api_client.get_files_content_batch("owner/repo", ["file1.py", "file2.py"], "main")
 
-            assert result["file1.py"] == "content1"
-            assert result["file2.py"] == "content2"
+            assert isinstance(result["file1.py"], FileContentAvailable)
+            assert result["file1.py"].text == "content1"
+            assert result["file2.py"].text == "content2"
             mock_get.assert_not_called()
 
     def test_batch_partial_cache(self, api_client):
-        api_client._cache_set(("file1.py", "main"), "cached content")
+        api_client._cache_set(("owner/repo", "file1.py", "main"), "cached content")
 
-        with patch.object(api_client, "get_file_content", return_value="api content") as mock_get:
+        with patch.object(
+            api_client,
+            "get_file_content",
+            return_value=FileContentAvailable(text="api content"),
+        ) as mock_get:
             result = api_client.get_files_content_batch("owner/repo", ["file1.py", "file2.py"], "main")
 
-            assert result["file1.py"] == "cached content"
-            assert result["file2.py"] == "api content"
+            assert result["file1.py"].text == "cached content"
+            assert result["file2.py"].text == "api content"
             mock_get.assert_called_once_with("owner/repo", "file2.py", "main")
 
     def test_batch_empty_list(self, api_client):
@@ -410,19 +420,21 @@ class TestETagMethods:
 
 class TestEvictOldestEntries:
     def test_evict_expired_entries(self, api_client):
-        api_client._file_content_cache[("old.py", "main")] = {
+        old_key = ("", "old.py", "main")
+        new_key = ("", "new.py", "main")
+        api_client._file_content_cache[old_key] = {
             "content": "old",
             "timestamp": time.time() - api_client._cache_ttl - 100,
         }
-        api_client._file_content_cache[("new.py", "main")] = {
+        api_client._file_content_cache[new_key] = {
             "content": "new",
             "timestamp": time.time(),
         }
 
         api_client._evict_oldest_entries()
 
-        assert ("old.py", "main") not in api_client._file_content_cache
-        assert ("new.py", "main") in api_client._file_content_cache
+        assert old_key not in api_client._file_content_cache
+        assert new_key in api_client._file_content_cache
 
     def test_evict_on_size_limit(self, api_client):
         api_client._cache_max_size = 2
@@ -469,25 +481,26 @@ class TestGetGitHubApiClient:
 @pytest.mark.anyio
 class TestAsyncFileContentMethods:
     async def test_get_file_content_async_from_cache(self, api_client):
-        cache_key = ("file.py", "main")
+        cache_key = ("owner/repo", "file.py", "main")
         api_client._cache_set(cache_key, "cached content")
 
         result = await api_client._get_file_content_async("owner/repo", "file.py", "main")
 
-        assert result == "cached content"
+        assert isinstance(result, FileContentAvailable)
+        assert result.text == "cached content"
 
     async def test_get_file_content_async_without_init_raises(self, api_client_no_init):
         with pytest.raises(PRDifferException, match="GitHub client not initialized"):
             await api_client_no_init._get_file_content_async("owner/repo", "file.py", "main")
 
     async def test_get_files_content_batch_parallel_async(self, api_client):
-        api_client._cache_set(("file1.py", "main"), "content1")
-        api_client._cache_set(("file2.py", "main"), "content2")
+        api_client._cache_set(("owner/repo", "file1.py", "main"), "content1")
+        api_client._cache_set(("owner/repo", "file2.py", "main"), "content2")
 
         result = await api_client._get_files_content_batch_parallel_async("owner/repo", ["file1.py", "file2.py"], "main")
 
-        assert result["file1.py"] == "content1"
-        assert result["file2.py"] == "content2"
+        assert result["file1.py"].text == "content1"
+        assert result["file2.py"].text == "content2"
 
     async def test_get_files_content_batch_parallel_empty(self, api_client):
         result = await api_client._get_files_content_batch_parallel_async("owner/repo", [], "main")

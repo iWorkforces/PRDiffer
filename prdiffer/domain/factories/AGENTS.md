@@ -1,61 +1,53 @@
 # AGENTS.md - Domain/Factories
 
-Factory patterns for creating domain objects.
+Abstract factory contracts for dependency inversion (~133 lines). Package 0.6.0.
 
-## Guidelines
-
-- Use factory functions or Factory classes
-- Keep factories simple - just object creation
-- Validate inputs before construction
-- Return type hints required
-- **Dual factory pattern:** Domain defines interface, infrastructure implements
-- **Dependency inversion:** Factories return interfaces, not concrete types
-
-## Common Patterns
-
-### Factory Function
-```python
-from typing import Optional
-
-def create_pr_diff(diff_content: str) -> PRDiff:
-    if not diff_content:
-        raise ValueError('Diff content cannot be empty')
-    return PRDiff(diff_content=diff_content)
+## STRUCTURE
+```
+prdiffer/domain/factories/
+├── application_factory.py      # ApplicationFactoryInterface (~68)
+├── infrastructure_factory.py   # InfrastructureFactoryInterface (~65)
+└── __init__.py
 ```
 
-### Factory Class
-```python
-class PRDiffFactory:
-    @staticmethod
-    def from_files(files: tuple[FilePatchInfo, ...]) -> PRDiff:
-        combined_content = '\n'.join(f.patch for f in files)
-        return PRDiff(diff_content=combined_content)
-```
+## WHERE TO LOOK
+| Task | Location | Notes |
+|------|----------|-------|
+| **App component factory port** | `application_factory.py` | Rate limiter, metrics, auth, health, server config, PR ops |
+| **Infra service factory port** | `infrastructure_factory.py` | Cache, GitHub API, retry, validator, PR diff service, … |
 
-### Infrastructure Factory Interface (Dependency Inversion)
-```python
-from abc import ABC, abstractmethod
+## CODE MAP
+| Symbol | Type | Location | Role |
+|--------|------|----------|------|
+| `ApplicationFactoryInterface` | ABC | `application_factory.py` | Create application-layer components |
+| `InfrastructureFactoryInterface` | ABC | `infrastructure_factory.py` | Create infrastructure services |
 
-class InfrastructureFactoryInterface(ABC):
-    '''Domain defines interface, infrastructure implements'''
-    
-    @abstractmethod
-    def create_github_service(self) -> GitHubAPIServiceInterface:
-        '''Return interface, not concrete type'''
-        pass
-    
-    @abstractmethod
-    def create_cache_service(self) -> CacheServiceInterface:
-        pass
-```
+### ApplicationFactoryInterface methods
+- `create_rate_limiter` → `RateLimiterProtocol`
+- `create_metrics_tracker` → `MetricsTrackerProtocol`
+- `create_pr_operation_handler` → `PROperationHandlerProtocol`
+- `create_health_monitor` → `HealthMonitorProtocol`
+- `create_server_configuration` → `ServerConfigurationProtocol`
+- `create_authentication` → `AuthenticationProtocol`
 
-## Anti-Patterns
+### InfrastructureFactoryInterface methods
+- `create_settings_service` → `SettingsServiceInterface`
+- `create_logger_service` → `LoggerServiceInterface`
+- `create_cache_service` → `CacheServiceInterface`
+- `create_repository_cache_service` → `RepositoryCacheServiceInterface`
+- `create_github_api_service` → `GitHubAPIServiceInterface`
+- `create_diff_service` → `DiffServiceInterface`
+- `create_pattern_matching_service` → `PatternMatchingServiceInterface`
+- `create_retry_service` → `RetryServiceInterface`
+- `create_pr_diff_service` → `PRDiffServiceInterface`
+- `create_input_validator` → `InputValidatorProtocol`
 
-- ❌ Complex logic in factories (keep simple)
-- ❌ Returning concrete types from factory interfaces
-- ❌ Missing input validation
-- ❌ Factory methods with side effects
+## CONVENTIONS
+- Methods return interfaces/Protocols, not concrete classes.
+- Implementations live in `application/factories/` and `infrastructure/factories/`.
+- Application vs infrastructure creation is split (no app components on infra factory).
 
-## Files
-
-- `infrastructure_factory.py`: Factory interface for infrastructure dependencies
+## ANTI-PATTERNS
+- NO concrete infrastructure imports in domain factories.
+- NO service construction with side effects here.
+- NO returning concrete types that force domain → outer-layer coupling.

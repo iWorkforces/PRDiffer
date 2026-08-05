@@ -1,62 +1,37 @@
 # AGENTS.md - Integration Tests
 
-Integration tests with real/mixed dependencies, 7 test files, security + error scenarios + workflows.
-
-## OVERVIEW
-Tests verify multi-component interactions and external service behavior (not isolated unit tests).
+End-to-end oriented tests (~2.6K lines, 8 test modules + manual helper).
 
 ## STRUCTURE
 ```
 tests/integration/
-├── test_security.py           # Injection prevention (731 lines)
-├── test_error_scenarios.py    # GitHub API error handling (661 lines)
-├── test_complete_workflow.py  # End-to-end MCP→GitHub flow (554 lines)
-├── test_real_github_api.py    # Live API tests (skip if no token, 259 lines)
-├── test_webhook_invalidation.py # HMAC webhook verification (266 lines)
-├── test_metrics_endpoint.py   # Prometheus metrics (77 lines)
-└── mcp_server_manual_test.py  # Manual FastMCP client (21 lines)
+├── test_complete_workflow.py      # Full tool workflow (554)
+├── test_error_scenarios.py        # Error paths (519)
+├── test_security.py               # Security integration (731)
+├── test_webhook_invalidation.py   # Cache invalidation (266)
+├── test_full_diff_mcp_surface.py  # Strict full-diff FastMCP surface (141)
+├── test_real_github_api.py        # Optional real API (224)
+├── test_server_launcher.py        # Process/launcher (98)
+├── test_metrics_endpoint.py       # Metrics (77)
+└── mcp_server_manual_test.py      # Manual harness helper
 ```
 
 ## WHERE TO LOOK
-| Task | File | Notes |
-|------|------|-------|
-| **Add security test** | `test_security.py` | Command/SQL/path injection, validation |
-| **Add error scenario** | `test_error_scenarios.py` | Rate limits, network errors, GithubException |
-| **Add workflow test** | `test_complete_workflow.py` | MCP request → API response flow |
-| **Test live API** | `test_real_github_api.py` | Requires GITHUB_TOKEN env var |
-| **Test webhooks** | `test_webhook_invalidation.py` | HMAC signature, cache invalidation |
-| **Test metrics** | `test_metrics_endpoint.py` | Prometheus format, operation timing |
+| Task | Location | Notes |
+|------|----------|-------|
+| **Strict full-diff MCP contract** | `test_full_diff_mcp_surface.py` | In-process FastMCP; `get_pr_diff` success + E5020 failure surface; rename `previous_path` |
+| **Tool workflow** | `test_complete_workflow.py` | End-to-end tool orchestration with mocks |
+| **Attack / injection paths** | `test_security.py` | Marked `integration` |
+| **Webhook cache bust** | `test_webhook_invalidation.py` | Invalidation + error bodies |
+| **Opt-in live GitHub** | `test_real_github_api.py` | Requires real token/env; not for default CI |
 
 ## CONVENTIONS
-
-### Integration vs Unit
-- **Real dependencies**: Components interact without full mocking (unlike unit tests)
-- **Partial mocks**: Infrastructure services mocked, domain logic exercised
-- **Live API**: `test_real_github_api.py` makes actual GitHub calls (auto-skip if no token)
-
-### Test Patterns
-- **Factory injection**: `create_mcp_server()` with mock fixtures for DI
-- **Async execution**: `anyio.run()` for async test invocation (not asyncio)
-- **Auto-skip pattern**: `pytestmark = pytest.mark.skipif(not os.getenv("GITHUB_TOKEN"), ...)`
-- **HMAC verification**: Webhook tests use `hmac.new()` with sha256 signatures
-
-### Security Test Categories (test_security.py)
-- Command injection: semicolon, pipe, backtick, `$(...)` substitution
-- Path traversal: `../`, `/etc/`, Windows paths
-- SQL injection: `--`, `/*`, SQL keywords
-- Expects: `SuspiciousOperationError` or `InvalidURLError`
+- Prefer fakes/mocks unless explicitly running real API tests.
+- Mark with `@pytest.mark.integration` (and `@pytest.mark.anyio` where async FastMCP surface needs it).
+- Keep secrets out of fixtures; use env only for opt-in real API runs.
+- Default local/CI path must not require network.
 
 ## ANTI-PATTERNS
-
-- **NO full mocking** → Integration tests need real component interaction
-- **NO asyncio.run()** → Use `anyio.run()` for async execution
-- **NO hardcoded tokens** → Use `os.getenv("GITHUB_TOKEN")`
-- **NO skip missing markers** → Always add `@pytest.mark.integration`
-- **NO real API in CI** → Live tests auto-skip without token
-
-## COMMANDS
-```bash
-pytest -m integration                    # All integration tests
-pytest tests/integration/test_security.py -v  # Security tests only
-GITHUB_TOKEN=xxx pytest tests/integration/test_real_github_api.py  # Live API
-```
+- NO committing tokens or API keys.
+- NO assuming network in default CI or local runs.
+- NO placing pure unit cases here when they belong under `tests/unit/`.

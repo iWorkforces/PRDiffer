@@ -1,89 +1,74 @@
 # AGENTS.md - Tests
 
-Unit and integration tests: pytest, 863+ tests, ~70% coverage, anyio-first async.
+pytest suite: unit, integration, performance, root phase/client regression tests.
 
 ## OVERVIEW
-Comprehensive test suite with pytest, markers, fixtures, generator patterns, and parallel execution.
+- **~129** Python files under `tests/` (~35K lines)
+- **~2390** `test_*` functions
+- Package under test: **prdiffer 0.6.0**
+- Shared fixtures: `tests/conftest.py` (auto env + singleton reset)
+- Largest suite: `unit/application/components/test_authentication.py` (**1145** lines)
 
 ## STRUCTURE
 ```
 tests/
-├── unit/               # Unit tests per layer (96 files)
-│   ├── domain/
-│   ├── infrastructure/
-│   └── application/
-├── integration/         # Integration tests (8 files)
-├── performance/         # Performance tests (1 file, benchmarking)
-├── conftest.py         # Shared fixtures (auto-use for env setup)
-└── test_phase_*.py     # 4 phase files (80K+ lines total)
+├── conftest.py                      # Markers, mocks, sample entities, auto-use env/singletons
+├── test_github_client.py            # Root client regression
+├── test_cache_hashing.py            # Cache key hashing
+├── test_phase{1-4}_improvements.py  # Historical phase regression suites
+├── unit/
+│   ├── domain/                      # Entities, use cases, errors, registry, cache v2
+│   ├── infrastructure/              # GitHub, GitLab, cache, utils, DI, security, settings
+│   ├── application/                 # Tools, components, webhooks, health
+│   └── test_version_consistency.py
+├── integration/                     # Workflows, security, webhooks, MCP surface, optional real API
+└── performance/                     # Microbenches + strict-v1 full-diff harness tests
 ```
 
 ## WHERE TO LOOK
 | Task | Location | Notes |
 |------|----------|-------|
-| **Add unit test** | `tests/unit/<layer>/` | Mock external deps |
-| **Add integration test** | `tests/integration/` | Real dependencies |
-| **Add performance test** | `tests/performance/` | Use `time.perf_counter()` |
-| **Shared fixtures** | `conftest.py` | Auto-use for env + singleton reset |
-| **Test markers** | pytest.ini | unit, integration, slow, security, thread_safety |
+| **Domain purity / entities** | `unit/domain/` | E5020, cache v2, session use case |
+| **Retry / CB / cache utils** | `unit/infrastructure/utils/` | Circuit breaker, retry, coalescing |
+| **GitHub adapters / full-diff** | `unit/infrastructure/github/` | Inventory, typed content, ordered processor, session |
+| **PR diff service / limits** | `unit/infrastructure/` | `test_pr_diff_service*`, `test_diff_limits`, concurrency defaults |
+| **MCP tools / auth** | `unit/application/` | Tool registry, components (auth 1145) |
+| **Strict MCP surface** | `integration/test_full_diff_mcp_surface.py` | 141 lines; in-process FastMCP |
+| **E2E-ish flows** | `integration/` | Workflow, security, webhooks |
+| **Full-diff bench validity** | `performance/test_full_diff_benchmark.py` | Loads `scripts/bench_diff_generation.py` |
+
+## MARKERS
+Registered in `conftest.pytest_configure` (and partially in `pyproject.toml`):
+- `unit` — isolated, no external I/O
+- `integration` — cross-component / optional external
+- `slow` — slow-running
+- `security` — security / vulnerability paths
+- `thread_safety` — concurrency / lock paths
+
+`pyproject.toml` `[tool.pytest.ini_options]`: `asyncio_mode = "auto"`, `--strict-markers`, `testpaths = ["tests"]`.
 
 ## CONVENTIONS
-
-### Test Markers
-- `@pytest.mark.unit` - Unit tests (mocked deps)
-- `@pytest.mark.integration` - Integration tests (real deps)
-- `@pytest.mark.slow` - Slow tests (excluded by default)
-- `@pytest.mark.security` - Security tests (injection, validation)
-- `@pytest.mark.thread_safety` - Thread safety tests (RLock, concurrency)
-
-### Async Testing (anyio-first)
-- **CRITICAL:** Use `@pytest.mark.anyio` (NOT @pytest.mark.asyncio)
-- Use anyio primitives: `anyio.Lock`, `anyio.Semaphore`, `anyio.Event`, `anyio.create_task_group()`
-- **NO asyncio in tests** → Project is anyio-first
-- Pattern: `anyio.from_thread.run_sync()` for mixed sync/async
-
-### Fixtures
-- **Auto-use fixtures** in conftest.py for environment setup and singleton reset
-- **Generator fixtures** for test data: `mock_github_file()`, `generate_pr_url()`, `generate_diff_content()`
-- **Concurrency fixtures:** `run_concurrently()` with anyio.Semaphore for thread safety tests
-
-### Coverage Goals
-- Overall: >80% (current: ~70%)
-- Domain: >90%
-- Infrastructure: >75%
-- Application: >85%
-
-### Performance Testing
-- Location: `tests/performance/test_performance.py`
-- Use `time.perf_counter()` for benchmarking
-- Test retry logic, circuit breaker, parallel execution
-
-### Phase-Based Organization
-- 4 phase test files: `test_phase1_improvements.py`, `test_phase2_improvements.py`, etc. (80K+ lines combined)
-- Organized by development phase for historical context
+- Unit tests mock all network I/O (PyGithub, python-gitlab, httpx).
+- Prefer domain interfaces in mocks (`Mock(spec=...)`).
+- **Async**: production is anyio-first; tests largely use `@pytest.mark.asyncio` (pytest-asyncio). Some modules use `@pytest.mark.anyio`. Follow neighboring tests in the same package.
+- Auto-use fixtures: `set_test_environment` (`ENV_FOR_DYNACONF=testing`, dummy `GITHUB_TOKEN`), `reset_singletons` (cache/settings/logger).
+- CI: `.github/workflows/pr-quality.yml` runs `ruff check`, `ty check`, `pytest tests` on PRs to `main`/`develop` (`uv sync --frozen --group dev`).
 
 ## COMMANDS
 ```bash
-./start-unittest.sh --run          # All tests
-./start-unittest.sh --coverage     # With coverage (HTML+term)
-./start-unittest.sh --parallel     # Parallel execution (CPU count workers)
-./start-unittest.sh --file <path>  # Specific file
-./start-unittest.sh --pattern <p>  # Match pattern (-k equivalent)
-./start-unittest.sh --watch        # Watch mode (pytest-watch)
-
-# Run by marker
-pytest -m unit                     # Unit tests only
-pytest -m integration              # Integration tests only
-pytest -m slow                     # Slow tests
-pytest -m security                 # Security tests
-pytest -m thread_safety            # Thread safety tests
+./start-unittest.sh --run
+./start-unittest.sh --coverage
+./start-unittest.sh --parallel
+./start-unittest.sh --file tests/unit/domain/test_exceptions.py
+./start-unittest.sh --pattern test_full_diff
+uv run pytest tests -v --tb=short
+uv run pytest tests -m unit
+uv run pytest tests -m "not slow"
 ```
 
 ## ANTI-PATTERNS
-
-- **NO production logic in tests** → Tests only
-- **NO test dependencies** → Use fixtures, not imports between tests
-- **NO asyncio in tests** → Use anyio primitives (project is anyio-first)
-- **NO real API calls in unit tests** → Mock all external dependencies
-- **NO blocking I/O in async tests** → Use AsyncParallelExecutor patterns
-- **NO integration tests in unit/** → Separate integration/ directory
+- NO live GitHub/GitLab tokens required for unit tests.
+- NO putting integration tests under `unit/`.
+- NO asserting on third-party SDK internals beyond our wrappers.
+- NO multi-second sleeps in unit tests (patch timers / use short delays).
+- NO production logic that exists only in tests.

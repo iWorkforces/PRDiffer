@@ -1,126 +1,55 @@
 # AGENTS.md - Infrastructure/Utils
 
-Utility functions and helpers: retry, circuit breaker, caching, async execution.
+**Package:** 0.6.0  
+Resilience, parallelism, parsing, and shared utilities (including subpackages).
 
-## Guidelines
-
-- Pure functions where possible (no side effects)
-- **Dual sync/async APIs** for critical utilities
-- Reusable across the codebase
-- Well-documented with docstrings
-- **anyio primitives** for async (not asyncio)
-
-## Common Patterns
-
-### UnifiedRetryHandler (Dual Sync/Async)
-```python
-from typing import Callable, TypeVar
-import anyio
-
-T = TypeVar('T')
-
-class UnifiedRetryHandler:
-    '''Context-aware retry with circuit breaker integration (see retry/ package)'''
-    
-    def retry_sync(
-        self,
-        func: Callable[[], T],
-        max_retries: int = 3,
-        delay: float = 1.0,
-    ) -> T:
-        '''Synchronous retry with exponential backoff'''
-        for attempt in range(max_retries):
-            try:
-                return func()
-            except Exception as e:
-                if attempt == max_retries - 1:
-                    raise
-                time.sleep(delay * (2 ** attempt))
-    
-    async def retry_async(
-        self,
-        func: Callable[[], T],
-        max_retries: int = 3,
-        delay: float = 1.0,
-    ) -> T:
-        '''Async retry with exponential backoff (anyio.sleep, not asyncio)'''
-        for attempt in range(max_retries):
-            try:
-                return await func()
-            except Exception as e:
-                if attempt == max_retries - 1:
-                    raise
-                await anyio.sleep(delay * (2 ** attempt))
+## STRUCTURE
+```
+prdiffer/infrastructure/utils/
+├── retry/                      # Unified retry package (base, handler, models, factories)
+├── parallel/                   # AsyncParallelExecutor (~608 in executor.py)
+├── coalescing/                 # Package path for coalescing
+├── circuit_breaker/            # SHIM → circuit_breaker_core / registry
+├── metrics/                    # Performance metrics package
+├── circuit_breaker_core.py     # Canonical CircuitBreaker (215)
+├── circuit_breaker_registry.py # Global registry (271)
+├── coalescing_service.py       # Request coalescing (220)
+├── delay_calculator.py         # Backoff + jitter (160)
+├── error_classifier.py         # Retryability classification (151)
+├── rate_limit_parser.py        # Retry-After / rate headers (183)
+├── api_health_tracker.py       # Sliding window health (131)
+├── diff_limits.py              # Strict size hard limits (67)
+├── diff_utils.py               # DiffServiceInterface impl
+├── pattern_matcher.py          # Ignore/extension patterns
+├── url_parser.py               # GitHub PR URL parsing
+├── logger_factory.py           # get_logger helpers, LazyLoggerMixin (123)
+├── performance.py              # Metrics (may mirror metrics/)
+└── retry_logger.py
 ```
 
-### CircuitBreaker (State Machine)
-```python
-from enum import Enum
+## WHERE TO LOOK
+| Task | Location | Notes |
+|------|----------|-------|
+| **Retry policy** | `retry/handler.py`, `retry/base.py` | Context-aware (skip file 404s) |
+| **CB state machine** | `circuit_breaker_core.py` | Prefer over shim package |
+| **Fan-out** | `parallel/executor.py` | anyio task groups + semaphores |
+| **Indexed identity** | `execute_indexed_batch` | Ordered outcomes; strict `IndexedBatchError` |
+| **Coalesce** | `coalescing_service.py` | Deduplicate concurrent work |
+| **Full-diff size** | `diff_limits.py` | `assert_*` → E5020 RESPONSE_SIZE_LIMIT |
+| **Logger mixin** | `logger_factory.py` | Lazy init / null logger |
 
-class CircuitBreakerState(Enum):
-    CLOSED = 'closed'      # Normal operation
-    OPEN = 'open'          # Failure threshold reached
-    HALF_OPEN = 'half_open'  # Testing recovery
+## CONVENTIONS
+- Prefer anyio over asyncio APIs in new code.
+- Keep pure helpers free of domain orchestration.
+- Document **shim vs canonical** when flattening modules:
+  - Canonical CB: `circuit_breaker_core.py` / `circuit_breaker_registry.py`
+  - Package `circuit_breaker/` re-exports only
+- Coalescing: prefer consistent imports (`coalescing_service` vs package) within a change set.
+- Parallel full-diff work must preserve identity/order via `execute_indexed_batch`.
 
-class CircuitBreaker:
-    '''State machine: CLOSED → OPEN → HALF_OPEN → CLOSED'''
-    
-    def __init__(self, failure_threshold: int = 5, timeout: int = 60):
-        self.state = CircuitBreakerState.CLOSED
-        self.failure_count = 0
-        self.failure_threshold = failure_threshold
-```
-
-### Manual Caching with RLock (Settings Pattern)
-```python
-import threading
-
-_settings = None
-_settings_lock = threading.RLock()
-
-def get_settings():
-    '''Manual caching with double-check locking (no @lru_cache)'''
-    global _settings
-    if _settings is None:
-        with _settings_lock:
-            if _settings is None:
-                _settings = Dynaconf(...)  # Unhashable
-    return _settings
-```
-
-### AsyncParallelExecutor (anyio Task Groups)
-```python
-import anyio
-
-class AsyncParallelExecutor:
-    '''443-line anyio-based parallel execution'''
-    
-    async def execute_parallel(self, tasks: list):
-        async with anyio.create_task_group() as tg:
-            for task in tasks:
-                tg.start_soon(task)
-```
-
-## Anti-Patterns
-
-- ❌ Using asyncio primitives (use anyio.Lock, anyio.Semaphore, anyio.Event)
-- ❌ @lru_cache on Dynaconf settings (use manual RLock pattern)
-- ❌ Thread-based async (use anyio.create_task_group())
-- ❌ Blocking I/O in async methods (use AsyncParallelExecutor)
-- ❌ Retrying 404s for file content (not transient)
-
-## Known Issues
-
-- **github_repository.py (676 lines)** - Largest file, uses composition with extracted components
-- **retry/ package refactored** - Previously 848-line monolith, now split into focused modules
-
-## Files
-
-- `retry/`: Retry package (base.py, handler.py, models.py, factories.py)
-- `circuit_breaker/`: Circuit breaker package (core.py, registry.py)
-- `../cache/`: Caching package (service.py, store.py, repository/, decorators/)
-- `diff_utils.py`: Diff processing utilities
-- `diff_limits.py`: Diff size limits and validation
-- `pattern_matcher.py`: Pattern matching utilities
-- `api_health_tracker.py`: API health monitoring
-- `logger_factory.py`: LazyLoggerMixin (66-line circular import prevention)
+## ANTI-PATTERNS
+- NO sleeping without jitter/caps on hot paths.
+- NO shared mutable globals without locks.
+- NO blind retry of all exceptions (especially content 404s).
+- NO completion-order append for identity-sensitive full-diff batches.
+- NO truncating diffs in `diff_limits` helpers — hard-fail only.

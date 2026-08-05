@@ -32,7 +32,9 @@ class DummyPullRequest:
 
 
 @pytest.mark.asyncio
-async def test_get_pr_diff_with_truncation(monkeypatch):
+async def test_get_pr_diff_rejects_oversized_response(monkeypatch):
+    from prdiffer.domain.exceptions import FullDiffIncompleteError, FullDiffIncompleteReason
+
     service = GitHubPRDiffService(
         github_api_client=DummyGitHubAPI(),
         diff_generator=None,
@@ -56,15 +58,11 @@ async def test_get_pr_diff_with_truncation(monkeypatch):
         lambda *_: diff_files,
     )
 
-    service._diff_truncate_enabled = True
     service._diff_max_total_chars = 10
-    service._diff_truncation_notice = "[TRUNC]"
 
-    result = await service.get_pr_diff("owner", "repo", 1)
-
-    assert result is not None
-    # PRDiff now uses frozen dataclass with tuple fields
-    assert isinstance(result.files, tuple)
+    with pytest.raises(FullDiffIncompleteError) as exc:
+        await service.get_pr_diff("owner", "repo", 1)
+    assert exc.value.reason is FullDiffIncompleteReason.RESPONSE_SIZE_LIMIT
 
 
 @pytest.mark.asyncio

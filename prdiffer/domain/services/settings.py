@@ -31,6 +31,10 @@ class SettingsServiceInterface(ABC):
         """
         pass
 
+    def get_github_config(self) -> Any:
+        """Optional typed GitHubConfig accessor (implemented by SettingsService)."""
+        raise NotImplementedError
+
     @abstractmethod
     def get_cache_settings(self) -> dict[str, Any]:
         """Get cache-related settings.

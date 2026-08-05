@@ -4,8 +4,10 @@ This module defines custom exceptions for different error scenarios,
 providing better error handling and more informative error messages.
 """
 
+from enum import StrEnum
 from typing import Any
-from .errors import ErrorCode, E5001_INTERNAL_ERROR
+
+from .errors import ErrorCode, E5001_INTERNAL_ERROR, E5020_FULL_DIFF_INCOMPLETE
 
 
 class PRDifferException(Exception):
@@ -248,6 +250,111 @@ class GitHubRateLimitError(GitHubAPIError):
         """
         super().__init__(message, status_code, error_code, details)
         self.retry_after = retry_after
+
+
+class FullDiffIncompleteReason(StrEnum):
+    """Stable machine-readable reasons for E5020 full-diff incompleteness."""
+
+    INVENTORY_TRUNCATED = "INVENTORY_TRUNCATED"
+    FILE_COUNT_LIMIT = "FILE_COUNT_LIMIT"
+    BINARY_CONTENT = "BINARY_CONTENT"
+    FILE_SIZE_LIMIT = "FILE_SIZE_LIMIT"
+    CONTENT_UNAVAILABLE = "CONTENT_UNAVAILABLE"
+    CONTENT_DECODE_FAILED = "CONTENT_DECODE_FAILED"
+    UNSUPPORTED_FILE_STATUS = "UNSUPPORTED_FILE_STATUS"
+    DIFF_GENERATION_FAILED = "DIFF_GENERATION_FAILED"
+    RESPONSE_SIZE_LIMIT = "RESPONSE_SIZE_LIMIT"
+
+
+_FULL_DIFF_SAFE_DETAIL_KEYS: frozenset[str] = frozenset(
+    {
+        "reason",
+        "path",
+        "previous_path",
+        "observed",
+        "limit",
+    }
+)
+_FULL_DIFF_FORBIDDEN_DETAIL_KEYS: frozenset[str] = frozenset(
+    {
+        "token",
+        "access_token",
+        "api_key",
+        "authorization",
+        "password",
+        "secret",
+        "raw_content",
+        "content",
+        "body",
+        "patch",
+        "diff",
+    }
+)
+
+
+def _sanitize_full_diff_details(
+    reason: FullDiffIncompleteReason,
+    details: dict[str, Any] | None,
+) -> dict[str, Any]:
+    """Keep only safe structured fields; never retain tokens or raw content."""
+    safe: dict[str, Any] = {"reason": reason.value}
+    if not details:
+        return safe
+
+    forbidden = sorted(key for key in details if key.casefold() in _FULL_DIFF_FORBIDDEN_DETAIL_KEYS)
+    if forbidden:
+        raise ValueError("FullDiffIncompleteError details must not include sensitive or raw content keys: " + ", ".join(forbidden))
+
+    unknown = sorted(key for key in details if key not in _FULL_DIFF_SAFE_DETAIL_KEYS)
+    if unknown:
+        raise ValueError("FullDiffIncompleteError details contain unsupported keys: " + ", ".join(unknown))
+
+    for key in ("path", "previous_path", "observed", "limit"):
+        if key in details and details[key] is not None:
+            safe[key] = details[key]
+    # Caller may pass reason again; canonical enum value always wins.
+    safe["reason"] = reason.value
+    return safe
+
+
+class FullDiffIncompleteError(GitHubAPIError):
+    """Raised when a selected PR cannot be returned as a complete full-context diff.
+
+    Maps to ``E5020_FULL_DIFF_INCOMPLETE``. Does not replace auth, permission,
+    rate-limit, or retry-exhausted operational failures.
+    """
+
+    def __init__(
+        self,
+        reason: FullDiffIncompleteReason,
+        message: str | None = None,
+        *,
+        path: str | None = None,
+        previous_path: str | None = None,
+        observed: int | str | None = None,
+        limit: int | str | None = None,
+        details: dict[str, Any] | None = None,
+        status_code: int | None = None,
+    ) -> None:
+        merged: dict[str, Any] = dict(details or {})
+        if path is not None:
+            merged["path"] = path
+        if previous_path is not None:
+            merged["previous_path"] = previous_path
+        if observed is not None:
+            merged["observed"] = observed
+        if limit is not None:
+            merged["limit"] = limit
+
+        safe_details = _sanitize_full_diff_details(reason, merged)
+        resolved_message = message or (f"Full diff incomplete: {reason.value}" + (f" for {path}" if path else ""))
+        super().__init__(
+            resolved_message,
+            status_code=status_code,
+            error_code=E5020_FULL_DIFF_INCOMPLETE,
+            details=safe_details,
+        )
+        self.reason = reason
 
 
 # ============================================================================

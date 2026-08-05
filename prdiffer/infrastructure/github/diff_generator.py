@@ -1,10 +1,19 @@
 """Diff generation and patch processing service."""
 
+import logging
 import re
 import time
-import logging
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Any, TypedDict
-from prdiffer.domain.entities.file_patch import FilePatchInfo
+
+from prdiffer.domain.entities.file_patch import EDIT_TYPE, FilePatchInfo
+from prdiffer.domain.entities.generated_file_diff import GeneratedFileDiff
+from prdiffer.domain.errors import E5003_DIFF_GENERATION_ERROR
+from prdiffer.domain.exceptions import (
+    DiffGenerationError,
+    FullDiffIncompleteError,
+    FullDiffIncompleteReason,
+)
 from prdiffer.domain.services.diff import DiffServiceInterface
 from prdiffer.infrastructure.logging.console_logger import get_logger
 from prdiffer.infrastructure.logging.exception_utils import (
@@ -31,29 +40,195 @@ class DiffGenerator:
         self,
         diff_utils: DiffServiceInterface,
         parallel_executor: Any = None,
-        parallel_enabled: bool = True,
+        parallel_enabled: bool = False,
         parallel_threshold: int = 3,
+        max_workers: int = 4,
         logger: logging.Logger | None = None,
     ) -> None:
         self._diff_utils = diff_utils
         self._parallel_executor = parallel_executor
-        self._parallel_enabled = parallel_enabled and parallel_executor is not None
+        # Parallel generation is enabled explicitly by factory/settings (not bare ctor).
+        # ThreadPoolExecutor can use ThreadPool without an injected executor when enabled.
+        self._parallel_enabled = bool(parallel_enabled)
         self._parallel_threshold = parallel_threshold
+        self._max_workers = max(
+            1,
+            int(getattr(parallel_executor, "max_concurrent", None) or getattr(parallel_executor, "max_workers", None) or max_workers),
+        )
         self._logger = logger or get_logger()
 
-    def generate_extended_diff(self, diff_files: list[FilePatchInfo], add_line_numbers_to_hunks: bool = False) -> list[str]:
-        """Generate an extended diff for a pull request."""
-        num_files = len(diff_files)
+    def generate_ordered_file_diffs(self, diff_files: list[FilePatchInfo]) -> list[GeneratedFileDiff]:
+        """Generate one full-context diff per selected file in provider order.
 
-        use_parallel = self._parallel_enabled and num_files >= self._parallel_threshold and self._parallel_executor is not None
+        Missing provider patches are recovered from base/head text. Strict:
+        returns exactly ``len(diff_files)`` results or raises.
+        Contract inability → E5020/DIFF_GENERATION_FAILED; unexpected defects → E5003.
+        """
+        if not diff_files:
+            return []
 
-        if use_parallel:
-            self._logger.debug(f"Using parallel processing for {num_files} files (threshold: {self._parallel_threshold})")
-            return self._generate_extended_diff_parallel(diff_files, add_line_numbers_to_hunks)
+        if self._parallel_enabled and len(diff_files) >= self._parallel_threshold:
+            results = self._generate_ordered_file_diffs_parallel(diff_files)
         else:
-            reason = "disabled" if not self._parallel_enabled else f"below threshold ({num_files} < {self._parallel_threshold})"
-            self._logger.debug(f"Using sequential processing for {num_files} files (parallel {reason})")
-            return self._generate_extended_diff_sequential(diff_files, add_line_numbers_to_hunks)
+            results = [self._generate_one_file_diff(index, file_patch) for index, file_patch in enumerate(diff_files)]
+
+        if len(results) != len(diff_files):
+            raise FullDiffIncompleteError(
+                FullDiffIncompleteReason.DIFF_GENERATION_FAILED,
+                message=f"Generated {len(results)} diffs for {len(diff_files)} selected files",
+                observed=len(results),
+                limit=len(diff_files),
+            )
+        for expected_index, generated in enumerate(results):
+            if generated.index != expected_index:
+                raise FullDiffIncompleteError(
+                    FullDiffIncompleteReason.DIFF_GENERATION_FAILED,
+                    message="Generated diff index identity mismatch",
+                    path=generated.path,
+                    observed=generated.index,
+                    limit=expected_index,
+                )
+        return results
+
+    def _generate_ordered_file_diffs_parallel(self, diff_files: list[FilePatchInfo]) -> list[GeneratedFileDiff]:
+        """Generate ordered diffs concurrently; preserve index identity and strict failure."""
+        workers = min(self._max_workers, len(diff_files))
+        ordered: list[GeneratedFileDiff | None] = [None] * len(diff_files)
+        first_error: BaseException | None = None
+
+        with ThreadPoolExecutor(max_workers=workers) as pool:
+            futures = {pool.submit(self._generate_one_file_diff, index, file_patch): index for index, file_patch in enumerate(diff_files)}
+            for future in as_completed(futures):
+                index = futures[future]
+                try:
+                    ordered[index] = future.result()
+                except Exception as exc:
+                    if first_error is None:
+                        first_error = exc
+                    # Best-effort cancel remaining work; already-running tasks finish.
+                    for pending in futures:
+                        pending.cancel()
+
+        if first_error is not None:
+            raise first_error
+
+        return [item for item in ordered if item is not None]
+
+    def generate_extended_diff(self, diff_files: list[FilePatchInfo], add_line_numbers_to_hunks: bool = False) -> list[str]:
+        """Generate extended diffs (legacy list[str] surface).
+
+        Delegates to :meth:`generate_ordered_file_diffs` for completeness guarantees.
+        ``add_line_numbers_to_hunks`` remains available for display-only formatting.
+        """
+        ordered = self.generate_ordered_file_diffs(diff_files)
+        if not add_line_numbers_to_hunks:
+            return [item.diff for item in ordered]
+
+        formatted: list[str] = []
+        for item, file_patch in zip(ordered, diff_files, strict=True):
+            formatted.append(
+                self._decouple_and_convert_to_hunks_with_lines_numbers(
+                    item.diff,
+                    file_patch,
+                    is_first_file=(item.index == 0),
+                )
+            )
+        return formatted
+
+    def _generate_one_file_diff(self, index: int, file_patch: FilePatchInfo) -> GeneratedFileDiff:
+        """Build a single identity-bearing full-context diff from base/head text."""
+        if file_patch.edit_type is EDIT_TYPE.UNKNOWN:
+            raise FullDiffIncompleteError(
+                FullDiffIncompleteReason.UNSUPPORTED_FILE_STATUS,
+                path=file_patch.filename,
+            )
+
+        previous_path = file_patch.old_filename if file_patch.edit_type is EDIT_TYPE.RENAMED else None
+        if file_patch.edit_type is EDIT_TYPE.RENAMED and not previous_path:
+            previous_path = file_patch.filename
+
+        base_text = file_patch.base_file or ""
+        head_text = file_patch.head_file or ""
+        if file_patch.edit_type is EDIT_TYPE.ADDED:
+            base_text = ""
+        elif file_patch.edit_type is EDIT_TYPE.DELETED:
+            head_text = ""
+
+        try:
+            body = self._build_full_context_body(base_text, head_text, provider_patch=file_patch.patch or "")
+        except FullDiffIncompleteError:
+            raise
+        except Exception as exc:
+            sanitized = sanitize_exception_for_logging(exc)
+            self._logger.error(
+                "Unexpected failure generating full-context diff",
+                extra={**sanitized, "path": file_patch.filename},
+            )
+            raise DiffGenerationError(
+                f"Unexpected algorithm/runtime error generating diff for {file_patch.filename}",
+                error_code=E5003_DIFF_GENERATION_ERROR,
+                details={"path": file_patch.filename},
+            ) from exc
+
+        if body is None:
+            raise FullDiffIncompleteError(
+                FullDiffIncompleteReason.DIFF_GENERATION_FAILED,
+                path=file_patch.filename,
+                previous_path=previous_path,
+            )
+
+        if file_patch.edit_type is EDIT_TYPE.RENAMED and previous_path:
+            rename_header = f"rename from {previous_path}\nrename to {file_patch.filename}\n"
+            # Rename-only still emits deterministic headers even when text is identical/empty.
+            if base_text == head_text:
+                diff = rename_header + (body.lstrip("\n") if body.strip() else "")
+                diff = diff.rstrip("\n")
+            else:
+                diff = rename_header + body.lstrip("\n")
+        else:
+            diff = body
+
+        return GeneratedFileDiff(
+            index=index,
+            path=file_patch.filename,
+            previous_path=previous_path if file_patch.edit_type is EDIT_TYPE.RENAMED else None,
+            diff=diff,
+        )
+
+    def _build_full_context_body(self, base_text: str, head_text: str, *, provider_patch: str) -> str:
+        """Build full-file unified body from required text; provider patch is fallback input only."""
+        # Prefer full-file generation from complete base/head (not hunk-only provider patch).
+        build = getattr(self._diff_utils, "build_full_file_patch_chunked", None)
+        try:
+            if callable(build):
+                body = build(base_text, head_text)
+            else:
+                body = self._diff_utils.build_full_file_patch(base_text, head_text)
+        except FullDiffIncompleteError:
+            raise
+        except Exception:
+            # Fall back to extend_patch only when full build is unavailable.
+            if provider_patch:
+                body = self._diff_utils.extend_patch(base_text, provider_patch, new_file_str=head_text)
+            else:
+                body = self._diff_utils.build_full_file_patch(base_text, head_text)
+
+        if body is None:
+            raise FullDiffIncompleteError(
+                FullDiffIncompleteReason.DIFF_GENERATION_FAILED,
+                message="Diff builder returned no output",
+            )
+        if isinstance(body, str) and body.startswith("[BINARY FILE"):
+            raise FullDiffIncompleteError(
+                FullDiffIncompleteReason.BINARY_CONTENT,
+                message="Binary content cannot produce a full-context text diff",
+            )
+        if isinstance(body, str) and "DIFF TRUNCATED" in body:
+            raise FullDiffIncompleteError(
+                FullDiffIncompleteReason.RESPONSE_SIZE_LIMIT,
+                message="Diff builder produced a truncation marker instead of full context",
+            )
+        return body
 
     def _decouple_and_convert_to_hunks_with_lines_numbers(self, patch: str, file: FilePatchInfo, is_first_file: bool = False) -> str:
         """Convert a given patch string into a string with line numbers for each hunk."""
@@ -314,8 +489,9 @@ class DiffGenerator:
 def get_diff_generator(
     diff_utils: DiffServiceInterface,
     parallel_executor: Any = None,
-    parallel_enabled: bool = True,
+    parallel_enabled: bool = False,
     parallel_threshold: int = 3,
+    max_workers: int = 4,
 ) -> DiffGenerator:
     """Get a configured diff generator instance."""
     return DiffGenerator(
@@ -323,4 +499,5 @@ def get_diff_generator(
         parallel_executor=parallel_executor,
         parallel_enabled=parallel_enabled,
         parallel_threshold=parallel_threshold,
+        max_workers=max_workers,
     )

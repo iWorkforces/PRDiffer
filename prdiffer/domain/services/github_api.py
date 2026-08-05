@@ -2,8 +2,9 @@
 
 from abc import ABC, abstractmethod
 
-from prdiffer.domain.entities.repository import Repository
+from prdiffer.domain.entities.file_content import FileContentResult
 from prdiffer.domain.entities.pull_request import PullRequest
+from prdiffer.domain.entities.repository import Repository
 
 
 class GitHubAPIServiceInterface(ABC):
@@ -49,29 +50,29 @@ class GitHubAPIServiceInterface(ABC):
         pass
 
     @abstractmethod
-    def get_file_content(self, repo_full_name: str, file_path: str, branch: str) -> str:
-        """Get file content from a specific branch.
-
-        Args:
-            repo_full_name: Repository full name in format "owner/repo"
-            file_path: Path to the file in the repository
-            branch: Branch or commit SHA
+    def get_file_content(self, repo_full_name: str, file_path: str, branch: str) -> FileContentResult:
+        """Get typed file content from a specific branch/ref.
 
         Returns:
-            str: File content as string, empty string on error
+            FileContentAvailable for successful text (including empty string),
+            or FileContentUnavailable for deterministic content limitations.
+
+        Raises:
+            Operational provider exceptions (auth, rate limit, transport, retry exhaustion)
+            rather than mapping them into FileContentUnavailable.
         """
         pass
 
     @abstractmethod
-    def get_files_content_batch(self, repo_full_name: str, file_paths: list[str], branch: str) -> dict[str, str]:
-        """Batch retrieve file contents from a specific branch.
-
-        Args:
-            repo_full_name: Repository full name in format "owner/repo"
-            file_paths: List of file paths to retrieve
-            branch: Branch or commit SHA
+    def get_files_content_batch(
+        self,
+        repo_full_name: str,
+        file_paths: list[str],
+        branch: str,
+    ) -> dict[str, FileContentResult]:
+        """Batch retrieve typed file contents from a specific branch/ref.
 
         Returns:
-            Dict mapping file paths to their content (empty string on error)
+            Mapping of path → FileContentResult. Only available texts are cached.
         """
         pass

@@ -1,59 +1,34 @@
-# AGENTS.md - Application Components Unit Tests
+# AGENTS.md - Application Component Unit Tests
 
-6 test files covering MCP server components: authentication, rate limiting, metrics, health monitoring, PR operations, server config.
-
-## OVERVIEW
-Component-level unit tests with mocked dependencies. Tests focus on orchestration logic, not business rules.
+6 modules, ~3.6K lines. Largest test file in the repo lives here.
 
 ## STRUCTURE
 ```
 tests/unit/application/components/
-├── test_authentication.py           # JWT/API key auth (1145 lines, largest)
-├── test_metrics_tracker.py          # Request timing, success rates
-├── test_health_monitor.py           # Health checks, status reporting
-├── test_pr_operation_handler.py     # PR get/approve operations
-├── test_rate_limiter.py             # Per-client rate limiting
-└── test_server_configuration.py     # Transport, port, host config
+├── test_authentication.py         # 1145 — largest suite (JWT, API keys, lockout)
+├── test_metrics_tracker.py        # 564
+├── test_rate_limiter.py           # 521
+├── test_pr_operation_handler.py   # 459
+├── test_server_configuration.py   # 458
+└── test_health_monitor.py         # 408
 ```
 
 ## WHERE TO LOOK
-| Task | Location |
-|------|----------|
-| **Auth flow** | `test_authentication.py` → `TestJWTAuthentication`, `TestAPIKeyAuth` |
-| **Rate limit** | `test_rate_limiter.py` → `TestRateLimitEnforcement` |
-| **Metrics** | `test_metrics_tracker.py` → `TestMetricsCollection` |
-| **Health check** | `test_health_monitor.py` → `TestHealthStatus` |
-| **PR ops** | `test_pr_operation_handler.py` → `TestPROperations` |
+| Task | File | Notes |
+|------|------|-------|
+| JWT / API key / lockout | `test_authentication.py` | Unverified JWT metadata only; API keys primary |
+| Rate limit windows | `test_rate_limiter.py` | Window/max request behavior |
+| Metrics counters | `test_metrics_tracker.py` | Request IDs, tracking |
+| Health thresholds | `test_health_monitor.py` | Score / check_health |
+| PR ops orchestration | `test_pr_operation_handler.py` | Tool-facing operation handler |
+| Server config validation | `test_server_configuration.py` | Config errors/logging |
 
 ## CONVENTIONS
-
-### Component Test Pattern
-```python
-@pytest.fixture
-def component():
-    '''Create component with mocked dependencies'''
-    mock_dep = Mock()
-    return AuthenticationComponent(dependency=mock_dep)
-
-def test_component_behavior(component):
-    '''Test orchestration, not business logic'''
-    result = component.authenticate(valid_token)
-    assert result.is_authenticated
-```
-
-### Authentication Testing
-- Test JWT validation (not parsing - that's infrastructure)
-- Test API key hash comparison
-- Test rate limit enforcement per client
-
-### Metrics Testing
-- Use `time.perf_counter()` for timing assertions
-- Test aggregation: success_rate = successes / total
-- Verify Prometheus format output
+- Inject mocks for validators and loggers.
+- Cover thread-safety-sensitive paths with concurrent scenarios when modifying locks (`run_concurrently` fixture in root conftest when useful).
+- Prefer controllable time over wall-clock for lockout/window tests.
 
 ## ANTI-PATTERNS
-
-- NO business logic in component tests → Domain layer only
-- NO real I/O → Mock all infrastructure services
-- NO asyncio → Use @pytest.mark.anyio with anyio primitives
-- NO testing internal state → Test observable behavior
+- NO depending on wall-clock alone for lockout tests without controllable time.
+- NO using unverified JWT claims for auth decisions in production-facing assertions (metadata only).
+- NO multi-second real sleeps.

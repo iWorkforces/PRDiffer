@@ -1,66 +1,53 @@
 # AGENTS.md - Domain/Config
 
-Configuration interfaces and types for the domain layer.
+Configuration value objects and interfaces (no I/O). Package 0.6.0.
 
-## Guidelines
-
-- Define configuration interfaces (ABC/Protocol)
-- No concrete implementations here
-- Type hints for configuration values
-- Use Pydantic for config models if needed
-- **Frozen dataclasses with `tuple` fields** (not `list`) for hashability
-
-## Common Patterns
-
-### Config Interface
-```python
-from abc import ABC
-from typing import Optional
-
-class GitHubConfigInterface(ABC):
-    @property
-    @abstractmethod
-    def rate_limit(self) -> int:
-        pass
-    
-    @property
-    @abstractmethod
-    def timeout(self) -> int:
-        pass
+## STRUCTURE
+```
+prdiffer/domain/config/
+├── github_config.py            # GitHubConfig frozen dataclass (~266)
+├── github_config_interface.py  # GitHubConfigDict + GitHubConfigInterface Protocol (~108)
+└── __init__.py
 ```
 
-### Frozen Config Model (Hashable)
-```python
-from dataclasses import dataclass
+## WHERE TO LOOK
+| Task | Location | Notes |
+|------|----------|-------|
+| **GitHub settings model** | `github_config.py` | Frozen; tuple fields for hashability; full-diff limits + parallel flags |
+| **Config interface** | `github_config_interface.py` | `@runtime_checkable` Protocol + TypedDict for DI |
+| **Defaults** | `github_config.py` top | Match `settings.toml` / plan contracts |
 
-@dataclass(frozen=True)
-class GitHubConfig:
-    '''Frozen dataclass for hashability (used in manual caching)'''
-    rate_limit: int = 5000
-    timeout: int = 30
-    max_retries: int = 3
-    ignore_patterns: tuple[str, ...] = ()  # NOT list
-    valid_extensions: tuple[str, ...] = ('.py', '.js', '.ts')
-```
+## CODE MAP
+| Symbol | Type | Location | Role |
+|--------|------|----------|------|
+| `GitHubConfig` | Frozen dataclass | `github_config.py` | Central GitHub settings VO |
+| `GitHubConfigInterface` | Protocol | `github_config_interface.py` | DI / typing surface |
+| `GitHubConfigDict` | TypedDict | `github_config_interface.py` | `from_dict` / `with_overrides` keys |
+| `github_worker_capacity` | property | `GitHubConfig` | 1 when `parallel_file_fetch_enabled` is false |
 
-### Pydantic Config Model
-```python
-from pydantic import BaseModel
+## FULL-DIFF FIELDS
+| Field | Default | Notes |
+|-------|---------|-------|
+| `timeout` | 30 | Provider/GitHub SDK timeout (seconds) |
+| `pr_diff_request_timeout_seconds` | 180.0 | Absolute request/coalescing deadline; must be `> timeout` |
+| `max_file_size_bytes` | 10_485_760 (10 MiB) | Content size admission |
+| `max_total_chars` | 200_000 | Aggregate public diff char budget |
+| `max_files_allowed` | 50 | Selected-file admission limit |
+| `parallel_file_fetch_enabled` | `true` | Bounded batch fetch; capacity 1 when off |
+| `parallel_head_base_fetch_enabled` | `true` | Concurrent head + base content loads |
+| `parallel_diff_generation_enabled` | `true` | Parallel ordered full-context generation |
+| `max_concurrent` | 4 | Worker cap when parallel fetch enabled |
 
-class GitHubConfig(BaseModel):
-    rate_limit: int = 5000
-    timeout: int = 30
-    max_retries: int = 3
-```
+Also: retry/circuit-breaker knobs, `ignore_patterns` / `valid_extensions` as tuples, legacy `diff_parallel_*` for older parallel-diff paths.
 
-## Anti-Patterns
+## CONVENTIONS
+- Immutable config objects only; `__post_init__` validates positives and `timeout < pr_diff_request_timeout_seconds`.
+- Infrastructure loads Dynaconf and maps into these domain types (`from_dict` / `to_dict`).
+- Never read env/files from this package.
+- Helpers: `should_ignore_file`, `has_valid_extension`, `should_process_file`, `with_overrides`.
 
-- ❌ Using `list` in frozen dataclasses (not hashable)
-- ❌ Concrete implementations in domain/config (use infrastructure)
-- ❌ Missing type hints on config properties
-- ❌ Mutable config objects (prefer frozen)
-
-## Files
-
-- `github_config.py`: GitHub API configuration (frozen dataclass)
-- `github_config_interface.py`: Abstract interface for GitHub config
+## ANTI-PATTERNS
+- NO Dynaconf / `os.environ` here.
+- NO silent coercion of zero/negative limits (`ConfigurationError` on invalid).
+- NO mutable config bags shared across threads without care.
+- NO defaulting full-diff parallel flags to `true` without an explicit opt-in decision.

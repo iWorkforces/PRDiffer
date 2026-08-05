@@ -1,98 +1,32 @@
 # AGENTS.md - Infrastructure/Services
 
-Infrastructure-level service implementations with retry, caching, fault tolerance.
+**Package:** 0.6.0  
+Concrete service adapters implementing domain service ports.
 
-## Guidelines
-
-- Implement domain service interfaces
-- Handle external API/service integrations
-- **Add retry, circuit breaker, caching** to all external calls
-- Log operations appropriately (sanitize sensitive data)
-- **Use LazyLoggerMixin** to prevent circular imports
-
-## Common Patterns
-
-### Infrastructure Service with Retry + Circuit Breaker
-```python
-from prdiffer.domain.services import CacheServiceInterface
-from prdiffer.infrastructure.utils.retry_handler import get_retry_handler
-from prdiffer.infrastructure.logging.logger_factory import LazyLoggerMixin
-
-class CacheService(CacheServiceInterface, LazyLoggerMixin):
-    '''Cache service with retry logic and lazy logger'''
-    
-    def __init__(self, default_ttl: int = 300):
-        self._cache: dict[str, Any] = {}
-        self._ttl = default_ttl
-        self._retry_handler = get_retry_handler()
-    
-    def get(self, key: str) -> Optional[Any]:
-        self._logger.debug(f'Cache get: {key}')
-        if key in self._cache:
-            return self._cache[key]
-        return None
-    
-    def set(self, key: str, value: Any, ttl: Optional[int] = None) -> None:
-        self._logger.debug(f'Cache set: {key}')
-        self._cache[key] = value
+## STRUCTURE
+```
+prdiffer/infrastructure/services/
+└── pr_diff_service.py   # GitHubPRDiffService (527) — CachingMixin + PRDiffServiceInterface
 ```
 
-### PRDiffService (Orchestration)
-```python
-class PRDiffService:
-    '''Orchestrates GitHub API + cache + retry for PR diff retrieval'''
-    
-    def __init__(
-        self,
-        github_service: GitHubAPIServiceInterface,
-        cache_service: CacheServiceInterface,
-        retry_handler: RetryHandlerInterface,
-    ):
-        self._github = github_service
-        self._cache = cache_service
-        self._retry = retry_handler
-    
-    async def get_pr_diff(self, pr_url: str) -> PRDiff:
-        # 1. Check cache
-        cached = self._cache.get(pr_url)
-        if cached:
-            return cached
-        
-        # 2. Fetch with retry
-        diff = await self._retry.retry_async(
-            lambda: self._github.get_pr_diff(pr_url)
-        )
-        
-        # 3. Update cache
-        self._cache.set(pr_url, diff)
-        return diff
-```
+## WHERE TO LOOK
+| Task | Location | Notes |
+|------|----------|-------|
+| **High-level PR diff** | `pr_diff_service.py` | Orchestrates GitHub API + inventory + processor + generator + cache |
+| **Session path** | `open_pr_diff_session` | Delegates to `github/pr_diff_session.GitHubSessionPRDiffReader` |
+| **Strict assembly** | `_build_pr_diff_strict` | `GeneratedFileDiff` → `FileDiffResponse`; size limits |
+| **Inventory** | `_generate_diff_content*` | `prepare_selected_inventory` then ordered processing |
 
-### Commit-Based Cache Invalidation
-```python
-import hashlib
+## CONVENTIONS
+- Implements `PRDiffServiceInterface`; composes `github/` + `cache/` rather than duplicating logic.
+- Maps ordered `GeneratedFileDiff` results to `FileDiffResponse` (`path`, `status`, `stats`, `diff`, `previous_path`).
+- Enforces per-file and aggregate public-diff character limits via `utils/diff_limits` (hard fail, no truncation).
+- Method-level caching via `CachingMixin` / `@cached_method`; use-case commit-based caching may layer above.
+- Full-diff incompleteness raises `FullDiffIncompleteError` → **E5020**; unexpected generation defects → E5003.
+- Prefer injecting `GitHubAPIClient`, `FileProcessor`, `DiffGenerator` (factory-wired from `GitHubConfig`).
 
-class RepositoryCacheService:
-    '''Commit-based cache with MD5 keys for precise invalidation'''
-    
-    def _generate_cache_key(self, commit_sha: str, file_path: str) -> str:
-        '''MD5 hash of {commit_sha + file_path}'''
-        key = f'{commit_sha}:{file_path}'
-        return hashlib.md5(key.encode()).hexdigest()
-    
-    def get_file_content(self, commit_sha: str, file_path: str) -> Optional[str]:
-        key = self._generate_cache_key(commit_sha, file_path)
-        return self._cache.get(key)
-```
-
-## Anti-Patterns
-
-- ❌ Missing retry wrapper for external API calls
-- ❌ No circuit breaker integration
-- ❌ Direct logging without LazyLoggerMixin (circular imports)
-- ❌ Logging sensitive data (tokens, passwords)
-- ❌ Cache without invalidation strategy
-
-## Files
-
-- `pr_diff_service.py`: PR diff infrastructure service (orchestration)
+## ANTI-PATTERNS
+- NO MCP/tool concerns here (application layer).
+- NO returning partial file lists when inventory/admission/generation fails.
+- NO truncating public diffs on the full-diff path.
+- NO second full metadata open when a session path already holds repo/PR handles.

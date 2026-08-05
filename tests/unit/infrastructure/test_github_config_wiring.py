@@ -1,0 +1,110 @@
+"""Tests for authoritative GitHubConfig wiring through settings and factory."""
+
+from __future__ import annotations
+
+from unittest.mock import MagicMock, patch
+
+import pytest
+
+from prdiffer.domain.config.github_config import GitHubConfig
+from prdiffer.domain.exceptions import ConfigurationError
+from prdiffer.infrastructure.factories.infrastructure_factory import InfrastructureFactory
+from prdiffer.infrastructure.settings import SettingsService
+
+
+@pytest.mark.unit
+class TestGitHubConfigNewDefaults:
+    def test_full_diff_defaults(self) -> None:
+        config = GitHubConfig()
+        assert config.timeout == 30
+        assert config.pr_diff_request_timeout_seconds == 180.0
+        assert config.max_file_size_bytes == 10_485_760
+        assert config.max_total_chars == 200_000
+        assert config.parallel_file_fetch_enabled is True
+        assert config.parallel_head_base_fetch_enabled is True
+        assert config.parallel_diff_generation_enabled is True
+        assert config.github_worker_capacity == 4
+
+    def test_worker_capacity_when_parallel_enabled(self) -> None:
+        config = GitHubConfig(parallel_file_fetch_enabled=True, max_concurrent=4)
+        assert config.github_worker_capacity == 4
+
+    def test_worker_capacity_when_parallel_disabled(self) -> None:
+        config = GitHubConfig(parallel_file_fetch_enabled=False, max_concurrent=4)
+        assert config.github_worker_capacity == 1
+
+    def test_rejects_nonpositive_max_files(self) -> None:
+        with pytest.raises(ConfigurationError, match="max_files_allowed"):
+            GitHubConfig(max_files_allowed=0)
+
+    def test_rejects_timeout_not_strictly_less_than_request(self) -> None:
+        with pytest.raises(ConfigurationError, match="strictly less"):
+            GitHubConfig(timeout=180, pr_diff_request_timeout_seconds=180)
+
+
+@pytest.mark.unit
+class TestSettingsTomlDefaults:
+    def test_real_settings_resolve_timeouts_and_parallel_flags(self) -> None:
+        service = SettingsService(settings_files=["settings.toml"])
+        service.clear_cache()
+        config = service.get_github_config()
+        assert config.timeout == 30
+        assert config.pr_diff_request_timeout_seconds == 180.0
+        assert config.max_file_size_bytes == 10_485_760
+        assert config.max_total_chars == 200_000
+        assert config.parallel_file_fetch_enabled is True
+        assert config.parallel_head_base_fetch_enabled is True
+        assert config.parallel_diff_generation_enabled is True
+        assert config.github_worker_capacity == 4
+
+
+@pytest.mark.unit
+class TestFactoryWiresExactSentinels:
+    def test_create_pr_diff_service_receives_config_values(self) -> None:
+        sentinel = GitHubConfig(
+            timeout=15,
+            pr_diff_request_timeout_seconds=90.0,
+            max_file_size_bytes=1_000_000,
+            max_total_chars=12_345,
+            max_files_allowed=7,
+            max_concurrent=3,
+            parallel_file_fetch_enabled=False,
+            parallel_head_base_fetch_enabled=False,
+            parallel_diff_generation_enabled=False,
+            large_file_threshold=111,
+            chunk_size=222,
+            max_diff_size=333,
+        )
+
+        factory = InfrastructureFactory()
+        mock_settings = MagicMock()
+        mock_settings.get_github_config.return_value = sentinel
+        mock_settings.get_github_settings.return_value = {
+            "ignore_patterns": (),
+            "valid_extensions": (),
+        }
+        mock_settings.get.side_effect = lambda key, default=None: default
+
+        with (
+            patch(
+                "prdiffer.infrastructure.factories.infrastructure_factory.get_settings_service",
+                return_value=mock_settings,
+            ),
+            patch("prdiffer.infrastructure.github.client.get_settings_service", return_value=mock_settings),
+        ):
+            service = factory.create_pr_diff_service()
+
+        assert service._diff_max_total_chars == 12_345
+        assert service._pr_diff_request_timeout_seconds == 90.0
+        assert service._github_timeout_seconds == 15
+        assert service._file_processor is not None
+        assert service._file_processor.max_files_allowed == 7
+        assert service._file_processor._max_parallel_workers == 1  # serialized
+        assert service._file_processor._parallel_head_base_fetch_enabled is False
+        assert service._github_api._max_file_size_bytes == 1_000_000
+        assert service._github_api._parallel_file_fetch_enabled is False
+        assert service._github_api._async_executor.max_concurrent == 1
+
+    def test_invalid_zero_max_files_fails_before_client(self) -> None:
+        with pytest.raises(ConfigurationError, match="max_files_allowed"):
+            GitHubConfig(max_files_allowed=0)
