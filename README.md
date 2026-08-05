@@ -2,6 +2,7 @@
 
 [![Python Version](https://img.shields.io/badge/python-3.14+-blue.svg)](https://www.python.org/downloads/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![PR Quality](https://github.com/iWorkforces/PRDifferMCP/actions/workflows/pr-quality.yml/badge.svg)](https://github.com/iWorkforces/PRDifferMCP/actions/workflows/pr-quality.yml)
 
 A Model Context Protocol (MCP) server that provides comprehensive GitHub Pull Request diff analysis with full file context for AI assistants and code review tools.
 
