@@ -146,7 +146,7 @@ Your next move: start the plan in a worker session or request the optional dual 
   - QA scenarios: Happy - `uv run pytest tests/unit/application/utils/test_pr_url_parser.py tests/unit/infrastructure/test_input_validator.py tests/unit/infrastructure/test_gitlab_vcs_provider.py -v --tb=short`; Failure - table-driven attack/malformed URLs assert rejection and prove no encoded/traversal string reaches a fake `projects.get`. Evidence: `<attemptDir>/task-6-gitlab-strict-full-diff.txt`.
   - Commit: N | proposed `fix(gitlab): accept nested namespaces safely`.
 
-- [ ] 7. Preserve structured E5020 details at the raw FastMCP boundary
+- [x] 7. Preserve structured E5020 details at the raw FastMCP boundary
   - Recommended task executor category: `unspecified-high` - application-boundary behavior and protocol result shape require exact integration assertions without disturbing unrelated errors.
   - What to do: In the `get_pr_diff` handler in `prdiffer/application/tool_registry.py`, catch only `FullDiffIncompleteError`, record failure metrics once, and raise `fastmcp.exceptions.ToolError` whose compact JSON text is `{"error_code":"E5020_FULL_DIFF_INCOMPLETE","message":<error.message>,"details":<safe error.details>}`. Preserve optional `previous_path`, `observed`, and `limit`; keep deterministic key order. Add focused unit and raw `FastMCP.call_tool` tests.
   - Must NOT do: Do not catch/remap auth, permission, rate-limit, timeout, or unrelated exceptions in this branch; do not include `files`, raw contents, tokens, headers, traceback, or sanitized preview; do not change success serialization.

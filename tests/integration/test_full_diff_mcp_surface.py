@@ -122,8 +122,18 @@ async def test_registered_get_pr_diff_success_surface() -> None:
 @pytest.mark.integration
 @pytest.mark.anyio
 async def test_registered_get_pr_diff_strict_binary_failure() -> None:
+    import json
+
+    from fastmcp.exceptions import ToolError
+
     mcp = FastMCP("test-prdiffer-fail")
-    err = FullDiffIncompleteError(FullDiffIncompleteReason.BINARY_CONTENT, path="bin.dat")
+    err = FullDiffIncompleteError(
+        FullDiffIncompleteReason.BINARY_CONTENT,
+        path="bin.dat",
+        previous_path="old.bin",
+        observed=9,
+        limit=8,
+    )
     registry = _registry(fail=err)
     registry.register_tools(mcp)
 
@@ -131,11 +141,21 @@ async def test_registered_get_pr_diff_strict_binary_failure() -> None:
         "prdiffer.application.tool_registry.parse_pr_target",
         return_value=MagicMock(provider="github", repo_owner="owner", repo_name="repo", pr_number=1),
     ):
-        with pytest.raises(Exception) as exc_info:
+        with pytest.raises(ToolError) as exc_info:
             await mcp.call_tool(
                 "get_pr_diff",
                 {"pr_url": "https://github.com/owner/repo/pull/1"},
             )
-    # Ensure failure is not a successful files payload
-    message = str(exc_info.value)
-    assert "files" not in message.lower() or "BINARY" in message or "E5020" in message or "incomplete" in message.lower()
+
+    # FastMCP.call_tool raises ToolError; wire protocol maps this to isError=true.
+    # Body is compact JSON with stable top-level keys and safe E5020 details only.
+    payload = json.loads(str(exc_info.value))
+    assert list(payload.keys()) == ["error_code", "message", "details"]
+    assert payload["error_code"] == "E5020_FULL_DIFF_INCOMPLETE"
+    assert payload["details"]["reason"] == "BINARY_CONTENT"
+    assert payload["details"]["path"] == "bin.dat"
+    assert payload["details"]["previous_path"] == "old.bin"
+    assert payload["details"]["observed"] == 9
+    assert payload["details"]["limit"] == 8
+    assert "files" not in payload
+    assert "files" not in json.dumps(payload)

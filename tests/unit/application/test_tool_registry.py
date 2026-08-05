@@ -595,3 +595,124 @@ class TestGetPRDiffProviderDispatch:
         assert cache.lookup_keys == [(cache_key, f"{provider}-commit")]
         assert cache.write_keys == [(cache_key, f"{provider}-commit", expected_diff)]
         assert coalescer.keys == [cache_key]
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+class TestFullDiffIncompleteToolError:
+    async def test_full_diff_incomplete_raises_structured_tool_error(
+        self,
+        mock_logger,
+        mock_github_repository_class,
+        mock_rate_limiter,
+        mock_metrics_tracker,
+        mock_authentication,
+    ) -> None:
+        import json
+        from fastmcp.exceptions import ToolError
+        from prdiffer.domain.exceptions import FullDiffIncompleteError, FullDiffIncompleteReason
+
+        class BoomReader:
+            async def get_pr_diff(self, repo_owner: str, repo_name: str, pr_number: int):
+                raise FullDiffIncompleteError(
+                    FullDiffIncompleteReason.BINARY_CONTENT,
+                    path="bin.dat",
+                    previous_path="old.bin",
+                    observed=10,
+                    limit=5,
+                )
+
+            async def get_latest_commit_sha(self, repo_owner: str, repo_name: str, pr_number: int) -> str:
+                return "sha"
+
+        class PassthroughCoalescer:
+            async def coalesce(self, key, fn, timeout=None):
+                return await fn()
+
+            def clear(self) -> None:
+                return None
+
+            def get_stats(self) -> dict:
+                return {}
+
+        registry = ToolRegistry(
+            pr_diff_service=BoomReader(),
+            cache_service=RecordingCache(),
+            logger=mock_logger,
+            github_repository_class=mock_github_repository_class,
+            rate_limiter=mock_rate_limiter,
+            metrics_tracker=mock_metrics_tracker,
+            authentication=mock_authentication,
+            input_validator=ProviderAwareValidator(),
+            request_coalescing_service=PassthroughCoalescer(),
+        )
+        mcp = MCPToolCapture()
+        registry.register_tools(mcp)
+        get_pr_diff = mcp.get_pr_diff_tool
+        assert get_pr_diff is not None
+
+        with pytest.raises(ToolError) as exc_info:
+            await get_pr_diff("https://github.com/owner/repo/pull/17", None)
+
+        payload = json.loads(str(exc_info.value))
+        assert list(payload.keys()) == ["error_code", "message", "details"]
+        assert payload["error_code"] == "E5020_FULL_DIFF_INCOMPLETE"
+        assert payload["details"]["reason"] == "BINARY_CONTENT"
+        assert payload["details"]["path"] == "bin.dat"
+        assert payload["details"]["previous_path"] == "old.bin"
+        assert payload["details"]["observed"] == 10
+        assert payload["details"]["limit"] == 5
+        assert "files" not in payload
+        assert "token" not in json.dumps(payload)
+        mock_metrics_tracker.track_request.assert_called()
+        # Exactly one failure metric for this tool invocation
+        fail_calls = [c for c in mock_metrics_tracker.track_request.call_args_list if c.args[:2] == ("get_pr_diff", False)]
+        assert len(fail_calls) == 1
+
+    async def test_non_e5020_errors_not_remapped_to_tool_error_json(
+        self,
+        mock_logger,
+        mock_github_repository_class,
+        mock_rate_limiter,
+        mock_metrics_tracker,
+        mock_authentication,
+    ) -> None:
+        from prdiffer.domain.exceptions import AuthenticationError
+        from prdiffer.domain.error_codes import E2006_GITLAB_AUTH_FAILED
+
+        class AuthBoom:
+            async def get_pr_diff(self, *args):
+                raise AuthenticationError("nope", error_code=E2006_GITLAB_AUTH_FAILED)
+
+            async def get_latest_commit_sha(self, *args) -> str:
+                return "sha"
+
+        class PassthroughCoalescer:
+            async def coalesce(self, key, fn, timeout=None):
+                return await fn()
+
+            def clear(self) -> None:
+                return None
+
+            def get_stats(self) -> dict:
+                return {}
+
+        registry = ToolRegistry(
+            pr_diff_service=AuthBoom(),
+            cache_service=RecordingCache(),
+            logger=mock_logger,
+            github_repository_class=mock_github_repository_class,
+            rate_limiter=mock_rate_limiter,
+            metrics_tracker=mock_metrics_tracker,
+            authentication=mock_authentication,
+            input_validator=ProviderAwareValidator(),
+            request_coalescing_service=PassthroughCoalescer(),
+        )
+        mcp = MCPToolCapture()
+        registry.register_tools(mcp)
+        get_pr_diff = mcp.get_pr_diff_tool
+        assert get_pr_diff is not None
+
+        with pytest.raises(AuthenticationError) as exc_info:
+            await get_pr_diff("https://github.com/owner/repo/pull/17", None)
+        assert exc_info.value.error_code is E2006_GITLAB_AUTH_FAILED

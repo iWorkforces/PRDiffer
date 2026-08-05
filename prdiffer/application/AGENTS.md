@@ -15,7 +15,7 @@ prdiffer/application/
 ├── plugins/              # Placeholder (AGENTS.md only; no Python)
 ├── services/             # Placeholder (AGENTS.md only; no Python)
 ├── mcp_server.py         # FastMCPServer (191)
-├── tool_registry.py      # ToolRegistry (481) — get_pr_diff, approve_pr, describe_pr
+├── tool_registry.py      # ToolRegistry (481) — get_pr_diff (FullDiffIncompleteError → ToolError JSON E5020), approve_pr, describe_pr
 ├── pr_diff_executor.py   # _CoalescedPRDiffExecutionMixin (76)
 ├── health_endpoints.py   # HealthEndpoints (120)
 ├── webhook_handler.py    # WebhookHandler (171)
