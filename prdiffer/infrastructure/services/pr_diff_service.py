@@ -95,6 +95,28 @@ class GitHubPRDiffService(CachingMixin, PRDiffServiceInterface):
             else config.pr_diff_request_timeout_seconds
         )
         self._github_timeout_seconds = timeout
+        self._parallel_file_fetch_enabled = config.parallel_file_fetch_enabled
+        self._max_concurrent = config.github_worker_capacity
+        self._session_reader = None
+
+    def _get_session_reader(self):
+        """Lazy session-capable wrapper (structural SessionPRDiffReader)."""
+        if self._session_reader is None:
+            from prdiffer.infrastructure.github.pr_diff_session import GitHubSessionPRDiffReader
+
+            self._session_reader = GitHubSessionPRDiffReader(
+                self,
+                github_timeout_seconds=self._github_timeout_seconds,
+                request_timeout_seconds=self._pr_diff_request_timeout_seconds,
+                parallel_file_fetch_enabled=self._parallel_file_fetch_enabled,
+                max_concurrent=self._max_concurrent,
+                logger=self._logger,
+            )
+        return self._session_reader
+
+    async def open_pr_diff_session(self, repo_owner: str, repo_name: str, pr_number: int, /):
+        """Open a request-local GitHub session (enables use-case session path)."""
+        return await self._get_session_reader().open_pr_diff_session(repo_owner, repo_name, pr_number)
 
     async def get_pr_diff(
         self,

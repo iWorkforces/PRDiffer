@@ -24,6 +24,7 @@ prdiffer/infrastructure/github/
 | **Bandwidth** | `etag_adapter.py` | ETag / 304 |
 | **Domain map** | `mappers.py` | To FilePatchInfo / responses |
 | **Inventory admission** | `inventory.py` | Authoritative `changed_files` vs enumeration; selected N+1 → E5020 |
+| **Request session** | `pr_diff_session.py` | anyio `to_thread` + CapacityLimiter; one metadata lookup per request |
 
 ## CONVENTIONS
 - Never return raw PyGithub objects past this package boundary.
