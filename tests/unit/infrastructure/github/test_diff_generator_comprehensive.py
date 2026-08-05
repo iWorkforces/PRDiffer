@@ -67,7 +67,8 @@ class TestDiffGeneratorInit:
 
         assert generator._diff_utils is mock_diff_utils
         assert generator._parallel_executor is None
-        assert generator._parallel_enabled is False
+        # Parallel ordered generation no longer requires an injected executor.
+        assert generator._parallel_enabled is True
         assert generator._parallel_threshold == 3
 
     def test_init_with_parallel_executor(self, mock_diff_utils, mock_parallel_executor):

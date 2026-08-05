@@ -17,14 +17,15 @@ from prdiffer.domain.exceptions import PRDifferException
 
 @pytest.fixture
 def api_client():
-    client = GitHubAPIClient()
+    # Sequential batch path so unit tests can mock get_file_content deterministically.
+    client = GitHubAPIClient(parallel_file_fetch_enabled=False)
     client.initialize_client()
     return client
 
 
 @pytest.fixture
 def api_client_no_init():
-    return GitHubAPIClient()
+    return GitHubAPIClient(parallel_file_fetch_enabled=False)
 
 
 class TestGitHubAPIClientInit:
