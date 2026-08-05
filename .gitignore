@@ -225,9 +225,6 @@ start-oc-zai.sh
 .claude/commands/*.md
 .env copy.cc
 
-# Documentation drafts (committed docs/ are tracked)
-docs/
-
 .coverage
 .opencode/
 .sisyphus/
