@@ -23,7 +23,7 @@ prdiffer/infrastructure/
 ├── github_repository_operations.py  # PR ops (209)
 ├── github_repository_utils.py  # Filtering/logging helpers (127)
 ├── service_factory.py          # Convenience factory wrapper (102)
-└── settings.py                 # SettingsService Dynaconf + RLock (267)
+└── settings.py                 # SettingsService Dynaconf + RLock (GitHub + GitLab config)
 ```
 
 ## WHERE TO LOOK
@@ -31,7 +31,7 @@ prdiffer/infrastructure/
 |------|----------|-------|
 | **DI / singletons** | `di_container.py` | `ServiceContainer`, `get_container()` |
 | **Wire services** | `factories/infrastructure_factory.py` | `GitHubConfig` sentinels; parallel flags default **true** |
-| **Settings** | `settings.py` → `GitHubConfig` | 30s GitHub timeout / 180s request timeout |
+| **Settings** | `settings.py` → `GitHubConfig` / `GitLabConfig` | 30s provider timeout / 180s request timeout |
 | **PR repository** | `github_repository.py` | Main PRDiff repository |
 | **Full-diff orchestration** | `services/pr_diff_service.py` | Maps `GeneratedFileDiff` → `FileDiffResponse`, size limits, session path |
 | **GitHub API + content** | `github/` | Typed content, inventory, ordered processing |
@@ -60,8 +60,9 @@ prdiffer/infrastructure/
 - Request coalescing and PR sessions use anyio primitives (`to_thread`, CapacityLimiter).
 
 ### Configuration
-- Authoritative config is `SettingsService.get_github_config()` → frozen `GitHubConfig`.
-- Manual settings cache with `RLock` (Dynaconf unhashable → no `@lru_cache`).
+- Authoritative GitHub config: `SettingsService.get_github_config()` → frozen `GitHubConfig`.
+- Authoritative GitLab config: `SettingsService.get_gitlab_config()` → frozen slotted `GitLabConfig` (`gitlab.*` + shared app/diff/mcp fallbacks).
+- Manual settings cache with `RLock` (Dynaconf unhashable → no `@lru_cache`); `clear_cache` drops GitHub and GitLab config caches.
 - Parallel performance flags (`parallel_file_fetch_enabled`, `parallel_head_base_fetch_enabled`, `parallel_diff_generation_enabled`) default **true** (bounded by `max_concurrent` / `diff_max_workers`).
 
 ### Flattened modules + package shims

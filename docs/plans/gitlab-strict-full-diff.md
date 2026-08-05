@@ -96,7 +96,7 @@ Your next move: start the plan in a worker session or request the optional dual 
   - QA scenarios: Happy - `uv run pytest tests/unit/domain/test_gitlab_pr_diff_cache.py tests/unit/domain/usecases/test_session_pr_diff_usecase.py tests/unit/infrastructure/github/test_pr_diff_session.py -v --tb=short` proves both providers' identities; Failure - inject a legacy GitLab key and wrong schema/token and assert cache unwrap returns `None` while the session remains closable. Evidence: `<attemptDir>/task-1-gitlab-strict-full-diff.txt`.
   - Commit: N | proposed `refactor(cache): make strict session cache identity provider-neutral`.
 
-- [ ] 2. Add validated GitLab strict-diff configuration and settings caching
+- [x] 2. Add validated GitLab strict-diff configuration and settings caching
   - Recommended task executor category: `quick` - a contained frozen configuration value object plus existing SettingsService pattern.
   - What to do: Add `prdiffer/domain/config/gitlab_config.py` with a frozen, slotted `GitLabConfig`; add typed `get_gitlab_config()` to `prdiffer/domain/services/settings.py` and cached RLock-backed construction in `prdiffer/infrastructure/settings.py`; add `gitlab.*` keys under the existing `[default]` table in `settings.toml`. Fields/defaults: `timeout=30`, `max_retries=3`, `max_concurrent=4`, `retry_transient_errors=true`, `obey_rate_limit=true`, `max_file_size_bytes=10_485_760`, `max_files_allowed=app.max_files_allowed`, `max_total_chars=diff.max_total_chars`, and `pr_diff_request_timeout_seconds=mcp.pr_diff_request_timeout_seconds`.
   - Must NOT do: Do not reuse `GitHubConfig`, add GitLab file-extension filtering, add an `lru_cache`, or create self-managed base-URL configuration.

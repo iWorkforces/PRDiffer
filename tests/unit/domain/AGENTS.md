@@ -9,7 +9,7 @@ tests/unit/domain/
 ├── usecases/                         # Use case orchestration + purity + session dispatch
 ├── services/                         # Interface contracts
 ├── interfaces/                       # Protocol tests
-├── config/                           # GitHubConfig
+├── config/                           # GitHubConfig + GitLabConfig
 ├── factories/                        # Factory interface tests
 ├── test_error_codes.py
 ├── test_errors.py
