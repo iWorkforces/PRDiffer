@@ -11,6 +11,7 @@ prdiffer/infrastructure/vcs_providers/
 ├── gitlab_models.py        # Diff refs / version / snapshot / record models
 ├── gitlab_inventory.py     # State/cardinality admission + edit classification
 ├── gitlab_content.py       # Ref-pinned typed raw content fetch
+├── gitlab_diff_generator.py # Ordered full-context FileDiffResponse assembly
 ├── gitlab_operations.py    # Immutable MR version selection + snapshot
 ├── gitlab_runtime.py       # Bounded SDK runner + status mapper
 └── __init__.py

@@ -46,7 +46,6 @@ class GitLabDiffAssembler:
                     observed=content.index,
                     limit=item.index,
                 )
-            record = item.record
             path = content.path
             old_filename = content.previous_path if content.edit_type is EDIT_TYPE.RENAMED else None
             patches.append(
