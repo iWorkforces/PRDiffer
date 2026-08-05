@@ -16,7 +16,7 @@ from prdiffer.domain.services.logger import LoggerServiceInterface
 from prdiffer.domain.entities.pr_diff import PRDiff
 from prdiffer.domain.entities.file_patch import FilePatchInfo, EDIT_TYPE
 from prdiffer.domain.entities.file_diff_response import FileDiffResponse, FileStats
-from prdiffer.domain.exceptions import FullDiffIncompleteError
+from prdiffer.domain.exceptions import FullDiffIncompleteError, FullDiffIncompleteReason
 from prdiffer.infrastructure.github.client import GitHubAPIClient
 from prdiffer.infrastructure.github.diff_generator import DiffGenerator
 from prdiffer.infrastructure.github.file_processor import FileProcessor
@@ -399,16 +399,62 @@ class GitHubPRDiffService(CachingMixin, PRDiffServiceInterface):
         )
 
     def _build_pr_diff_strict(self, file_patches: list[FilePatchInfo]) -> PRDiff:
-        """Build PRDiff only after per-file/aggregate character limits pass."""
+        """Build PRDiff from ordered full-context generation after size checks."""
+        if not file_patches:
+            return PRDiff(files=())
+
+        try:
+            if self._diff_generator is not None and hasattr(self._diff_generator, "generate_ordered_file_diffs"):
+                generated = self._diff_generator.generate_ordered_file_diffs(file_patches)
+            else:
+                # Fallback: map patches without full-context regeneration.
+                generated = None
+        except FullDiffIncompleteError:
+            raise
+        except Exception as exc:
+            from prdiffer.domain.errors import E5003_DIFF_GENERATION_ERROR
+            from prdiffer.domain.exceptions import DiffGenerationError
+
+            raise DiffGenerationError(
+                "Unexpected algorithm/runtime error during full-context generation",
+                error_code=E5003_DIFF_GENERATION_ERROR,
+            ) from exc
+
         responses: list[FileDiffResponse] = []
         diffs: list[str] = []
-        for file_patch in file_patches:
-            response = self._convert_file_patch_info_to_response(file_patch)
-            # Character limit for a single public diff uses max_total_chars as upper bound
-            # for isolated single-file responses; aggregate enforces the true budget.
-            assert_diff_within_limit(response.diff, self._diff_max_total_chars, path=response.path)
-            responses.append(response)
-            diffs.append(response.diff)
+        if generated is not None:
+            if len(generated) != len(file_patches):
+                raise FullDiffIncompleteError(
+                    FullDiffIncompleteReason.DIFF_GENERATION_FAILED,
+                    message=f"Generator returned {len(generated)} results for {len(file_patches)} files",
+                    observed=len(generated),
+                    limit=len(file_patches),
+                )
+            for item, file_patch in zip(generated, file_patches, strict=True):
+                if item.path != file_patch.filename:
+                    raise FullDiffIncompleteError(
+                        FullDiffIncompleteReason.DIFF_GENERATION_FAILED,
+                        message="Generated path identity mismatch",
+                        path=item.path,
+                    )
+                stats = FileStats(additions=file_patch.num_plus_lines, deletions=file_patch.num_minus_lines)
+                response = FileDiffResponse(
+                    path=item.path,
+                    status=file_patch.edit_type,
+                    stats=stats,
+                    diff=item.diff,
+                    previous_path=item.previous_path,
+                )
+                assert_diff_within_limit(response.diff, self._diff_max_total_chars, path=response.path)
+                responses.append(response)
+                diffs.append(response.diff)
+        else:
+            for file_patch in file_patches:
+                response = self._convert_file_patch_info_to_response(file_patch)
+                assert_diff_within_limit(response.diff, self._diff_max_total_chars, path=response.path)
+                responses.append(response)
+                diffs.append(response.diff)
+
         assert_aggregate_within_limit(diffs, self._diff_max_total_chars)
         return PRDiff(files=tuple(responses))
 
