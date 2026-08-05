@@ -52,6 +52,7 @@ class FileProcessor:
         parallel_fetch_threshold: int = 10,
         max_parallel_workers: int = 4,
         logger: ConsoleLogger | None = None,
+        parallel_head_base_fetch_enabled: bool | None = None,
     ) -> None:
         self._github_api_service = github_api_service
         self._pattern_matcher = pattern_matcher
@@ -72,10 +73,15 @@ class FileProcessor:
             logger=logger,
         )
 
-        from prdiffer.infrastructure.settings import get_settings_service
+        if parallel_head_base_fetch_enabled is None:
+            from prdiffer.infrastructure.settings import get_settings_service
 
-        settings = get_settings_service()
-        self._parallel_head_base_fetch_enabled = settings.get("performance.parallel_head_base_fetch_enabled", False)
+            settings = get_settings_service()
+            self._parallel_head_base_fetch_enabled = bool(
+                settings.get("performance.parallel_head_base_fetch_enabled", False)
+            )
+        else:
+            self._parallel_head_base_fetch_enabled = parallel_head_base_fetch_enabled
 
     async def get_pr_files(self, pull_request: PyGithubPullRequest) -> PaginatedList[File]:
         """Get all files from the pull request with caching (double-check locking, 5min TTL)."""

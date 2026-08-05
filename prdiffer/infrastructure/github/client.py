@@ -70,6 +70,7 @@ class GitHubAPIClient(GitHubAPIClientOperationsMixin, GitHubAPIServiceInterface)
         file_content_cache_max_size: int = DEFAULT_FILE_CONTENT_CACHE_MAX_SIZE,
         file_content_cache_ttl: int = DEFAULT_FILE_CONTENT_CACHE_TTL,
         max_file_size_bytes: int = 10485760,  # 10MB default - DoS prevention
+        parallel_file_fetch_enabled: bool | None = None,
     ):
         self._github_client: Github | None = None
         self._logger = logger or get_logger()
@@ -78,9 +79,14 @@ class GitHubAPIClient(GitHubAPIClientOperationsMixin, GitHubAPIServiceInterface)
         self._cache_ttl = file_content_cache_ttl
         self._max_file_size_bytes = max_file_size_bytes
 
-        # Performance optimization feature flags
-        settings = get_settings_service()
-        self._parallel_file_fetch_enabled = settings.get("performance.parallel_file_fetch_enabled", False)
+        # Prefer constructor injection; fall back to settings for legacy callers.
+        if parallel_file_fetch_enabled is None:
+            settings = get_settings_service()
+            self._parallel_file_fetch_enabled = bool(
+                settings.get("performance.parallel_file_fetch_enabled", False)
+            )
+        else:
+            self._parallel_file_fetch_enabled = parallel_file_fetch_enabled
 
         if use_advanced_retry:
             self._retry_handler = get_advanced_retry_handler(

@@ -60,24 +60,38 @@ class GitHubPRDiffService(CachingMixin, PRDiffServiceInterface):
         diff_generator: DiffGenerator | None = None,
         file_processor: FileProcessor | None = None,
         logger: LoggerServiceInterface | None = None,
+        *,
+        max_total_chars: int | None = None,
+        github_timeout_seconds: int | None = None,
+        pr_diff_request_timeout_seconds: float | None = None,
     ):
         super().__init__(max_cache_size=1000, default_ttl=300)
 
         self._github_api: GitHubAPIClient = github_api_client or GitHubAPIClient()
         self._logger = logger or get_logger()
 
+        settings_service = get_settings_service()
+        config = settings_service.get_github_config()
+
         github_token = os.getenv("GITHUB_TOKEN")
-        timeout = int(os.getenv("GITHUB_TIMEOUT", "30"))
+        timeout = int(github_timeout_seconds if github_timeout_seconds is not None else config.timeout)
 
         self._github_api.initialize_client(github_token=github_token, timeout=timeout)
 
         self._diff_generator = diff_generator
         self._file_processor = file_processor
 
-        settings_service = get_settings_service()
         self._diff_truncate_enabled = settings_service.get("diff.truncate_enabled", False)
-        self._diff_max_total_chars = int(settings_service.get("diff.max_total_chars", 200000))
+        self._diff_max_total_chars = int(
+            max_total_chars if max_total_chars is not None else config.max_total_chars
+        )
         self._diff_truncation_notice = settings_service.get("diff.truncation_notice", "[DIFF TRUNCATED]")
+        self._pr_diff_request_timeout_seconds = float(
+            pr_diff_request_timeout_seconds
+            if pr_diff_request_timeout_seconds is not None
+            else config.pr_diff_request_timeout_seconds
+        )
+        self._github_timeout_seconds = timeout
 
     async def get_pr_diff(
         self,

@@ -9,6 +9,9 @@ app.incremental_mode = false
 app.logging_enabled = true
 app.log_format = "simple"
 
+# MCP request deadlines (must be strictly greater than github.timeout)
+mcp.pr_diff_request_timeout_seconds = 180
+
 # GitHub API settings
 github.rate_limit = 5000
 github.timeout = 30
@@ -40,12 +43,13 @@ github.api_health_tracking = true  # Track API health metrics
 github.context_aware_retry = true  # Enable context-aware retry strategies
 github.max_concurrent = 4  # Maximum concurrent GitHub API operations
 
-# Performance optimization feature flags (enabled by default)
+# Performance optimization feature flags
+# Parallel fetch/generation defaults remain false until safety gates (Todo 14) pass.
 [performance]
 cache_hit_optimization_enabled = true  # Optimistic cache lookup before commit SHA check (40-60% latency reduction)
-parallel_file_fetch_enabled = true  # Use async parallel file fetching instead of sequential
-parallel_head_base_fetch_enabled = true  # Fetch head and base content concurrently
-parallel_diff_generation_enabled = true  # Enable parallel diff generation
+parallel_file_fetch_enabled = false  # Opt-in async parallel file fetching (serialized by default)
+parallel_head_base_fetch_enabled = false  # Opt-in concurrent head/base content fetch
+parallel_diff_generation_enabled = false  # Opt-in parallel diff generation
 
 # File filtering patterns
 github.ignore_patterns = [

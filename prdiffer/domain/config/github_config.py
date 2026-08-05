@@ -8,7 +8,20 @@ of individual parameters.
 from dataclasses import dataclass, field
 from typing import Any, Unpack, cast
 
+from prdiffer.domain.exceptions import ConfigurationError
+
 from .github_config_interface import GitHubConfigDict, GitHubConfigInterface
+
+# Defaults match settings.toml / plan contracts.
+DEFAULT_GITHUB_TIMEOUT_SECONDS = 30
+DEFAULT_PR_DIFF_REQUEST_TIMEOUT_SECONDS = 180.0
+DEFAULT_MAX_FILE_SIZE_BYTES = 10_485_760  # 10 MiB
+DEFAULT_MAX_TOTAL_CHARS = 200_000
+
+
+def _require_positive(name: str, value: int | float) -> None:
+    if not isinstance(value, (int, float)) or isinstance(value, bool) or value <= 0:
+        raise ConfigurationError(f"{name} must be a positive number (got {value!r})")
 
 
 @dataclass(frozen=True)
@@ -20,7 +33,7 @@ class GitHubConfig(GitHubConfigInterface):
     """
 
     rate_limit: int = 5000
-    timeout: int = 30
+    timeout: int = DEFAULT_GITHUB_TIMEOUT_SECONDS
     max_retries: int = 3
     retry_delay: float = 1.0
 
@@ -52,6 +65,45 @@ class GitHubConfig(GitHubConfigInterface):
     chunk_size: int = 1000
     max_diff_size: int = 100000
 
+    max_file_size_bytes: int = DEFAULT_MAX_FILE_SIZE_BYTES
+    max_total_chars: int = DEFAULT_MAX_TOTAL_CHARS
+    # Parallel flags default false until Todo 14 enables opt-in concurrency.
+    parallel_file_fetch_enabled: bool = False
+    parallel_head_base_fetch_enabled: bool = False
+    parallel_diff_generation_enabled: bool = False
+    pr_diff_request_timeout_seconds: float = DEFAULT_PR_DIFF_REQUEST_TIMEOUT_SECONDS
+    max_concurrent: int = 4
+
+    def __post_init__(self) -> None:
+        """Validate positive limits and timeout ordering."""
+        for name, value in (
+            ("rate_limit", self.rate_limit),
+            ("timeout", self.timeout),
+            ("max_retries", self.max_retries),
+            ("retry_delay", self.retry_delay),
+            ("circuit_breaker_failure_threshold", self.circuit_breaker_failure_threshold),
+            ("circuit_breaker_timeout", self.circuit_breaker_timeout),
+            ("max_adaptive_delay", self.max_adaptive_delay),
+            ("diff_parallel_threshold", self.diff_parallel_threshold),
+            ("diff_max_workers", self.diff_max_workers),
+            ("diff_worker_timeout", self.diff_worker_timeout),
+            ("max_files_allowed", self.max_files_allowed),
+            ("large_file_threshold", self.large_file_threshold),
+            ("chunk_size", self.chunk_size),
+            ("max_diff_size", self.max_diff_size),
+            ("max_file_size_bytes", self.max_file_size_bytes),
+            ("max_total_chars", self.max_total_chars),
+            ("pr_diff_request_timeout_seconds", self.pr_diff_request_timeout_seconds),
+            ("max_concurrent", self.max_concurrent),
+        ):
+            _require_positive(name, value)
+
+        if self.timeout >= self.pr_diff_request_timeout_seconds:
+            raise ConfigurationError(
+                "github.timeout must be strictly less than mcp.pr_diff_request_timeout_seconds "
+                f"(got timeout={self.timeout}, request_timeout={self.pr_diff_request_timeout_seconds})"
+            )
+
     @classmethod
     def from_dict(cls, config: dict[str, Any]) -> "GitHubConfig":
         """Create GitHubConfig from a dictionary."""
@@ -75,7 +127,7 @@ class GitHubConfig(GitHubConfigInterface):
 
         return cls(
             rate_limit=config.get("rate_limit", 5000),
-            timeout=config.get("timeout", 30),
+            timeout=config.get("timeout", DEFAULT_GITHUB_TIMEOUT_SECONDS),
             max_retries=config.get("max_retries", 3),
             retry_delay=float(config.get("retry_delay", 1.0)),
             retry_on_404=config.get("retry_on_404", False),
@@ -100,6 +152,15 @@ class GitHubConfig(GitHubConfigInterface):
             large_file_threshold=config.get("large_file_threshold", 5000),
             chunk_size=config.get("chunk_size", 1000),
             max_diff_size=config.get("max_diff_size", 100000),
+            max_file_size_bytes=int(config.get("max_file_size_bytes", DEFAULT_MAX_FILE_SIZE_BYTES)),
+            max_total_chars=int(config.get("max_total_chars", DEFAULT_MAX_TOTAL_CHARS)),
+            parallel_file_fetch_enabled=bool(config.get("parallel_file_fetch_enabled", False)),
+            parallel_head_base_fetch_enabled=bool(config.get("parallel_head_base_fetch_enabled", False)),
+            parallel_diff_generation_enabled=bool(config.get("parallel_diff_generation_enabled", False)),
+            pr_diff_request_timeout_seconds=float(
+                config.get("pr_diff_request_timeout_seconds", DEFAULT_PR_DIFF_REQUEST_TIMEOUT_SECONDS)
+            ),
+            max_concurrent=int(config.get("max_concurrent", 4)),
         )
 
     def to_dict(self) -> GitHubConfigDict:
@@ -131,7 +192,21 @@ class GitHubConfig(GitHubConfigInterface):
             "large_file_threshold": self.large_file_threshold,
             "chunk_size": self.chunk_size,
             "max_diff_size": self.max_diff_size,
+            "max_file_size_bytes": self.max_file_size_bytes,
+            "max_total_chars": self.max_total_chars,
+            "parallel_file_fetch_enabled": self.parallel_file_fetch_enabled,
+            "parallel_head_base_fetch_enabled": self.parallel_head_base_fetch_enabled,
+            "parallel_diff_generation_enabled": self.parallel_diff_generation_enabled,
+            "pr_diff_request_timeout_seconds": self.pr_diff_request_timeout_seconds,
+            "max_concurrent": self.max_concurrent,
         }
+
+    @property
+    def github_worker_capacity(self) -> int:
+        """Serialized GitHub worker capacity is one when parallel fetch is disabled."""
+        if not self.parallel_file_fetch_enabled:
+            return 1
+        return self.max_concurrent
 
     def with_overrides(self, **kwargs: Unpack[GitHubConfigDict]) -> "GitHubConfig":
         """Create new config with overridden values."""

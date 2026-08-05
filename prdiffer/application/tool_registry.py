@@ -60,6 +60,7 @@ class ToolRegistry(_CoalescedPRDiffExecutionMixin):
         input_validator: InputValidatorProtocol | None = None,
         request_coalescing_service: RequestCoalescingProtocol | None = None,
         cache_hit_optimization_enabled: bool = False,
+        pr_diff_request_timeout_seconds: float | None = None,
     ):
         self._pr_diff_service = pr_diff_service
         self._gitlab_reader = gitlab_reader
@@ -69,6 +70,7 @@ class ToolRegistry(_CoalescedPRDiffExecutionMixin):
         self._rate_limiter = rate_limiter
         self._metrics_tracker = metrics_tracker
         self._cache_hit_optimization_enabled = cache_hit_optimization_enabled
+        self._pr_diff_request_timeout_seconds = pr_diff_request_timeout_seconds
         self._authentication = authentication
 
         if input_validator is None:

@@ -104,6 +104,7 @@ class FastMCPServer:
 
     def _initialize_components(self) -> None:
         cache_hit_optimization_enabled: bool = self._settings_service.get("performance.cache_hit_optimization_enabled", False)
+        github_config = self._settings_service.get_github_config()
 
         self._tool_registry = ToolRegistry(
             pr_diff_service=self._pr_diff_service,
@@ -117,6 +118,7 @@ class FastMCPServer:
             input_validator=self._input_validator,
             request_coalescing_service=self._request_coalescing,
             cache_hit_optimization_enabled=cache_hit_optimization_enabled,
+            pr_diff_request_timeout_seconds=github_config.pr_diff_request_timeout_seconds,
         )
 
         self._webhook_handler = WebhookHandler(

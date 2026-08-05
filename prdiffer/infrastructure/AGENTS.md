@@ -35,7 +35,8 @@ prdiffer/infrastructure/
 | **Security** | `security/input_validator.py` | Orchestrates detector + sanitizer |
 | **GitHub client** | `github/client.py` + `client_operations.py` | PyGithub wrapper |
 | **GitLab** | `vcs_providers/gitlab_*.py` | python-gitlab based provider |
-| **DI** | `di_container.py`, `factories/infrastructure_factory.py` | |
+| **DI** | `di_container.py`, `factories/infrastructure_factory.py` | Wire from `SettingsService.get_github_config()` |
+| **Authoritative config** | `settings.py` → `GitHubConfig` | 30s GitHub / 180s request timeouts; parallel flags default false |
 
 ## CONVENTIONS
 
