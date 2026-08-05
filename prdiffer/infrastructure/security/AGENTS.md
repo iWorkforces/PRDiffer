@@ -16,6 +16,8 @@ prdiffer/infrastructure/security/
 | Task | Location | Notes |
 |------|----------|-------|
 | **Validate PR URL / params** | `input_validator.py` | Orchestrates checks; domain `InputValidatorProtocol` |
+| **GitHub URL** | `validate_github_url` | github.com PR paths |
+| **GitLab URL** | `validate_gitlab_url` | Delegates to `parse_gitlab_merge_request_url` (custom hosts) |
 | **Module-level helpers** | `input_validation_helpers.py` | Token, branch, path, PR number helpers |
 | **Threat patterns** | `injection_detector.py` | Command, path traversal, SQL-ish |
 | **Sanitize for logs** | `sanitizer.py` | Length-limited safe strings |
@@ -25,6 +27,7 @@ prdiffer/infrastructure/security/
 - Configurable patterns may come from settings.
 - Fail closed on suspicious input with domain validation errors / **E1xxx** codes.
 - Prefer orchestration through `InputValidator` rather than calling detector/sanitizer ad hoc from tools.
+- GitLab host **allowlist** is enforced later in `GitLabRuntime` / session open (not only here).
 
 ## ANTI-PATTERNS
 - NO auth decisions based only on client-supplied claims without API keys.

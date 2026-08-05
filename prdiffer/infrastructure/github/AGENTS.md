@@ -9,12 +9,12 @@ prdiffer/infrastructure/github/
 ├── client.py                # GitHubAPIClient facade (280)
 ├── client_operations.py     # File content / batch / cache mixin (431)
 ├── client_models.py         # Exception tuples + cache defaults (16)
-├── file_processor.py        # Ordered fetch/filter → FilePatchInfo (544)
-├── diff_generator.py        # generate_ordered_file_diffs → GeneratedFileDiff (468)
+├── file_processor.py        # Ordered fetch/filter → FilePatchInfo (~582)
+├── diff_generator.py        # generate_ordered_file_diffs → GeneratedFileDiff (~517)
 ├── etag_adapter.py          # Conditional requests / 304 (121)
 ├── inventory.py             # Authoritative inventory + admission (126)
 ├── mappers.py               # API → domain mapping (88)
-├── pr_diff_session.py       # anyio session isolation + cache_identity
+├── pr_diff_session.py       # anyio session isolation + cache_identity (~223)
 └── __init__.py
 ```
 

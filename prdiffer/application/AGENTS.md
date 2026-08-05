@@ -3,23 +3,23 @@
 FastMCP server orchestration, tool registration, and cross-cutting components.
 
 ## OVERVIEW
-21 Python files (~2.6K lines). Package **0.6.0**. Composition root wires tools, health, webhooks, and auth.
+**21** Python modules. Package **0.6.0**. Composition root wires tools, health, webhooks, and auth.
 
 ## STRUCTURE
 ```
 prdiffer/application/
 ├── components/           # Auth (split), rate limit, metrics, health, PR ops, config (8 modules)
-├── factories/            # ApplicationFactory (98)
-├── utils/                # pr_url_parser (87)
+├── factories/            # ApplicationFactory (~98)
+├── utils/                # pr_url_parser (~102) — parse_pr_url, parse_pr_target, PRTarget
 ├── interfaces/           # Placeholder (__init__.py only)
 ├── plugins/              # Placeholder (AGENTS.md only; no Python)
 ├── services/             # Placeholder (AGENTS.md only; no Python)
-├── mcp_server.py         # FastMCPServer (191)
-├── tool_registry.py      # ToolRegistry (481) — get_pr_diff (FullDiffIncompleteError → ToolError JSON E5020), approve_pr, describe_pr
-├── pr_diff_executor.py   # _CoalescedPRDiffExecutionMixin (76)
-├── health_endpoints.py   # HealthEndpoints (120)
-├── webhook_handler.py    # WebhookHandler (171)
-└── factory.py            # create_mcp_server() composition root (87)
+├── mcp_server.py         # FastMCPServer (~191)
+├── tool_registry.py      # ToolRegistry (~496) — get_pr_diff (E5020→ToolError JSON), approve_pr, describe_pr
+├── pr_diff_executor.py   # Coalesced PR diff execution (~84); host-aware coalesce key
+├── health_endpoints.py   # HealthEndpoints (~120)
+├── webhook_handler.py    # WebhookHandler (~171)
+└── factory.py            # create_mcp_server() composition root (~87)
 ```
 
 ## WHERE TO LOOK
@@ -30,7 +30,7 @@ prdiffer/application/
 | **Wire server** | `factory.py` | `create_mcp_server()` |
 | **Lifecycle / transport** | `mcp_server.py` | Register tools, health tool, `/metrics`, `/webhook`; run stdio/http/sse/streamable-http |
 | **PR diff coalesce** | `pr_diff_executor.py` | Mixin used by `ToolRegistry`; `GetPRDiffUseCase` + request coalescing |
-| **URL parse** | `utils/pr_url_parser.py` | `parse_pr_url` (GitHub), `parse_pr_target` (GitHub/GitLab) |
+| **URL parse** | `utils/pr_url_parser.py` | `parse_pr_url` (GitHub only), `parse_pr_target` (GitHub/GitLab + `base_url`) |
 
 ## CONVENTIONS
 
@@ -43,8 +43,9 @@ prdiffer/application/
 
 ### Strict full-diff (`get_pr_diff`)
 - **All-or-nothing full-context diffs**: successful responses include every selected file with path/status/stats and **generated full-context** unified `diff` text (not hunk-only provider patches).
-- On incomplete reconstruction (inventory truncation, limits, binary/oversized, generation failure, etc.) the tool fails with **`E5020_FULL_DIFF_INCOMPLETE`** and a stable `reason` — never a partial `files` array.
+- On incomplete reconstruction the tool fails with **`E5020_FULL_DIFF_INCOMPLETE`** and a stable `reason` — never a partial `files` array.
 - At the FastMCP boundary, `FullDiffIncompleteError` becomes `ToolError` with compact JSON `{"error_code","message","details"}` (safe details only; no `files`).
+- Routing: `parse_pr_target` → GitHub or GitLab (`base_url` forwarded into use case / session for custom hosts).
 
 ### Components
 - Optional constructor DI with factory fallbacks for tests.
@@ -53,6 +54,7 @@ prdiffer/application/
 
 ### Request pipeline
 - Auth → rate limit → validate/sanitize → coalesce → execute → metrics.
+- Coalesce keys include `base_url` for GitLab multi-host correctness.
 - Webhooks invalidate repository/diff caches on relevant GitHub events (HMAC-verified).
 
 ## ARCHITECTURE NOTES
@@ -66,3 +68,4 @@ prdiffer/application/
 - NO inventing application service/plugin modules that are not in the tree.
 - NO blocking I/O in tool handlers.
 - NO returning partial PR diffs; incompleteness must surface as `E5020`.
+- NO using `parse_pr_url` for GitLab (use `parse_pr_target`).

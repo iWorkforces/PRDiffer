@@ -1,25 +1,27 @@
 # AGENTS.md - Integration Tests
 
-End-to-end oriented tests (~2.6K lines, 8 test modules + manual helper).
+End-to-end oriented tests (workflows, security, MCP surface, GitLab strict, optional live API).
 
 ## STRUCTURE
 ```
 tests/integration/
-├── test_complete_workflow.py      # Full tool workflow (554)
-├── test_error_scenarios.py        # Error paths (519)
-├── test_security.py               # Security integration (731)
-├── test_webhook_invalidation.py   # Cache invalidation (266)
-├── test_full_diff_mcp_surface.py  # Strict full-diff FastMCP surface (141)
-├── test_real_github_api.py        # Optional real API (224)
-├── test_server_launcher.py        # Process/launcher (98)
-├── test_metrics_endpoint.py       # Metrics (77)
-└── mcp_server_manual_test.py      # Manual harness helper
+├── test_complete_workflow.py        # Full tool workflow
+├── test_error_scenarios.py          # Error paths
+├── test_security.py                 # Security integration
+├── test_webhook_invalidation.py     # Cache invalidation
+├── test_full_diff_mcp_surface.py    # Strict full-diff FastMCP surface (E5020 ToolError JSON)
+├── test_gitlab_strict_full_diff.py  # No-network GitLab session + cache identity (~244)
+├── test_real_github_api.py          # Optional real API
+├── test_server_launcher.py          # Process/launcher
+├── test_metrics_endpoint.py         # Metrics
+└── mcp_server_manual_test.py        # Manual harness helper
 ```
 
 ## WHERE TO LOOK
 | Task | Location | Notes |
 |------|----------|-------|
-| **Strict full-diff MCP contract** | `test_full_diff_mcp_surface.py` | In-process FastMCP; `get_pr_diff` success + E5020 failure surface; rename `previous_path` |
+| **Strict full-diff MCP contract** | `test_full_diff_mcp_surface.py` | In-process FastMCP; success + E5020; rename `previous_path` |
+| **GitLab strict path** | `test_gitlab_strict_full_diff.py` | FakeOps + FakeClient; ordered multi-status; cache host identity |
 | **Tool workflow** | `test_complete_workflow.py` | End-to-end tool orchestration with mocks |
 | **Attack / injection paths** | `test_security.py` | Marked `integration` |
 | **Webhook cache bust** | `test_webhook_invalidation.py` | Invalidation + error bodies |
@@ -30,6 +32,7 @@ tests/integration/
 - Mark with `@pytest.mark.integration` (and `@pytest.mark.anyio` where async FastMCP surface needs it).
 - Keep secrets out of fixtures; use env only for opt-in real API runs.
 - Default local/CI path must not require network.
+- GitLab fakes must implement `select_with_client` (session path uses runtime, not sync `select_diff_snapshot` alone).
 
 ## ANTI-PATTERNS
 - NO committing tokens or API keys.

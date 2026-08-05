@@ -4,44 +4,45 @@
 External integrations: GitHub/GitLab APIs, cache, security, resilience, DI, settings.
 
 ## OVERVIEW
-~72 Python files. Implements domain ports; owns I/O and third-party SDKs (PyGithub, python-gitlab, Dynaconf). Clean Architecture outer layer — depends on domain only.
+**80** Python modules. Implements domain ports; owns I/O and third-party SDKs (PyGithub, python-gitlab, Dynaconf). Clean Architecture outer layer — depends on domain only.
 
 ## STRUCTURE
 ```
 prdiffer/infrastructure/
 ├── cache/                      # CacheService, decorators, repository cache, keys, store
-├── factories/                  # InfrastructureFactory (184)
+├── factories/                  # InfrastructureFactory (~234) — GitHub + GitLab wiring
 ├── github/                     # Full-diff path: client, inventory, file_processor, diff_generator, session
 ├── interfaces/                 # Empty reserved placeholder
 ├── logging/                    # ConsoleLogger, exception sanitization
 ├── security/                   # InputValidator, InjectionDetector, InputSanitizer
-├── services/                   # GitHubPRDiffService (527)
+├── services/                   # GitHubPRDiffService (~527)
 ├── utils/                      # Retry, CB, parallel, coalescing, diff limits, URL, metrics
-├── vcs_providers/              # GitHub + GitLab VCS adapters
-├── di_container.py             # ServiceContainer (203)
-├── github_repository.py        # GitHubPRDiffRepository (461)
-├── github_repository_operations.py  # PR ops (209)
-├── github_repository_utils.py  # Filtering/logging helpers (127)
-├── service_factory.py          # Convenience factory wrapper (102)
-└── settings.py                 # SettingsService Dynaconf + RLock (GitHub + GitLab config)
+├── vcs_providers/              # GitHub adapter + full GitLab strict pipeline (gitlab_*.py)
+├── di_container.py             # ServiceContainer (~203)
+├── github_repository.py        # GitHubPRDiffRepository (~461)
+├── github_repository_operations.py  # PR ops
+├── github_repository_utils.py  # Filtering/logging helpers
+├── service_factory.py          # Convenience factory wrapper
+└── settings.py                 # SettingsService Dynaconf + RLock (GitHub + GitLab config) (~323)
 ```
 
 ## WHERE TO LOOK
 | Task | Location | Notes |
 |------|----------|-------|
 | **DI / singletons** | `di_container.py` | `ServiceContainer`, `get_container()` |
-| **Wire services** | `factories/infrastructure_factory.py` | `GitHubConfig` sentinels; parallel flags default **true** |
-| **Settings** | `settings.py` → `GitHubConfig` / `GitLabConfig` | 30s provider timeout / 180s request timeout |
-| **PR repository** | `github_repository.py` | Main PRDiff repository |
-| **Full-diff orchestration** | `services/pr_diff_service.py` | Maps `GeneratedFileDiff` → `FileDiffResponse`, size limits, session path |
+| **Wire services** | `factories/infrastructure_factory.py` | GitHubConfig + GitLabRuntime/session reader |
+| **Settings** | `settings.py` → `GitHubConfig` / `GitLabConfig` | 30s provider / 180s request; `GITLAB_ALLOWED_HOSTS` env |
+| **PR repository (GitHub)** | `github_repository.py` | Main PRDiff repository |
+| **Full-diff orchestration (GitHub)** | `services/pr_diff_service.py` | Maps `GeneratedFileDiff` → `FileDiffResponse`, size limits, session path |
 | **GitHub API + content** | `github/` | Typed content, inventory, ordered processing |
+| **GitLab strict full-diff** | `vcs_providers/gitlab_*.py` | Runtime, ops, inventory, content, assembler, session |
+| **GitLab URL parse** | `utils/url_parser.py` | Nested NS + custom hosts (`parse_gitlab_merge_request_parts`) |
 | **Retry** | `utils/retry/` | base / handler / models / factories |
 | **Circuit breaker** | `utils/circuit_breaker_core.py` | Canonical; package path is shim |
 | **Parallel I/O** | `utils/parallel/executor.py` | ~608; `execute_indexed_batch` |
 | **Coalescing** | `utils/coalescing_service.py` | Deduplicate in-flight requests |
 | **Cache** | `cache/service.py`, `cache/cache_decorators.py` | Canonical modules; subpackages are shims |
-| **Security** | `security/input_validator.py` | Orchestrates detector + sanitizer |
-| **GitLab** | `vcs_providers/gitlab_*.py` | python-gitlab provider |
+| **Security** | `security/input_validator.py` | Orchestrates detector + sanitizer; GitHub + GitLab URL validation |
 | **Diff size hard limits** | `utils/diff_limits.py` | Strict rejection (no truncation) |
 
 ## CONVENTIONS
@@ -58,17 +59,19 @@ prdiffer/infrastructure/
 ### Async
 - anyio-first; `AsyncParallelExecutor` for fan-out.
 - Request coalescing and PR sessions use anyio primitives (`to_thread`, CapacityLimiter).
+- **GitLabRuntime.run_blocking**: process-shared limiter; per-call `base_url` + `deadline_monotonic`; `abandon_on_cancel=False`; wall-clock deadline check after worker.
 
 ### Configuration
 - Authoritative GitHub config: `SettingsService.get_github_config()` → frozen `GitHubConfig`.
-- Authoritative GitLab config: `SettingsService.get_gitlab_config()` → frozen slotted `GitLabConfig` (`gitlab.*` + shared app/diff/mcp fallbacks).
+- Authoritative GitLab config: `SettingsService.get_gitlab_config()` → frozen slotted `GitLabConfig`.
+  - Priority for allowlist: `GITLAB_ALLOWED_HOSTS` env (CSV) → `settings.toml` `gitlab.allowed_hosts` → default `gitlab.com`.
 - Manual settings cache with `RLock` (Dynaconf unhashable → no `@lru_cache`); `clear_cache` drops GitHub and GitLab config caches.
-- Parallel performance flags (`parallel_file_fetch_enabled`, `parallel_head_base_fetch_enabled`, `parallel_diff_generation_enabled`) default **true** (bounded by `max_concurrent` / `diff_max_workers`).
+- Parallel performance flags default **true** (bounded by `max_concurrent` / `diff_max_workers`).
 
 ### Flattened modules + package shims
 Several packages re-export flattened canonical modules for import stability:
 - `utils/circuit_breaker/*` → `circuit_breaker_core.py` / `circuit_breaker_registry.py`
-- `utils/coalescing/*` → `coalescing_service.py` (package may re-export or mirror)
+- `utils/coalescing/*` → `coalescing_service.py`
 - `cache/decorators/*` → `cache_decorators.py`
 - `cache/repository/*` → `cache_repository.py`
 
@@ -76,6 +79,7 @@ Prefer importing the **canonical flattened module** in new code.
 
 ### Full-diff hard fails
 - Inventory / admission / content / generation / size failures raise `FullDiffIncompleteError` → **E5020**.
+- GitLab: pin exactly one MR diff version matching `diff_refs`; equal-content equal-mode modified is hard E5020.
 - Unexpected algorithm defects may surface as E5003.
 
 ## ANTI-PATTERNS
@@ -85,3 +89,6 @@ Prefer importing the **canonical flattened module** in new code.
 - NO logging secrets or raw tokens.
 - NO unbounded file downloads / unbounded parallel fan-out against VCS APIs.
 - NO truncating full-diff public content — hard-fail via `diff_limits` / E5020.
+- NO shared mutable request deadline/base_url on process-wide `GitLabRuntime`.
+- NO open host + token SSRF — always `ensure_host_allowed` before client create.
+- NO blocking python-gitlab on the event loop (always `run_blocking` / `to_thread`).

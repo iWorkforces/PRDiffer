@@ -1,29 +1,30 @@
 # PROJECT KNOWLEDGE BASE
 
-**Generated:** 2026-08-05T04:00:00Z
-**Commit:** 915d947
-**Branch:** enhance-stability
+**Generated:** 2026-08-05T06:30:00Z
+**Commit:** 8693b41
+**Branch:** develop
 **Version:** 0.6.0
 
 ## OVERVIEW
-Python 3.14.3+ MCP server for GitHub/GitLab PR diff analysis with Clean Architecture (Domain → Application → Infrastructure). FastMCP 3.x, Pydantic v2 (application boundary), anyio async. **268** Python files (**139** src + **129** tests), ~53K lines, **44** AGENTS.md files.
+Python 3.14.3+ MCP server for GitHub/GitLab PR (merge request) diff analysis with Clean Architecture (Domain → Application → Infrastructure). FastMCP 3.x, Pydantic v2 (application boundary), anyio async. **287** Python files (**146** src + **141** tests), ~20K src / ~37K test lines, **44** AGENTS.md files. **~2495** test defs across **125** `test_*.py` files.
 
-Strict full-context diffs are **all-or-nothing**: complete ordered multi-file context or structured `E5020_FULL_DIFF_INCOMPLETE` (no partial files, no truncation notices).
+Strict full-context diffs are **all-or-nothing**: complete ordered multi-file context or structured `E5020_FULL_DIFF_INCOMPLETE` (no partial files, no truncation notices). Both GitHub and GitLab use session-scoped open/build/close paths.
 
 ## STRUCTURE
 ```
 PRDifferMCP/
 ├── prdiffer/
-│   ├── domain/           # Pure business logic (41 modules, 7 packages)
-│   ├── infrastructure/   # External integrations (74 modules: cache/github/security/utils/vcs)
+│   ├── domain/           # Pure business logic (42 modules, 7 packages)
+│   ├── infrastructure/   # External integrations (80 modules: cache/github/security/utils/vcs)
 │   └── application/      # MCP server, components, tool registry (21 modules)
-├── tests/                # Unit/integration/performance (~2390 test defs, 113 test_*.py)
+├── tests/                # Unit/integration/performance (~2495 test defs, 125 test_*.py)
 ├── scripts/              # Dependency analyzer, benches, git-hooks
-├── docs/plans/           # Design plans (full-diff-correctness-performance)
+├── docs/plans/           # Design plans (full-diff + gitlab-strict-full-diff)
 ├── skills/prdiffer/      # Agent skill for MCP tool usage
 ├── .github/workflows/    # pr-quality.yml (lint / ty / pytest on PR → main|develop)
-├── settings.toml         # Dynaconf configuration (240 lines)
-└── start-*.sh            # Quality gate scripts (lint, type-check, unittest, server)
+├── settings.toml         # Dynaconf configuration (~255 lines)
+├── .env.example          # Tokens + GITLAB_ALLOWED_HOSTS template
+└── start-*.sh            # Quality gates + start-prdiffer-mcp-server.sh
 ```
 
 ## WHERE TO LOOK
@@ -33,11 +34,15 @@ PRDifferMCP/
 | **Add MCP tool** | `application/tool_registry.py` | Register via `@mcp.tool()` in `ToolRegistry.register_tools()` |
 | **Modify DI** | `infrastructure/di_container.py`, `infrastructure/factories/` | `ServiceContainer` singletons; `InfrastructureFactory` creation |
 | **Add exception / error code** | `domain/exceptions.py`, `error_codes.py`, `errors.py` | `E{category}{number}_{NAME}` (1xxx–5xxx); E5020 full-diff |
-| **Config changes** | `settings.toml`, `infrastructure/settings.py`, `domain/config/github_config.py` | Dynaconf + frozen `GitHubConfig` (timeouts, size limits, parallel flags) |
-| **Strict full-diff path** | `infrastructure/github/` + `services/pr_diff_service.py` + `domain/usecases/pr_diff_usecases.py` | Inventory → content → ordered generate → session reader → MCP |
-| **Retry logic** | `infrastructure/utils/retry/` | `base.py` (339), `handler.py` (135), `models.py` (29), `factories.py` (93) |
-| **Caching** | `infrastructure/cache/` | `service.py` (340), `cache_decorators.py` (248), v2 PR-diff keys |
-| **Security** | `infrastructure/security/` | `input_validator.py` (326), `injection_detector.py` (216), `sanitizer.py` (140) |
+| **Config changes** | `settings.toml`, `.env` / `.env.example`, `infrastructure/settings.py`, `domain/config/` | Dynaconf + frozen `GitHubConfig` / `GitLabConfig` |
+| **GitHub strict full-diff** | `infrastructure/github/` + `services/pr_diff_service.py` + `domain/usecases/pr_diff_usecases.py` | Inventory → content → ordered generate → session → MCP |
+| **GitLab strict full-diff** | `infrastructure/vcs_providers/gitlab_*.py` | Version pin → inventory → content → assembler → session reader |
+| **GitLab host policy** | `domain/config/gitlab_config.py`, `settings.toml`, env `GITLAB_ALLOWED_HOSTS` | Default `gitlab.com`; opt-in custom hosts |
+| **URL parse (MCP)** | `application/utils/pr_url_parser.py` | `parse_pr_target` → GitHub/GitLab + `base_url` |
+| **URL parse (infra)** | `infrastructure/utils/url_parser.py` | Nested namespaces; custom GitLab hosts |
+| **Retry logic** | `infrastructure/utils/retry/` | `base.py`, `handler.py`, `models.py`, `factories.py` |
+| **Caching** | `infrastructure/cache/` | GitHub v2 + GitLab v1 strict keys; unwrap rejects legacy |
+| **Security** | `infrastructure/security/` | `input_validator.py`, `injection_detector.py`, `sanitizer.py` |
 | **Async / indexed batch** | `infrastructure/utils/parallel/executor.py` | 608-line anyio executor + `execute_indexed_batch` |
 | **Circuit breaker** | `infrastructure/utils/circuit_breaker_core.py` | Canonical 215-line impl; package dir is re-export shim |
 | **Benchmarks** | `scripts/bench_diff_generation.py` | Deterministic strict-v1 matrix; evidence under `.omo/` (gitignored) |
@@ -46,33 +51,37 @@ PRDifferMCP/
 | Symbol | Type | Location | Role |
 |--------|------|----------|------|
 | PRDiff | Entity | `domain/entities/pr_diff.py` | Frozen dataclass; `files: tuple[FileDiffResponse, ...]` |
-| FilePatchInfo | Entity | `domain/entities/file_patch.py` | Rich domain model (329): priority, smells, validate |
+| FilePatchInfo | Entity | `domain/entities/file_patch.py` | Rich domain model (~347): priority, smells, modes, validate |
 | FileDiffResponse | Entity | `domain/entities/file_diff_response.py` | MCP DTO; optional `previous_path` for renames |
 | FileContentAvailable / Unavailable | Entity | `domain/entities/file_content.py` | Typed content acquisition results |
 | GeneratedFileDiff | Entity | `domain/entities/generated_file_diff.py` | Ordered full-context generation result |
-| PRDiffCacheEntryV2 | Entity | `domain/entities/pr_diff_cache.py` | Versioned cache payload (`github-full-diff-v2`) |
-| FullDiffIncompleteError | Exception | `domain/exceptions.py` | E5020 fail-closed completeness (562-line module) |
-| GitHubConfig | Config | `domain/config/github_config.py` | Authoritative timeouts, size limits, parallel flags (266) |
+| StrictPRDiffCacheIdentity | Entity | `domain/entities/pr_diff_cache.py` | Provider-neutral key + validation token |
+| FullDiffIncompleteError | Exception | `domain/exceptions.py` | E5020 fail-closed completeness (~580-line module) |
+| GitHubConfig | Config | `domain/config/github_config.py` | Timeouts, size limits, parallel flags (~266) |
+| GitLabConfig | Config | `domain/config/gitlab_config.py` | Limits + `allowed_hosts` (~121) |
 | PRDiffReader / session | Interface | `domain/interfaces/pr_diff_reader.py` | Session-capable reader contract |
 | VCSDiffRepositoryInterface | Interface | `domain/interfaces/vcs_provider.py` | VCS provider contract |
 | VCSProviderRegistry | Registry | `domain/vcs_provider_registry.py` | URL-based provider auto-detection |
-| GetPRDiffUseCase | Use case | `domain/usecases/pr_diff_usecases.py` | Session path vs legacy; v2 cache unwrap (134) |
-| ServiceContainer | DI | `infrastructure/di_container.py` | Singleton/transient registration (203) |
+| GetPRDiffUseCase | Use case | `domain/usecases/pr_diff_usecases.py` | Session path (+ optional `base_url`); legacy fallback (~148) |
+| ServiceContainer | DI | `infrastructure/di_container.py` | Singleton/transient registration (~203) |
 | UnifiedRetryHandler | Service | `infrastructure/utils/retry/handler.py` | Context-aware retry + circuit breaker |
 | CircuitBreaker | Service | `infrastructure/utils/circuit_breaker_core.py` | CLOSED → OPEN → HALF_OPEN |
-| AsyncParallelExecutor | Service | `infrastructure/utils/parallel/executor.py` | anyio task groups; indexed all-or-error batch (608) |
-| GitHubPRDiffSession | Infra | `infrastructure/github/pr_diff_session.py` | anyio thread isolation + capacity limiter (213) |
-| FileProcessor | Infra | `infrastructure/github/file_processor.py` | Ordered selected-file assembly (544) |
-| DiffGenerator | Infra | `infrastructure/github/diff_generator.py` | Full-context ordered generation (468) |
-| Inventory admission | Infra | `infrastructure/github/inventory.py` | changed_files vs enumeration hard-fail (126) |
-| GitHubPRDiffService | Infra | `infrastructure/services/pr_diff_service.py` | Maps GeneratedFileDiff → public responses (527) |
-| FastMCPServer | Application | `application/mcp_server.py` | MCP orchestrator (191) |
-| ToolRegistry | Application | `application/tool_registry.py` | Tools: get_pr_diff, approve_pr, describe_pr (481) |
-| WebhookHandler | Application | `application/webhook_handler.py` | Webhook cache invalidation (171) |
-| HealthEndpoints | Application | `application/health_endpoints.py` | /health and metrics (120) |
-| InputValidator | Security | `infrastructure/security/input_validator.py` | Validation orchestrator |
-| GitHubPRDiffRepository | Infra | `infrastructure/github_repository.py` | GitHub PR repository (461) |
-| GitLabVCSRepository | Infra | `infrastructure/vcs_providers/gitlab_repository.py` | GitLab VCS provider |
+| AsyncParallelExecutor | Service | `infrastructure/utils/parallel/executor.py` | anyio task groups; indexed all-or-error batch (~608) |
+| GitHubPRDiffSession | Infra | `infrastructure/github/pr_diff_session.py` | anyio thread isolation + capacity limiter (~223) |
+| FileProcessor | Infra | `infrastructure/github/file_processor.py` | Ordered selected-file assembly (~582) |
+| DiffGenerator | Infra | `infrastructure/github/diff_generator.py` | Full-context ordered generation (~517) |
+| Inventory admission | Infra | `infrastructure/github/inventory.py` | changed_files vs enumeration hard-fail (~126) |
+| GitHubPRDiffService | Infra | `infrastructure/services/pr_diff_service.py` | Maps GeneratedFileDiff → public responses (~527) |
+| GitLabRuntime | Infra | `infrastructure/vcs_providers/gitlab_runtime.py` | Shared limiter; per-call base_url/deadline (~367) |
+| GitLabOperations | Infra | `infrastructure/vcs_providers/gitlab_operations.py` | Immutable MR version pin (`select_with_client`) (~255) |
+| GitLabSessionPRDiffReader | Infra | `infrastructure/vcs_providers/gitlab_diff_session.py` | Open/build/close strict MR session (~222) |
+| FastMCPServer | Application | `application/mcp_server.py` | MCP orchestrator (~191) |
+| ToolRegistry | Application | `application/tool_registry.py` | Tools: get_pr_diff, approve_pr, describe_pr (~496) |
+| WebhookHandler | Application | `application/webhook_handler.py` | Webhook cache invalidation (~171) |
+| HealthEndpoints | Application | `application/health_endpoints.py` | /health and metrics (~120) |
+| InputValidator | Security | `infrastructure/security/input_validator.py` | Validation orchestrator (~326) |
+| GitHubPRDiffRepository | Infra | `infrastructure/github_repository.py` | GitHub PR repository (~461) |
+| GitLabVCSRepository | Infra | `infrastructure/vcs_providers/gitlab_repository.py` | GitLab VCS adapter (~149) |
 
 ## CONVENTIONS
 
@@ -88,9 +97,10 @@ PRDifferMCP/
 - Selected files must all succeed or raise **E5020** with `FullDiffIncompleteReason`.
 - No truncation notices / partial payloads on size limit (`RESPONSE_SIZE_LIMIT`).
 - Content cache keys: `(repo_full_name, path, ref)`; unavailable results are not cached as success.
-- PR-diff response cache: **v2 only** (`github-full-diff-v2`); legacy entries ignored.
-- Parallel fetch/generation defaults **on** (`performance.parallel_* = true`); capacity uses `github.max_concurrent` (disable flags for serialized capacity 1).
-- PyGithub blocking calls stay off the event loop via session + `anyio.to_thread` + limiter.
+- PR-diff response cache: **GitHub** `github-full-diff-v2`; **GitLab** `gitlab-full-diff-v1:{host}:…` (host/port-aware); legacy entries ignored.
+- Parallel fetch/generation defaults **on** (`performance.parallel_* = true`); capacity uses `github.max_concurrent` / `gitlab.max_concurrent` (disable flags for serialized capacity 1).
+- Blocking SDK calls stay off the event loop via session + `anyio.to_thread` / `GitLabRuntime.run_blocking` + limiter.
+- GitLab equal-content equal-mode modified → hard E5020 (no silent no-op).
 
 ### Dependency Injection
 - Constructor injection preferred; optional params with singleton factory fallbacks.
@@ -100,24 +110,28 @@ PRDifferMCP/
 ### Async
 - **anyio** for backend-agnostic async (preferred over raw asyncio).
 - `AsyncParallelExecutor` + `execute_indexed_batch` for concurrent work with identity preservation.
-- Tests largely use `@pytest.mark.asyncio` (pytest-asyncio); production code is anyio-first.
+- Tests largely use `@pytest.mark.asyncio` (pytest-asyncio); production code is anyio-first. Some modules use `@pytest.mark.anyio`.
 
 ### Configuration
 - **Dynaconf** via `settings.toml` + optional `.secrets.toml`.
 - Manual caching with `RLock` in `SettingsService` (Dynaconf unhashable → no `@lru_cache`).
-- Env overrides: `GITHUB_TOKEN`, `MCP_AUTH_ENABLED`, `MCP_API_KEYS`, `MCP_TRANSPORT`, `MCP_PORT`, `MCP_HOST`.
-- `GitHubConfig` frozen dataclass: `timeout` (30), `pr_diff_request_timeout_seconds` (180), size limits, `parallel_*` default true (bounded by `max_concurrent`).
+- Env overrides: `GITHUB_TOKEN`, `GITLAB_TOKEN`, `GITLAB_ALLOWED_HOSTS` (CSV), `MCP_AUTH_ENABLED`, `MCP_API_KEYS`, `MCP_TRANSPORT`, `MCP_PORT`, `MCP_HOST`.
+- Copy `.env.example` → `.env`; `start-prdiffer-mcp-server.sh` sources `.env`.
+- `GitHubConfig` frozen dataclass: `timeout` (30), `pr_diff_request_timeout_seconds` (180), size limits, `parallel_*` default true.
+- `GitLabConfig` frozen slotted: same timeout shape + `allowed_hosts` default `("gitlab.com",)`.
 - **Ruff** configured in `pyproject.toml` (E/F/W/Q, line-length 160, double quotes, target py314).
 
 ### Error Codes
 - Format: `E{category}{number}_{NAME}` (e.g. `E1001_INVALID_URL`, `E5020_FULL_DIFF_INCOMPLETE`).
 - Categories: 1xxx validation, 2xxx auth, 3xxx rate limit, 4xxx not found, 5xxx server.
+- GitLab ops: E2006 (401), E2007 (403), E3006 (429), E5021 (5xx), E4001/E4002/E4003 (not found), E5004 timeout, E5019 connection.
 - Constants in `error_codes.py`; helpers/types in `errors.py`; exception hierarchy in `exceptions.py`.
 
 ### Testing
 - **pytest** markers: `unit`, `integration`, `security`, `slow`, `thread_safety` (and asyncio via pytest-asyncio).
 - Layout: `tests/unit/{domain,infrastructure,application}`, `tests/integration`, `tests/performance`.
-- ~2390 test functions across 113 `test_*.py` files; phase tests at `tests/test_phase{1-4}_improvements.py`.
+- ~2495 test functions across 125 `test_*.py` files; phase tests at `tests/test_phase{1-4}_improvements.py`.
+- GitLab strict suite: unit (`vcs_providers/`, `test_gitlab_*`), integration `test_gitlab_strict_full_diff.py`, performance capacity/deadline.
 - Mock external I/O; no live GitHub/GitLab in unit tests (real API suite always-skipped).
 - Auto-use fixtures: `set_test_environment`, `reset_singletons` in `tests/conftest.py`.
 
@@ -130,7 +144,7 @@ PRDifferMCP/
 
 ### Python Version
 - **requires-python**: `>=3.14.3` (`pyproject.toml`); `.python-version`: `3.14.6`.
-- Prefer built-in generics (`list[str]`, `X | None`). ~64 files still use `from typing import …` (documented deviation).
+- Prefer built-in generics (`list[str]`, `X | None`). ~66 files still use `from typing import …` (documented deviation).
 - **0** `# type: ignore` in `prdiffer/`.
 
 ## ANTI-PATTERNS (THIS PROJECT)
@@ -145,6 +159,7 @@ PRDifferMCP/
 - **Never retry 404s for file content** → Added/removed files, not transient errors.
 - **NEVER use unverified JWT for auth decisions** → Metadata only; API keys are primary auth.
 - **NO partial full-diff success** → E5020 fail-closed for incomplete/oversized/unavailable selected files.
+- **NO open GitLab host allowlist** → default `gitlab.com` only; opt-in via settings/env (SSRF with token).
 
 ### Architecture
 - **NO business logic in application components** → Domain use cases/entities.
@@ -157,7 +172,7 @@ PRDifferMCP/
 - **NO command injection** (shell metacharacters, substitution).
 - **NO path traversal** (`..`, sensitive absolute paths).
 - **NO SQL injection patterns** in free-text inputs.
-- **NO hardcoded secrets** → env / `.secrets.toml`.
+- **NO hardcoded secrets** → env / `.secrets.toml` / `.env` (never commit).
 
 ### Build/Testing
 - **NO production logic only in tests**.
@@ -167,8 +182,8 @@ PRDifferMCP/
 
 ### Large Files
 - Prefer modules **&lt;500 lines** when adding features; extract packages if growing.
-- Current production hotspots &gt;500: `domain/exceptions.py` (562), `github/file_processor.py` (544), `services/pr_diff_service.py` (527), `parallel/executor.py` (608).
-- Large tests remain (e.g. `test_authentication.py` 1145); prefer splitting when editing.
+- Current production hotspots ≥500: `parallel/executor.py` (608), `github/file_processor.py` (582), `domain/exceptions.py` (580), `services/pr_diff_service.py` (527), `github/diff_generator.py` (517), `tool_registry.py` (496).
+- Large tests remain (e.g. auth suite); prefer splitting when editing.
 
 ## UNIQUE STYLES
 
@@ -186,19 +201,21 @@ PRDifferMCP/
 - `start-lint.sh --quotes` can rewrite triple-quote style (project-specific).
 - Developer wrappers: `start-cc-mmax.sh`, `start-cc-zai.sh`.
 - Architecture analyzer exits non-zero on layer violations.
+- Server: `./start-prdiffer-mcp-server.sh` loads `.env` (tokens + `GITLAB_ALLOWED_HOSTS`).
 
 ### Organization
 - Dual factories: domain interfaces (`domain/factories/`), infrastructure/application implement.
-- VCS registry + `supports_repository()` for multi-provider URLs.
+- VCS registry + `supports_repository()` for multi-provider URLs (GitHub.com + GitLab MR path marker incl. custom hosts).
 - Tools registered in `ToolRegistry` (not a separate plugin package; `application/plugins/` is empty reserved path).
 - Cache, circuit breaker, and some utils use **flattened modules + package shims** for backward-compatible imports.
-- GitHub full-diff pipeline is package-local under `infrastructure/github/` with service orchestration in `services/pr_diff_service.py`.
+- GitHub full-diff pipeline under `infrastructure/github/`; GitLab under `infrastructure/vcs_providers/gitlab_*`.
 
 ## COMMANDS
 ```bash
 # Environment
 uv sync --group dev     # Install project + dev deps from lockfile
 uv run <cmd>            # Run tools in project env
+cp .env.example .env    # Tokens + GitLab allowlist template
 
 # Linting
 ./start-lint.sh --check
@@ -248,9 +265,10 @@ uv run pytest tests -v --tb=short
 - **CI**: PRs targeting `main` or `develop` must pass Lint, Type check, and Unit tests (GitHub Actions).
 - **Auth**: Controlled by `MCP_AUTH_ENABLED` / settings `[default.auth]`; use API keys via `MCP_API_KEYS` when enabled.
 - **MCP tools**: `get_pr_diff`, `approve_pr`, `describe_pr`, plus health tool registration. Diff responses are full-context all-or-nothing.
-- **VCS**: GitHub (primary, session-isolated full-diff) + GitLab provider; registry auto-detects from URL.
+- **VCS**: GitHub (session-isolated full-diff) + GitLab (strict version-pinned full-diff; host allowlist). Registry auto-detects from URL.
+- **Custom GitLab**: `GITLAB_ALLOWED_HOSTS=gitlab.com,your.host` + `GITLAB_TOKEN`; MR URLs via `https://host/group/project/-/merge_requests/N`.
 - **Package version**: `pyproject.toml` = `0.6.0`; keep `prdiffer/version.py` in sync when releasing.
 - **Python**: 3.14.3+ required; local pin `.python-version` = 3.14.6.
 - **AGENTS.md coverage**: 44 files (root + layer/package docs under `prdiffer/`, `tests/`, `scripts/`).
 - **Empty reserved dirs**: `application/plugins/`, `application/services/`, `application/interfaces/`, `infrastructure/interfaces/` (docs only / placeholders).
-- **Analyzer layers**: Application 21, Domain 41, Infrastructure 74 modules (139 total).
+- **Analyzer layers**: Application 21, Domain 42, Infrastructure 80 modules (146 total in `prdiffer/`).

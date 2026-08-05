@@ -44,8 +44,8 @@ prdiffer/domain/entities/
 | `PRDiffCacheEntryV2` | Frozen dataclass | `pr_diff_cache.py` | schema_version=2 + PRDiff |
 | `github_full_diff_v2_key` | Function | `pr_diff_cache.py` | Exact GitHub session/v2 cache key |
 | `github_full_diff_v2_identity` | Function | `pr_diff_cache.py` | GitHub identity (key + head_sha token) |
-| `gitlab_full_diff_v1_key` | Function | `pr_diff_cache.py` | `gitlab-full-diff-v1:{ns}:{repo}:{iid}:{ver}:{base}:{start}:{head}` |
-| `gitlab_full_diff_v1_identity` | Function | `pr_diff_cache.py` | GitLab identity (version + three refs token) |
+| `gitlab_full_diff_v1_key` | Function | `pr_diff_cache.py` | `gitlab-full-diff-v1:{host}:{ns}:{repo}:{iid}:{ver}:{base}:{start}:{head}` |
+| `gitlab_full_diff_v1_identity` | Function | `pr_diff_cache.py` | GitLab identity (host-aware key + version/refs token) |
 | `PullRequest` / `PRState` | Entity | `pull_request.py` | PR metadata |
 | `Repository` | Entity | `repository.py` | Repo metadata |
 
@@ -56,8 +56,8 @@ prdiffer/domain/entities/
 - `FileDiffResponse.previous_path` is optional and valid **only** for `EDIT_TYPE.RENAMED` (`__post_init__` invariant; must differ from `path`). Success responses remain complete by construction — no completeness boolean.
 - GitLab maps `old_path` → `previous_path` on renames only; otherwise `None`.
 - Content: operational failures (auth, rate limit, transport) **raise**; do not fold into `FileContentUnavailable`.
-- Cache helpers: `wrap_pr_diff_for_cache`, `unwrap_pr_diff_cache_value` (accept v2 entry or bare `PRDiff` under GitHub v2-prefix key only).
-- Sessions expose `StrictPRDiffCacheIdentity` (provider-neutral); GitHub keys remain byte-stable; GitLab uses `gitlab-full-diff-v1` (no extra `gitlab:` prefix on the strict key).
+- Cache helpers: `wrap_pr_diff_for_cache`, `unwrap_pr_diff_cache_value` (accept schema entry or bare `PRDiff` under strict GitHub-v2 / GitLab-v1 key prefixes).
+- Sessions expose `StrictPRDiffCacheIdentity` (provider-neutral); GitHub keys remain byte-stable; GitLab keys include **host** (port-aware for non-80/443) for multi-instance correctness.
 
 ## ANTI-PATTERNS
 - NO I/O or framework types.

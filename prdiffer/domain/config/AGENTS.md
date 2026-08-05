@@ -67,6 +67,7 @@ Helpers: `is_host_allowed(host)` (casefold; strips `:port`).
 - Helpers (GitHub): `should_ignore_file`, `has_valid_extension`, `should_process_file`, `with_overrides`.
 - GitLabConfig has **no** ignore-pattern / extension filtering.
 - Custom GitLab hosts require explicit `allowed_hosts` entries (no open-host default).
+- Runtime override (infrastructure, not this package): env `GITLAB_ALLOWED_HOSTS` CSV via `SettingsService` / `.env` (see `.env.example`).
 
 ## ANTI-PATTERNS
 - NO Dynaconf / `os.environ` here.

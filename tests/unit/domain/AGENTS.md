@@ -26,7 +26,8 @@ tests/unit/domain/
 |------|----------|-------|
 | **E5020 incomplete full-diff** | `test_full_diff_incomplete_error.py` | Reason enum (9 values), exception contract |
 | **PRDiff cache v2** | `test_pr_diff_cache_v2.py` | `github_full_diff_v2_key`, wrap/unwrap |
-| **GitLab cache identity** | `test_gitlab_pr_diff_cache.py` | `gitlab-full-diff-v1` key/token/immutability |
+| **GitLab cache identity** | `test_gitlab_pr_diff_cache.py` | Host-aware `gitlab-full-diff-v1` key/token/immutability |
+| **GitLabConfig** | `config/test_gitlab_config.py` | Defaults, allowlist, `is_host_allowed` |
 | **Strict identity entity** | `entities/test_pr_diff_cache.py` | `StrictPRDiffCacheIdentity` + GitHub identity |
 | **Session vs legacy reader** | `usecases/test_session_pr_diff_usecase.py` | Session-capable PRDiff dispatch |
 | **Entities** | `entities/` | `FilePatchInfo`, `FileDiffResponse.previous_path`, `PRDiff` |
