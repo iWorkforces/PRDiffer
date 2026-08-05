@@ -25,6 +25,7 @@ prdiffer/infrastructure/vcs_providers/
 | **Primary GitHub PR repo** | `../github_repository.py` | Main implementation (sibling module, not this package) |
 | **GitLab adapter** | `gitlab_repository.py` | Session-capable VCS contract over strict reader |
 | **GitLab models** | `gitlab_models.py` | `GitLabDiffSnapshot`, `GitLabDiffRecord`, version/refs |
+| **GitLab inventory** | `gitlab_inventory.py` | Admit/classify; `a_mode`/`b_mode` `"0"`/`"000000"` = absent side on add/delete |
 | **GitLab runtime** | `gitlab_runtime.py` | Shared CapacityLimiter; per-call base_url/deadline; status map |
 | **GitLab ops** | `gitlab_operations.py` | Pin exact MR diff version matching `diff_refs` |
 | **Session** | `gitlab_diff_session.py` | open → pin via `run_blocking` → build inventory/content/assemble → aclose |

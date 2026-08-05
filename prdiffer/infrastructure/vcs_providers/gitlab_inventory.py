@@ -3,13 +3,16 @@
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 from prdiffer.domain.entities.file_patch import EDIT_TYPE
 from prdiffer.domain.exceptions import FullDiffIncompleteError, FullDiffIncompleteReason
 from prdiffer.infrastructure.vcs_providers.gitlab_models import GitLabDiffRecord, GitLabDiffSnapshot
 
 _GIT_MODE_RE = re.compile(r"^[0-7]{6}$")
+# GitLab embeds "0" / "000000" for the missing blob side of pure adds/deletes
+# (no previous file on add; no next file on delete). Treat as absent, not malformed.
+_ABSENT_MODE_SENTINELS = frozenset({"0", "000000"})
 
 
 @dataclass(frozen=True, slots=True)
@@ -21,15 +24,63 @@ class GitLabInventoryFile:
     index: int
 
 
-def _require_git_mode(value: str | None, *, path: str, field: str) -> None:
+def _coerce_git_mode(
+    value: str | None,
+    *,
+    path: str,
+    field: str,
+    allow_absent_sentinel: bool,
+) -> str | None:
+    """Validate a Git mode string; optionally map GitLab absent-side sentinels to None.
+
+    - ``None`` is always accepted (unknown / omitted).
+    - ``\"0\"`` / ``\"000000\"`` are accepted only when ``allow_absent_sentinel`` is true
+      (added-file ``a_mode``, deleted-file ``b_mode``) and normalized to ``None``.
+    - Otherwise require a 6-digit octal mode (``100644``, ``100755``, …).
+    """
     if value is None:
-        return
+        return None
+    if value in _ABSENT_MODE_SENTINELS:
+        if allow_absent_sentinel:
+            return None
+        raise FullDiffIncompleteError(
+            FullDiffIncompleteReason.UNSUPPORTED_FILE_STATUS,
+            message=f"Malformed required Git mode in {field}",
+            path=path,
+        )
     if not _GIT_MODE_RE.fullmatch(value):
         raise FullDiffIncompleteError(
             FullDiffIncompleteReason.UNSUPPORTED_FILE_STATUS,
             message=f"Malformed required Git mode in {field}",
             path=path,
         )
+    return value
+
+
+def _normalize_record_modes(
+    record: GitLabDiffRecord,
+    edit_type: EDIT_TYPE,
+    *,
+    path: str,
+) -> GitLabDiffRecord:
+    """Coerce modes for the classified edit type; return record (possibly replaced)."""
+    allow_absent_a = edit_type is EDIT_TYPE.ADDED
+    allow_absent_b = edit_type is EDIT_TYPE.DELETED
+    a_mode = _coerce_git_mode(
+        record.a_mode,
+        path=path,
+        field="a_mode",
+        allow_absent_sentinel=allow_absent_a,
+    )
+    b_mode = _coerce_git_mode(
+        record.b_mode,
+        path=path,
+        field="b_mode",
+        allow_absent_sentinel=allow_absent_b,
+    )
+    if a_mode is record.a_mode and b_mode is record.b_mode:
+        return record
+    return replace(record, a_mode=a_mode, b_mode=b_mode)
 
 
 def classify_diff_record(record: GitLabDiffRecord) -> EDIT_TYPE:
@@ -142,7 +193,6 @@ def admit_inventory(
     for index, record in enumerate(snapshot.records):
         edit_type = classify_diff_record(record)
         path = record.new_path or record.old_path
-        _require_git_mode(record.a_mode, path=path, field="a_mode")
-        _require_git_mode(record.b_mode, path=path, field="b_mode")
-        admitted.append(GitLabInventoryFile(record, edit_type, index))
+        normalized = _normalize_record_modes(record, edit_type, path=path)
+        admitted.append(GitLabInventoryFile(normalized, edit_type, index))
     return tuple(admitted)

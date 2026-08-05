@@ -131,3 +131,80 @@ class TestAdmitInventory:
         with pytest.raises(FullDiffIncompleteError) as exc:
             admit_inventory(_snap(records=(_rec(a_mode="644"),)), max_files_allowed=50)
         assert exc.value.reason is FullDiffIncompleteReason.UNSUPPORTED_FILE_STATUS
+
+    def test_added_file_gitlab_absent_a_mode_zero_succeeds(self) -> None:
+        """GitLab sends a_mode='0' for pure adds (no previous blob) — not malformed."""
+        records = (
+            _rec(
+                new_file=True,
+                old_path=".grok-plugin/marketplace.json",
+                new_path=".grok-plugin/marketplace.json",
+                a_mode="0",
+                b_mode="100644",
+            ),
+            _rec(
+                new_file=True,
+                old_path="docs/agents.md",
+                new_path="docs/agents.md",
+                a_mode="000000",
+                b_mode="100644",
+            ),
+        )
+        admitted = admit_inventory(_snap(records=records), max_files_allowed=50)
+        assert len(admitted) == 2
+        assert [a.edit_type for a in admitted] == [EDIT_TYPE.ADDED, EDIT_TYPE.ADDED]
+        # Absent-side sentinels normalized to None for downstream consumers
+        assert admitted[0].record.a_mode is None
+        assert admitted[0].record.b_mode == "100644"
+        assert admitted[1].record.a_mode is None
+        assert admitted[1].record.b_mode == "100644"
+
+    def test_deleted_file_gitlab_absent_b_mode_zero_succeeds(self) -> None:
+        """GitLab may send b_mode='0' for pure deletes (no next blob)."""
+        records = (
+            _rec(
+                deleted_file=True,
+                old_path="gone.py",
+                new_path="gone.py",
+                a_mode="100644",
+                b_mode="0",
+            ),
+        )
+        admitted = admit_inventory(_snap(records=records), max_files_allowed=50)
+        assert len(admitted) == 1
+        assert admitted[0].edit_type is EDIT_TYPE.DELETED
+        assert admitted[0].record.a_mode == "100644"
+        assert admitted[0].record.b_mode is None
+
+    def test_modified_file_rejects_absent_mode_sentinel(self) -> None:
+        """'0' is only valid on the missing side of add/delete, not for modified."""
+        with pytest.raises(FullDiffIncompleteError) as exc:
+            admit_inventory(
+                _snap(
+                    records=(
+                        _rec(old_path="m.py", new_path="m.py", a_mode="0", b_mode="100644"),
+                    )
+                ),
+                max_files_allowed=50,
+            )
+        assert exc.value.reason is FullDiffIncompleteReason.UNSUPPORTED_FILE_STATUS
+        assert "a_mode" in (exc.value.message or "")
+
+    def test_added_file_rejects_malformed_b_mode(self) -> None:
+        with pytest.raises(FullDiffIncompleteError) as exc:
+            admit_inventory(
+                _snap(
+                    records=(
+                        _rec(
+                            new_file=True,
+                            old_path="a.py",
+                            new_path="a.py",
+                            a_mode="0",
+                            b_mode="644",
+                        ),
+                    )
+                ),
+                max_files_allowed=50,
+            )
+        assert exc.value.reason is FullDiffIncompleteReason.UNSUPPORTED_FILE_STATUS
+        assert "b_mode" in (exc.value.message or "")
