@@ -48,7 +48,6 @@ async def test_session_build_uses_limiter_capacity_one() -> None:
     # Patch at module level used by session
     import prdiffer.infrastructure.github.pr_diff_session as mod
 
-    original = mod.anyio.to_thread.run_sync
     monkeypatch = pytest.MonkeyPatch()
     monkeypatch.setattr(mod.anyio.to_thread, "run_sync", tracking_run_sync)
     try:

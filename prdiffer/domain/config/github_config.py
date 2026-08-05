@@ -157,9 +157,7 @@ class GitHubConfig(GitHubConfigInterface):
             parallel_file_fetch_enabled=bool(config.get("parallel_file_fetch_enabled", False)),
             parallel_head_base_fetch_enabled=bool(config.get("parallel_head_base_fetch_enabled", False)),
             parallel_diff_generation_enabled=bool(config.get("parallel_diff_generation_enabled", False)),
-            pr_diff_request_timeout_seconds=float(
-                config.get("pr_diff_request_timeout_seconds", DEFAULT_PR_DIFF_REQUEST_TIMEOUT_SECONDS)
-            ),
+            pr_diff_request_timeout_seconds=float(config.get("pr_diff_request_timeout_seconds", DEFAULT_PR_DIFF_REQUEST_TIMEOUT_SECONDS)),
             max_concurrent=int(config.get("max_concurrent", 4)),
         )
 

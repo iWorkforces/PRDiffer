@@ -9,8 +9,6 @@ from github import GithubException
 if TYPE_CHECKING:
     from github.Repository import Repository
     from github.PullRequest import PullRequest
-    from github.File import File
-    from github.PaginatedList import PaginatedList
 from prdiffer.domain.services.pr_diff_service import PRDiffServiceInterface
 from prdiffer.domain.services.logger import LoggerServiceInterface
 from prdiffer.domain.entities.pr_diff import PRDiff
@@ -85,14 +83,10 @@ class GitHubPRDiffService(CachingMixin, PRDiffServiceInterface):
         self._file_processor = file_processor
 
         self._diff_truncate_enabled = settings_service.get("diff.truncate_enabled", False)
-        self._diff_max_total_chars = int(
-            max_total_chars if max_total_chars is not None else config.max_total_chars
-        )
+        self._diff_max_total_chars = int(max_total_chars if max_total_chars is not None else config.max_total_chars)
         self._diff_truncation_notice = settings_service.get("diff.truncation_notice", "[DIFF TRUNCATED]")
         self._pr_diff_request_timeout_seconds = float(
-            pr_diff_request_timeout_seconds
-            if pr_diff_request_timeout_seconds is not None
-            else config.pr_diff_request_timeout_seconds
+            pr_diff_request_timeout_seconds if pr_diff_request_timeout_seconds is not None else config.pr_diff_request_timeout_seconds
         )
         self._github_timeout_seconds = timeout
         self._parallel_file_fetch_enabled = config.parallel_file_fetch_enabled
@@ -201,14 +195,8 @@ class GitHubPRDiffService(CachingMixin, PRDiffServiceInterface):
                 return "", []
 
             github_files = pull_request.get_files()
-            max_files = (
-                self._file_processor.max_files_allowed if self._file_processor is not None else 50
-            )
-            is_valid = (
-                self._file_processor._pattern_matcher.is_valid_file
-                if self._file_processor is not None
-                else (lambda _name: True)
-            )
+            max_files = self._file_processor.max_files_allowed if self._file_processor is not None else 50
+            is_valid = self._file_processor._pattern_matcher.is_valid_file if self._file_processor is not None else (lambda _name: True)
             selected_files = prepare_selected_inventory(
                 authoritative_changed_files=None,
                 provider_files=github_files,
@@ -220,9 +208,7 @@ class GitHubPRDiffService(CachingMixin, PRDiffServiceInterface):
                 return "", []
 
             if self._file_processor and hasattr(self._file_processor, "process_files_to_patches_async"):
-                diff_files = await self._file_processor.process_files_to_patches_async(
-                    list(selected_files), repository, latest_commit_sha, base_commit_sha
-                )
+                diff_files = await self._file_processor.process_files_to_patches_async(list(selected_files), repository, latest_commit_sha, base_commit_sha)
             else:
                 diff_files = (
                     self._file_processor.process_files_to_patches(
@@ -473,14 +459,8 @@ class GitHubPRDiffService(CachingMixin, PRDiffServiceInterface):
                 return []
 
             github_files = pull_request.get_files()
-            max_files = (
-                self._file_processor.max_files_allowed if self._file_processor is not None else 50
-            )
-            is_valid = (
-                self._file_processor._pattern_matcher.is_valid_file
-                if self._file_processor is not None
-                else (lambda _name: True)
-            )
+            max_files = self._file_processor.max_files_allowed if self._file_processor is not None else 50
+            is_valid = self._file_processor._pattern_matcher.is_valid_file if self._file_processor is not None else (lambda _name: True)
             selected_files = prepare_selected_inventory(
                 authoritative_changed_files=None,
                 provider_files=github_files,
@@ -492,9 +472,7 @@ class GitHubPRDiffService(CachingMixin, PRDiffServiceInterface):
                 return []
 
             if self._file_processor:
-                diff_files = self._file_processor.process_files_to_patches(
-                    list(selected_files), repository, latest_commit_sha, base_commit_sha
-                )
+                diff_files = self._file_processor.process_files_to_patches(list(selected_files), repository, latest_commit_sha, base_commit_sha)
             else:
                 diff_files = self._convert_github_files_to_file_patch_info(selected_files)
 

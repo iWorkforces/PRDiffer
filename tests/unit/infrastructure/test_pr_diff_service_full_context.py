@@ -51,9 +51,7 @@ def test_build_pr_diff_maps_generated_full_context() -> None:
 @pytest.mark.unit
 def test_build_pr_diff_identity_mismatch_is_e5020() -> None:
     generator = MagicMock()
-    generator.generate_ordered_file_diffs.return_value = [
-        GeneratedFileDiff(index=0, path="wrong.py", previous_path=None, diff="+x")
-    ]
+    generator.generate_ordered_file_diffs.return_value = [GeneratedFileDiff(index=0, path="wrong.py", previous_path=None, diff="+x")]
     service = GitHubPRDiffService(
         github_api_client=MagicMock(),
         diff_generator=generator,

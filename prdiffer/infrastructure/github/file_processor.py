@@ -79,9 +79,7 @@ class FileProcessor:
             from prdiffer.infrastructure.settings import get_settings_service
 
             settings = get_settings_service()
-            self._parallel_head_base_fetch_enabled = bool(
-                settings.get("performance.parallel_head_base_fetch_enabled", False)
-            )
+            self._parallel_head_base_fetch_enabled = bool(settings.get("performance.parallel_head_base_fetch_enabled", False))
         else:
             self._parallel_head_base_fetch_enabled = parallel_head_base_fetch_enabled
 
@@ -147,12 +145,8 @@ class FileProcessor:
         if not classified:
             return []
         head_paths, base_paths, rename_map = self._required_content_keys(classified)
-        head_raw = (
-            self._github_api_service.get_files_content_batch(repository.full_name, head_paths, head_sha) if head_paths else {}
-        )
-        base_raw = (
-            self._github_api_service.get_files_content_batch(repository.full_name, base_paths, base_sha) if base_paths else {}
-        )
+        head_raw = self._github_api_service.get_files_content_batch(repository.full_name, head_paths, head_sha) if head_paths else {}
+        base_raw = self._github_api_service.get_files_content_batch(repository.full_name, base_paths, base_sha) if base_paths else {}
         head_contents = self._text_map(cast(dict[str, Any], head_raw), ref=head_sha)
         base_contents = self._text_map(cast(dict[str, Any], base_raw), ref=base_sha)
         return self._assemble_patches_in_order(classified, head_contents, base_contents, rename_map)
@@ -216,6 +210,7 @@ class FileProcessor:
                 base_paths.append(base_key)
                 if previous_name:
                     rename_map[file.filename] = previous_name
+
         # Preserve order, drop duplicates while keeping first occurrence.
         def _unique(paths: list[str]) -> list[str]:
             seen: set[str] = set()
@@ -391,12 +386,8 @@ class FileProcessor:
                 else:
                     base_files.append(file.filename)
 
-        head_raw = (
-            self._github_api_service.get_files_content_batch(repository.full_name, head_files, head_sha) if head_files else {}
-        )
-        base_raw = (
-            self._github_api_service.get_files_content_batch(repository.full_name, base_files, base_sha) if base_files else {}
-        )
+        head_raw = self._github_api_service.get_files_content_batch(repository.full_name, head_files, head_sha) if head_files else {}
+        base_raw = self._github_api_service.get_files_content_batch(repository.full_name, base_files, base_sha) if base_files else {}
         head_contents = self._text_map(cast(dict[str, Any], head_raw), ref=head_sha)
         base_contents = self._text_map(cast(dict[str, Any], base_raw), ref=base_sha)
 

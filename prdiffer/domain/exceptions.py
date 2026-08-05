@@ -303,16 +303,11 @@ def _sanitize_full_diff_details(
 
     forbidden = sorted(key for key in details if key.casefold() in _FULL_DIFF_FORBIDDEN_DETAIL_KEYS)
     if forbidden:
-        raise ValueError(
-            "FullDiffIncompleteError details must not include sensitive or raw content keys: "
-            + ", ".join(forbidden)
-        )
+        raise ValueError("FullDiffIncompleteError details must not include sensitive or raw content keys: " + ", ".join(forbidden))
 
     unknown = sorted(key for key in details if key not in _FULL_DIFF_SAFE_DETAIL_KEYS)
     if unknown:
-        raise ValueError(
-            "FullDiffIncompleteError details contain unsupported keys: " + ", ".join(unknown)
-        )
+        raise ValueError("FullDiffIncompleteError details contain unsupported keys: " + ", ".join(unknown))
 
     for key in ("path", "previous_path", "observed", "limit"):
         if key in details and details[key] is not None:
@@ -352,10 +347,7 @@ class FullDiffIncompleteError(GitHubAPIError):
             merged["limit"] = limit
 
         safe_details = _sanitize_full_diff_details(reason, merged)
-        resolved_message = message or (
-            f"Full diff incomplete: {reason.value}"
-            + (f" for {path}" if path else "")
-        )
+        resolved_message = message or (f"Full diff incomplete: {reason.value}" + (f" for {path}" if path else ""))
         super().__init__(
             resolved_message,
             status_code=status_code,

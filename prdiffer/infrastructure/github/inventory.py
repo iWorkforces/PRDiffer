@@ -46,10 +46,7 @@ def validate_authoritative_inventory(
     if authoritative_changed_files > MAX_AUTHORITATIVE_CHANGED_FILES:
         raise FullDiffIncompleteError(
             FullDiffIncompleteReason.INVENTORY_TRUNCATED,
-            message=(
-                f"Authoritative changed-file count {authoritative_changed_files} exceeds "
-                f"GitHub pagination ceiling {MAX_AUTHORITATIVE_CHANGED_FILES}"
-            ),
+            message=(f"Authoritative changed-file count {authoritative_changed_files} exceeds GitHub pagination ceiling {MAX_AUTHORITATIVE_CHANGED_FILES}"),
             observed=authoritative_changed_files,
             limit=MAX_AUTHORITATIVE_CHANGED_FILES,
         )
@@ -57,10 +54,7 @@ def validate_authoritative_inventory(
     if enumerated_count != authoritative_changed_files:
         raise FullDiffIncompleteError(
             FullDiffIncompleteReason.INVENTORY_TRUNCATED,
-            message=(
-                f"Enumerated file count {enumerated_count} does not match "
-                f"authoritative changed_files {authoritative_changed_files}"
-            ),
+            message=(f"Enumerated file count {enumerated_count} does not match authoritative changed_files {authoritative_changed_files}"),
             observed=enumerated_count,
             limit=authoritative_changed_files,
         )
@@ -88,9 +82,7 @@ def select_files_with_admission(
     if len(selected) > max_files_allowed:
         raise FullDiffIncompleteError(
             FullDiffIncompleteReason.FILE_COUNT_LIMIT,
-            message=(
-                f"Selected file count {len(selected)} exceeds admission limit {max_files_allowed}"
-            ),
+            message=(f"Selected file count {len(selected)} exceeds admission limit {max_files_allowed}"),
             observed=len(selected),
             limit=max_files_allowed,
         )

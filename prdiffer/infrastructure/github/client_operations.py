@@ -100,14 +100,12 @@ class GitHubAPIClientOperationsMixin:
             evicted_key, _ = self._file_content_cache.popitem(last=False)
             self._cache_evictions_size += 1
             self._cache_evictions += 1
-            self._logger.debug(
-                f"Cache eviction (LRU): {evicted_key[1][:50]}... [size={len(self._file_content_cache)}/{self._cache_max_size}]"
-            )
+            self._logger.debug(f"Cache eviction (LRU): {evicted_key[1][:50]}... [size={len(self._file_content_cache)}/{self._cache_max_size}]")
 
     def _normalize_cache_key(self, cache_key: tuple[str, ...] | FileContentCacheKey) -> FileContentCacheKey:
         """Accept legacy (path, ref) or full (repo, path, ref) keys."""
         if len(cache_key) == 3:
-            return cast(FileContentCacheKey, cache_key)
+            return cache_key
         if len(cache_key) == 2:
             path, ref = cache_key
             return ("", path, ref)
@@ -209,9 +207,7 @@ class GitHubAPIClientOperationsMixin:
             )
 
             if isinstance(content, list):
-                self._logger.warning(
-                    f"Expected single file but got directory for path '{file_path}' in branch '{branch}'. Found {len(content)} items."
-                )
+                self._logger.warning(f"Expected single file but got directory for path '{file_path}' in branch '{branch}'. Found {len(content)} items.")
                 return self._unavailable(FileContentUnavailableReason.DIRECTORY, file_path, branch)
 
             result = self._extract_file_content_result(content, file_path, branch)
@@ -314,9 +310,7 @@ class GitHubAPIClientOperationsMixin:
             content = await get_contents_async()
 
             if isinstance(content, list):
-                self._logger.warning(
-                    f"Expected single file but got directory for path '{file_path}' in branch '{branch}'. Found {len(content)} items."
-                )
+                self._logger.warning(f"Expected single file but got directory for path '{file_path}' in branch '{branch}'. Found {len(content)} items.")
                 return self._unavailable(FileContentUnavailableReason.DIRECTORY, file_path, branch)
 
             result = self._extract_file_content_result(content, file_path, branch)
@@ -369,9 +363,7 @@ class GitHubAPIClientOperationsMixin:
             results[str(outcome.key)] = outcome.value
 
         elapsed = time.time() - start_time
-        self._logger.debug(
-            f"Async parallel batch fetch: {len(files_to_fetch)} files in {elapsed:.2f}s ({elapsed / len(files_to_fetch) * 1000:.1f}ms/file avg)"
-        )
+        self._logger.debug(f"Async parallel batch fetch: {len(files_to_fetch)} files in {elapsed:.2f}s ({elapsed / len(files_to_fetch) * 1000:.1f}ms/file avg)")
 
         return results
 
@@ -408,9 +400,7 @@ class GitHubAPIClientOperationsMixin:
             )
 
         if size > self._max_file_size_bytes:
-            self._logger.warning(
-                f"File too large to load: {file_path} ({size} bytes > {self._max_file_size_bytes} bytes max)."
-            )
+            self._logger.warning(f"File too large to load: {file_path} ({size} bytes > {self._max_file_size_bytes} bytes max).")
             return self._unavailable(
                 FileContentUnavailableReason.FILE_SIZE_LIMIT,
                 file_path,

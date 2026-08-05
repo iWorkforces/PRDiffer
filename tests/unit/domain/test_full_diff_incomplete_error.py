@@ -42,11 +42,7 @@ class TestE5020ErrorCode:
     def test_unique_among_error_code_constants(self) -> None:
         import prdiffer.domain.error_codes as codes
 
-        all_codes = [
-            value.code
-            for name, value in vars(codes).items()
-            if name.startswith("E") and hasattr(value, "code")
-        ]
+        all_codes = [value.code for name, value in vars(codes).items() if name.startswith("E") and hasattr(value, "code")]
         assert all_codes.count("E5020") == 1
         assert len(all_codes) == len(set(all_codes))
 

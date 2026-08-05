@@ -745,6 +745,7 @@ class TestExecuteIndexedBatch:
         async def run() -> None:
             # Complete c, then a, then b — result order must still be a,b,c
             async with anyio.create_task_group() as tg:
+
                 async def starter():
                     await anyio.sleep(0.01)
                     release["c"].set()

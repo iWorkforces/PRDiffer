@@ -49,9 +49,6 @@ class FileDiffResponse:
         if self.previous_path is None:
             return
         if self.status != EDIT_TYPE.RENAMED:
-            raise ValueError(
-                "previous_path is only valid when status is RENAMED "
-                f"(got status={self.status!s}, previous_path={self.previous_path!r})"
-            )
+            raise ValueError(f"previous_path is only valid when status is RENAMED (got status={self.status!s}, previous_path={self.previous_path!r})")
         if self.previous_path == self.path:
             raise ValueError("previous_path must differ from path for renames")

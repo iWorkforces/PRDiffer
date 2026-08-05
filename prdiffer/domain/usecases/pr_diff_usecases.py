@@ -81,16 +81,12 @@ class GetPRDiffUseCase:
 
             if self._cache_hit_optimization_enabled:
                 cached_result, cached_commit_sha = await self._cache_service.get_optimistic(cache_key)
-                unwrapped = (
-                    unwrap_pr_diff_cache_value(cached_result, key=cache_key) if cached_result is not None else None
-                )
+                unwrapped = unwrap_pr_diff_cache_value(cached_result, key=cache_key) if cached_result is not None else None
                 if unwrapped is not None and cached_commit_sha and cached_commit_sha == snapshot.head_sha:
                     return unwrapped
 
             cached_result = await self._cache_service.get(cache_key, snapshot.head_sha)
-            unwrapped = (
-                unwrap_pr_diff_cache_value(cached_result, key=cache_key) if cached_result is not None else None
-            )
+            unwrapped = unwrap_pr_diff_cache_value(cached_result, key=cache_key) if cached_result is not None else None
             if unwrapped is not None:
                 return unwrapped
 

@@ -40,9 +40,7 @@ def _file(
 @pytest.fixture
 def processor() -> FileProcessor:
     api = MagicMock()
-    api.get_files_content_batch.side_effect = lambda repo, paths, ref: {
-        path: FileContentAvailable(text=f"{ref}:{path}\n") for path in paths
-    }
+    api.get_files_content_batch.side_effect = lambda repo, paths, ref: {path: FileContentAvailable(text=f"{ref}:{path}\n") for path in paths}
     return FileProcessor(
         github_api_service=api,
         pattern_matcher=AcceptAllMatcher(),
@@ -60,6 +58,7 @@ class TestOrderedAssembly:
             _file("new.py", "renamed", previous="old.py"),
             _file("add.py", "added"),
         ]
+
         # rename-only: same content both sides via controlled API
         def batch(repo, paths, ref):
             out = {}

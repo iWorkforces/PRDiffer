@@ -71,41 +71,54 @@ check_uv() {
     echo -e "${CYAN}Version: $(uv --version)${NC}"
 }
 
-# Function to check if ruff is installed
+# Function to check if ruff is installed (prefer project-local via uv)
 check_ruff() {
-    if ! command -v ruff &> /dev/null; then
-        echo -e "${YELLOW}📦 ruff not found, installing...${NC}"
-
-        # Use uv to install ruff if available, otherwise fall back to pip
-        if command -v uv &> /dev/null; then
-            echo -e "${CYAN}Installing ruff via uv...${NC}"
-            uv pip install ruff
-        elif [[ "$VIRTUAL_ENV" != "" ]]; then
-            echo -e "${GREEN}✅ Using active virtual environment${NC}"
-            pip install ruff
-        elif [ -d "$VENV_DIR" ]; then
-            echo -e "${YELLOW}🔧 Activating virtual environment...${NC}"
-            source "$VENV_DIR/bin/activate"
-            pip install ruff
-        else
-            echo -e "${YELLOW}🔧 Installing ruff globally...${NC}"
-            pip install --user ruff
-        fi
-
-        # Verify installation
-        if ! command -v ruff &> /dev/null; then
-            echo -e "${RED}❌ Failed to install ruff${NC}"
-            echo -e "${YELLOW}Please install ruff manually: pip install ruff${NC}"
-            exit 1
-        fi
-    fi
-
-    echo -e "${GREEN}✅ ruff is available${NC}"
-    if command -v uv &> /dev/null; then
+    # uv run finds project-local ruff even when it is not on PATH
+    if command -v uv &> /dev/null && uv run ruff --version &> /dev/null; then
+        echo -e "${GREEN}✅ ruff is available${NC}"
         echo -e "${CYAN}Version: $(uv run ruff --version)${NC}"
-    else
-        echo -e "${CYAN}Version: $(ruff --version)${NC}"
+        return 0
     fi
+
+    if command -v ruff &> /dev/null; then
+        echo -e "${GREEN}✅ ruff is available${NC}"
+        echo -e "${CYAN}Version: $(ruff --version)${NC}"
+        return 0
+    fi
+
+    echo -e "${YELLOW}📦 ruff not found, installing...${NC}"
+
+    # Prefer uv project/venv install so subsequent `uv run ruff` works
+    if command -v uv &> /dev/null; then
+        echo -e "${CYAN}Installing ruff via uv...${NC}"
+        uv pip install ruff
+    elif [[ "$VIRTUAL_ENV" != "" ]]; then
+        echo -e "${GREEN}✅ Using active virtual environment${NC}"
+        pip install ruff
+    elif [ -d "$VENV_DIR" ]; then
+        echo -e "${YELLOW}🔧 Activating virtual environment...${NC}"
+        source "$VENV_DIR/bin/activate"
+        pip install ruff
+    else
+        echo -e "${YELLOW}🔧 Installing ruff globally...${NC}"
+        pip install --user ruff
+    fi
+
+    # Verify via uv run first, then bare ruff on PATH
+    if command -v uv &> /dev/null && uv run ruff --version &> /dev/null; then
+        echo -e "${GREEN}✅ ruff is available${NC}"
+        echo -e "${CYAN}Version: $(uv run ruff --version)${NC}"
+        return 0
+    fi
+    if command -v ruff &> /dev/null; then
+        echo -e "${GREEN}✅ ruff is available${NC}"
+        echo -e "${CYAN}Version: $(ruff --version)${NC}"
+        return 0
+    fi
+
+    echo -e "${RED}❌ Failed to install ruff${NC}"
+    echo -e "${YELLOW}Please install ruff manually: uv add --dev ruff${NC}"
+    exit 1
 }
 
 # Function to upgrade ruff to latest version
@@ -374,10 +387,12 @@ install_ruff() {
     fi
 
     echo -e "${GREEN}✅ ruff installation completed${NC}"
-    if command -v uv &> /dev/null; then
+    if command -v uv &> /dev/null && uv run ruff --version &> /dev/null; then
         echo -e "${CYAN}Version: $(uv run ruff --version)${NC}"
-    else
+    elif command -v ruff &> /dev/null; then
         echo -e "${CYAN}Version: $(ruff --version)${NC}"
+    else
+        echo -e "${YELLOW}⚠️  ruff installed but not yet resolvable; try: uv run ruff --version${NC}"
     fi
 }
 

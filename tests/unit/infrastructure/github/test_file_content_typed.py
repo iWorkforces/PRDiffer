@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from types import SimpleNamespace
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -31,7 +31,14 @@ class TestTypedFileContent:
         content = SimpleNamespace(encoding="base64", size=0, decoded_content=b"", path="empty.txt")
         client._github_client.get_repo.return_value = repo
         repo.get_contents.return_value = content
-        client._retry_handler.execute_with_retry.side_effect = lambda fn, *a, **kw: fn(*a, **{k: v for k, v in kw.items() if k != "context"}) if callable(fn) else fn
+
+        def _retry_side_effect(fn, *a, **kw):
+            if not callable(fn):
+                return fn
+            filtered = {k: v for k, v in kw.items() if k != "context"}
+            return fn(*a, **filtered)
+
+        client._retry_handler.execute_with_retry.side_effect = _retry_side_effect
 
         # Simpler path: patch get_file_content internals via direct extract + cache
         result = client._extract_file_content_result(content, "empty.txt", "abc")
