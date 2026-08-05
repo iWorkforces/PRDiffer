@@ -113,6 +113,20 @@ class TestFileDiffResponseSerialization:
         assert data["status"] == EDIT_TYPE.MODIFIED
         assert data["stats"] == {"additions": 10, "deletions": 5}
         assert data["diff"] == "@@ -1,1 +1,1 @@\n-old\n+new"
+        assert data["previous_path"] is None
+
+    def test_asdict_includes_previous_path_for_rename(self):
+        response = FileDiffResponse(
+            path="src/new.ts",
+            status=EDIT_TYPE.RENAMED,
+            stats=FileStats(additions=1, deletions=1),
+            diff="rename from src/old.ts\nrename to src/new.ts\n",
+            previous_path="src/old.ts",
+        )
+        data = asdict(response)
+        assert data["previous_path"] == "src/old.ts"
+        assert data["path"] == "src/new.ts"
+        assert data["status"] == EDIT_TYPE.RENAMED
 
     def test_json_serialization(self):
         response = FileDiffResponse(
@@ -177,6 +191,53 @@ class TestFileDiffResponseSerialization:
         assert restored.stats.additions == original.stats.additions
         assert restored.stats.deletions == original.stats.deletions
         assert restored.diff == original.diff
+
+
+class TestFileDiffResponsePreviousPath:
+    """Rename metadata invariant tests."""
+
+    def test_default_previous_path_is_none(self):
+        response = FileDiffResponse(
+            path="a.py",
+            status=EDIT_TYPE.MODIFIED,
+            stats=FileStats(additions=1, deletions=0),
+            diff="+x",
+        )
+        assert response.previous_path is None
+
+    def test_rename_accepts_previous_path(self):
+        response = FileDiffResponse(
+            path="new.py",
+            status=EDIT_TYPE.RENAMED,
+            stats=FileStats(additions=0, deletions=0),
+            diff="",
+            previous_path="old.py",
+        )
+        assert response.previous_path == "old.py"
+
+    def test_non_rename_rejects_previous_path(self):
+        import pytest
+
+        with pytest.raises(ValueError, match="previous_path is only valid"):
+            FileDiffResponse(
+                path="a.py",
+                status=EDIT_TYPE.MODIFIED,
+                stats=FileStats(additions=1, deletions=0),
+                diff="+x",
+                previous_path="accidentally-set.py",
+            )
+
+    def test_rename_rejects_identical_previous_path(self):
+        import pytest
+
+        with pytest.raises(ValueError, match="must differ"):
+            FileDiffResponse(
+                path="same.py",
+                status=EDIT_TYPE.RENAMED,
+                stats=FileStats(additions=0, deletions=0),
+                diff="",
+                previous_path="same.py",
+            )
 
 
 class TestFileDiffResponseEdgeCases:

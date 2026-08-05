@@ -107,7 +107,13 @@ class TestGitLabVCSRepository:
             files=(
                 FileDiffResponse("src/added.py", EDIT_TYPE.ADDED, FileStats(additions=2, deletions=0), added_diff),
                 FileDiffResponse("src/current.py", EDIT_TYPE.MODIFIED, FileStats(additions=1, deletions=1), modified_diff),
-                FileDiffResponse("src/new.py", EDIT_TYPE.RENAMED, FileStats(additions=1, deletions=1), renamed_diff),
+                FileDiffResponse(
+                    "src/new.py",
+                    EDIT_TYPE.RENAMED,
+                    FileStats(additions=1, deletions=1),
+                    renamed_diff,
+                    "src/old.py",
+                ),
                 FileDiffResponse("src/deleted.py", EDIT_TYPE.DELETED, FileStats(additions=0, deletions=1), deleted_diff),
                 FileDiffResponse("src/collapsed.py", EDIT_TYPE.MODIFIED, FileStats(), ""),
                 FileDiffResponse("src/large.py", EDIT_TYPE.MODIFIED, FileStats(), ""),

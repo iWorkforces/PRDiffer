@@ -23,6 +23,7 @@ prdiffer/infrastructure/vcs_providers/
 - Map provider models → domain entities at the boundary.
 - Use shared retry/security utilities.
 - URL detection must not false-positive across hosts.
+- GitLab renames set `FileDiffResponse.previous_path` from `old_path` when distinct; no retrieval redesign.
 
 ## ANTI-PATTERNS
 - NO provider-specific types leaking to application tools.

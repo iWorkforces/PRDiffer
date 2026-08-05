@@ -17,13 +17,15 @@ prdiffer/domain/entities/          # 488 lines total
 | Task | Location | Notes |
 |------|----------|-------|
 | **Business methods** | `file_patch.py` | `calculate_review_priority`, `detect_code_smells`, `validate` |
-| **MCP file payload** | `file_diff_response.py` | path, status, stats, diff |
+| **MCP file payload** | `file_diff_response.py` | path, status, stats, diff, `previous_path` (renames only) |
 | **Aggregate response** | `pr_diff.py` | `files: tuple[FileDiffResponse, ...]` |
 
 ## CONVENTIONS
 - `@dataclass(frozen=True)` everywhere.
 - Rich logic stays on `FilePatchInfo`; response DTOs stay thin.
 - Map infrastructure patches → `FileDiffResponse` at the adapter boundary.
+- `FileDiffResponse.previous_path` is optional and valid **only** for `EDIT_TYPE.RENAMED` (domain invariant in `__post_init__`). Success responses remain complete by construction — no completeness boolean.
+- GitLab maps `old_path` → `previous_path` on renames only; otherwise `None`.
 
 ## ANTI-PATTERNS
 - NO I/O or framework types.

@@ -34,10 +34,24 @@ class FileDiffResponse:
     - edit_type → status
     - num_plus_lines → stats.additions
     - num_minus_lines → stats.deletions
-    - patch → diff
+    - patch → diff (generated full-context string on the public surface)
+    - old_filename → previous_path (renames only)
     """
 
     path: str
     status: EDIT_TYPE
     stats: FileStats
     diff: str
+    previous_path: str | None = None
+
+    def __post_init__(self) -> None:
+        """Enforce rename metadata invariant without a completeness flag."""
+        if self.previous_path is None:
+            return
+        if self.status != EDIT_TYPE.RENAMED:
+            raise ValueError(
+                "previous_path is only valid when status is RENAMED "
+                f"(got status={self.status!s}, previous_path={self.previous_path!r})"
+            )
+        if self.previous_path == self.path:
+            raise ValueError("previous_path must differ from path for renames")
