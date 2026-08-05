@@ -20,7 +20,7 @@ prdiffer/infrastructure/github/
 |------|----------|-------|
 | **API calls** | `client.py`, `client_operations.py` | Retry/CB integration points |
 | **File handling** | `file_processor.py` | Filters, limits, parallel fetch |
-| **Diff build** | `diff_generator.py` | Patch assembly |
+| **Diff build** | `diff_generator.py` | `generate_ordered_file_diffs` → `GeneratedFileDiff` (full-context, ordered) |
 | **Bandwidth** | `etag_adapter.py` | ETag / 304 |
 | **Domain map** | `mappers.py` | To FilePatchInfo / responses |
 | **Inventory admission** | `inventory.py` | Authoritative `changed_files` vs enumeration; selected N+1 → E5020 |
