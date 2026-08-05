@@ -1,78 +1,66 @@
 # AGENTS.md - Domain Layer
 
-Pure business logic. No external deps, no I/O, defines interfaces only.
+Pure business logic. No external deps, no I/O. Defines entities, interfaces, use cases, and factory contracts only.
+
+## OVERVIEW
+37 Python files (~3.4K lines). Frozen dataclasses for entities; ABC/Protocol for ports.
 
 ## STRUCTURE
 ```
 prdiffer/domain/
-├── entities/       # Core business objects (FilePatchInfo, PRDiff)
-├── services/       # Service interfaces (abstract only)
-├── usecases/       # Business logic orchestration
-├── repositories/    # Data access contracts
-├── interfaces/     # Protocol definitions (VCSDiffRepositoryInterface)
-├── config/         # Configuration interfaces
-├── factories/      # Factory patterns for dependency inversion
+├── entities/                 # PRDiff, FilePatchInfo, FileDiffResponse, PullRequest, Repository
+├── services/                 # Service interfaces (ABC only; 9 ports)
+├── usecases/                 # GetPRDiff, DescribePR, ApprovePR use cases
+├── repositories/             # PRDiffRepositoryInterface
+├── interfaces/               # VCS, input validation, coalescing, app Protocols
+├── config/                   # GitHubConfig + interface
+├── factories/                # ApplicationFactoryInterface, InfrastructureFactoryInterface
+├── error_codes.py            # E1xxx–E5xxx constants
+├── errors.py                 # ErrorCode, categories, MCPError helpers
+├── exceptions.py             # PRDifferException hierarchy (455 lines)
 └── vcs_provider_registry.py  # Multi-provider registry
 ```
 
 ## WHERE TO LOOK
 | Task | Location | Notes |
 |------|----------|-------|
-| **Rich domain model** | `entities/file_patch.py` | 413 lines, business methods |
-| **Service interfaces** | `services/*.py` | ABC with @abstractmethod |
-| **VCS provider contract** | `interfaces/vcs_provider.py` | VCSDiffRepositoryInterface |
-| **Provider registry** | `vcs_provider_registry.py` | Auto-detect from URL |
-| **Exception hierarchy** | `exceptions.py`, `errors.py` | PRDifferException base |
-| **Factory contracts** | `factories/infrastructure_factory.py` | Dependency inversion |
+| **Rich domain model** | `entities/file_patch.py` | 329 lines; priority, smells, validate, stats |
+| **MCP response shape** | `entities/file_diff_response.py`, `entities/pr_diff.py` | Frozen dataclasses (no Pydantic) |
+| **Service interfaces** | `services/*.py` | ABC + `@abstractmethod` |
+| **VCS provider contract** | `interfaces/vcs_provider.py` | `VCSDiffRepositoryInterface` |
+| **App component Protocols** | `interfaces/protocols.py` | RateLimiter, Auth, Metrics, … |
+| **Provider registry** | `vcs_provider_registry.py` | `supports_repository()` auto-detect |
+| **Error codes** | `error_codes.py` + `errors.py` | Structured E-codes |
+| **Factory contracts** | `factories/` | Dependency inversion for outer layers |
 
 ## CONVENTIONS
 
-### Interface-Implementation Separation
-- Domain defines interfaces only (ABC/Protocol)
-- Infrastructure implements in outer layer
-- **NO imports from infrastructure/application** → Domain must remain pure
-- Strict enforcement via `scripts/analyze_dependencies.py`
+### Purity
+- **NO imports from infrastructure/application**.
+- No network, filesystem, Dynaconf, PyGithub, or logging backends.
+- Enforce with `python3 scripts/analyze_dependencies.py --path prdiffer`.
 
-### Rich vs Anemic Entities
-- **Rich entity:** FilePatchInfo (350+ lines, 14 methods, 9 properties)
-  - Encapsulates business logic: `validate()`, `detect_code_smells()`, `calculate_review_priority()`
-  - Preferred for complex domain logic
-- **Anemic entity:** PRDiff (data container only)
-  - Simple data holder with no behavior
-  - Use for DTOs and simple value objects
+### Entities
+- Prefer `@dataclass(frozen=True)`.
+- Use `tuple[T, ...]` for sequences (hashable).
+- **Rich**: `FilePatchInfo` encapsulates review priority, code smells, validation.
+- **Anemic/DTO**: `PRDiff`, `FileDiffResponse` hold structured response data.
 
-### Frozen Dataclasses
-- Always `@dataclass(frozen=True)` for immutability
-- Use `tuple[T, ...]` for sequences (hashability)
-- **Never use `list` in frozen dataclasses** → Not hashable
-- Example: `file_patches: tuple[FilePatchInfo, ...]`
+### Interfaces
+- Domain defines ports; infrastructure implements adapters.
+- Protocols for application components live in `interfaces/protocols.py` so factories can depend on domain contracts.
 
-### Factory Pattern
-- InfrastructureFactoryInterface for dependency inversion
-- Abstract factory methods for service creation
-- Return interfaces, not concrete types
-- Dual factory pattern: domain interfaces, infrastructure implements
-
-### VCS Provider Registry
-- Register providers implementing VCSDiffRepositoryInterface
-- Auto-select from URL via `supports_repository()`
-- Multi-provider: GitHub, GitLab, Bitbucket (extensible)
+### Error Model
+- Exception hierarchy in `exceptions.py` (auth, rate limit, validation, not found, …).
+- Parallel structured codes in `error_codes.py` / `errors.py` for MCP-facing responses.
 
 ## ANTI-PATTERNS
+- **NO outer-layer imports** in domain.
+- **NO I/O** in entities or use cases (inject ports, call from infrastructure/application).
+- **NO concrete infrastructure types** as domain dependencies.
+- **NO mutable dataclasses** for shared entities → `frozen=True`.
+- **NO `list` fields on frozen dataclasses** → use `tuple`.
+- **NO Pydantic in domain** → frozen dataclasses (current state: clean).
 
-- **NO external imports** → Domain must remain pure (14 violations currently exist)
-- **NO I/O operations** → File/network calls in infrastructure
-- **NO concrete implementations** → Only ABC/Protocol in domain
-- **NO PyGithub/requests** → Use interfaces, import in infrastructure
-- **NO anemic entities everywhere** → Rich models preferred for business logic
-- **NO mutable dataclasses** → Always frozen=True
-- **NO list in frozen dataclasses** → Use tuple for hashability
-- **NO Pydantic in domain** → Use frozen dataclasses instead (2 violations exist)
-
-## KNOWN VIOLATIONS
-
-**Pydantic Imports (Clean Architecture Violation):**
-- `entities/pr_diff.py` — imports `from pydantic import BaseModel, Field`
-- `entities/file_diff_response.py` — imports `from pydantic import BaseModel, Field`
-
-**Fix approach:** Convert Pydantic models to frozen dataclasses to maintain domain purity.
+## NOTES
+- Domain was previously documented as having Pydantic DTOs; `PRDiff` / `FileDiffResponse` are now frozen dataclasses.

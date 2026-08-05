@@ -1,63 +1,28 @@
-# AGENTS.md - Domain/Usecases
+# AGENTS.md - Domain/Use Cases
 
-Use cases orchestrating domain logic.
+Thin business orchestration over injected ports (~196 lines).
 
-## Guidelines
-
-- Single responsibility per use case
-- No I/O operations directly (use services via DI)
-- Return domain entities or value objects
-- Error handling via exceptions
-- **Inject services via constructor** (DI pattern)
-- **Orchestrate, don't implement** → Call services, don't do I/O
-
-## Common Patterns
-
-### Use Case with DI
-```python
-from typing import Optional
-from prdiffer.domain.entities import PRDiff
-from prdiffer.domain.services import GitHubAPIServiceInterface, CacheServiceInterface
-
-class GetPRDiffUseCase:
-    '''Use case orchestrates services via dependency injection'''
-    
-    def __init__(
-        self,
-        github_service: GitHubAPIServiceInterface,
-        cache_service: CacheServiceInterface,
-    ):
-        self._github_service = github_service
-        self._cache_service = cache_service
-    
-    def execute(self, pr_url: str) -> Optional[PRDiff]:
-        # 1. Parse URL
-        # 2. Check cache
-        # 3. Fetch from GitHub if needed
-        # 4. Update cache
-        # 5. Return result
-        pass
+## STRUCTURE
+```
+prdiffer/domain/usecases/
+├── pr_diff_usecases.py          # GetPRDiffUseCase (71)
+├── pr_description_usecases.py   # Describe PR (62)
+├── pr_approval_usecases.py      # Approve PR (62)
+└── __init__.py
 ```
 
-### Use Case with Error Handling
-```python
-from prdiffer.domain.exceptions import PRDifferException
+## WHERE TO LOOK
+| Task | Location | Notes |
+|------|----------|-------|
+| **Fetch structured diff** | `pr_diff_usecases.py` | Coordinates repository/service ports |
+| **Update description** | `pr_description_usecases.py` | |
+| **Approve PR** | `pr_approval_usecases.py` | |
 
-class GetPRDiffUseCase:
-    def execute(self, pr_url: str) -> PRDiff:
-        try:
-            return self._github_service.get_pr_diff(pr_url)
-        except Exception as e:
-            raise PRDifferException(f'Failed to get PR diff: {e}')
-```
+## CONVENTIONS
+- Constructor-inject interfaces only.
+- No framework, auth, or HTTP concerns (those live in application tools).
+- Keep use cases short; push provider details to infrastructure.
 
-## Anti-Patterns
-
-- ❌ Direct I/O operations (use services)
-- ❌ Multiple responsibilities (single use case per class)
-- ❌ Business logic in use case (belongs in entities/services)
-- ❌ Missing dependency injection (pass services via constructor)
-
-## Files
-
-- `pr_diff_usecases.py`: PR diff related use cases
+## ANTI-PATTERNS
+- NO direct VCS SDK usage.
+- NO caching/retry implementation details.

@@ -1,61 +1,25 @@
 # AGENTS.md - Domain/Factories
 
-Factory patterns for creating domain objects.
+Abstract factory contracts for dependency inversion (134 lines).
 
-## Guidelines
-
-- Use factory functions or Factory classes
-- Keep factories simple - just object creation
-- Validate inputs before construction
-- Return type hints required
-- **Dual factory pattern:** Domain defines interface, infrastructure implements
-- **Dependency inversion:** Factories return interfaces, not concrete types
-
-## Common Patterns
-
-### Factory Function
-```python
-from typing import Optional
-
-def create_pr_diff(diff_content: str) -> PRDiff:
-    if not diff_content:
-        raise ValueError('Diff content cannot be empty')
-    return PRDiff(diff_content=diff_content)
+## STRUCTURE
+```
+prdiffer/domain/factories/
+├── application_factory.py      # ApplicationFactoryInterface (68)
+├── infrastructure_factory.py   # InfrastructureFactoryInterface (65)
+└── __init__.py
 ```
 
-### Factory Class
-```python
-class PRDiffFactory:
-    @staticmethod
-    def from_files(files: tuple[FilePatchInfo, ...]) -> PRDiff:
-        combined_content = '\n'.join(f.patch for f in files)
-        return PRDiff(diff_content=combined_content)
-```
+## WHERE TO LOOK
+| Task | Location | Notes |
+|------|----------|-------|
+| **App component factory port** | `application_factory.py` | Rate limiter, metrics, auth, health, … |
+| **Infra service factory port** | `infrastructure_factory.py` | Cache, GitHub API, retry, validator, … |
 
-### Infrastructure Factory Interface (Dependency Inversion)
-```python
-from abc import ABC, abstractmethod
+## CONVENTIONS
+- Methods return interfaces/Protocols, not concrete classes.
+- Implementations live in `application/factories/` and `infrastructure/factories/`.
 
-class InfrastructureFactoryInterface(ABC):
-    '''Domain defines interface, infrastructure implements'''
-    
-    @abstractmethod
-    def create_github_service(self) -> GitHubAPIServiceInterface:
-        '''Return interface, not concrete type'''
-        pass
-    
-    @abstractmethod
-    def create_cache_service(self) -> CacheServiceInterface:
-        pass
-```
-
-## Anti-Patterns
-
-- ❌ Complex logic in factories (keep simple)
-- ❌ Returning concrete types from factory interfaces
-- ❌ Missing input validation
-- ❌ Factory methods with side effects
-
-## Files
-
-- `infrastructure_factory.py`: Factory interface for infrastructure dependencies
+## ANTI-PATTERNS
+- NO concrete infrastructure imports in domain factories.
+- NO service construction with side effects here.
