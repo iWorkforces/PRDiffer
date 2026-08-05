@@ -36,6 +36,9 @@ from prdiffer.infrastructure.services.pr_diff_service import GitHubPRDiffService
 class InfrastructureFactory(InfrastructureFactoryInterface):
     """Concrete implementation of infrastructure factory."""
 
+    def __init__(self) -> None:
+        self._gitlab_runtime = None
+
     def create_settings_service(self) -> SettingsServiceInterface:
         """Create settings service instance."""
         return get_settings_service()
@@ -181,6 +184,49 @@ class InfrastructureFactory(InfrastructureFactoryInterface):
         from prdiffer.infrastructure.security.input_validator import InputValidator
 
         return InputValidator()
+
+    def create_gitlab_runtime(self, private_token: str | None = None):
+        """Create shared GitLab runtime (process-shared limiter)."""
+        from prdiffer.infrastructure.vcs_providers.gitlab_runtime import GitLabRuntime
+
+        config = get_settings_service().get_gitlab_config()
+        if not hasattr(self, "_gitlab_runtime") or self._gitlab_runtime is None:
+            self._gitlab_runtime = GitLabRuntime(config, private_token=private_token)
+        return self._gitlab_runtime
+
+    def create_gitlab_session_reader(self, private_token: str | None = None):
+        """Assemble the session-capable GitLab strict full-diff reader."""
+        from prdiffer.infrastructure.github.diff_generator import DiffGenerator
+        from prdiffer.infrastructure.utils.diff_utils import DiffUtils
+        from prdiffer.infrastructure.vcs_providers.gitlab_content import GitLabContentFetcher
+        from prdiffer.infrastructure.vcs_providers.gitlab_diff_generator import GitLabDiffAssembler
+        from prdiffer.infrastructure.vcs_providers.gitlab_diff_session import GitLabSessionPRDiffReader
+        from prdiffer.infrastructure.vcs_providers.gitlab_operations import GitLabOperations
+        from prdiffer.infrastructure.vcs_providers.gitlab_repository import GitLabVCSRepository
+
+        config = get_settings_service().get_gitlab_config()
+        runtime = self.create_gitlab_runtime(private_token=private_token)
+        operations = GitLabOperations(private_token)
+        content = GitLabContentFetcher(runtime, config, parallel_enabled=True)
+        assembler = GitLabDiffAssembler(
+            DiffGenerator(diff_utils=DiffUtils(), parallel_enabled=config.max_concurrent > 1),
+            config,
+        )
+        session_reader = GitLabSessionPRDiffReader(
+            operations=operations,
+            runtime=runtime,
+            content_fetcher=content,
+            assembler=assembler,
+            config=config,
+            request_timeout_seconds=config.pr_diff_request_timeout_seconds,
+        )
+        return GitLabVCSRepository(
+            private_token,
+            config=config,
+            runtime=runtime,
+            operations=operations,
+            session_reader=session_reader,
+        )
 
 
 def get_infrastructure_factory() -> InfrastructureFactoryInterface:
