@@ -8,7 +8,8 @@ GitHub and GitLab adapters implementing domain VCS/repository ports.
 prdiffer/infrastructure/vcs_providers/
 ├── github_repository.py    # GitHubVCSRepository + factory
 ├── gitlab_repository.py    # GitLabVCSRepository
-├── gitlab_operations.py    # GitLab API operations / pagination
+├── gitlab_models.py        # Diff refs / version / snapshot / record models
+├── gitlab_operations.py    # Immutable MR version selection + snapshot
 ├── gitlab_runtime.py       # Bounded SDK runner + status mapper
 └── __init__.py
 ```
@@ -19,8 +20,9 @@ prdiffer/infrastructure/vcs_providers/
 | **GitHub adapter** | `github_repository.py` | Wraps `infrastructure/github_repository.GitHubPRDiffRepository` |
 | **Primary GitHub PR repo** | `../github_repository.py` | Main implementation (sibling module, not this package) |
 | **GitLab adapter** | `gitlab_repository.py` | anyio `to_thread` for blocking python-gitlab |
+| **GitLab models** | `gitlab_models.py` | `GitLabDiffSnapshot`, `GitLabDiffRecord`, version/refs |
 | **GitLab runtime** | `gitlab_runtime.py` | Shared CapacityLimiter, op-scoped clients, E2006/E2007/E3006/E5021 mapping |
-| **GitLab ops** | `gitlab_operations.py` | Pagination, unidiff records, MR fetch |
+| **GitLab ops** | `gitlab_operations.py` | Pin exact MR diff version matching `diff_refs` |
 | **Register provider** | `domain/vcs_provider_registry.py` | `supports_repository(url)` auto-detect |
 
 ## CONVENTIONS

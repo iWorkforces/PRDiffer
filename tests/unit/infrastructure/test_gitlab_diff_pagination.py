@@ -8,7 +8,6 @@ from __future__ import annotations
 import pytest
 
 from prdiffer.domain.exceptions import FullDiffIncompleteError, FullDiffIncompleteReason
-import prdiffer.infrastructure.vcs_providers.gitlab_operations as gitlab_operations
 from prdiffer.infrastructure.vcs_providers.gitlab_operations import GitLabOperations
 from tests.unit.infrastructure.test_gitlab_operations import (
     FakeGitLab,
