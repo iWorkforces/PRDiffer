@@ -130,7 +130,7 @@ class GitLabVCSRepository(VCSDiffRepositoryInterface):
 
         Merge request URLs accept nested namespaces (group/subgroup/project).
         """
-        if not isinstance(url, str) or not url:
+        if not url:
             return False
         from prdiffer.infrastructure.utils.url_parser import parse_gitlab_merge_request_url
         from prdiffer.domain.exceptions import InvalidPRNumberError, InvalidURLError

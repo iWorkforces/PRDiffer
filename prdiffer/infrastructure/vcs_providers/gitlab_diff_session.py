@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import time
 
+import gitlab
+
 from prdiffer.domain.config.gitlab_config import GitLabConfig
 from prdiffer.domain.entities.pr_diff import PRDiff
 from prdiffer.domain.entities.pr_diff_cache import (
@@ -171,7 +173,7 @@ class GitLabSessionPRDiffReader:
         project_path = f"{repo_owner}/{repo_name}"
         operations = self._operations
 
-        def select(client: object) -> GitLabDiffSnapshot:
+        def select(client: gitlab.Gitlab) -> GitLabDiffSnapshot:
             return operations.select_with_client(client, project_path, pr_number)
 
         snapshot = await self._runtime.run_blocking(

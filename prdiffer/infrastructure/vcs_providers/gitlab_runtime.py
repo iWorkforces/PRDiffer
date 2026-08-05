@@ -201,7 +201,7 @@ class GitLabRuntime:
         *,
         base_url: str = GITLAB_COM_URL,
         limiter: anyio.CapacityLimiter | None = None,
-        client_factory: Callable[..., object] | None = None,
+        client_factory: Callable[..., gitlab.Gitlab] | None = None,
     ) -> None:
         self._config = config
         self._private_token = private_token
@@ -243,7 +243,7 @@ class GitLabRuntime:
         *,
         remaining: float,
         base_url: str | None = None,
-    ) -> object:
+    ) -> gitlab.Gitlab:
         """Build a fresh python-gitlab client for one operation."""
         if remaining <= 0:
             raise DomainTimeoutError(
@@ -293,7 +293,7 @@ class GitLabRuntime:
 
     async def run_blocking(
         self,
-        callback: Callable[[object], T],
+        callback: Callable[[gitlab.Gitlab], T],
         *,
         not_found: GitLabNotFoundContext | None = None,
         base_url: str | None = None,

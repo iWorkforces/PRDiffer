@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any
+from typing import TypeGuard
 
 
 @dataclass(frozen=True, slots=True)
@@ -16,7 +16,7 @@ class GitLabDiffRefs:
 
     @classmethod
     def from_mapping(cls, raw: object) -> GitLabDiffRefs:
-        if not isinstance(raw, dict):
+        if not _is_object_dict(raw):
             raise ValueError("diff_refs must be a mapping")
         base = raw.get("base_sha")
         start = raw.get("start_sha")
@@ -88,7 +88,7 @@ class GitLabDiffRecord:
 
     @classmethod
     def from_mapping(cls, raw: object) -> GitLabDiffRecord:
-        if not isinstance(raw, dict):
+        if not _is_object_dict(raw):
             raise ValueError("diff record must be a mapping")
         old_path = raw.get("old_path")
         new_path = raw.get("new_path")
@@ -124,17 +124,21 @@ class GitLabDiffSnapshot:
     records: tuple[GitLabDiffRecord, ...]
 
 
-def _attrs(raw: object) -> dict[str, Any]:
-    if isinstance(raw, dict):
+def _is_object_dict(value: object) -> TypeGuard[dict[object, object]]:
+    return isinstance(value, dict)
+
+
+def _attrs(raw: object) -> dict[str, object]:
+    if _is_object_dict(raw):
         return {str(k): v for k, v in raw.items()}
     # python-gitlab RESTObject attributes
     as_dict = getattr(raw, "asdict", None)
     if callable(as_dict):
         data = as_dict()
-        if isinstance(data, dict):
+        if _is_object_dict(data):
             return {str(k): v for k, v in data.items()}
     attributes = getattr(raw, "attributes", None)
-    if isinstance(attributes, dict):
+    if _is_object_dict(attributes):
         return {str(k): v for k, v in attributes.items()}
     # Fallback: public non-callable attributes
     return {k: getattr(raw, k) for k in dir(raw) if not k.startswith("_") and not callable(getattr(raw, k, None))}
