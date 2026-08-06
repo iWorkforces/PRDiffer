@@ -6,8 +6,9 @@ limits, and host allowlist. Independent of GitHubConfig (no extension filtering)
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, TypeGuard
 
 # Defaults match settings.toml / plan contracts.
 DEFAULT_GITLAB_TIMEOUT_SECONDS = 30
@@ -20,12 +21,12 @@ DEFAULT_MAX_CONCURRENT = 4
 DEFAULT_ALLOWED_HOSTS: tuple[str, ...] = ("gitlab.com",)
 
 
-def _require_positive(name: str, value: int | float) -> None:
+def _require_positive(name: str, value: object) -> None:
     if not isinstance(value, (int, float)) or isinstance(value, bool) or value <= 0:
         raise ValueError(f"{name} must be a positive number (got {value!r})")
 
 
-def _require_non_negative_int(name: str, value: int) -> None:
+def _require_non_negative_int(name: str, value: object) -> None:
     if not isinstance(value, int) or isinstance(value, bool) or value < 0:
         raise ValueError(f"{name} must be a non-negative integer (got {value!r})")
 
@@ -48,15 +49,22 @@ def _as_bool(raw: Any, default: bool) -> bool:
     return bool(raw)
 
 
-def _as_host_tuple(raw: Any, default: tuple[str, ...]) -> tuple[str, ...]:
+def _is_host_sequence(value: object) -> TypeGuard[list[object] | tuple[object, ...]]:
+    return isinstance(value, (list, tuple))
+
+
+def _normalized_hosts(values: Iterable[object], default: tuple[str, ...]) -> tuple[str, ...]:
+    parts = [str(value).strip().casefold() for value in values if str(value).strip()]
+    return tuple(parts) if parts else default
+
+
+def _as_host_tuple(raw: object, default: tuple[str, ...]) -> tuple[str, ...]:
     if raw is None:
         return default
     if isinstance(raw, str):
-        parts = [p.strip().casefold() for p in raw.split(",") if p.strip()]
-        return tuple(parts) if parts else default
-    if isinstance(raw, (list, tuple)):
-        parts = [str(p).strip().casefold() for p in raw if str(p).strip()]
-        return tuple(parts) if parts else default
+        return _normalized_hosts(raw.split(","), default)
+    if _is_host_sequence(raw):
+        return _normalized_hosts(raw, default)
     raise ValueError(f"allowed_hosts must be a list/tuple/str (got {type(raw)!r})")
 
 

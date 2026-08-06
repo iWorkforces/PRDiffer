@@ -10,7 +10,9 @@ import time
 from typing import Any
 
 import anyio
+import anyio.to_thread
 from github import Github
+from typing import Callable, ParamSpec, TypeVar
 from github.PullRequest import PullRequest as PyGithubPullRequest
 from github.Repository import Repository as PyGithubRepository
 
@@ -24,6 +26,10 @@ from prdiffer.domain.exceptions import PRDifferException, TimeoutError as Domain
 from prdiffer.domain.errors import E5004_TIMEOUT_ERROR, E5009_CONFIGURATION_ERROR
 from prdiffer.infrastructure.logging.console_logger import get_logger
 from prdiffer.infrastructure.services.pr_diff_service import GitHubPRDiffService
+
+
+_P = ParamSpec("_P")
+_T = TypeVar("_T")
 
 
 class GitHubPRDiffSession(PRDiffReadSessionInterface):
@@ -78,16 +84,14 @@ class GitHubPRDiffSession(PRDiffReadSessionInterface):
                 details={"limit": self._deadline_monotonic},
             )
 
-    async def _run_sync(self, func, *args):
+    async def _run_sync(self, func: Callable[_P, _T], *args: _P.args, **kwargs: _P.kwargs) -> _T:
         """Run blocking work on a worker thread with abandon_on_cancel=False."""
         self._ensure_budget()
 
-        def _call():
-            return func(*args)
+        def _call() -> _T:
+            return func(*args, **kwargs)
 
-        to_thread = anyio.to_thread
-        run_sync = getattr(to_thread, "run_sync")
-        return await run_sync(
+        return await anyio.to_thread.run_sync(
             _call,
             abandon_on_cancel=False,
             limiter=self._limiter,

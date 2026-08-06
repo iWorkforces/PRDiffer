@@ -6,7 +6,7 @@ ThreadPoolExecutor with anyio's structured concurrency primitives.
 
 import logging
 from collections.abc import Callable, Awaitable
-from typing import Any, TypeVar, cast
+from typing import Any, TypeVar
 
 import anyio
 from prdiffer.infrastructure.logging.console_logger import get_logger, ConsoleLogger
@@ -62,18 +62,15 @@ def _is_cancellation(exc: BaseException | None) -> bool:
     return name in {"CancelledError", "CancelledException"}
 
 
-def _first_root_failure(
-    outcomes: tuple[IndexedItemOutcome[K, R], ...] | tuple[IndexedItemOutcome[object, object], ...],
-) -> IndexedItemOutcome[object, object] | None:
+def _first_root_failure(outcomes: tuple[IndexedItemOutcome[K, R], ...]) -> IndexedItemOutcome[K, R] | None:
     """Prefer the first non-cancellation failure for identity reporting."""
-    non_cancel: list[IndexedItemOutcome[object, object]] = []
-    any_fail: list[IndexedItemOutcome[object, object]] = []
+    non_cancel: list[IndexedItemOutcome[K, R]] = []
+    any_fail: list[IndexedItemOutcome[K, R]] = []
     for outcome in outcomes:
-        boxed = cast(IndexedItemOutcome[object, object], outcome)
-        if boxed.error is not None:
-            any_fail.append(boxed)
-            if not _is_cancellation(boxed.error):
-                non_cancel.append(boxed)
+        if outcome.error is not None:
+            any_fail.append(outcome)
+            if not _is_cancellation(outcome.error):
+                non_cancel.append(outcome)
     if non_cancel:
         return non_cancel[0]
     if any_fail:
@@ -137,7 +134,7 @@ class AsyncParallelExecutor:
             return []
 
         results: list[R] = []
-        errors: list[tuple[T, Exception]] = []
+        errors: list[tuple[T, BaseException]] = []
         semaphore = anyio.Semaphore(self.max_concurrent)
 
         async def process_item(item: T) -> None:
@@ -149,7 +146,7 @@ class AsyncParallelExecutor:
                 except OPERATIONAL_EXCEPTIONS as e:
                     if self.error_strategy == ErrorStrategy.RAISE:
                         raise
-                    errors.append((item, cast(Exception, e)))
+                    errors.append((item, e))
                     self._logger.error(f"Error processing item {item}: {e}")
 
         try:
@@ -192,7 +189,7 @@ class AsyncParallelExecutor:
             return []
 
         results: list[R] = []
-        errors: list[tuple[T, Exception]] = []
+        errors: list[tuple[T, BaseException]] = []
         semaphore = anyio.Semaphore(self.max_concurrent)
 
         async def process_item(item: T) -> None:
@@ -204,7 +201,7 @@ class AsyncParallelExecutor:
                 except OPERATIONAL_EXCEPTIONS as e:
                     if self.error_strategy == ErrorStrategy.RAISE:
                         raise
-                    errors.append((item, cast(Exception, e)))
+                    errors.append((item, e))
                     self._logger.error(f"Error processing item {item}: {e}")
 
         try:
@@ -247,7 +244,7 @@ class AsyncParallelExecutor:
             return []
 
         results: list[R] = []
-        errors: list[tuple[Any, Exception]] = []
+        errors: list[tuple[Any, BaseException]] = []
         semaphore = anyio.Semaphore(self.max_concurrent)
 
         async def process_item(item: Any) -> None:
@@ -272,7 +269,7 @@ class AsyncParallelExecutor:
                 except OPERATIONAL_EXCEPTIONS as e:
                     if self.error_strategy == ErrorStrategy.RAISE:
                         raise
-                    errors.append((item, cast(Exception, e)))
+                    errors.append((item, e))
                     self._logger.error(f"Error processing item {item}: {e}")
 
         try:
@@ -315,7 +312,7 @@ class AsyncParallelExecutor:
             return []
 
         results: list[R] = []
-        errors: list[tuple[T, Exception]] = []
+        errors: list[tuple[T, BaseException]] = []
         completed = 0
         total = len(items)
         semaphore = anyio.Semaphore(self.max_concurrent)
@@ -331,7 +328,7 @@ class AsyncParallelExecutor:
                 except OPERATIONAL_EXCEPTIONS as e:
                     if self.error_strategy == ErrorStrategy.RAISE:
                         raise
-                    errors.append((item, cast(Exception, e)))
+                    errors.append((item, e))
                     self._logger.error(f"Error processing item {item}: {e}")
                 finally:
                     async with lock:
@@ -363,7 +360,7 @@ class AsyncParallelExecutor:
         self,
         func: Callable[[T], Awaitable[R]],
         items: list[T],
-    ) -> BatchResult[R]:
+    ) -> BatchResult[R, T]:
         """Execute an async function with detailed result tracking.
 
         This method always returns a BatchResult with both successful
@@ -377,9 +374,9 @@ class AsyncParallelExecutor:
             BatchResult containing successful results and failed items with errors
         """
         if not items:
-            return BatchResult()
+            return BatchResult[R, T]()
 
-        result = BatchResult[R]()
+        result = BatchResult[R, T]()
         semaphore = anyio.Semaphore(self.max_concurrent)
 
         async def process_item(item: T) -> None:
@@ -389,7 +386,7 @@ class AsyncParallelExecutor:
                     if r is not None:
                         result.successful.append(r)
                 except OPERATIONAL_EXCEPTIONS as e:
-                    result.failed.append((item, cast(Exception, e)))
+                    result.failed.append((item, e))
                     self._logger.error(f"Error processing item {item}: {e}")
 
         try:

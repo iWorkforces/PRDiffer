@@ -33,7 +33,7 @@ class InputValidationHelpersMixin:
     _detector: InjectionDetector
 
     @classmethod
-    def validate_token(cls, token: str) -> str:
+    def validate_token(cls, token: object) -> str:
         """Validate an authentication token format.
 
         Args:
@@ -67,7 +67,7 @@ class InputValidationHelpersMixin:
         return token
 
     @classmethod
-    def validate_user_id(cls, user_id: str) -> str:
+    def validate_user_id(cls, user_id: object) -> str:
         """Validate a user ID.
 
         Args:

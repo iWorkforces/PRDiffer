@@ -6,8 +6,8 @@ Provider inventory must be proven complete before selection.
 
 from __future__ import annotations
 
-from collections.abc import Iterable, Sequence
-from typing import Any, Protocol, cast
+from collections.abc import Callable, Iterable, Sequence
+from typing import Protocol, TypeVar
 
 from prdiffer.domain.exceptions import FullDiffIncompleteError, FullDiffIncompleteReason
 
@@ -16,10 +16,14 @@ MAX_AUTHORITATIVE_CHANGED_FILES = 3000
 
 
 class _NamedFile(Protocol):
-    filename: str
+    @property
+    def filename(self) -> str: ...
 
 
-def materialize_pr_files(files: Iterable[object]) -> list[object]:
+_NamedFileT = TypeVar("_NamedFileT", bound=_NamedFile)
+
+
+def materialize_pr_files(files: Iterable[_NamedFileT]) -> list[_NamedFileT]:
     """Fully enumerate provider file pages in source order."""
     return list(files)
 
@@ -61,24 +65,24 @@ def validate_authoritative_inventory(
 
 
 def select_files_with_admission(
-    files: Sequence[_NamedFile],
+    files: Sequence[_NamedFileT],
     *,
-    is_valid_file,
+    is_valid_file: Callable[[str], bool],
     max_files_allowed: int,
-) -> list[_NamedFile]:
+) -> list[_NamedFileT]:
     """Apply ignore/extension policy then enforce selected-file admission limit.
 
     Exactly N selected files succeeds; N+1 raises FILE_COUNT_LIMIT before content.
     """
-    if not isinstance(max_files_allowed, int) or isinstance(max_files_allowed, bool) or max_files_allowed <= 0:
+    if isinstance(max_files_allowed, bool) or max_files_allowed <= 0:
         raise FullDiffIncompleteError(
             FullDiffIncompleteReason.FILE_COUNT_LIMIT,
             message="max_files_allowed must be a positive integer",
             observed=0,
-            limit=max_files_allowed if isinstance(max_files_allowed, int) else 0,
+            limit=max_files_allowed,
         )
 
-    selected: list[_NamedFile] = [f for f in files if is_valid_file(f.filename)]
+    selected: list[_NamedFileT] = [f for f in files if is_valid_file(f.filename)]
     if len(selected) > max_files_allowed:
         raise FullDiffIncompleteError(
             FullDiffIncompleteReason.FILE_COUNT_LIMIT,
@@ -100,11 +104,11 @@ def resolve_authoritative_count(pull_request: object, enumerated_count: int) -> 
 def prepare_selected_inventory(
     *,
     authoritative_changed_files: int | None,
-    provider_files: Iterable[object],
-    is_valid_file,
-    max_files_allowed: int,
+    provider_files: Iterable[_NamedFileT],
+    is_valid_file: Callable[[str], bool],
+    max_files_allowed: object,
     pull_request: object | None = None,
-) -> list[Any]:
+) -> list[_NamedFileT]:
     """Materialize, validate inventory, then select with hard admission limit."""
     enumerated = materialize_pr_files(provider_files)
     if authoritative_changed_files is None and pull_request is not None:
@@ -119,7 +123,7 @@ def prepare_selected_inventory(
     )
     limit = max_files_allowed if isinstance(max_files_allowed, int) and not isinstance(max_files_allowed, bool) else 50
     selected = select_files_with_admission(
-        cast(Sequence[_NamedFile], enumerated),
+        enumerated,
         is_valid_file=is_valid_file,
         max_files_allowed=limit,
     )

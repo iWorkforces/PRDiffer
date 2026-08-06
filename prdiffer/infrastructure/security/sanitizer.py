@@ -81,7 +81,7 @@ class InputSanitizer:
         return sanitized
 
     @classmethod
-    def sanitize_for_logging(cls, value: str, max_length: int = 200) -> str:
+    def sanitize_for_logging(cls, value: object, max_length: int = 200) -> str:
         """Sanitize a value for safe logging.
 
         Args:
@@ -123,7 +123,7 @@ def sanitize_string(value: str, max_length: int = 1000) -> str:
     return InputSanitizer.sanitize_string(value, max_length)
 
 
-def sanitize_for_logging(value: str, max_length: int = 200) -> str:
+def sanitize_for_logging(value: object, max_length: int = 200) -> str:
     """Convenience function for logging sanitization.
 
     Args:

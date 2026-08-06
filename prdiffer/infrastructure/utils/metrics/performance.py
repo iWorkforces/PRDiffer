@@ -2,7 +2,7 @@
 
 import time
 import threading
-from typing import Any
+from typing import TypedDict
 from collections import defaultdict
 from dataclasses import dataclass
 
@@ -23,6 +23,28 @@ class MetricValue:
     @property
     def average(self) -> float:
         return self.total / self.count if self.count > 0 else 0.0
+
+
+class MetricSnapshot(TypedDict):
+    count: int
+    total: float
+    average: float
+    min: float
+    max: float
+
+
+class PerformanceSummary(TypedDict):
+    cache_hit_rate: float
+    cache_total_requests: int
+    feature_flag_adoption_rate: float
+
+
+class PerformanceMetricsSnapshot(TypedDict):
+    uptime_seconds: float
+    uptime_human: str
+    counters: dict[str, int]
+    metrics: dict[str, MetricSnapshot]
+    summary: PerformanceSummary
 
 
 class PerformanceMetrics:
@@ -49,7 +71,7 @@ class PerformanceMetrics:
         with self._lock:
             return self._counters.get(name, 0)
 
-    def get_metric(self, name: str) -> dict[str, Any]:
+    def get_metric(self, name: str) -> MetricSnapshot:
         with self._lock:
             metric = self._metrics.get(name)
             if metric is None or metric.count == 0:
@@ -68,7 +90,7 @@ class PerformanceMetrics:
                 "max": metric.max_val if metric.max_val != float("-inf") else 0.0,
             }
 
-    def get_all_metrics(self) -> dict[str, Any]:
+    def get_all_metrics(self) -> PerformanceMetricsSnapshot:
         with self._lock:
             uptime = time.time() - self._start_time
 
@@ -99,7 +121,7 @@ class PerformanceMetrics:
         minutes = int((seconds % 3600) // 60)
         secs = int(seconds % 60)
 
-        parts = []
+        parts: list[str] = []
         if hours > 0:
             parts.append(f"{hours}h")
         if minutes > 0:

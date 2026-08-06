@@ -4,11 +4,14 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Generic, TypeVar
+from typing import Generic, TypeVar
 
 T = TypeVar("T")
+F = TypeVar("F", default=T)
 K = TypeVar("K")
 R = TypeVar("R")
+K_co = TypeVar("K_co", covariant=True)
+R_co = TypeVar("R_co", covariant=True)
 
 
 class ErrorStrategy(str, Enum):
@@ -19,9 +22,9 @@ class ErrorStrategy(str, Enum):
 
 
 @dataclass
-class BatchResult(Generic[T]):
-    successful: list[T] = field(default_factory=list)
-    failed: list[tuple[Any, Exception]] = field(default_factory=list)
+class BatchResult(Generic[T, F]):
+    successful: list[T] = field(default_factory=list[T])
+    failed: list[tuple[F, BaseException]] = field(default_factory=list[tuple[F, BaseException]])
 
     @property
     def total(self) -> int:
@@ -45,17 +48,17 @@ class BatchResult(Generic[T]):
     def all_succeeded(self) -> bool:
         return len(self.failed) == 0
 
-    def get_errors(self) -> list[Exception]:
+    def get_errors(self) -> list[BaseException]:
         return [error for _, error in self.failed]
 
 
 @dataclass(frozen=True)
-class IndexedItemOutcome(Generic[K, R]):
+class IndexedItemOutcome(Generic[K_co, R_co]):
     """Immutable outcome for one submitted batch item, keyed by index/identity."""
 
     index: int
-    key: K
-    value: R | None = None
+    key: K_co
+    value: R_co | None = None
     error: BaseException | None = None
 
     @property
@@ -103,17 +106,17 @@ class IndexedBatchError(Exception):
         self,
         message: str,
         *,
-        outcomes: tuple[IndexedItemOutcome[Any, Any], ...],
+        outcomes: tuple[IndexedItemOutcome[object, object], ...],
         cause: BaseException | None = None,
     ) -> None:
         super().__init__(message)
-        self.outcomes: tuple[IndexedItemOutcome[Any, Any], ...] = outcomes
-        self.failed: tuple[IndexedItemOutcome[Any, Any], ...] = tuple(o for o in outcomes if not o.ok)
+        self.outcomes: tuple[IndexedItemOutcome[object, object], ...] = outcomes
+        self.failed: tuple[IndexedItemOutcome[object, object], ...] = tuple(o for o in outcomes if not o.ok)
         if cause is not None:
             self.__cause__ = cause
 
     @property
-    def first_failure(self) -> IndexedItemOutcome[Any, Any] | None:
+    def first_failure(self) -> IndexedItemOutcome[object, object] | None:
         """First non-cancellation failure when present; else first failure."""
         for outcome in self.failed:
             if outcome.error is not None and type(outcome.error).__name__ not in {

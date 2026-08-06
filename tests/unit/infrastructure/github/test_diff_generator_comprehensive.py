@@ -15,6 +15,7 @@ def mock_diff_utils():
     """Create mock diff utils."""
     mock = MagicMock()
     mock.extend_patch.return_value = "extended patch content"
+    mock.build_full_file_patch_chunked.return_value = "\n@@ -1 +1 @@\n-old\n+new"
     return mock
 
 
@@ -196,6 +197,37 @@ class TestGenerateExtendedDiff:
 
         assert len(result) == 1
         assert "Full file path:" in result[0]
+
+    def test_str_subclass_truncation_sentinel_is_rejected(self, mock_diff_utils):
+        class TruncationMarker(str):
+            pass
+
+        mock_diff_utils.build_full_file_patch_chunked.return_value = TruncationMarker("[DIFF TRUNCATED]")
+        generator = DiffGenerator(diff_utils=mock_diff_utils)
+
+        with pytest.raises(Exception) as exc_info:
+            generator._build_full_context_body("old", "new", provider_patch="")
+
+        assert exc_info.value.reason.value == "RESPONSE_SIZE_LIMIT"
+
+    def test_legacy_diff_service_builds_full_context_before_provider_patch(self):
+        from prdiffer.domain.services.diff import DiffServiceInterface
+
+        class LegacyDiffService(DiffServiceInterface):
+            def build_full_file_patch(self, original_file_str: str, new_file_str: str) -> str:
+                return f"full:{original_file_str}->{new_file_str}"
+
+            def decode_if_bytes(self, content: str | bytes | bytearray) -> str:
+                return content if isinstance(content, str) else content.decode()
+
+            def extend_patch(self, original_file_str: str, patch_str: str, new_file_str: str = "") -> str:
+                return patch_str
+
+        generator = DiffGenerator(diff_utils=LegacyDiffService())
+
+        result = generator._build_full_context_body("base", "head", provider_patch="raw provider hunk")
+
+        assert result == "full:base->head"
 
 
 class TestHunkParsing:

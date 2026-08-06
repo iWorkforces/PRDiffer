@@ -2,6 +2,7 @@
 
 import inspect
 import time
+from collections.abc import Mapping
 from typing import Any, Sequence, cast
 
 import anyio
@@ -12,7 +13,7 @@ from github.PullRequest import PullRequest as PyGithubPullRequest
 from github.Repository import Repository
 
 from prdiffer.domain.entities.file_patch import FilePatchInfo, EDIT_TYPE
-from prdiffer.domain.entities.file_content import FileContentAvailable, FileContentRequest, FileContentResult, FileContentUnavailable
+from prdiffer.domain.entities.file_content import FileContentAvailable, FileContentRequest, FileContentResult
 from prdiffer.domain.exceptions import FullDiffIncompleteError, FullDiffIncompleteReason
 from prdiffer.domain.services.github_api import GitHubAPIServiceInterface
 from prdiffer.domain.services.pattern_matching import PatternMatchingServiceInterface
@@ -119,7 +120,7 @@ class FileProcessor:
             return result
         if isinstance(result, FileContentAvailable):
             return result.text
-        unavailable = cast(FileContentUnavailable, result)
+        unavailable = result
         reason_map = {
             "BINARY_CONTENT": FullDiffIncompleteReason.BINARY_CONTENT,
             "FILE_SIZE_LIMIT": FullDiffIncompleteReason.FILE_SIZE_LIMIT,
@@ -133,7 +134,7 @@ class FileProcessor:
             observed=unavailable.observed_size,
         )
 
-    def _text_map(self, results: dict[str, Any], *, ref: str) -> dict[str, str]:
+    def _text_map(self, results: Mapping[str, FileContentResult | str | None], *, ref: str) -> dict[str, str]:
         """Convert typed batch results to path→text, raising on unavailable entries."""
         texts: dict[str, str] = {}
         for path, value in results.items():
@@ -147,18 +148,15 @@ class FileProcessor:
         base_paths: list[str],
         head_sha: str,
         base_sha: str,
-    ) -> tuple[dict[str, Any], dict[str, Any]]:
+    ) -> tuple[dict[str, FileContentResult], dict[str, FileContentResult]]:
         """Load head/base content batches; optionally concurrent when enabled."""
         if not head_paths and not base_paths:
             return {}, {}
 
-        def _fetch(paths: list[str], ref: str) -> dict[str, Any]:
+        def _fetch(paths: list[str], ref: str) -> dict[str, FileContentResult]:
             if not paths:
                 return {}
-            return cast(
-                dict[str, Any],
-                self._github_api_service.get_files_content_batch(repo_full_name, paths, ref),
-            )
+            return self._github_api_service.get_files_content_batch(repo_full_name, paths, ref)
 
         if self._parallel_head_base_fetch_enabled and head_paths and base_paths:
             requests: list[FileContentRequest] = []
@@ -293,7 +291,7 @@ class FileProcessor:
                 original = base_contents.get(file.filename, "")
                 new = ""
             elif edit_type is EDIT_TYPE.RENAMED:
-                base_key = rename_map.get(file.filename, file.filename)
+                base_key = rename_map.get(file.filename) or file.filename
                 original = base_contents.get(base_key, "")
                 new = head_contents.get(file.filename, "")
             else:  # MODIFIED

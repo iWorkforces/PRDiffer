@@ -205,7 +205,7 @@ class InputValidator(InputValidationHelpersMixin):
             raise InvalidRepositoryError("Repository name contains invalid characters", details={"repo": repo})
 
     @classmethod
-    def sanitize_string(cls, value: str, max_length: int = 1000) -> str:
+    def sanitize_string(cls, value: object, max_length: int = 1000) -> str:
         """Sanitize a string input.
 
         Args:
@@ -224,7 +224,7 @@ class InputValidator(InputValidationHelpersMixin):
         return InputSanitizer.sanitize_string(value, max_length)
 
     @classmethod
-    def validate_pr_number(cls, pr_number: int) -> int:
+    def validate_pr_number(cls, pr_number: object) -> int:
         """Validate a PR number.
 
         Args:
@@ -248,7 +248,7 @@ class InputValidator(InputValidationHelpersMixin):
         return pr_number
 
     @classmethod
-    def validate_file_path(cls, file_path: str) -> str:
+    def validate_file_path(cls, file_path: object) -> str:
         """Validate a file path for cache keys, storage, and other safe operations.
 
         This validation prevents:

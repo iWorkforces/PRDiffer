@@ -15,7 +15,7 @@ from github.PullRequest import PullRequest
 
 from prdiffer.infrastructure.security.input_validator import InputValidator
 from prdiffer.domain.services.logger import LoggerServiceInterface
-from prdiffer.infrastructure.github_repository_utils import _handle_github_exception
+from prdiffer.infrastructure.github_repository_utils import handle_github_exception
 
 
 class GitHubPROperationsMixin:
@@ -40,7 +40,7 @@ class GitHubPROperationsMixin:
     _initialize_github_objects: Callable[[], Coroutine[Any, Any, None]]
     _pull_request: PullRequest | None
 
-    async def approve_pr_with_comment(self, pr_url: str, compliment: str) -> str:
+    async def approve_pr_with_comment(self, pr_url: str, compliment: object) -> str:
         """Approve a GitHub PR with a compliment comment.
 
         This method:
@@ -115,7 +115,7 @@ class GitHubPROperationsMixin:
             return f"Successfully approved PR #{pr_number} in {repo_owner}/{repo_name}"
 
         except GithubException as e:
-            _handle_github_exception(
+            handle_github_exception(
                 e,
                 self._logger,
                 pr_number=pr_number,
@@ -126,7 +126,7 @@ class GitHubPROperationsMixin:
             # unreachable - _handle_github_exception always raises
             raise  # pragma: no cover
 
-    async def update_pr_description(self, pr_url: str, description: str) -> str:
+    async def update_pr_description(self, pr_url: str, description: object) -> str:
         """Update a GitHub PR description/body.
 
         This method:
@@ -197,7 +197,7 @@ class GitHubPROperationsMixin:
             return f"Successfully updated description for PR #{pr_number} in {repo_owner}/{repo_name}"
 
         except GithubException as e:
-            _handle_github_exception(
+            handle_github_exception(
                 e,
                 self._logger,
                 pr_number=pr_number,
