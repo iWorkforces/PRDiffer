@@ -501,7 +501,7 @@ class TestErrorMessageSanitization:
 
         invalid_url_exc = InvalidURLError("URL contains malicious pattern: $(whoami)")
         safe_message = server._tool_registry._create_safe_error_message(invalid_url_exc)
-        assert safe_message == "Invalid GitHub PR URL format"
+        assert safe_message == "Invalid PR or merge request URL"
         assert "whoami" not in safe_message
 
         suspicious_exc = SuspiciousOperationError("Detected SQL injection: DROP TABLE users")
