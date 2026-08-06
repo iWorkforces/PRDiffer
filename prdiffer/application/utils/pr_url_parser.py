@@ -25,7 +25,7 @@ class PRTarget:
 
 
 def parse_pr_url(
-    pr_url: str,
+    pr_url: object,
     input_validator: InputValidatorProtocol | None = None,
 ) -> tuple[str, str, int]:
     """Parse GitHub PR URL to extract repository owner, name, and PR number.
@@ -65,7 +65,7 @@ def parse_pr_url(
 
 
 def parse_pr_target(
-    pr_url: str,
+    pr_url: object,
     input_validator: InputValidatorProtocol | None = None,
 ) -> PRTarget:
     """Parse a supported PR or merge request URL into a provider-aware target."""

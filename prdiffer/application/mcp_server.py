@@ -1,5 +1,5 @@
 import os
-from typing import Literal, TypeAlias, Callable, Any, cast
+from typing import Literal, TypeAlias, Callable, Any
 
 from fastmcp import FastMCP
 from prdiffer.version import __version__
@@ -180,8 +180,7 @@ class FastMCPServer:
             self._logger.warning(f"Invalid transport '{transport_raw}', defaulting to 'stdio'")
             transport: TransportMode = "stdio"
         else:
-            # Cast needed for ty type checker (pyright can infer this but ty cannot)
-            transport = cast(TransportMode, transport_raw)
+            transport = transport_raw
 
         if transport == "stdio":
             self._logger.info("Running MCP server with stdio transport")

@@ -5,7 +5,7 @@ import hashlib
 import json
 from dataclasses import asdict
 from collections.abc import Callable
-from typing import NoReturn, assert_never
+from typing import NoReturn
 from prdiffer.domain.repositories.pr_diff_repository import PRDiffRepositoryInterface
 
 from fastmcp import FastMCP
@@ -24,7 +24,7 @@ from prdiffer.domain.interfaces.protocols import (
 from prdiffer.domain.interfaces.input_validation import InputValidatorProtocol
 from prdiffer.domain.interfaces.request_coalescing import RequestCoalescingProtocol
 from prdiffer.application.utils.pr_url_parser import parse_pr_target, parse_pr_url
-from prdiffer.application.pr_diff_executor import _CoalescedPRDiffExecutionMixin
+from prdiffer.application.pr_diff_executor import CoalescedPRDiffExecutionMixin
 
 from prdiffer.domain.exceptions import (
     InvalidURLError,
@@ -47,7 +47,7 @@ from prdiffer.domain.errors import (
 )
 
 
-class ToolRegistry(_CoalescedPRDiffExecutionMixin):
+class ToolRegistry(CoalescedPRDiffExecutionMixin):
     """Registry for FastMCP tools."""
 
     def __init__(
@@ -304,8 +304,6 @@ class ToolRegistry(_CoalescedPRDiffExecutionMixin):
                             cache_namespace="gitlab",
                             base_url=target.base_url,
                         )
-                    case unreachable:
-                        assert_never(unreachable)
 
                 return self._log_metrics_and_return_success(start_time, pr_diff)
 
@@ -313,7 +311,7 @@ class ToolRegistry(_CoalescedPRDiffExecutionMixin):
                 # Preserve machine-readable E5020 at the raw FastMCP boundary.
                 execution_time = time.time() - start_time
                 self._metrics_tracker.track_request("get_pr_diff", False, execution_time)
-                payload = {
+                payload: dict[str, object] = {
                     "error_code": str(E5020_FULL_DIFF_INCOMPLETE),
                     "message": e.message,
                     "details": e.details,
