@@ -104,6 +104,17 @@ class TestAuthenticationMiddlewareHashApiKey:
     """Test suite for _hash_api_key method."""
 
     @patch.dict(os.environ, {"MCP_AUTH_ENABLED": "false"})
+    def test_hash_api_key_uses_sha256(self):
+        # Given
+        auth = AuthenticationMiddleware()
+
+        # When
+        hashed_key = auth._hash_api_key("abc")
+
+        # Then
+        assert hashed_key == "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
+
+    @patch.dict(os.environ, {"MCP_AUTH_ENABLED": "false"})
     def test_hash_api_key_consistent(self):
         """Test hashing produces consistent results."""
         auth = AuthenticationMiddleware()
