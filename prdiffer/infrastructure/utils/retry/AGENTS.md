@@ -1,6 +1,6 @@
 # AGENTS.md - Retry Package
 
-**Package:** 0.6.0  
+**Package:** 0.6.2  
 Context-aware retry with models and factories (~600 lines).
 
 ## STRUCTURE

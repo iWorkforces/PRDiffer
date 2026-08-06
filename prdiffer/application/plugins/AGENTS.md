@@ -5,7 +5,7 @@
 ## CURRENT STATE
 - There is no plugin package, no plugin manager, and no `MCPToolPlugin` type in tree.
 - Production tools are registered with `@mcp.tool()` in `prdiffer/application/tool_registry.py`.
-- Tools exposed today: `get_pr_diff`, `approve_pr`, `describe_pr` (+ health tool registration on `FastMCPServer`).
+- Tools exposed today (all VCS tools accept GitHub PR + GitLab MR URLs): `get_pr_diff`, `approve_pr`, `describe_pr` (+ provider-agnostic `health` on `FastMCPServer`). See `skills/prdiffer/SKILL.md` for agent-facing contracts.
 
 ## HOW TO ADD A TOOL (CURRENT PATTERN)
 1. Implement handler logic (prefer domain use case + injected services/Protocols).

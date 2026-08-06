@@ -3,7 +3,7 @@
 FastMCP server orchestration, tool registration, and cross-cutting components.
 
 ## OVERVIEW
-**21** Python modules. Package **0.6.0**. Composition root wires tools, health, webhooks, and auth.
+**21** Python modules. Package **0.6.2**. Composition root wires tools, health, webhooks, and auth.
 
 ## STRUCTURE
 ```
@@ -14,12 +14,12 @@ prdiffer/application/
 ├── interfaces/           # Placeholder (__init__.py only)
 ├── plugins/              # Placeholder (AGENTS.md only; no Python)
 ├── services/             # Placeholder (AGENTS.md only; no Python)
-├── mcp_server.py         # FastMCPServer (~191)
-├── tool_registry.py      # ToolRegistry (~496) — get_pr_diff (E5020→ToolError JSON), approve_pr, describe_pr
+├── mcp_server.py         # FastMCPServer (~194)
+├── tool_registry.py      # ToolRegistry (~562) — get_pr_diff / approve_pr / describe_pr (GitHub+GitLab)
 ├── pr_diff_executor.py   # Coalesced PR diff execution (~84); host-aware coalesce key
-├── health_endpoints.py   # HealthEndpoints (~120)
+├── health_endpoints.py   # HealthEndpoints (~120) — health MCP tool
 ├── webhook_handler.py    # WebhookHandler (~171)
-└── factory.py            # create_mcp_server() composition root (~87)
+└── factory.py            # create_mcp_server() (~103); wires gitlab_reader + auto gitlab_pr_operations
 ```
 
 ## WHERE TO LOOK
@@ -36,8 +36,18 @@ prdiffer/application/
 
 ### FastMCP tools
 - Production tools live in **`ToolRegistry.register_tools()`** via `@mcp.tool()` — not under `plugins/`.
-- Tools: `get_pr_diff`, `approve_pr`, `describe_pr`.
-- Health is registered separately: `HealthEndpoints.get_health_handler()` → `mcp.tool()` on the server.
+- **Inventory** (all accept GitHub PR + GitLab MR URLs except `health`):
+  | Tool | Purpose | Provider-aware |
+  |------|---------|----------------|
+  | `get_pr_diff` | Strict full-context diff | Yes |
+  | `approve_pr` | Approve + non-empty compliment | Yes |
+  | `describe_pr` | Update description body | Yes |
+  | `health` | Health/metrics (via `HealthEndpoints`) | No |
+- Routing for VCS tools: `parse_pr_target` → GitHub repository class or injected `GitLabPROperationsProtocol` (`base_url` for custom hosts).
+- Composition: `create_mcp_server` may promote dual-role `gitlab_reader` to `gitlab_pr_operations` when ops are not passed explicitly (`_is_gitlab_pr_operations` TypeGuard).
+- Empty/whitespace-only compliment or description → `ValidationError` (E1001) after `.strip()` without provider calls.
+- Failure metrics/logs use the real tool name via `operation=` on security/validation/runtime handlers.
+- GitLab domain failures (E2006/E2007/E3006/E4001–E4003/E5021/E5004/E5019) bubble with original codes; unmapped `RuntimeError` (e.g. ops not configured) remaps to provider-neutral safe message + E5002.
 - Custom routes: `GET /metrics`, `POST /webhook`.
 - Async handlers; structured domain entities (`PRDiff`) as return types where applicable.
 
@@ -69,3 +79,4 @@ prdiffer/application/
 - NO blocking I/O in tool handlers.
 - NO returning partial PR diffs; incompleteness must surface as `E5020`.
 - NO using `parse_pr_url` for GitLab (use `parse_pr_target`).
+- NO hard-coding GitHub-only URL validation on `approve_pr` / `describe_pr` (provider dispatch required).

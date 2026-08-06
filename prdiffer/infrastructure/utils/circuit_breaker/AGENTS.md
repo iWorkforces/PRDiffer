@@ -1,6 +1,6 @@
 # AGENTS.md - Circuit Breaker Package (Shim)
 
-**Package:** 0.6.0  
+**Package:** 0.6.2  
 **Backward-compatibility shim.**
 
 ## CANONICAL MODULES

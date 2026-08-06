@@ -1,12 +1,12 @@
 # AGENTS.md - Infrastructure/Services
 
-**Package:** 0.6.0  
+**Package:** 0.6.2  
 Concrete service adapters implementing domain service ports.
 
 ## STRUCTURE
 ```
 prdiffer/infrastructure/services/
-└── pr_diff_service.py   # GitHubPRDiffService (527) — CachingMixin + PRDiffServiceInterface
+└── pr_diff_service.py   # GitHubPRDiffService (~533) — CachingMixin + PRDiffServiceInterface
 ```
 
 ## WHERE TO LOOK

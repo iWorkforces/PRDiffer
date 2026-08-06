@@ -1,6 +1,6 @@
 # AGENTS.md - Infrastructure/Interfaces
 
-**Package:** 0.6.0  
+**Package:** 0.6.2  
 **Status: empty reserved placeholder directory.**
 
 No Python modules live here today. Domain ports live under:

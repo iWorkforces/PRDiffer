@@ -1,20 +1,20 @@
 # AGENTS.md - VCS Providers
 
-**Package:** 0.6.0  
-GitHub and GitLab adapters implementing domain VCS/repository ports. GitLab owns the full strict full-diff pipeline.
+**Package:** 0.6.2  
+GitHub and GitLab adapters implementing domain VCS/repository ports. GitLab owns the full strict full-diff pipeline plus MCP approve/describe mutations.
 
 ## STRUCTURE
 ```
 prdiffer/infrastructure/vcs_providers/
 ├── github_repository.py     # GitHubVCSRepository + factory (~147)
-├── gitlab_repository.py     # GitLabVCSRepository session adapter (~149)
+├── gitlab_repository.py     # GitLabVCSRepository session + MR approve/describe (~185)
 ├── gitlab_models.py         # Diff refs / version / snapshot / record models (~167)
 ├── gitlab_inventory.py      # State/cardinality admission + edit classification (~198)
 ├── gitlab_content.py        # Ref-pinned typed raw content fetch (~281)
 ├── gitlab_diff_generator.py # Ordered full-context FileDiffResponse assembly (~149)
 ├── gitlab_diff_session.py   # Request-scoped session + SessionPRDiffReader (~224)
-├── gitlab_operations.py     # Immutable MR version selection (`select_with_client`) (~264)
-├── gitlab_runtime.py        # Bounded SDK runner + status mapper (~367)
+├── gitlab_operations.py     # Version pin + approve/describe SDK helpers (~355)
+├── gitlab_runtime.py        # Bounded SDK runner + status mapper (~386)
 └── __init__.py
 ```
 
@@ -23,11 +23,12 @@ prdiffer/infrastructure/vcs_providers/
 |------|----------|-------|
 | **GitHub adapter** | `github_repository.py` | Wraps `infrastructure/github_repository.GitHubPRDiffRepository` |
 | **Primary GitHub PR repo** | `../github_repository.py` | Main implementation (sibling module, not this package) |
-| **GitLab adapter** | `gitlab_repository.py` | Session-capable VCS contract over strict reader |
+| **GitLab adapter** | `gitlab_repository.py` | Session-capable VCS contract + async `approve_pr_with_comment` / `update_pr_description` |
 | **GitLab models** | `gitlab_models.py` | `GitLabDiffSnapshot`, `GitLabDiffRecord`, version/refs |
 | **GitLab inventory** | `gitlab_inventory.py` | Admit/classify; `a_mode`/`b_mode` `"0"`/`"000000"` = absent side on add/delete |
 | **GitLab runtime** | `gitlab_runtime.py` | Shared CapacityLimiter; per-call base_url/deadline; status map |
-| **GitLab ops** | `gitlab_operations.py` | Pin exact MR diff version matching `diff_refs` |
+| **GitLab ops (diff)** | `gitlab_operations.py` | Pin exact MR diff version matching `diff_refs` (`select_with_client`) |
+| **GitLab ops (MR tools)** | `gitlab_operations.py` | `approve_with_client` (**note then approve**), `update_description_with_client` |
 | **Session** | `gitlab_diff_session.py` | open → pin via `run_blocking` → build inventory/content/assemble → aclose |
 | **Register provider** | `domain/vcs_provider_registry.py` | `supports_repository(url)` auto-detect |
 
@@ -44,6 +45,10 @@ prdiffer/infrastructure/vcs_providers/
 - **Cache identity**: host from `cache_host_from_base_url` (port-aware for non-80/443).
 - **Equal-noop**: equal-content equal-mode modified → hard E5020 `DIFF_GENERATION_FAILED`.
 - Status map: 401→E2006, 403→E2007, 404→context (E4001/E4002/E4003), 429→E3006 (no local re-loop), 5xx→E5021, timeout→E5004, connection→E5019.
+- **Approve MCP path**: `notes.create({body})` **then** `merge_request.approve()` (note-first so a note failure cannot leave the MR approved while the tool errors); empty/whitespace body → ValidationError E1001 before SDK.
+- **Describe MCP path**: set `description` + `save()`; empty/whitespace → ValidationError E1001 before SDK.
+- Async repository methods always use `GitLabRuntime.run_blocking` (never block the event loop).
+- Dual role: `GitLabVCSRepository` is both `SessionPRDiffReader` and `GitLabPROperationsProtocol` (factory may promote reader → ops).
 
 ## ANTI-PATTERNS
 - NO provider-specific types leaking to application tools.

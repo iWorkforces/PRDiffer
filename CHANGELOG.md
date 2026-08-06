@@ -5,6 +5,19 @@ All notable changes to PRDifferMCP will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.2] - 2026-08-06
+
+### Added
+- GitLab support for MCP tools `approve_pr` and `describe_pr` (alongside existing `get_pr_diff`)
+- `GitLabPROperationsProtocol` and note-then-approve MR mutation path via `GitLabRuntime`
+- Agent skill dual-provider docs (`skills/prdiffer/SKILL.md`)
+- Unit coverage for GitLab MR ops, ToolRegistry provider dispatch, and factory ops auto-wire
+
+### Changed
+- `approve_pr` / `describe_pr` route via `parse_pr_target` (GitHub PR + GitLab MR URLs)
+- Tool failure metrics use the real tool name; empty/whitespace body rejected at the tool boundary
+- Package version synchronized in `pyproject.toml` and `prdiffer/version.py`
+
 ## [0.5.0] - 2026-01-30
 
 ### Added

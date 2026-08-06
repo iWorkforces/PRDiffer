@@ -1,13 +1,13 @@
 # AGENTS.md - Domain/Interfaces
 
-Cross-cutting ports and Protocols (~520 lines). Package 0.6.0.
+Cross-cutting ports and Protocols (~520 lines). Package 0.6.2.
 
 ## STRUCTURE
 ```
 prdiffer/domain/interfaces/
 ├── vcs_provider.py          # VCSDiffRepositoryInterface (~112)
 ├── pr_diff_reader.py        # SessionPRDiffReader, PRDiffSnapshot, cache_identity
-├── protocols.py             # Application component Protocols (~180)
+├── protocols.py             # Application component Protocols (~210)
 ├── input_validation.py      # InputValidatorProtocol (~121)
 ├── request_coalescing.py    # RequestCoalescingProtocol (~50)
 └── __init__.py
@@ -34,6 +34,7 @@ prdiffer/domain/interfaces/
 | `RateLimiterProtocol` | Protocol | `protocols.py` | Rate limit checks |
 | `MetricsTrackerProtocol` | Protocol | `protocols.py` | Request metrics |
 | `PROperationHandlerProtocol` | Protocol | `protocols.py` | High-level PR ops |
+| `GitLabPROperationsProtocol` | Protocol | `protocols.py` | GitLab MR approve + description for MCP tools |
 | `HealthMonitorProtocol` | Protocol | `protocols.py` | Health status |
 | `ServerConfigurationProtocol` | Protocol | `protocols.py` | Transport/server config |
 | `AuthenticationProtocol` | Protocol | `protocols.py` | Auth + client id extraction |

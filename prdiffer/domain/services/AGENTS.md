@@ -1,6 +1,6 @@
 # AGENTS.md - Domain/Services
 
-Service interfaces (ABC) only — 9 ports, ~566 lines. Package 0.6.0.
+Service interfaces (ABC) only — 9 ports, ~566 lines. Package 0.6.2.
 
 ## STRUCTURE
 ```
