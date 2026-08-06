@@ -19,7 +19,7 @@ DEFAULT_MAX_FILE_SIZE_BYTES = 10_485_760  # 10 MiB
 DEFAULT_MAX_TOTAL_CHARS = 600_000
 
 
-def _require_positive(name: str, value: int | float) -> None:
+def _require_positive(name: str, value: object) -> None:
     if not isinstance(value, (int, float)) or isinstance(value, bool) or value <= 0:
         raise ConfigurationError(f"{name} must be a positive number (got {value!r})")
 
