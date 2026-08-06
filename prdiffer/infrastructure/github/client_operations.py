@@ -9,7 +9,7 @@ from __future__ import annotations
 import time
 import asyncer
 from collections import OrderedDict
-from typing import Any, cast
+from typing import Any
 
 from github import Github
 from github.ContentFile import ContentFile
@@ -209,7 +209,8 @@ class GitHubAPIClientOperationsMixin:
             )
 
             if isinstance(content, list):
-                self._logger.warning(f"Expected single file but got directory for path '{file_path}' in branch '{branch}'. Found {len(content)} items.")
+                directory_count = content.__len__()
+                self._logger.warning(f"Expected single file but got directory for path '{file_path}' in branch '{branch}'. Found {directory_count} items.")
                 return self._unavailable(FileContentUnavailableReason.DIRECTORY, file_path, branch)
 
             result = self._extract_file_content_result(content, file_path, branch)
@@ -218,11 +219,12 @@ class GitHubAPIClientOperationsMixin:
             return result
 
         except GITHUB_API_EXCEPTIONS as e:
-            exc = cast(Exception, e)
-            if self._is_not_found(exc):
+            if self._is_not_found(e):
                 return self._unavailable(FileContentUnavailableReason.NOT_FOUND, file_path, branch)
+            if not isinstance(e, Exception):
+                raise
             # Operational failures (auth, rate limit, transport, retry exhaustion) propagate.
-            sanitized = sanitize_exception_for_logging(exc)
+            sanitized = sanitize_exception_for_logging(e)
             self._logger.warning(
                 f"Operational failure fetching file '{file_path}' in branch '{branch}'",
                 extra=sanitized,
@@ -311,7 +313,8 @@ class GitHubAPIClientOperationsMixin:
             content = await get_contents_async()
 
             if isinstance(content, list):
-                self._logger.warning(f"Expected single file but got directory for path '{file_path}' in branch '{branch}'. Found {len(content)} items.")
+                directory_count = content.__len__()
+                self._logger.warning(f"Expected single file but got directory for path '{file_path}' in branch '{branch}'. Found {directory_count} items.")
                 return self._unavailable(FileContentUnavailableReason.DIRECTORY, file_path, branch)
 
             result = self._extract_file_content_result(content, file_path, branch)
@@ -320,10 +323,11 @@ class GitHubAPIClientOperationsMixin:
             return result
 
         except GITHUB_API_EXCEPTIONS as e:
-            exc = cast(Exception, e)
-            if self._is_not_found(exc):
+            if self._is_not_found(e):
                 return self._unavailable(FileContentUnavailableReason.NOT_FOUND, file_path, branch)
-            sanitized = sanitize_exception_for_logging(exc)
+            if not isinstance(e, Exception):
+                raise
+            sanitized = sanitize_exception_for_logging(e)
             self._logger.warning(
                 f"Operational failure fetching file '{file_path}' in branch '{branch}'",
                 extra=sanitized,
