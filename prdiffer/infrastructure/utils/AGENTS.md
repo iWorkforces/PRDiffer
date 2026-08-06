@@ -1,13 +1,13 @@
 # AGENTS.md - Infrastructure/Utils
 
-**Package:** 0.6.0  
+**Package:** 0.6.2  
 Resilience, parallelism, parsing, and shared utilities (including subpackages).
 
 ## STRUCTURE
 ```
 prdiffer/infrastructure/utils/
 ├── retry/                      # Unified retry package (base, handler, models, factories)
-├── parallel/                   # AsyncParallelExecutor (~601 in executor.py; per-batch semaphore)
+├── parallel/                   # AsyncParallelExecutor (~598 in executor.py; per-batch semaphore)
 ├── coalescing/                 # Package path for coalescing
 ├── circuit_breaker/            # SHIM → circuit_breaker_core / registry
 ├── metrics/                    # Performance metrics package

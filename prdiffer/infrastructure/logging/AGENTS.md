@@ -1,6 +1,6 @@
 # AGENTS.md - Infrastructure/Logging
 
-**Package:** 0.6.0  
+**Package:** 0.6.2  
 Console logging and exception formatting for safe diagnostics (~431 lines).
 
 ## STRUCTURE

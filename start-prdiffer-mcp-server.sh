@@ -33,7 +33,8 @@ set -euo pipefail
 
 # Global variables
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ENV_FILE="$SCRIPT_DIR/.env"
+# Allow tests to point at an isolated env file (or empty path to skip loading).
+ENV_FILE="${ENV_FILE:-$SCRIPT_DIR/.env}"
 SERVER_PID=""
 VERBOSE=false
 TRANSPORT="${TRANSPORT:-http}"

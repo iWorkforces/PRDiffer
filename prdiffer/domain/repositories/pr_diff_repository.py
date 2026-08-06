@@ -69,48 +69,38 @@ class PRDiffRepositoryInterface(ABC):
 
     @abstractmethod
     async def approve_pr_with_comment(self, pr_url: str, compliment: str) -> str:
-        """Approve a GitHub PR with a compliment comment.
+        """Approve a PR with a compliment comment via the implementing provider.
 
-        This method:
+        Typical GitHub path:
         1. Parses PR URL to extract owner, repo, and PR number
         2. Validates PR exists and is accessible
-        3. Calls pr.create_review() with event="APPROVE" and compliment as body
-        4. Returns success message or raises exceptions loudly on failures
+        3. Creates an APPROVE review with the compliment as body
+        4. Returns a success message or raises on failure
 
         Args:
-            pr_url: The full GitHub PR URL (e.g., https://github.com/owner/repo/pull/123)
-            compliment: The compliment text to include in the approval review
+            pr_url: Full PR URL for the implementing provider
+            compliment: Non-empty compliment text included with the approval
 
         Returns:
             str: Success message indicating PR was approved
-
-        Raises:
-            InvalidURLError: If PR URL format is invalid
-            RuntimeError: If GitHub objects failed to initialize
-            GithubException: If PR approval fails (404, 403, rate limit, etc.)
         """
         pass
 
     @abstractmethod
     async def update_pr_description(self, pr_url: str, description: str) -> str:
-        """Update a GitHub PR description/body.
+        """Update a PR description/body via the implementing provider.
 
-        This method:
+        Typical GitHub path:
         1. Parses PR URL to extract owner, repo, and PR number
         2. Validates PR exists and is accessible
-        3. Calls pr.edit(body=description) to update the description
-        4. Returns success message or raises exceptions loudly on failures
+        3. Updates the PR body/description field
+        4. Returns a success message or raises on failure
 
         Args:
-            pr_url: The full GitHub PR URL (e.g., https://github.com/owner/repo/pull/123)
-            description: The new description text to set on the PR
+            pr_url: Full PR URL for the implementing provider
+            description: Non-empty description text to set on the PR
 
         Returns:
             str: Success message indicating PR description was updated
-
-        Raises:
-            InvalidURLError: If PR URL format is invalid
-            RuntimeError: If GitHub objects failed to initialize
-            GithubException: If PR update fails (404, 403, rate limit, etc.)
         """
         pass

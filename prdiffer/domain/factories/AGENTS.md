@@ -1,6 +1,6 @@
 # AGENTS.md - Domain/Factories
 
-Abstract factory contracts for dependency inversion (~133 lines). Package 0.6.0.
+Abstract factory contracts for dependency inversion (~133 lines). Package 0.6.2.
 
 ## STRUCTURE
 ```

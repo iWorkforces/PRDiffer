@@ -1,6 +1,6 @@
 # AGENTS.md - Domain/Entities
 
-Frozen (mostly) domain models for PR diffs, content results, cache entries, and repository metadata. Package 0.6.0.
+Frozen (mostly) domain models for PR diffs, content results, cache entries, and repository metadata. Package 0.6.2.
 
 ## STRUCTURE
 ```

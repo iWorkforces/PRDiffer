@@ -1,13 +1,13 @@
 # AGENTS.md - Domain/Config
 
-Configuration value objects and interfaces (no I/O). Package 0.6.0.
+Configuration value objects and interfaces (no I/O). Package 0.6.2.
 
 ## STRUCTURE
 ```
 prdiffer/domain/config/
 ├── github_config.py            # GitHubConfig frozen dataclass (~266)
 ├── github_config_interface.py  # GitHubConfigDict + GitHubConfigInterface Protocol (~108)
-├── gitlab_config.py            # GitLabConfig frozen slotted VO (strict full-diff)
+├── gitlab_config.py            # GitLabConfig frozen slotted VO (~129; limits + allowed_hosts)
 └── __init__.py
 ```
 

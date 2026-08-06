@@ -1,12 +1,12 @@
 # AGENTS.md - Parallel Execution
 
-**Package:** 0.6.0  
+**Package:** 0.6.2  
 anyio-based concurrent execution for bounded fan-out.
 
 ## STRUCTURE
 ```
 prdiffer/infrastructure/utils/parallel/
-├── executor.py     # AsyncParallelExecutor (~601)
+├── executor.py     # AsyncParallelExecutor (~598)
 ├── results.py      # BatchResult, IndexedItemOutcome, IndexedBatchError (~124)
 ├── semaphores.py   # SemaphoreManager / LockManager (~68)
 └── __init__.py

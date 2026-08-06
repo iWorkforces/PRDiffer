@@ -86,6 +86,36 @@ class PROperationHandlerProtocol(Protocol):
         ...
 
 
+class GitLabPROperationsProtocol(Protocol):
+    """Provider-side GitLab MR approve / description operations for MCP tools."""
+
+    async def approve_pr_with_comment(
+        self,
+        owner: str,
+        repo: str,
+        pr: int,
+        compliment: str,
+        /,
+        *,
+        base_url: str | None = None,
+    ) -> str:
+        """Approve an MR and attach a non-empty compliment note."""
+        ...
+
+    async def update_pr_description(
+        self,
+        owner: str,
+        repo: str,
+        pr: int,
+        description: str,
+        /,
+        *,
+        base_url: str | None = None,
+    ) -> str:
+        """Update an MR description with non-empty text."""
+        ...
+
+
 class HealthMonitorProtocol(Protocol):
     """Protocol for health monitoring and status checks."""
 

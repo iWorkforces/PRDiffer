@@ -2,18 +2,20 @@
 
 from __future__ import annotations
 
-from typing import TypeGuard
+from typing import Any, TypeGuard
 
 import gitlab
 import requests
 
 from prdiffer.domain.error_codes import (
+    E1001_INVALID_URL,
     E5019_CONNECTION_ERROR,
 )
 from prdiffer.domain.exceptions import (
     FullDiffIncompleteError,
     FullDiffIncompleteReason,
     PRDifferException,
+    ValidationError,
 )
 from prdiffer.infrastructure.vcs_providers.gitlab_models import (
     GitLabDiffRecord,
@@ -240,6 +242,95 @@ class GitLabOperations:
             real_size=real_size,
             records=tuple(records),
         )
+
+    def approve_with_client(
+        self,
+        client: gitlab.Gitlab,
+        project_path: str,
+        iid: int,
+        compliment: str,
+    ) -> str:
+        """Approve an MR and post the compliment as a note (blocking SDK).
+
+        Posts the note **before** calling approve so a note-API failure cannot leave
+        the MR approved while the tool still returns an error (GitLab has no atomic
+        approve-with-body call). If approve fails after the note lands, the note remains
+        (visible feedback) and the mapped error is raised.
+        """
+        if not isinstance(compliment, str) or not compliment.strip():
+            raise ValidationError(
+                "Compliment must be a non-empty string",
+                error_code=E1001_INVALID_URL,
+            )
+
+        merge_request = self._get_merge_request(client, project_path, iid)
+        try:
+            # Note first: better partial state than "approved without compliment".
+            merge_request.notes.create({"body": compliment})
+            merge_request.approve()
+        except Exception as exc:
+            mapped = map_gitlab_exception(
+                exc,
+                not_found=GitLabNotFoundContext(GitLabNotFoundKind.MERGE_REQUEST),
+            )
+            if mapped is not exc:
+                raise mapped from None
+            raise
+
+        return f"Successfully approved MR !{iid} in {project_path}"
+
+    def update_description_with_client(
+        self,
+        client: gitlab.Gitlab,
+        project_path: str,
+        iid: int,
+        description: str,
+    ) -> str:
+        """Update an MR description field (blocking SDK)."""
+        if not isinstance(description, str) or not description.strip():
+            raise ValidationError(
+                "PR description must be a non-empty string",
+                error_code=E1001_INVALID_URL,
+            )
+
+        merge_request = self._get_merge_request(client, project_path, iid)
+        try:
+            merge_request.description = description
+            merge_request.save()
+        except Exception as exc:
+            mapped = map_gitlab_exception(
+                exc,
+                not_found=GitLabNotFoundContext(GitLabNotFoundKind.MERGE_REQUEST),
+            )
+            if mapped is not exc:
+                raise mapped from None
+            raise
+
+        return f"Successfully updated description for MR !{iid} in {project_path}"
+
+    def _get_merge_request(self, client: gitlab.Gitlab, project_path: str, iid: int) -> Any:
+        """Load project + MR with status-aware not-found mapping."""
+        try:
+            project = client.projects.get(project_path)
+        except Exception as exc:
+            mapped = map_gitlab_exception(
+                exc,
+                not_found=GitLabNotFoundContext(GitLabNotFoundKind.PROJECT),
+            )
+            if mapped is not exc:
+                raise mapped from None
+            raise
+
+        try:
+            return project.mergerequests.get(iid)
+        except Exception as exc:
+            mapped = map_gitlab_exception(
+                exc,
+                not_found=GitLabNotFoundContext(GitLabNotFoundKind.MERGE_REQUEST),
+            )
+            if mapped is not exc:
+                raise mapped from None
+            raise
 
 
 def _is_object_list(value: object) -> TypeGuard[list[object]]:

@@ -1,6 +1,6 @@
 # AGENTS.md - Infrastructure/GitHub
 
-**Package:** 0.6.0  
+**Package:** 0.6.2  
 PyGithub-backed API client, inventory admission, ordered file processing, full-context diff generation, and request sessions. Critical path for full-diff correctness.
 
 ## STRUCTURE
@@ -9,7 +9,7 @@ prdiffer/infrastructure/github/
 ├── client.py                # GitHubAPIClient facade (280)
 ├── client_operations.py     # File content / multi-ref batch / cache mixin (437)
 ├── client_models.py         # Exception tuples + cache defaults (16)
-├── file_processor.py        # Ordered fetch/filter → FilePatchInfo (~595)
+├── file_processor.py        # Ordered fetch/filter → FilePatchInfo (~593)
 ├── diff_generator.py        # generate_ordered_file_diffs → GeneratedFileDiff (~517)
 ├── etag_adapter.py          # Conditional requests / 304 (121)
 ├── inventory.py             # Authoritative inventory + admission (126)

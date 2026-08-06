@@ -8,7 +8,8 @@ tests/unit/application/
 ├── components/                    # Auth, rate limit, metrics, health, PR ops, config
 ├── factories/                     # ApplicationFactory tests
 ├── utils/                         # PR URL parser tests
-├── test_tool_registry.py          # MCP tool registration/handlers (~724; E5020 ToolError JSON)
+├── test_tool_registry.py          # MCP tools + GitHub/GitLab approve/describe (~1141); E5020 ToolError JSON
+├── test_factory_gitlab_ops_wiring.py  # create_mcp_server dual-reader → ops auto-wire (~166)
 ├── test_webhook_handler.py
 ├── test_health_endpoints.py
 ├── test_mcp_server_health_status.py
@@ -20,9 +21,10 @@ tests/unit/application/
 ## WHERE TO LOOK
 | Task | Location | Notes |
 |------|----------|-------|
-| **MCP tools** | `test_tool_registry.py` | `get_pr_diff`, `approve_pr`, `describe_pr`; E5020 → ToolError JSON |
+| **MCP tools** | `test_tool_registry.py` | `get_pr_diff`, `approve_pr`, `describe_pr` (GitHub+GitLab); empty/whitespace reject; ops-not-configured metrics; nested NS; E5020 → ToolError JSON |
+| **Factory GitLab wiring** | `test_factory_gitlab_ops_wiring.py` | Dual-role reader auto-wires `gitlab_pr_operations`; explicit ops wins; reader-only leaves ops None |
 | **PR URL multi-provider** | `utils/test_pr_url_parser.py` | `parse_pr_target` GitHub + GitLab (custom hosts) |
-| **Auth / JWT / lockout** | `components/test_authentication.py` | Largest suite (1145) |
+| **Auth / JWT / lockout** | `components/test_authentication.py` | Largest suite |
 | **Webhooks** | `test_webhook_handler.py` | Cache invalidation orchestration |
 | **Health / metrics HTTP** | `test_health_endpoints.py`, components | `/health`, metrics |
 | **Layer checks** | `test_architecture.py` | Application layer expectations |

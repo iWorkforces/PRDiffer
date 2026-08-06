@@ -1,6 +1,6 @@
 # AGENTS.md - Cache Decorators (Shim)
 
-**Package:** 0.6.0  
+**Package:** 0.6.2  
 **Backward-compatibility shim.** Canonical implementation: `prdiffer/infrastructure/cache/cache_decorators.py` (248 lines).
 
 ## EXPORTS

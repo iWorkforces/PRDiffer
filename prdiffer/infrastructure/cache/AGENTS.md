@@ -1,6 +1,6 @@
 # AGENTS.md - Infrastructure/Cache
 
-**Package:** 0.6.0  
+**Package:** 0.6.2  
 In-process caching with commit-aware keys, TTL/LRU, and repository-scoped caches.
 
 ## STRUCTURE

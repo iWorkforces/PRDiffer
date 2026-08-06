@@ -12,7 +12,7 @@ tests/integration/
 ├── test_full_diff_mcp_surface.py    # Strict full-diff FastMCP surface (E5020 ToolError JSON)
 ├── test_gitlab_strict_full_diff.py  # No-network GitLab session + cache identity (~244)
 ├── test_real_github_api.py          # Optional real API
-├── test_server_launcher.py          # Process/launcher
+├── test_server_launcher.py          # Process/launcher (token gate; isolated ENV_FILE)
 ├── test_metrics_endpoint.py         # Metrics
 └── mcp_server_manual_test.py        # Manual harness helper
 ```
@@ -20,11 +20,12 @@ tests/integration/
 ## WHERE TO LOOK
 | Task | Location | Notes |
 |------|----------|-------|
-| **Strict full-diff MCP contract** | `test_full_diff_mcp_surface.py` | In-process FastMCP; success + E5020; rename `previous_path` |
+| **Strict full-diff MCP contract** | `test_full_diff_mcp_surface.py` | In-process FastMCP; success + E5020; rename `previous_path` (get_pr_diff) |
 | **GitLab strict path** | `test_gitlab_strict_full_diff.py` | FakeOps + FakeClient; ordered multi-status; cache host identity |
 | **Tool workflow** | `test_complete_workflow.py` | End-to-end tool orchestration with mocks |
 | **Attack / injection paths** | `test_security.py` | Marked `integration` |
 | **Webhook cache bust** | `test_webhook_invalidation.py` | Invalidation + error bodies |
+| **Launcher / tokens** | `test_server_launcher.py` | GitHub-only / GitLab-only / both / neither; sets `ENV_FILE` to avoid real `.env` |
 | **Opt-in live GitHub** | `test_real_github_api.py` | Requires real token/env; not for default CI |
 
 ## CONVENTIONS

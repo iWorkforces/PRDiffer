@@ -3,7 +3,7 @@
 Pure business logic. No external deps, no I/O. Entities, ports (ABC/Protocol), use cases, and factory contracts only.
 
 ## OVERVIEW
-Package **0.6.0**, Python **3.14.3+**.  
+Package **0.6.2**, Python **3.14.3+**.  
 **42** modules across root + **7** subpackages. Frozen dataclasses for most entities; ABC/Protocol for ports.
 
 ## STRUCTURE
@@ -34,7 +34,7 @@ prdiffer/domain/
 | **Service interfaces** | `services/*.py` | ABC + `@abstractmethod` |
 | **Multi-ref content port** | `services/github_api.py` | `get_files_content_multi_ref_batch` |
 | **VCS provider contract** | `interfaces/vcs_provider.py` | `VCSDiffRepositoryInterface` |
-| **App component Protocols** | `interfaces/protocols.py` | RateLimiter, Auth, Metrics, Health, … (~180) |
+| **App component Protocols** | `interfaces/protocols.py` | RateLimiter, Auth, Metrics, Health, `GitLabPROperationsProtocol`, … (~210) |
 | **Provider registry** | `vcs_provider_registry.py` | `supports_repository()` auto-detect |
 | **Error codes** | `error_codes.py` + `errors.py` | Structured E-codes |
 | **Full-diff incomplete** | `exceptions.py` | `FullDiffIncompleteError` + `FullDiffIncompleteReason` |
@@ -95,7 +95,7 @@ prdiffer/domain/
 - Do **not** remap auth/permission/rate-limit/retry-exhausted network failures to E5020; unexpected algorithm defects stay `E5003_DIFF_GENERATION_ERROR`.
 - GitLab operational mapping: 401→E2006, 403→E2007, 429→E3006, 5xx→E5021; reuse E4001/E4002/E4003 for verified project/MR/file 404, E5004 timeout, E5019 connection. Never put `response_body`/tokens/credentials in details.
 
-### Full-diff correctness (0.6.0)
+### Full-diff correctness (0.6.x)
 - Success responses are complete by construction (no completeness boolean).
 - `FileDiffResponse.previous_path` only for `EDIT_TYPE.RENAMED`.
 - Content union: available empty text ≠ deterministic unavailability; operational failures raise.

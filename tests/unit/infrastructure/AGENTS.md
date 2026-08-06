@@ -6,7 +6,7 @@ Adapters, DI, cache, GitLab/GitHub, security, settings, full-diff plumbing.
 ```
 tests/unit/infrastructure/
 ├── github/                              # Client, processor, multi-ref, generator, mappers, session, inventory
-├── vcs_providers/                       # GitLab runtime/session/assembler/models unit tests
+├── vcs_providers/                       # GitLab runtime/session/assembler/models + MR approve/describe
 ├── utils/                               # Retry, CB, cache decorator, parsers, cross-loop executor
 ├── cache/                               # Cache store/keys/decorators + repository/
 ├── security/                            # Detector, sanitizer, helpers
@@ -37,6 +37,7 @@ tests/unit/infrastructure/
 | **Full-diff config defaults** | `test_github_config_wiring.py`, `test_full_diff_concurrency_defaults.py` | Parallel flags, capacity, `max_total_chars` |
 | **GitLab config / allowlist** | `test_gitlab_config_wiring.py` | toml defaults + `GITLAB_ALLOWED_HOSTS` |
 | **GitLab runtime / session** | `vcs_providers/test_gitlab_*.py` | Per-call deadline/base_url, allowlist, equal-noop |
+| **GitLab approve / describe** | `vcs_providers/test_gitlab_mr_operations.py` | Note-then-approve order, empty body, 401/403/429/404/5xx, nested path + custom host runtime |
 | **Strict size limits** | `test_diff_limits.py` | `RESPONSE_SIZE_LIMIT` / E5020 |
 | **Service full-context** | `test_pr_diff_service_full_context.py` | Generated full-context → PRDiff |
 | **Parallel executor** | `test_async_parallel_executor.py` | anyio task groups, ordered batches, per-batch semaphore |

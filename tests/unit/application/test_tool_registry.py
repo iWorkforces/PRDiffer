@@ -3,6 +3,7 @@
 import pytest
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
+from typing import Any
 from unittest.mock import MagicMock, AsyncMock, patch
 
 from prdiffer.application.tool_registry import ToolRegistry
@@ -17,6 +18,7 @@ from prdiffer.domain.exceptions import (
     GitHubAPIError,
     InputSanitizationError,
 )
+from prdiffer.domain.error_codes import E1001_INVALID_URL
 
 
 @dataclass
@@ -84,11 +86,19 @@ class ProviderAwareValidator:
 class MCPToolCapture:
     def __init__(self) -> None:
         self.get_pr_diff_tool: Callable[..., Awaitable[PRDiff]] | None = None
+        self.approve_pr_tool: Callable[..., Awaitable[str]] | None = None
+        self.describe_pr_tool: Callable[..., Awaitable[str]] | None = None
+        self.registered_names: list[str] = []
 
-    def tool(self) -> Callable[[Callable[..., Awaitable[PRDiff]]], Callable[..., Awaitable[PRDiff]]]:
-        def decorator(function: Callable[..., Awaitable[PRDiff]]) -> Callable[..., Awaitable[PRDiff]]:
+    def tool(self) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
+        def decorator(function: Callable[..., Any]) -> Callable[..., Any]:
+            self.registered_names.append(function.__name__)
             if function.__name__ == "get_pr_diff":
                 self.get_pr_diff_tool = function
+            elif function.__name__ == "approve_pr":
+                self.approve_pr_tool = function
+            elif function.__name__ == "describe_pr":
+                self.describe_pr_tool = function
             return function
 
         return decorator
@@ -172,7 +182,44 @@ def mock_github_repository_class():
     """Create mock GitHub repository class."""
     mock_instance = MagicMock()
     mock_instance.approve_pr_with_comment = AsyncMock(return_value="Approved!")
+    mock_instance.update_pr_description = AsyncMock(return_value="Description updated!")
     return MagicMock(return_value=mock_instance)
+
+
+@dataclass
+class RecordingGitLabPROps:
+    approve_calls: list[tuple[str, str, int, str, str | None]] = field(
+        default_factory=list[tuple[str, str, int, str, str | None]]
+    )
+    describe_calls: list[tuple[str, str, int, str, str | None]] = field(
+        default_factory=list[tuple[str, str, int, str, str | None]]
+    )
+
+    async def approve_pr_with_comment(
+        self,
+        owner: str,
+        repo: str,
+        pr: int,
+        compliment: str,
+        /,
+        *,
+        base_url: str | None = None,
+    ) -> str:
+        self.approve_calls.append((owner, repo, pr, compliment, base_url))
+        return f"gitlab-approved:{owner}/{repo}!{pr}"
+
+    async def update_pr_description(
+        self,
+        owner: str,
+        repo: str,
+        pr: int,
+        description: str,
+        /,
+        *,
+        base_url: str | None = None,
+    ) -> str:
+        self.describe_calls.append((owner, repo, pr, description, base_url))
+        return f"gitlab-described:{owner}/{repo}!{pr}"
 
 
 @pytest.fixture
@@ -295,7 +342,7 @@ class TestCreateSafeErrorMessage:
 
         result = tool_registry._create_safe_error_message(error)
 
-        assert result == "Invalid GitHub PR URL format"
+        assert result == "Invalid PR or merge request URL"
 
     def test_connection_error(self, tool_registry):
         """Test ConnectionError message."""
@@ -303,7 +350,7 @@ class TestCreateSafeErrorMessage:
 
         result = tool_registry._create_safe_error_message(error)
 
-        assert result == "Connection to GitHub failed"
+        assert result == "Connection to the VCS provider failed"
 
     def test_timeout_error(self, tool_registry):
         """Test TimeoutError message."""
@@ -501,6 +548,7 @@ class TestRegisterTools:
 
         assert "get_pr_diff" in decorated_tools
         assert "approve_pr" in decorated_tools
+        assert "describe_pr" in decorated_tools
 
 
 class TestSafeErrorMessages:
@@ -722,3 +770,372 @@ class TestFullDiffIncompleteToolError:
         with pytest.raises(AuthenticationError) as exc_info:
             await get_pr_diff("https://github.com/owner/repo/pull/17", None)
         assert exc_info.value.error_code is E2006_GITLAB_AUTH_FAILED
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+class TestApproveDescribeProviderDispatch:
+    async def test_approve_pr_routes_github_to_github_repository(
+        self,
+        mock_logger,
+        mock_github_repository_class,
+        mock_rate_limiter,
+        mock_metrics_tracker,
+        mock_authentication,
+        mock_input_validator,
+        mock_request_coalescing,
+        mock_pr_diff_service,
+        mock_cache_service,
+    ) -> None:
+        mock_input_validator.validate_github_url = MagicMock(return_value=("owner", "repo", 17))
+        registry = ToolRegistry(
+            pr_diff_service=mock_pr_diff_service,
+            cache_service=mock_cache_service,
+            logger=mock_logger,
+            github_repository_class=mock_github_repository_class,
+            rate_limiter=mock_rate_limiter,
+            metrics_tracker=mock_metrics_tracker,
+            authentication=mock_authentication,
+            input_validator=mock_input_validator,
+            request_coalescing_service=mock_request_coalescing,
+            gitlab_pr_operations=RecordingGitLabPROps(),
+        )
+        mcp = MCPToolCapture()
+        registry.register_tools(mcp)
+        assert mcp.approve_pr_tool is not None
+
+        result = await mcp.approve_pr_tool("https://github.com/owner/repo/pull/17", "Nice work", None)
+
+        assert result == "Approved!"
+        mock_github_repository_class.assert_called_once_with("owner", "repo", 17)
+        instance = mock_github_repository_class.return_value
+        instance.approve_pr_with_comment.assert_awaited_once()
+        success_calls = [
+            call for call in mock_metrics_tracker.track_request.call_args_list if call.args[:2] == ("approve_pr", True)
+        ]
+        assert len(success_calls) == 1
+
+    async def test_approve_pr_routes_gitlab_to_gitlab_operations(
+        self,
+        mock_logger,
+        mock_github_repository_class,
+        mock_rate_limiter,
+        mock_metrics_tracker,
+        mock_authentication,
+        mock_request_coalescing,
+        mock_pr_diff_service,
+        mock_cache_service,
+    ) -> None:
+        gitlab_ops = RecordingGitLabPROps()
+        registry = ToolRegistry(
+            pr_diff_service=mock_pr_diff_service,
+            cache_service=mock_cache_service,
+            logger=mock_logger,
+            github_repository_class=mock_github_repository_class,
+            rate_limiter=mock_rate_limiter,
+            metrics_tracker=mock_metrics_tracker,
+            authentication=mock_authentication,
+            input_validator=ProviderAwareValidator(),
+            request_coalescing_service=mock_request_coalescing,
+            gitlab_pr_operations=gitlab_ops,
+        )
+        mcp = MCPToolCapture()
+        registry.register_tools(mcp)
+        assert mcp.approve_pr_tool is not None
+
+        result = await mcp.approve_pr_tool(
+            "https://gitlab.com/owner/repo/-/merge_requests/17",
+            "Great MR",
+            None,
+        )
+
+        assert result == "gitlab-approved:owner/repo!17"
+        assert gitlab_ops.approve_calls == [
+            ("owner", "repo", 17, "Great MR", "https://gitlab.com"),
+        ]
+        mock_github_repository_class.assert_not_called()
+
+    async def test_approve_pr_rejects_empty_compliment_for_gitlab(
+        self,
+        mock_logger,
+        mock_github_repository_class,
+        mock_rate_limiter,
+        mock_metrics_tracker,
+        mock_authentication,
+        mock_request_coalescing,
+        mock_pr_diff_service,
+        mock_cache_service,
+    ) -> None:
+        gitlab_ops = RecordingGitLabPROps()
+        registry = ToolRegistry(
+            pr_diff_service=mock_pr_diff_service,
+            cache_service=mock_cache_service,
+            logger=mock_logger,
+            github_repository_class=mock_github_repository_class,
+            rate_limiter=mock_rate_limiter,
+            metrics_tracker=mock_metrics_tracker,
+            authentication=mock_authentication,
+            input_validator=ProviderAwareValidator(),
+            request_coalescing_service=mock_request_coalescing,
+            gitlab_pr_operations=gitlab_ops,
+        )
+        mcp = MCPToolCapture()
+        registry.register_tools(mcp)
+        assert mcp.approve_pr_tool is not None
+
+        with pytest.raises(ValidationError) as exc_info:
+            await mcp.approve_pr_tool(
+                "https://gitlab.com/owner/repo/-/merge_requests/17",
+                "",
+                None,
+            )
+
+        assert exc_info.value.error_code is E1001_INVALID_URL
+        assert gitlab_ops.approve_calls == []
+
+    async def test_describe_pr_routes_gitlab_to_gitlab_operations(
+        self,
+        mock_logger,
+        mock_github_repository_class,
+        mock_rate_limiter,
+        mock_metrics_tracker,
+        mock_authentication,
+        mock_request_coalescing,
+        mock_pr_diff_service,
+        mock_cache_service,
+    ) -> None:
+        gitlab_ops = RecordingGitLabPROps()
+        registry = ToolRegistry(
+            pr_diff_service=mock_pr_diff_service,
+            cache_service=mock_cache_service,
+            logger=mock_logger,
+            github_repository_class=mock_github_repository_class,
+            rate_limiter=mock_rate_limiter,
+            metrics_tracker=mock_metrics_tracker,
+            authentication=mock_authentication,
+            input_validator=ProviderAwareValidator(),
+            request_coalescing_service=mock_request_coalescing,
+            gitlab_pr_operations=gitlab_ops,
+        )
+        mcp = MCPToolCapture()
+        registry.register_tools(mcp)
+        assert mcp.describe_pr_tool is not None
+
+        result = await mcp.describe_pr_tool(
+            "https://gitlab.com/owner/repo/-/merge_requests/17",
+            "Updated body",
+            None,
+        )
+
+        assert result == "gitlab-described:owner/repo!17"
+        assert gitlab_ops.describe_calls == [
+            ("owner", "repo", 17, "Updated body", "https://gitlab.com"),
+        ]
+        mock_github_repository_class.assert_not_called()
+
+    async def test_describe_pr_rejects_empty_description_for_gitlab(
+        self,
+        mock_logger,
+        mock_github_repository_class,
+        mock_rate_limiter,
+        mock_metrics_tracker,
+        mock_authentication,
+        mock_request_coalescing,
+        mock_pr_diff_service,
+        mock_cache_service,
+    ) -> None:
+        gitlab_ops = RecordingGitLabPROps()
+        registry = ToolRegistry(
+            pr_diff_service=mock_pr_diff_service,
+            cache_service=mock_cache_service,
+            logger=mock_logger,
+            github_repository_class=mock_github_repository_class,
+            rate_limiter=mock_rate_limiter,
+            metrics_tracker=mock_metrics_tracker,
+            authentication=mock_authentication,
+            input_validator=ProviderAwareValidator(),
+            request_coalescing_service=mock_request_coalescing,
+            gitlab_pr_operations=gitlab_ops,
+        )
+        mcp = MCPToolCapture()
+        registry.register_tools(mcp)
+        assert mcp.describe_pr_tool is not None
+
+        with pytest.raises(ValidationError) as exc_info:
+            await mcp.describe_pr_tool(
+                "https://gitlab.com/owner/repo/-/merge_requests/17",
+                "",
+                None,
+            )
+
+        assert exc_info.value.error_code is E1001_INVALID_URL
+        assert gitlab_ops.describe_calls == []
+
+    async def test_describe_pr_routes_github(
+        self,
+        mock_logger,
+        mock_github_repository_class,
+        mock_rate_limiter,
+        mock_metrics_tracker,
+        mock_authentication,
+        mock_input_validator,
+        mock_request_coalescing,
+        mock_pr_diff_service,
+        mock_cache_service,
+    ) -> None:
+        mock_input_validator.validate_github_url = MagicMock(return_value=("owner", "repo", 17))
+        registry = ToolRegistry(
+            pr_diff_service=mock_pr_diff_service,
+            cache_service=mock_cache_service,
+            logger=mock_logger,
+            github_repository_class=mock_github_repository_class,
+            rate_limiter=mock_rate_limiter,
+            metrics_tracker=mock_metrics_tracker,
+            authentication=mock_authentication,
+            input_validator=mock_input_validator,
+            request_coalescing_service=mock_request_coalescing,
+        )
+        mcp = MCPToolCapture()
+        registry.register_tools(mcp)
+        assert mcp.describe_pr_tool is not None
+
+        result = await mcp.describe_pr_tool(
+            "https://github.com/owner/repo/pull/17",
+            "New description",
+            None,
+        )
+
+        assert result == "Description updated!"
+        mock_github_repository_class.assert_called_once_with("owner", "repo", 17)
+        instance = mock_github_repository_class.return_value
+        instance.update_pr_description.assert_awaited_once()
+
+    async def test_approve_pr_rejects_whitespace_only_compliment(
+        self,
+        mock_logger,
+        mock_github_repository_class,
+        mock_rate_limiter,
+        mock_metrics_tracker,
+        mock_authentication,
+        mock_request_coalescing,
+        mock_pr_diff_service,
+        mock_cache_service,
+    ) -> None:
+        gitlab_ops = RecordingGitLabPROps()
+        registry = ToolRegistry(
+            pr_diff_service=mock_pr_diff_service,
+            cache_service=mock_cache_service,
+            logger=mock_logger,
+            github_repository_class=mock_github_repository_class,
+            rate_limiter=mock_rate_limiter,
+            metrics_tracker=mock_metrics_tracker,
+            authentication=mock_authentication,
+            input_validator=ProviderAwareValidator(),
+            request_coalescing_service=mock_request_coalescing,
+            gitlab_pr_operations=gitlab_ops,
+        )
+        mcp = MCPToolCapture()
+        registry.register_tools(mcp)
+        assert mcp.approve_pr_tool is not None
+
+        with pytest.raises(ValidationError):
+            await mcp.approve_pr_tool(
+                "https://gitlab.com/owner/repo/-/merge_requests/17",
+                "   \n",
+                None,
+            )
+        assert gitlab_ops.approve_calls == []
+
+    async def test_approve_pr_raises_when_gitlab_ops_not_configured(
+        self,
+        mock_logger,
+        mock_github_repository_class,
+        mock_rate_limiter,
+        mock_metrics_tracker,
+        mock_authentication,
+        mock_request_coalescing,
+        mock_pr_diff_service,
+        mock_cache_service,
+    ) -> None:
+        registry = ToolRegistry(
+            pr_diff_service=mock_pr_diff_service,
+            cache_service=mock_cache_service,
+            logger=mock_logger,
+            github_repository_class=mock_github_repository_class,
+            rate_limiter=mock_rate_limiter,
+            metrics_tracker=mock_metrics_tracker,
+            authentication=mock_authentication,
+            input_validator=ProviderAwareValidator(),
+            request_coalescing_service=mock_request_coalescing,
+            gitlab_pr_operations=None,
+        )
+        mcp = MCPToolCapture()
+        registry.register_tools(mcp)
+        assert mcp.approve_pr_tool is not None
+
+        with pytest.raises(GitHubAPIError) as exc_info:
+            await mcp.approve_pr_tool(
+                "https://gitlab.com/owner/repo/-/merge_requests/17",
+                "Nice",
+                None,
+            )
+
+        assert "approve_pr" in str(exc_info.value)
+        fail_metrics = [
+            c for c in mock_metrics_tracker.track_request.call_args_list if c.args[:2] == ("approve_pr", False)
+        ]
+        assert len(fail_metrics) == 1
+
+    async def test_approve_pr_forwards_nested_namespace_and_strips_compliment(
+        self,
+        mock_logger,
+        mock_github_repository_class,
+        mock_rate_limiter,
+        mock_metrics_tracker,
+        mock_authentication,
+        mock_request_coalescing,
+        mock_pr_diff_service,
+        mock_cache_service,
+    ) -> None:
+        class NestedValidator(ProviderAwareValidator):
+            def validate_gitlab_url(self, url: str) -> tuple[str, str, int]:
+                assert "group/sub/project" in url
+                return "group/sub", "project", 3
+
+        gitlab_ops = RecordingGitLabPROps()
+        registry = ToolRegistry(
+            pr_diff_service=mock_pr_diff_service,
+            cache_service=mock_cache_service,
+            logger=mock_logger,
+            github_repository_class=mock_github_repository_class,
+            rate_limiter=mock_rate_limiter,
+            metrics_tracker=mock_metrics_tracker,
+            authentication=mock_authentication,
+            input_validator=NestedValidator(),
+            request_coalescing_service=mock_request_coalescing,
+            gitlab_pr_operations=gitlab_ops,
+        )
+        mcp = MCPToolCapture()
+        registry.register_tools(mcp)
+        assert mcp.approve_pr_tool is not None
+
+        # parse_pr_target also calls parse_gitlab_merge_request_parts on real URL
+        with patch(
+            "prdiffer.infrastructure.utils.url_parser.parse_gitlab_merge_request_parts"
+        ) as mock_parts:
+            mock_parts.return_value = MagicMock(
+                namespace="group/sub",
+                project="project",
+                iid=3,
+                base_url="https://gitlab.com",
+            )
+            result = await mcp.approve_pr_tool(
+                "https://gitlab.com/group/sub/project/-/merge_requests/3",
+                "  Solid nested MR  ",
+                None,
+            )
+
+        assert result == "gitlab-approved:group/sub/project!3"
+        assert gitlab_ops.approve_calls == [
+            ("group/sub", "project", 3, "Solid nested MR", "https://gitlab.com"),
+        ]

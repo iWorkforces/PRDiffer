@@ -66,6 +66,8 @@ esac
     environment = {
         "GITHUB_TOKEN": scenario.github_token,
         "GITLAB_TOKEN": scenario.gitlab_token,
+        # Isolate from the developer's real repo .env (SCRIPT_DIR/.env).
+        "ENV_FILE": str(tmp_path / "no-such.env"),
         "HOME": str(tmp_path),
         "LAUNCH_MARKER": str(launch_marker),
         "PATH": f"{fake_bin}:/usr/bin:/bin",
