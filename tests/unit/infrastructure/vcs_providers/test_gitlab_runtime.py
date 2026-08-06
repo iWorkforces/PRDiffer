@@ -155,6 +155,24 @@ class TestMapGitlabException:
         assert mapped.error_code is E3006_GITLAB_RATE_LIMITED
         assert mapped.retry_after == 12
 
+    def test_429_rate_limit_accepts_mixed_case_retry_after_header(self) -> None:
+        exc = FakeGitlabError("rl", response_code=429, response_headers={"rEtRy-AfTeR": "12"})
+        mapped = map_gitlab_exception(exc, remaining_budget=30.0)
+        assert isinstance(mapped, RateLimitError)
+        assert mapped.retry_after == 12
+
+    def test_429_rate_limit_ignores_malformed_retry_after_header(self) -> None:
+        exc = FakeGitlabError("rl", response_code=429, response_headers={"Retry-After": "later"})
+        mapped = map_gitlab_exception(exc, remaining_budget=30.0)
+        assert isinstance(mapped, RateLimitError)
+        assert mapped.retry_after is None
+
+    def test_429_rate_limit_clamps_retry_after_to_remaining_budget(self) -> None:
+        exc = FakeGitlabError("rl", response_code=429, response_headers={"Retry-After": "12"})
+        mapped = map_gitlab_exception(exc, remaining_budget=5.9)
+        assert isinstance(mapped, RateLimitError)
+        assert mapped.retry_after == 5
+
     def test_5xx_maps_to_e5021(self) -> None:
         mapped = map_gitlab_exception(FakeGitlabError("boom", response_code=503))
         assert isinstance(mapped, GitLabAPIError)
