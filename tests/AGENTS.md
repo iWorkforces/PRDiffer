@@ -3,9 +3,9 @@
 pytest suite: unit, integration, performance, root phase/client regression tests.
 
 ## OVERVIEW
-- **146** Python files under `tests/` (~38K lines)
-- **~2515** `test_*` functions across **130** `test_*.py` files
-- Package under test: **prdiffer 0.6.0**
+- **150** Python files under `tests/`
+- **~2565** `test_*` functions across **134** `test_*.py` files
+- Package under test: **prdiffer 0.6.2**
 - Shared fixtures: `tests/conftest.py` (auto env + singleton reset)
 - Largest suite remains under `unit/application/components/` (auth)
 
@@ -19,9 +19,9 @@ tests/
 ├── unit/
 │   ├── domain/                      # Entities, use cases, errors, registry, cache v2/v1, multi-ref
 │   ├── infrastructure/              # GitHub, GitLab (incl. vcs_providers/), cache, utils, DI, security, settings
-│   ├── application/                 # Tools, components, webhooks, health
+│   ├── application/                 # Tools, components, webhooks, health, factory GitLab ops wiring
 │   └── test_version_consistency.py / test_server_gitlab_composition.py
-├── integration/                     # Workflows, security, webhooks, MCP surface, GitLab strict, optional real API
+├── integration/                     # Workflows, security, webhooks, MCP surface, GitLab strict, launcher, optional real API
 └── performance/                     # Microbenches + full-diff harness + GitLab capacity/deadline
 ```
 
@@ -31,11 +31,14 @@ tests/
 | **Domain purity / entities** | `unit/domain/` | E5020, cache identity, session use case, GitLabConfig, multi-ref entities |
 | **Retry / CB / cache utils** | `unit/infrastructure/utils/` | Circuit breaker, retry, coalescing, cross-loop executor |
 | **GitHub adapters / full-diff** | `unit/infrastructure/github/` | Inventory, typed content, multi-ref batch, ordered processor, session |
-| **GitLab strict full-diff** | `unit/infrastructure/vcs_providers/`, `test_gitlab_*.py` | Runtime, session, assembler, ops, content |
+| **GitLab strict full-diff** | `unit/infrastructure/vcs_providers/`, `test_gitlab_*.py` | Runtime, session, assembler, inventory |
+| **GitLab MR approve/describe** | `unit/infrastructure/vcs_providers/test_gitlab_mr_operations.py` | Note-then-approve, empty body, error map, nested path, custom host |
 | **PR diff service / limits** | `unit/infrastructure/` | `test_pr_diff_service*`, `test_diff_limits`, concurrency defaults |
-| **MCP tools / auth** | `unit/application/` | Tool registry (E5020 ToolError JSON), components |
-| **Strict MCP surface** | `integration/test_full_diff_mcp_surface.py` | In-process FastMCP |
+| **MCP tools / auth** | `unit/application/` | Tool registry (GitHub+GitLab dispatch, E5020 ToolError JSON), components |
+| **Factory GitLab ops wiring** | `unit/application/test_factory_gitlab_ops_wiring.py` | Auto-wire reader → `gitlab_pr_operations` |
+| **Strict MCP surface** | `integration/test_full_diff_mcp_surface.py` | In-process FastMCP (`get_pr_diff`) |
 | **GitLab integration** | `integration/test_gitlab_strict_full_diff.py` | No-network session + cache identity |
+| **Launcher token gate** | `integration/test_server_launcher.py` | Shell entry; isolated `ENV_FILE` |
 | **E2E-ish flows** | `integration/` | Workflow, security, webhooks |
 | **Full-diff bench validity** | `performance/test_full_diff_benchmark.py` | Loads `scripts/bench_diff_generation.py` |
 | **GitLab capacity/deadline** | `performance/test_gitlab_strict_full_diff.py` | Runtime limiter + E5004 |

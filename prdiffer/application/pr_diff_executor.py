@@ -10,7 +10,7 @@ from prdiffer.domain.services.pr_diff_service import PRDiffServiceInterface
 from prdiffer.domain.usecases.pr_diff_usecases import GetPRDiffUseCase, PRDiffReader
 
 
-class _CoalescedPRDiffExecutionMixin:
+class CoalescedPRDiffExecutionMixin:
     _pr_diff_service: PRDiffServiceInterface
     _cache_service: CacheServiceInterface
     _logger: LoggerServiceInterface

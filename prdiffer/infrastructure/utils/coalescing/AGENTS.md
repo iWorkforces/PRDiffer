@@ -1,6 +1,6 @@
 # AGENTS.md - Request Coalescing
 
-**Package:** 0.6.0  
+**Package:** 0.6.2  
 Deduplicate concurrent identical async work.
 
 ## STRUCTURE

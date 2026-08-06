@@ -6,6 +6,9 @@ per-call deadline + base_url, and typed exception translation.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
+from typing import Protocol, TypeGuard, runtime_checkable
+
 import math
 import time
 from collections.abc import Callable
@@ -65,15 +68,31 @@ def _safe_status(exc: BaseException) -> int | None:
     return code if isinstance(code, int) else None
 
 
+@runtime_checkable
+class _SupportsInt(Protocol):
+    def __int__(self) -> int: ...
+
+
+@runtime_checkable
+class _SupportsIndex(Protocol):
+    def __index__(self) -> int: ...
+
+
+def _is_response_headers(value: object) -> TypeGuard[Mapping[object, object]]:
+    return isinstance(value, Mapping)
+
+
 def _parse_retry_after(exc: BaseException, remaining: float) -> int | None:
     """Parse Retry-After from SDK exception headers when present; bound by remaining."""
-    headers = getattr(exc, "response_headers", None) or {}
-    raw = None
-    if isinstance(headers, dict):
-        raw = headers.get("Retry-After") or headers.get("retry-after")
+    headers = getattr(exc, "response_headers", None)
+    if not _is_response_headers(headers):
+        return None
+    raw = next((value for key, value in headers.items() if isinstance(key, str) and key.casefold() == "retry-after"), None)
     if raw is None:
         return None
     try:
+        if not isinstance(raw, (str, bytes, bytearray, int, float, _SupportsInt, _SupportsIndex)):
+            return None
         value = int(raw)
     except TypeError, ValueError:
         return None

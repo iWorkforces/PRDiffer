@@ -92,6 +92,42 @@ class GitLabVCSRepository(VCSDiffRepositoryInterface):
             raise PRDifferException("Merge request SHA is missing", error_code=E5002_GITHUB_API_ERROR)
         return sha
 
+    async def approve_pr_with_comment(
+        self,
+        owner: str,
+        repo: str,
+        pr: int,
+        compliment: str,
+        /,
+        *,
+        base_url: str | None = None,
+    ) -> str:
+        """Approve a GitLab MR and post the compliment as a note (off event loop)."""
+        project_path = f"{owner}/{repo}"
+        return await self._runtime.run_blocking(
+            lambda client: self._operations.approve_with_client(client, project_path, pr, compliment),
+            not_found=None,
+            base_url=base_url,
+        )
+
+    async def update_pr_description(
+        self,
+        owner: str,
+        repo: str,
+        pr: int,
+        description: str,
+        /,
+        *,
+        base_url: str | None = None,
+    ) -> str:
+        """Update a GitLab MR description field (off event loop)."""
+        project_path = f"{owner}/{repo}"
+        return await self._runtime.run_blocking(
+            lambda client: self._operations.update_description_with_client(client, project_path, pr, description),
+            not_found=None,
+            base_url=base_url,
+        )
+
     @staticmethod
     def _to_file_diff(record: GitLabDiffRecord) -> FileDiffResponse:
         """Map a GitLab diff record to the existing domain response."""

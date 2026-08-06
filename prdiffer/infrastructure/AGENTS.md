@@ -1,6 +1,6 @@
 # AGENTS.md - Infrastructure Layer
 
-**Package:** 0.6.0  
+**Package:** 0.6.2  
 External integrations: GitHub/GitLab APIs, cache, security, resilience, DI, settings.
 
 ## OVERVIEW
@@ -15,7 +15,7 @@ prdiffer/infrastructure/
 ├── interfaces/                 # Empty reserved placeholder
 ├── logging/                    # ConsoleLogger, exception sanitization
 ├── security/                   # InputValidator, InjectionDetector, InputSanitizer
-├── services/                   # GitHubPRDiffService (~527)
+├── services/                   # GitHubPRDiffService (~533)
 ├── utils/                      # Retry, CB, parallel, coalescing, diff limits, URL, metrics
 ├── vcs_providers/              # GitHub adapter + full GitLab strict pipeline (gitlab_*.py)
 ├── di_container.py             # ServiceContainer (~203)
@@ -23,7 +23,7 @@ prdiffer/infrastructure/
 ├── github_repository_operations.py  # PR ops
 ├── github_repository_utils.py  # Filtering/logging helpers
 ├── service_factory.py          # Convenience factory wrapper
-└── settings.py                 # SettingsService Dynaconf + RLock (GitHub + GitLab config) (~384)
+└── settings.py                 # SettingsService Dynaconf + RLock (GitHub + GitLab config) (~446)
 ```
 
 ## WHERE TO LOOK
@@ -36,10 +36,11 @@ prdiffer/infrastructure/
 | **Full-diff orchestration (GitHub)** | `services/pr_diff_service.py` | Maps `GeneratedFileDiff` → `FileDiffResponse`, size limits, session path |
 | **GitHub API + content** | `github/` | Typed content, multi-ref batch, inventory, ordered processing |
 | **GitLab strict full-diff** | `vcs_providers/gitlab_*.py` | Runtime, ops, inventory, content, assembler, session |
+| **GitLab approve / describe** | `vcs_providers/gitlab_operations.py`, `gitlab_repository.py` | MR note-then-approve and description update for MCP tools |
 | **GitLab URL parse** | `utils/url_parser.py` | Nested NS + custom hosts (`parse_gitlab_merge_request_parts`) |
 | **Retry** | `utils/retry/` | base / handler / models / factories |
 | **Circuit breaker** | `utils/circuit_breaker_core.py` | Canonical; package path is shim |
-| **Parallel I/O** | `utils/parallel/executor.py` | ~601; per-batch semaphore; `execute_indexed_batch` |
+| **Parallel I/O** | `utils/parallel/executor.py` | ~598; per-batch semaphore; `execute_indexed_batch` |
 | **Coalescing** | `utils/coalescing_service.py` | Deduplicate in-flight requests |
 | **Cache** | `cache/service.py`, `cache/cache_decorators.py` | Canonical modules; subpackages are shims |
 | **Security** | `security/input_validator.py` | Orchestrates detector + sanitizer; GitHub + GitLab URL validation |

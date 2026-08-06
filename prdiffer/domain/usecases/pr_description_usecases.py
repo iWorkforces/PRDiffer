@@ -19,19 +19,19 @@ class UpdatePRDescriptionUseCase:
         self._pr_diff_repository = pr_diff_repository
         self._logger = logger
 
-    async def execute(self, pr_url: str, pr_description: str) -> str:
-        """Execute PR description update.
+    async def execute(self, pr_url: str, pr_description: object) -> str:
+        """Execute PR/MR description update.
 
         Args:
-            pr_url: The full GitHub PR URL (e.g., https://github.com/owner/repo/pull/123)
-            pr_description: The new description text for the PR
+            pr_url: Full PR or MR URL (GitHub or GitLab); repository implementation owns provider details
+            pr_description: The new description text for the PR/MR
 
         Returns:
-            str: Success message indicating PR description was updated
+            str: Success message indicating the description was updated
 
         Raises:
-            ValueError: If required parameters are missing or invalid
-            RuntimeError: If PR update fails (404, 403, rate limit, etc.)
+            InvalidURLError: If pr_url is empty
+            ValidationError: If description is missing or not a string
         """
         if self._logger:
             self._logger.info(

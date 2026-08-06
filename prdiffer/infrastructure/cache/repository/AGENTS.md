@@ -1,6 +1,6 @@
 # AGENTS.md - Cache Repository (Shim)
 
-**Package:** 0.6.0  
+**Package:** 0.6.2  
 **Backward-compatibility shim.** Canonical implementation: `prdiffer/infrastructure/cache/cache_repository.py` (259 lines).
 
 ## EXPORTS

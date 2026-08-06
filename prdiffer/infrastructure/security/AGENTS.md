@@ -1,6 +1,6 @@
 # AGENTS.md - Infrastructure/Security
 
-**Package:** 0.6.0  
+**Package:** 0.6.2  
 Input validation, injection detection, and sanitization (~961 lines).
 
 ## STRUCTURE

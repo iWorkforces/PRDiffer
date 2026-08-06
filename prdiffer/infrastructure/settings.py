@@ -5,12 +5,39 @@ from pathlib import Path
 from threading import RLock
 
 from dotenv import load_dotenv
-from dynaconf import Dynaconf
+from importlib import import_module
+from typing import Protocol
 from prdiffer.domain.services.settings import SettingsServiceInterface
 from prdiffer.domain.config.github_config import DEFAULT_MAX_TOTAL_CHARS, GitHubConfig
 from prdiffer.domain.config.gitlab_config import GitLabConfig
 
 logger = logging.getLogger(__name__)
+
+
+class _DynaconfSettings(Protocol):
+    def get(self, key: str, default: object = None) -> object: ...
+
+    def from_env(self, env: str) -> "_DynaconfSettings": ...
+
+    @property
+    def _loaded_files(self) -> list[str]: ...
+
+    @property
+    def settings_files(self) -> list[str]: ...
+
+
+class _DynaconfFactory(Protocol):
+    def __call__(
+        self,
+        *,
+        settings_files: list[str],
+        environments: bool,
+        env_switcher: str,
+        load_dotenv: bool,
+    ) -> _DynaconfSettings: ...
+
+
+Dynaconf: _DynaconfFactory = getattr(import_module("dynaconf"), "Dynaconf")
 
 
 def project_root() -> Path:
@@ -77,13 +104,13 @@ class SettingsService(SettingsServiceInterface):
         return self.settings.get(key, default)
 
     def get_str(self, key: str, default: str = "") -> str:
-        value = self.settings.get(key, default)
+        value = self.get(key, default)
         if isinstance(value, str):
             return value
         return str(value) if value is not None else default
 
     def get_int(self, key: str, default: int = 0) -> int:
-        value = self.settings.get(key, default)
+        value = self.get(key, default)
         if isinstance(value, int) and not isinstance(value, bool):
             return value
         try:
@@ -92,7 +119,7 @@ class SettingsService(SettingsServiceInterface):
             return default
 
     def get_bool(self, key: str, default: bool = False) -> bool:
-        value = self.settings.get(key, default)
+        value = self.get(key, default)
         if isinstance(value, bool):
             return value
         if isinstance(value, str):
@@ -100,7 +127,7 @@ class SettingsService(SettingsServiceInterface):
         return bool(value) if value is not None else default
 
     def get_float(self, key: str, default: float = 0.0) -> float:
-        value = self.settings.get(key, default)
+        value = self.get(key, default)
         if isinstance(value, float):
             return value
         try:

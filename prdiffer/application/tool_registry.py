@@ -5,7 +5,7 @@ import hashlib
 import json
 from dataclasses import asdict
 from collections.abc import Callable
-from typing import NoReturn, assert_never
+from typing import NoReturn
 from prdiffer.domain.repositories.pr_diff_repository import PRDiffRepositoryInterface
 
 from fastmcp import FastMCP
@@ -20,11 +20,12 @@ from prdiffer.domain.interfaces.protocols import (
     RateLimiterProtocol,
     MetricsTrackerProtocol,
     AuthenticationProtocol,
+    GitLabPROperationsProtocol,
 )
 from prdiffer.domain.interfaces.input_validation import InputValidatorProtocol
 from prdiffer.domain.interfaces.request_coalescing import RequestCoalescingProtocol
 from prdiffer.application.utils.pr_url_parser import parse_pr_target, parse_pr_url
-from prdiffer.application.pr_diff_executor import _CoalescedPRDiffExecutionMixin
+from prdiffer.application.pr_diff_executor import CoalescedPRDiffExecutionMixin
 
 from prdiffer.domain.exceptions import (
     InvalidURLError,
@@ -47,7 +48,7 @@ from prdiffer.domain.errors import (
 )
 
 
-class ToolRegistry(_CoalescedPRDiffExecutionMixin):
+class ToolRegistry(CoalescedPRDiffExecutionMixin):
     """Registry for FastMCP tools."""
 
     def __init__(
@@ -59,6 +60,7 @@ class ToolRegistry(_CoalescedPRDiffExecutionMixin):
         rate_limiter: RateLimiterProtocol,
         metrics_tracker: MetricsTrackerProtocol,
         gitlab_reader: PRDiffReader | None = None,
+        gitlab_pr_operations: GitLabPROperationsProtocol | None = None,
         authentication: AuthenticationProtocol | None = None,
         input_validator: InputValidatorProtocol | None = None,
         request_coalescing_service: RequestCoalescingProtocol | None = None,
@@ -67,6 +69,7 @@ class ToolRegistry(_CoalescedPRDiffExecutionMixin):
     ):
         self._pr_diff_service = pr_diff_service
         self._gitlab_reader = gitlab_reader
+        self._gitlab_pr_operations = gitlab_pr_operations
         self._cache_service = cache_service
         self._logger = logger
         self._github_repository_class = github_repository_class
@@ -138,12 +141,12 @@ class ToolRegistry(_CoalescedPRDiffExecutionMixin):
             "UnknownObjectException": "Repository or PR not found",
             "BadCredentialsException": "GitHub authentication failed",
             "TwoFactorException": "Two-factor authentication required",
-            "InvalidURLError": "Invalid GitHub PR URL format",
+            "InvalidURLError": "Invalid PR or merge request URL",
             "InvalidRepositoryError": "Invalid repository identifier",
             "InvalidPRNumberError": "Invalid pull request number",
             "InputSanitizationError": "Invalid input parameters",
             "SuspiciousOperationError": "Request contains suspicious patterns",
-            "ConnectionError": "Connection to GitHub failed",
+            "ConnectionError": "Connection to the VCS provider failed",
             "TimeoutError": "Request timed out",
             "SSLError": "Secure connection failed",
             "ValueError": "Invalid input value",
@@ -190,12 +193,20 @@ class ToolRegistry(_CoalescedPRDiffExecutionMixin):
 
         return pr_diff
 
-    def _handle_security_exception(self, exception: Exception, start_time: float, request_id: str, pr_url: str) -> NoReturn:
+    def _handle_security_exception(
+        self,
+        exception: Exception,
+        start_time: float,
+        request_id: str,
+        pr_url: str,
+        *,
+        operation: str = "get_pr_diff",
+    ) -> NoReturn:
         execution_time = time.time() - start_time
-        self._metrics_tracker.track_request("get_pr_diff", False, execution_time)
+        self._metrics_tracker.track_request(operation, False, execution_time)
 
         self._logger.warning(
-            "Security validation error in PR diff request",
+            f"Security validation error in {operation} request",
             request_id=request_id,
             pr_url=self._input_validator.sanitize_for_logging(pr_url) if pr_url else None,
             error=str(exception),
@@ -205,12 +216,20 @@ class ToolRegistry(_CoalescedPRDiffExecutionMixin):
         safe_message = self._create_safe_error_message(exception)
         raise ValidationError(f"Invalid request: {safe_message}", error_code=E1001_INVALID_URL)
 
-    def _handle_validation_exception(self, exception: Exception, start_time: float, request_id: str, pr_url: str) -> NoReturn:
+    def _handle_validation_exception(
+        self,
+        exception: Exception,
+        start_time: float,
+        request_id: str,
+        pr_url: str,
+        *,
+        operation: str = "get_pr_diff",
+    ) -> NoReturn:
         execution_time = time.time() - start_time
-        self._metrics_tracker.track_request("get_pr_diff", False, execution_time)
+        self._metrics_tracker.track_request(operation, False, execution_time)
 
         self._logger.warning(
-            "Validation error in PR diff request",
+            f"Validation error in {operation} request",
             request_id=request_id,
             pr_url=self._input_validator.sanitize_for_logging(pr_url) if pr_url else None,
             error=str(exception),
@@ -219,12 +238,20 @@ class ToolRegistry(_CoalescedPRDiffExecutionMixin):
         safe_message = self._create_safe_error_message(exception)
         raise ValidationError(f"Invalid request: {safe_message}", error_code=E1001_INVALID_URL)
 
-    def _handle_runtime_exception(self, exception: Exception, start_time: float, request_id: str, pr_url: str) -> NoReturn:
+    def _handle_runtime_exception(
+        self,
+        exception: Exception,
+        start_time: float,
+        request_id: str,
+        pr_url: str,
+        *,
+        operation: str = "get_pr_diff",
+    ) -> NoReturn:
         execution_time = time.time() - start_time
-        self._metrics_tracker.track_request("get_pr_diff", False, execution_time)
+        self._metrics_tracker.track_request(operation, False, execution_time)
 
         self._logger.error(
-            "Failed to fetch PR diff",
+            f"Failed to complete {operation}",
             request_id=request_id,
             pr_url=self._input_validator.sanitize_for_logging(pr_url) if pr_url else None,
             error=str(exception),
@@ -233,7 +260,7 @@ class ToolRegistry(_CoalescedPRDiffExecutionMixin):
 
         safe_message = self._create_safe_error_message(exception)
         raise GitHubAPIError(
-            f"Failed to fetch PR diff: {safe_message}",
+            f"Failed to complete {operation}: {safe_message}",
             error_code=E5002_GITHUB_API_ERROR,
         )
 
@@ -304,8 +331,6 @@ class ToolRegistry(_CoalescedPRDiffExecutionMixin):
                             cache_namespace="gitlab",
                             base_url=target.base_url,
                         )
-                    case unreachable:
-                        assert_never(unreachable)
 
                 return self._log_metrics_and_return_success(start_time, pr_diff)
 
@@ -313,7 +338,7 @@ class ToolRegistry(_CoalescedPRDiffExecutionMixin):
                 # Preserve machine-readable E5020 at the raw FastMCP boundary.
                 execution_time = time.time() - start_time
                 self._metrics_tracker.track_request("get_pr_diff", False, execution_time)
-                payload = {
+                payload: dict[str, object] = {
                     "error_code": str(E5020_FULL_DIFF_INCOMPLETE),
                     "message": e.message,
                     "details": e.details,
@@ -345,19 +370,21 @@ class ToolRegistry(_CoalescedPRDiffExecutionMixin):
 
         @mcp.tool()
         async def approve_pr(pr_url: str, compliment: str, api_key: str | None = None) -> str:
-            """Approve a GitHub PR with a compliment comment.
+            """Approve a GitHub PR or GitLab MR with a compliment comment/note.
 
             Args:
-                pr_url: The full GitHub PR URL (e.g., https://github.com/owner/repo/pull/123)
-                compliment: The compliment text to include in the approval review
+                pr_url: GitHub PR URL (e.g. https://github.com/owner/repo/pull/123)
+                    or GitLab MR URL (e.g. https://gitlab.com/group/project/-/merge_requests/42)
+                compliment: Non-empty compliment text included in the approval review (GitHub)
+                    or as a note after approve (GitLab)
                 api_key: Optional API key for authentication (required if authentication is enabled)
 
             Returns:
-                str: Success message indicating PR was approved
+                str: Success message indicating the PR/MR was approved
 
             Raises:
-                ValueError: If authentication fails, URL is invalid, or compliment is missing
-                RuntimeError: If rate limit is exceeded or API request fails
+                ValidationError: If the URL is invalid or compliment is empty
+                AuthenticationError / RateLimitError / provider API errors on failure
             """
             request_id = self._generate_request_id()
             start_time = time.time()
@@ -365,7 +392,7 @@ class ToolRegistry(_CoalescedPRDiffExecutionMixin):
             self._logger.info(
                 "Processing approve_pr request",
                 request_id=request_id,
-                pr_url=pr_url[:100],
+                pr_url=pr_url[:100] if pr_url else pr_url,
             )
 
             client_id = await self._authenticate_request(request_id, start_time, api_key)
@@ -375,20 +402,39 @@ class ToolRegistry(_CoalescedPRDiffExecutionMixin):
             try:
                 self._check_rate_limit(rate_limit_client_id)
 
-                repo_owner, repo_name, pr_number = self._input_validator.validate_github_url(pr_url)
+                if not pr_url:
+                    raise InputSanitizationError("PR URL parameter is required")
+                sanitized_pr_url = self._input_validator.sanitize_string(pr_url, max_length=2000)
+                target = parse_pr_target(sanitized_pr_url, self._input_validator)
 
-                repository = self._github_repository_class(repo_owner, repo_name, pr_number)
-
-                if not compliment:
+                if not isinstance(compliment, str) or not compliment.strip():
                     raise ValidationError(
                         "Compliment must be a non-empty string",
                         error_code=E1001_INVALID_URL,
                     )
+                compliment = compliment.strip()
 
-                result = await repository.approve_pr_with_comment(
-                    pr_url=pr_url,
-                    compliment=compliment,
-                )
+                match target.provider:
+                    case "github":
+                        repository = self._github_repository_class(
+                            target.repo_owner,
+                            target.repo_name,
+                            target.pr_number,
+                        )
+                        result = await repository.approve_pr_with_comment(
+                            pr_url=sanitized_pr_url,
+                            compliment=compliment,
+                        )
+                    case "gitlab":
+                        if self._gitlab_pr_operations is None:
+                            raise RuntimeError("GitLab PR operations are not configured")
+                        result = await self._gitlab_pr_operations.approve_pr_with_comment(
+                            target.repo_owner,
+                            target.repo_name,
+                            target.pr_number,
+                            compliment,
+                            base_url=target.base_url,
+                        )
 
                 execution_time = time.time() - start_time
                 self._metrics_tracker.track_request("approve_pr", True, execution_time)
@@ -403,10 +449,10 @@ class ToolRegistry(_CoalescedPRDiffExecutionMixin):
                 InputSanitizationError,
                 SuspiciousOperationError,
             ) as e:
-                self._handle_security_exception(e, start_time, request_id, pr_url)
+                self._handle_security_exception(e, start_time, request_id, pr_url, operation="approve_pr")
 
             except ValueError as e:
-                self._handle_validation_exception(e, start_time, request_id, pr_url)
+                self._handle_validation_exception(e, start_time, request_id, pr_url, operation="approve_pr")
 
             except (
                 RuntimeError,
@@ -415,25 +461,26 @@ class ToolRegistry(_CoalescedPRDiffExecutionMixin):
                 TypeError,
                 ConnectionError,
             ) as e:
-                self._handle_runtime_exception(e, start_time, request_id, pr_url)
+                self._handle_runtime_exception(e, start_time, request_id, pr_url, operation="approve_pr")
 
         _ = approve_pr  # registered via @mcp.tool() decorator
 
         @mcp.tool()
         async def describe_pr(pr_url: str, pr_description: str, api_key: str | None = None) -> str:
-            """Update a GitHub PR description/body.
+            """Update a GitHub PR or GitLab MR description/body.
 
             Args:
-                pr_url: The full GitHub PR URL (e.g., https://github.com/owner/repo/pull/123)
-                pr_description: The new description text to set on the PR
+                pr_url: GitHub PR URL (e.g. https://github.com/owner/repo/pull/123)
+                    or GitLab MR URL (e.g. https://gitlab.com/group/project/-/merge_requests/42)
+                pr_description: Non-empty description text to set on the PR/MR
                 api_key: Optional API key for authentication (required if authentication is enabled)
 
             Returns:
-                str: Success message indicating PR description was updated
+                str: Success message indicating the description was updated
 
             Raises:
-                ValueError: If authentication fails, URL is invalid, or description is missing
-                RuntimeError: If rate limit is exceeded or API request fails
+                ValidationError: If the URL is invalid or description is empty
+                AuthenticationError / RateLimitError / provider API errors on failure
             """
             request_id = self._generate_request_id()
             start_time = time.time()
@@ -441,7 +488,7 @@ class ToolRegistry(_CoalescedPRDiffExecutionMixin):
             self._logger.info(
                 "Processing describe_pr request",
                 request_id=request_id,
-                pr_url=pr_url[:100],
+                pr_url=pr_url[:100] if pr_url else pr_url,
             )
 
             client_id = await self._authenticate_request(request_id, start_time, api_key)
@@ -451,20 +498,39 @@ class ToolRegistry(_CoalescedPRDiffExecutionMixin):
             try:
                 self._check_rate_limit(rate_limit_client_id)
 
-                repo_owner, repo_name, pr_number = self._input_validator.validate_github_url(pr_url)
+                if not pr_url:
+                    raise InputSanitizationError("PR URL parameter is required")
+                sanitized_pr_url = self._input_validator.sanitize_string(pr_url, max_length=2000)
+                target = parse_pr_target(sanitized_pr_url, self._input_validator)
 
-                repository = self._github_repository_class(repo_owner, repo_name, pr_number)
-
-                if not pr_description:
+                if not isinstance(pr_description, str) or not pr_description.strip():
                     raise ValidationError(
                         "PR description must be a non-empty string",
                         error_code=E1001_INVALID_URL,
                     )
+                pr_description = pr_description.strip()
 
-                result = await repository.update_pr_description(
-                    pr_url=pr_url,
-                    description=pr_description,
-                )
+                match target.provider:
+                    case "github":
+                        repository = self._github_repository_class(
+                            target.repo_owner,
+                            target.repo_name,
+                            target.pr_number,
+                        )
+                        result = await repository.update_pr_description(
+                            pr_url=sanitized_pr_url,
+                            description=pr_description,
+                        )
+                    case "gitlab":
+                        if self._gitlab_pr_operations is None:
+                            raise RuntimeError("GitLab PR operations are not configured")
+                        result = await self._gitlab_pr_operations.update_pr_description(
+                            target.repo_owner,
+                            target.repo_name,
+                            target.pr_number,
+                            pr_description,
+                            base_url=target.base_url,
+                        )
 
                 execution_time = time.time() - start_time
                 self._metrics_tracker.track_request("describe_pr", True, execution_time)
@@ -479,10 +545,10 @@ class ToolRegistry(_CoalescedPRDiffExecutionMixin):
                 InputSanitizationError,
                 SuspiciousOperationError,
             ) as e:
-                self._handle_security_exception(e, start_time, request_id, pr_url)
+                self._handle_security_exception(e, start_time, request_id, pr_url, operation="describe_pr")
 
             except ValueError as e:
-                self._handle_validation_exception(e, start_time, request_id, pr_url)
+                self._handle_validation_exception(e, start_time, request_id, pr_url, operation="describe_pr")
 
             except (
                 RuntimeError,
@@ -491,6 +557,6 @@ class ToolRegistry(_CoalescedPRDiffExecutionMixin):
                 TypeError,
                 ConnectionError,
             ) as e:
-                self._handle_runtime_exception(e, start_time, request_id, pr_url)
+                self._handle_runtime_exception(e, start_time, request_id, pr_url, operation="describe_pr")
 
         _ = describe_pr  # registered via @mcp.tool() decorator

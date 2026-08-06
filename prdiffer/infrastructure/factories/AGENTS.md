@@ -1,6 +1,6 @@
 # AGENTS.md - Infrastructure/Factories
 
-**Package:** 0.6.0  
+**Package:** 0.6.2  
 `InfrastructureFactory` implements domain `InfrastructureFactoryInterface` (~234 lines).
 
 ## STRUCTURE

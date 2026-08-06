@@ -32,6 +32,9 @@
 set -euo pipefail
 
 # Global variables
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Allow tests to point at an isolated env file (or empty path to skip loading).
+ENV_FILE="${ENV_FILE:-$SCRIPT_DIR/.env}"
 SERVER_PID=""
 VERBOSE=false
 TRANSPORT="${TRANSPORT:-http}"
@@ -173,18 +176,14 @@ check_existing_server() {
     fi
 }
 
-# Load .env file if it exists (see .env.example for keys including GITLAB_ALLOWED_HOSTS, MAX_FILES_ALLOWED, GITHUB_IGNORE_PATTERNS)
 load_env_file() {
-    if [[ -f .env ]]; then
-        log_info "Loading environment variables from .env file"
-        # Export variables from .env (GITHUB_TOKEN, GITLAB_TOKEN, GITLAB_ALLOWED_HOSTS, MAX_FILES_ALLOWED, GITHUB_IGNORE_PATTERNS, …)
+    if [[ -f "$ENV_FILE" ]]; then
+        log_info "Loading environment variables from $ENV_FILE"
         set -a
         # shellcheck source=/dev/null
-        source .env
+        source "$ENV_FILE"
         set +a
         log_debug "Loaded .env (GITLAB_ALLOWED_HOSTS=${GITLAB_ALLOWED_HOSTS:-<unset>}, MAX_FILES_ALLOWED=${MAX_FILES_ALLOWED:-<unset>}, GITHUB_IGNORE_PATTERNS=${GITHUB_IGNORE_PATTERNS:-<unset, use settings.toml>})"
-    elif [[ -f .env.example ]]; then
-        log_debug "No .env file found; copy .env.example to .env to configure tokens, hosts, limits, and ignore list"
     fi
 }
 

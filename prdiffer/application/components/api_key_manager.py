@@ -7,7 +7,6 @@ Contains runtime API key management operations.
 from __future__ import annotations
 
 import logging
-from collections.abc import Callable
 from typing import Any
 
 from prdiffer.domain.interfaces.input_validation import InputValidatorProtocol
@@ -30,12 +29,14 @@ class APIKeyManagerMixin:
     # Type annotations for host class attributes used by this mixin
     _input_validator: InputValidatorProtocol
     _logger: logging.Logger | LoggerServiceInterface
-    _hash_api_key: Callable[[str], str]
     _hashed_api_keys: set[str]
     _api_key_count: int
     _auth_enabled: bool
     _admin_api_key_hash: str | None
     _default_client_id: str
+
+    def _hash_api_key(self, api_key: str) -> str:
+        raise NotImplementedError
 
     def validate_api_key_format(self, api_key: str) -> bool:
         """Validate API key format before attempting authentication.

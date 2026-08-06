@@ -170,13 +170,6 @@ class DiffGenerator:
                 details={"path": file_patch.filename},
             ) from exc
 
-        if body is None:
-            raise FullDiffIncompleteError(
-                FullDiffIncompleteReason.DIFF_GENERATION_FAILED,
-                path=file_patch.filename,
-                previous_path=previous_path,
-            )
-
         # Stable header order: mode headers, then rename headers, then body.
         mode_header = self._mode_change_header(file_patch.old_mode, file_patch.new_mode)
         rename_header = ""
@@ -222,12 +215,8 @@ class DiffGenerator:
     def _build_full_context_body(self, base_text: str, head_text: str, *, provider_patch: str) -> str:
         """Build full-file unified body from required text; provider patch is fallback input only."""
         # Prefer full-file generation from complete base/head (not hunk-only provider patch).
-        build = getattr(self._diff_utils, "build_full_file_patch_chunked", None)
         try:
-            if callable(build):
-                body = build(base_text, head_text)
-            else:
-                body = self._diff_utils.build_full_file_patch(base_text, head_text)
+            body = self._diff_utils.build_full_file_patch_chunked(base_text, head_text)
         except FullDiffIncompleteError:
             raise
         except Exception:
@@ -237,25 +226,19 @@ class DiffGenerator:
             else:
                 body = self._diff_utils.build_full_file_patch(base_text, head_text)
 
-        if body is None:
-            raise FullDiffIncompleteError(
-                FullDiffIncompleteReason.DIFF_GENERATION_FAILED,
-                message="Diff builder returned no output",
-            )
         # Binary / pure-truncation are whole-response sentinels, not content scans.
         # Never substring-search for "DIFF TRUNCATED" — real source may contain that text.
-        if isinstance(body, str):
-            stripped = body.strip()
-            if stripped.startswith("[BINARY FILE"):
-                raise FullDiffIncompleteError(
-                    FullDiffIncompleteReason.BINARY_CONTENT,
-                    message="Binary content cannot produce a full-context text diff",
-                )
-            if stripped in self._TRUNCATION_BODY_SENTINELS:
-                raise FullDiffIncompleteError(
-                    FullDiffIncompleteReason.RESPONSE_SIZE_LIMIT,
-                    message="Diff builder produced a truncation marker instead of full context",
-                )
+        stripped = body.strip()
+        if stripped.startswith("[BINARY FILE"):
+            raise FullDiffIncompleteError(
+                FullDiffIncompleteReason.BINARY_CONTENT,
+                message="Binary content cannot produce a full-context text diff",
+            )
+        if stripped in self._TRUNCATION_BODY_SENTINELS:
+            raise FullDiffIncompleteError(
+                FullDiffIncompleteReason.RESPONSE_SIZE_LIMIT,
+                message="Diff builder produced a truncation marker instead of full context",
+            )
         return body
 
     def _decouple_and_convert_to_hunks_with_lines_numbers(self, patch: str, file: FilePatchInfo, is_first_file: bool = False) -> str:

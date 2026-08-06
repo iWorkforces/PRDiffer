@@ -1,6 +1,6 @@
 # AGENTS.md - Domain/Use Cases
 
-Thin business orchestration over injected ports. Package 0.6.0.
+Thin business orchestration over injected ports. Package 0.6.2.
 
 ## STRUCTURE
 ```
@@ -15,8 +15,8 @@ prdiffer/domain/usecases/
 | Task | Location | Notes |
 |------|----------|-------|
 | **Fetch structured diff** | `pr_diff_usecases.py` | Session path (GitHub + GitLab) vs legacy two-call path |
-| **Update description** | `pr_description_usecases.py` | Validates then `update_pr_description` |
-| **Approve PR** | `pr_approval_usecases.py` | Validates then `approve_pr_with_comment` |
+| **Update description** | `pr_description_usecases.py` | Validates non-empty body then repository `update_pr_description` (provider-agnostic validation; MCP also routes GitLab directly) |
+| **Approve PR/MR** | `pr_approval_usecases.py` | Validates non-empty compliment then repository `approve_pr_with_comment` (MCP tools also call GitLab ops directly) |
 
 ## CODE MAP
 | Symbol | Type | Location | Role |

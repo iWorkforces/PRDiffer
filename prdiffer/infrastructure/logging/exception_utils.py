@@ -124,7 +124,7 @@ class ExceptionSanitizer:
         return result
 
     @classmethod
-    def _sanitize_string(cls, value: str) -> str:
+    def _sanitize_string(cls, value: object) -> str:
         """Apply all sanitization patterns to a string.
 
         Args:

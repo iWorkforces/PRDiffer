@@ -17,7 +17,7 @@ class EDIT_TYPE(StrEnum):
     UNKNOWN = "unknown"
 
 
-def _validate_optional_git_mode(name: str, value: str | None) -> None:
+def _validate_optional_git_mode(name: str, value: object) -> None:
     """Reject present-but-malformed Git mode strings; None is allowed."""
     if value is None:
         return

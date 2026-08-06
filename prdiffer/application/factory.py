@@ -2,16 +2,24 @@
 
 from prdiffer.domain.services.pr_diff_service import PRDiffServiceInterface
 from prdiffer.domain.usecases.pr_diff_usecases import PRDiffReader
+from prdiffer.domain.interfaces.protocols import GitLabPROperationsProtocol
 
 from .mcp_server import FastMCPServer
 from prdiffer.domain.services.settings import SettingsServiceInterface
 from prdiffer.domain.services.cache import CacheServiceInterface
 from prdiffer.domain.services.repository_cache import RepositoryCacheServiceInterface
 from prdiffer.domain.services.logger import LoggerServiceInterface
-from typing import Any
+from typing import Any, TypeGuard
 
 from prdiffer.infrastructure.factories.infrastructure_factory import get_infrastructure_factory
 from prdiffer.application.factories.application_factory import get_application_factory
+
+
+def _is_gitlab_pr_operations(value: object) -> TypeGuard[GitLabPROperationsProtocol]:
+    """Structural check: object exposes GitLab approve + description methods."""
+    approve = getattr(value, "approve_pr_with_comment", None)
+    describe = getattr(value, "update_pr_description", None)
+    return callable(approve) and callable(describe)
 
 
 def create_mcp_server(
@@ -21,6 +29,7 @@ def create_mcp_server(
     repository_cache_service: RepositoryCacheServiceInterface | None = None,
     pr_diff_service: PRDiffServiceInterface | None = None,
     gitlab_reader: PRDiffReader | None = None,
+    gitlab_pr_operations: GitLabPROperationsProtocol | None = None,
     logger: LoggerServiceInterface | None = None,
 ) -> FastMCPServer:
     """Create FastMCPServer with all dependencies properly injected."""
@@ -68,12 +77,19 @@ def create_mcp_server(
 
     request_coalescing_instance = get_request_coalescing_service()
 
+    # GitLabVCSRepository implements both SessionPRDiffReader and MR ops; reuse when
+    # callers pass a single adapter and omit the dedicated operations dependency.
+    resolved_gitlab_ops = gitlab_pr_operations
+    if resolved_gitlab_ops is None and gitlab_reader is not None and _is_gitlab_pr_operations(gitlab_reader):
+        resolved_gitlab_ops = gitlab_reader
+
     return FastMCPServer(
         settings_service=settings_service,
         cache_service=cache_service,
         repository_cache_service=repository_cache_service,
         pr_diff_service=pr_diff_service,
         gitlab_reader=gitlab_reader,
+        gitlab_pr_operations=resolved_gitlab_ops,
         github_repository_class=github_repository_class,
         logger=logger,
         rate_limiter=rate_limiter,

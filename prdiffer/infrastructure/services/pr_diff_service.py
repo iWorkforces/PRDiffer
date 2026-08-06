@@ -196,7 +196,10 @@ class GitHubPRDiffService(CachingMixin, PRDiffServiceInterface):
 
             github_files = pull_request.get_files()
             max_files = self._file_processor.max_files_allowed if self._file_processor is not None else 50
-            is_valid = self._file_processor._pattern_matcher.is_valid_file if self._file_processor is not None else (lambda _name: True)
+            def accept_all(_name: str) -> bool:
+                return True
+
+            is_valid = self._file_processor._pattern_matcher.is_valid_file if self._file_processor is not None else accept_all
             selected_files = prepare_selected_inventory(
                 authoritative_changed_files=None,
                 provider_files=github_files,
@@ -460,7 +463,10 @@ class GitHubPRDiffService(CachingMixin, PRDiffServiceInterface):
 
             github_files = pull_request.get_files()
             max_files = self._file_processor.max_files_allowed if self._file_processor is not None else 50
-            is_valid = self._file_processor._pattern_matcher.is_valid_file if self._file_processor is not None else (lambda _name: True)
+            def accept_all(_name: str) -> bool:
+                return True
+
+            is_valid = self._file_processor._pattern_matcher.is_valid_file if self._file_processor is not None else accept_all
             selected_files = prepare_selected_inventory(
                 authoritative_changed_files=None,
                 provider_files=github_files,

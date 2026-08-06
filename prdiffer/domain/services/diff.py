@@ -23,6 +23,9 @@ class DiffServiceInterface(ABC):
         """
         pass
 
+    def build_full_file_patch_chunked(self, original_file_str: str, new_file_str: str) -> str:
+        return self.build_full_file_patch(original_file_str, new_file_str)
+
     @abstractmethod
     def decode_if_bytes(self, content: str | bytes | bytearray) -> str:
         """Decode bytes content to string with fallback encoding support.
