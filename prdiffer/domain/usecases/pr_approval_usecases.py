@@ -19,7 +19,7 @@ class ApprovePRUseCase:
         self._pr_diff_repository = pr_diff_repository
         self._logger = logger
 
-    async def execute(self, pr_url: str, compliment: str) -> str:
+    async def execute(self, pr_url: str, compliment: object) -> str:
         """Execute PR approval with compliment.
 
         Args:

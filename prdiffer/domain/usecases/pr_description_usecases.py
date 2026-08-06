@@ -19,7 +19,7 @@ class UpdatePRDescriptionUseCase:
         self._pr_diff_repository = pr_diff_repository
         self._logger = logger
 
-    async def execute(self, pr_url: str, pr_description: str) -> str:
+    async def execute(self, pr_url: str, pr_description: object) -> str:
         """Execute PR description update.
 
         Args:
