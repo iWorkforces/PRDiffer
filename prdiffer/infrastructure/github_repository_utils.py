@@ -20,7 +20,7 @@ from prdiffer.infrastructure.logging.exception_utils import (
 from prdiffer.infrastructure.security.input_validator import InputValidator
 
 
-def _handle_github_exception(
+def handle_github_exception(
     e: GithubException,
     logger: LoggerServiceInterface,
     *,
