@@ -17,6 +17,7 @@ from prdiffer.domain.interfaces.protocols import (
     HealthMonitorProtocol,
     ServerConfigurationProtocol,
     AuthenticationProtocol,
+    GitLabPROperationsProtocol,
 )
 from prdiffer.domain.interfaces.input_validation import InputValidatorProtocol
 from prdiffer.domain.interfaces.request_coalescing import RequestCoalescingProtocol
@@ -46,6 +47,7 @@ class FastMCPServer:
         health_monitor: HealthMonitorProtocol,
         server_configuration: ServerConfigurationProtocol,
         gitlab_reader: PRDiffReader | None = None,
+        gitlab_pr_operations: GitLabPROperationsProtocol | None = None,
         authentication: AuthenticationProtocol | None = None,
         input_validator: InputValidatorProtocol | None = None,
         request_coalescing_service: RequestCoalescingProtocol | None = None,
@@ -55,6 +57,7 @@ class FastMCPServer:
         self._repository_cache_service = repository_cache_service
         self._pr_diff_service = pr_diff_service
         self._gitlab_reader = gitlab_reader
+        self._gitlab_pr_operations = gitlab_pr_operations
         self._logger = logger
         self._github_repository_class: Callable[..., Any] = github_repository_class
 
@@ -109,6 +112,7 @@ class FastMCPServer:
         self._tool_registry = ToolRegistry(
             pr_diff_service=self._pr_diff_service,
             gitlab_reader=self._gitlab_reader,
+            gitlab_pr_operations=self._gitlab_pr_operations,
             cache_service=self._cache_service,
             logger=self._logger,
             github_repository_class=self._github_repository_class,
@@ -141,7 +145,7 @@ class FastMCPServer:
 
     def _register_endpoints_and_tools(self) -> None:
 
-        # Register tools (get_pr_diff, approve_pr)
+        # Register tools (get_pr_diff, approve_pr, describe_pr)
         self._tool_registry.register_tools(self.mcp)
 
         health_tool = self._health_endpoints.get_health_handler()
