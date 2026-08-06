@@ -1,13 +1,13 @@
 [project]
 name = "prdiffer"
 version = "0.6.2"
-description = "MCP Server For GitHub PR's Review Process With Full Contexts"
+description = "MCP Server For GitHub PR/GitLab MR Review Process With Full Contexts"
 readme = "README.md"
 license = { text = "MIT" }
 authors = [
-    { name = "OCWorkforces Engineers" }
+    { name = "iWorkforces Engineers" }
 ]
-requires-python = ">=3.14.3"
+requires-python = ">=3.14.6"
 keywords = ["mcp", "github", "pr-review", "code-review", "diff", "model-context-protocol"]
 classifiers = [
     "Development Status :: 4 - Beta",
@@ -69,7 +69,7 @@ dev = [
     "pytest-asyncio>=1.4.0",
     "pytest-cov>=7.1.0",
     "pytest-xdist>=3.8.0",
-    "ty>=0.0.67",
+    "ty>=0.0.68",
     "vulture>=2.16",
     "pyright>=1.1.411",
 ]
