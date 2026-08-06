@@ -9,7 +9,7 @@ from prdiffer.domain.errors import (
 
 
 class ApprovePRUseCase:
-    """Approves a GitHub PR with a compliment comment."""
+    """Approves a PR/MR with a compliment via the injected repository port."""
 
     def __init__(
         self,
@@ -20,14 +20,14 @@ class ApprovePRUseCase:
         self._logger = logger
 
     async def execute(self, pr_url: str, compliment: object) -> str:
-        """Execute PR approval with compliment.
+        """Execute PR/MR approval with compliment.
 
         Args:
-            pr_url: Full GitHub PR URL (e.g., https://github.com/owner/repo/pull/123)
-            compliment: Compliment text to include in the approval review
+            pr_url: Full PR or MR URL (GitHub or GitLab); repository implementation owns provider details
+            compliment: Compliment text to include with the approval
 
         Returns:
-            Success message indicating PR was approved
+            Success message indicating the PR/MR was approved
 
         Raises:
             InvalidURLError: If pr_url is empty
