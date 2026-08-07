@@ -51,7 +51,7 @@ prdiffer/infrastructure/utils/
 - Parallel full-diff work must preserve identity/order via `execute_indexed_batch`.
 - Strict indexed failures use **only** `IndexedBatchError.first_failure` (no second selection helper).
 - Executor creates a fresh semaphore per batch (safe across independent anyio loops).
-- Chunked large-file diffs apply Git `\ No newline at end of file` markers on the **last** hunk.
+- Chunked large-file diffs apply Git `\ No newline at end of file` markers on the **last** hunk and emit **equal-context** chunks (full-context parity with the small-file path).
 
 ## ANTI-PATTERNS
 - NO sleeping without jitter/caps on hot paths.

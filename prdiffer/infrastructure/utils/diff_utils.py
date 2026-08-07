@@ -249,13 +249,9 @@ class DiffUtils(LazyLoggerMixin, DiffServiceInterface):
                 for k in range(j1, j2):
                     body_lines.append("+" + new_lines[k])
 
-        has_edits = any(line.startswith(("+", "-")) for line in body_lines)
-        needs_eof = apply_eof_markers and ((not orig_ends_with_newline and file_orig_count > 0) or (not new_ends_with_newline and file_new_count > 0))
-        # Equal-only chunks are omitted unless this is the last chunk and EOF
-        # markers must appear after the final body lines.
-        if not has_edits and not needs_eof:
-            return ""
-
+        # Full-context contract: emit equal-only chunks too (mode-only / identical
+        # large files must not produce an empty body while the small-file path
+        # would include equal context lines).
         if apply_eof_markers:
             body_lines = _append_no_newline_markers(
                 body_lines,

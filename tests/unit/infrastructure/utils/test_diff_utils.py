@@ -241,12 +241,14 @@ class TestBuildChunkHunk:
         result = diff_utils._build_chunk_hunk([], [], 1, 1)
         assert result == ""
 
-    def test_identical_chunks(self):
-        """Test with identical chunks returns empty (no changes)."""
+    def test_identical_chunks_emit_equal_context(self):
+        """Full-context: identical chunks still emit equal context lines."""
         diff_utils = DiffUtils()
         lines = ["line1", "line2"]
         result = diff_utils._build_chunk_hunk(lines, lines, 1, 1)
-        assert result == ""
+        assert " line1" in result
+        assert " line2" in result
+        assert "@@ -1,2 +1,2 @@" in result
 
     def test_modified_chunks(self):
         """Test with modified chunks."""
@@ -257,12 +259,15 @@ class TestBuildChunkHunk:
         assert "-old" in result
         assert "+new" in result
 
-    def test_no_changes_returns_empty(self):
-        """Test that chunks with no changes return empty string."""
-        diff_utils = DiffUtils()
-        lines = ["line1", "line2"]
-        result = diff_utils._build_chunk_hunk(lines, lines, 1, 1)
-        assert result == ""
+    def test_chunked_identical_large_file_emits_context(self):
+        """Mode-only / identical large files must not produce an empty body."""
+        utils = DiffUtils(config=DiffProcessingConfig(large_file_threshold=5, chunk_size=3))
+        lines = [f"line{i}" for i in range(8)]
+        content = "\n".join(lines) + "\n"
+        patch = utils.build_full_file_patch_chunked(content, content, chunk_size=3, large_file_threshold=5)
+        assert patch != ""
+        assert " line0" in patch
+        assert " line7" in patch
 
     def test_custom_line_numbers(self):
         """Test with custom line numbers."""
