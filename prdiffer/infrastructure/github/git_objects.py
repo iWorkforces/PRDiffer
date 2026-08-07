@@ -262,3 +262,170 @@ def require_distinct_rename_previous(previous_filename: object, path: str) -> st
             message="Rename previous_filename must differ from path",
         )
     return previous_filename
+
+
+def parse_tree_entry_from_provider(raw: object, *, ref: str) -> GitTreeEntry | None:
+    """Parse one recursive tree item; skip pure directory leaves for path index.
+
+    Directory entries (mode 040000 / type tree) are ignored for content maps.
+    Truncation and malformed leaf entries raise E5020.
+    """
+    path = getattr(raw, "path", None)
+    mode = getattr(raw, "mode", None)
+    otype = getattr(raw, "type", None)
+    sha = getattr(raw, "sha", None)
+    if path is None and isinstance(raw, dict):
+        path = raw.get("path")
+        mode = raw.get("mode")
+        otype = raw.get("type")
+        sha = raw.get("sha")
+    if not isinstance(path, str) or not path:
+        raise FullDiffIncompleteError(
+            FullDiffIncompleteReason.UNSUPPORTED_FILE_STATUS,
+            message="Tree entry missing path",
+        )
+    try:
+        mode_s = require_git_mode(mode, field=path)
+        type_e = parse_git_object_type(otype)
+        oid = require_object_id(sha, field=path)
+    except FullDiffIncompleteError as exc:
+        # Attach path when missing
+        if "path" not in (exc.details or {}):
+            raise FullDiffIncompleteError(exc.reason, path=path, message=str(exc), observed=exc.details.get("observed") if exc.details else None) from exc
+        raise
+    if mode_s == MODE_TREE or type_e is GitObjectType.TREE:
+        return None
+    entry = GitTreeEntry(path=path, mode=mode_s, object_type=type_e, object_id=oid, ref=ref)
+    validate_tree_entry_consistency(entry)
+    return entry
+
+
+def load_recursive_tree_entries(repository: object, tree_sha: str) -> dict[str, GitTreeEntry]:
+    """Load a recursive tree by immutable SHA; reject truncated responses."""
+    ref = require_object_id(tree_sha, field="tree_sha")
+    get_git_tree = getattr(repository, "get_git_tree", None)
+    if not callable(get_git_tree):
+        raise FullDiffIncompleteError(
+            FullDiffIncompleteReason.INVENTORY_TRUNCATED,
+            message="Repository does not support get_git_tree",
+        )
+    try:
+        tree = get_git_tree(ref, recursive=True)
+    except FullDiffIncompleteError:
+        raise
+    except Exception:
+        # Operational errors propagate; do not remap to empty inventory.
+        raise
+
+    if bool(getattr(tree, "truncated", False)):
+        raise FullDiffIncompleteError(
+            FullDiffIncompleteReason.INVENTORY_TRUNCATED,
+            message="Git tree response was truncated",
+            observed="truncated",
+        )
+
+    raw_entries = getattr(tree, "tree", None)
+    if raw_entries is None and isinstance(tree, dict):
+        raw_entries = tree.get("tree")
+    if raw_entries is None:
+        raw_entries = []
+    if not isinstance(raw_entries, (list, tuple)):
+        raise FullDiffIncompleteError(
+            FullDiffIncompleteReason.INVENTORY_TRUNCATED,
+            message="Git tree payload missing tree list",
+        )
+
+    entries: list[GitTreeEntry] = []
+    for raw in raw_entries:
+        parsed = parse_tree_entry_from_provider(raw, ref=ref)
+        if parsed is not None:
+            entries.append(parsed)
+    return index_tree_entries(entries)
+
+
+def resolve_entry_text(
+    entry: GitTreeEntry,
+    *,
+    blob_bytes: bytes | None,
+    max_file_size_bytes: int,
+) -> GitObjectText:
+    """Normalize a tree-proven entry to text (regular/symlink/gitlink)."""
+    if entry.mode == MODE_GITLINK:
+        return GitObjectText(
+            path=entry.path,
+            ref=entry.ref,
+            mode=entry.mode,
+            object_id=entry.object_id,
+            text=synthesize_gitlink_text(entry.object_id),
+        )
+
+    if entry.mode == MODE_SYMLINK or entry.mode in _REGULAR_BLOB_MODES:
+        if blob_bytes is None:
+            raise FullDiffIncompleteError(
+                FullDiffIncompleteReason.CONTENT_UNAVAILABLE,
+                path=entry.path,
+                message="Missing blob bytes for tree entry",
+            )
+        decoded = decode_regular_blob_bytes(
+            blob_bytes,
+            path=entry.path,
+            ref=entry.ref,
+            max_file_size_bytes=max_file_size_bytes,
+        )
+        if isinstance(decoded, FileContentAvailable):
+            return GitObjectText(
+                path=entry.path,
+                ref=entry.ref,
+                mode=entry.mode,
+                object_id=entry.object_id,
+                text=decoded.text,
+            )
+        reason_map = {
+            FileContentUnavailableReason.BINARY_CONTENT: FullDiffIncompleteReason.BINARY_CONTENT,
+            FileContentUnavailableReason.FILE_SIZE_LIMIT: FullDiffIncompleteReason.FILE_SIZE_LIMIT,
+            FileContentUnavailableReason.CONTENT_DECODE_FAILED: FullDiffIncompleteReason.CONTENT_DECODE_FAILED,
+            FileContentUnavailableReason.NOT_FOUND: FullDiffIncompleteReason.CONTENT_UNAVAILABLE,
+            FileContentUnavailableReason.DIRECTORY: FullDiffIncompleteReason.CONTENT_UNAVAILABLE,
+        }
+        raise FullDiffIncompleteError(
+            reason_map.get(decoded.reason, FullDiffIncompleteReason.CONTENT_UNAVAILABLE),
+            path=entry.path,
+            observed=decoded.observed_size,
+        )
+
+    raise FullDiffIncompleteError(
+        FullDiffIncompleteReason.UNSUPPORTED_FILE_STATUS,
+        path=entry.path,
+        message=f"Cannot resolve text for mode {entry.mode}",
+        observed=entry.mode,
+    )
+
+
+def fetch_blob_bytes(repository: object, object_id: str) -> bytes:
+    """Fetch raw blob bytes by object id (symlink and regular file support)."""
+    oid = require_object_id(object_id, field="blob")
+    get_git_blob = getattr(repository, "get_git_blob", None)
+    if not callable(get_git_blob):
+        raise FullDiffIncompleteError(
+            FullDiffIncompleteReason.CONTENT_UNAVAILABLE,
+            message="Repository does not support get_git_blob",
+        )
+    blob = get_git_blob(oid)
+    encoding = getattr(blob, "encoding", None)
+    content = getattr(blob, "content", None)
+    if encoding == "base64" and isinstance(content, str):
+        import base64
+
+        return base64.b64decode(content)
+    data = getattr(blob, "decoded_content", None)
+    if isinstance(data, (bytes, bytearray)):
+        return bytes(data)
+    if isinstance(content, (bytes, bytearray)):
+        return bytes(content)
+    if isinstance(content, str):
+        return content.encode("utf-8")
+    raise FullDiffIncompleteError(
+        FullDiffIncompleteReason.CONTENT_UNAVAILABLE,
+        message="Blob payload missing decodable content",
+        observed=str(encoding),
+    )

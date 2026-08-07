@@ -112,3 +112,47 @@ class TestTreeIndex:
         with pytest.raises(FullDiffIncompleteError) as ei:
             require_tree_entry(tree, "missing.py", ref=REF)
         assert ei.value.reason is FullDiffIncompleteReason.CONTENT_UNAVAILABLE
+
+
+class TestTreeLoadAndResolve:
+    def test_truncated_tree_fails(self) -> None:
+        from types import SimpleNamespace
+        from prdiffer.infrastructure.github.git_objects import load_recursive_tree_entries
+
+        repo = SimpleNamespace(
+            get_git_tree=lambda sha, recursive=False: SimpleNamespace(truncated=True, tree=[])
+        )
+        with pytest.raises(FullDiffIncompleteError) as ei:
+            load_recursive_tree_entries(repo, OID)
+        assert ei.value.reason is FullDiffIncompleteReason.INVENTORY_TRUNCATED
+
+    def test_load_indexes_leaf_paths(self) -> None:
+        from types import SimpleNamespace
+        from prdiffer.infrastructure.github.git_objects import load_recursive_tree_entries
+
+        items = [
+            SimpleNamespace(path="a.py", mode="100644", type="blob", sha=OID),
+            SimpleNamespace(path="dir", mode="040000", type="tree", sha=OID2),
+            SimpleNamespace(path="sub", mode="160000", type="commit", sha=OID2),
+            SimpleNamespace(path="link", mode="120000", type="blob", sha=OID),
+        ]
+        repo = SimpleNamespace(
+            get_git_tree=lambda sha, recursive=False: SimpleNamespace(truncated=False, tree=items)
+        )
+        tree = load_recursive_tree_entries(repo, REF)
+        assert set(tree) == {"a.py", "sub", "link"}
+        assert tree["sub"].mode == MODE_GITLINK
+
+    def test_resolve_gitlink_without_blob(self) -> None:
+        from prdiffer.infrastructure.github.git_objects import resolve_entry_text
+
+        entry = _entry(path="sub", mode=MODE_GITLINK, otype=GitObjectType.COMMIT, oid=OID2)
+        text = resolve_entry_text(entry, blob_bytes=None, max_file_size_bytes=100)
+        assert text.text == f"Subproject commit {OID2}\n"
+
+    def test_resolve_symlink_uses_blob_target(self) -> None:
+        from prdiffer.infrastructure.github.git_objects import resolve_entry_text
+
+        entry = _entry(path="link", mode=MODE_SYMLINK, otype=GitObjectType.BLOB)
+        text = resolve_entry_text(entry, blob_bytes=b"../target", max_file_size_bytes=100)
+        assert text.text == "../target"
