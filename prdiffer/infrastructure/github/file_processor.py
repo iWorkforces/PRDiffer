@@ -19,6 +19,7 @@ from prdiffer.domain.services.github_api import GitHubAPIServiceInterface
 from prdiffer.domain.services.pattern_matching import PatternMatchingServiceInterface
 from prdiffer.domain.services.diff import DiffServiceInterface
 from prdiffer.infrastructure.logging.console_logger import ConsoleLogger, get_logger
+from prdiffer.infrastructure.github.git_objects import require_distinct_rename_previous
 from prdiffer.infrastructure.utils.parallel.executor import (
     AsyncParallelExecutor,
 )
@@ -254,11 +255,13 @@ class FileProcessor:
             elif edit_type is EDIT_TYPE.DELETED:
                 base_paths.append(file.filename)
             elif edit_type is EDIT_TYPE.RENAMED:
-                previous_name = getattr(file, "previous_filename", None)
-                base_key = previous_name if previous_name else file.filename
-                base_paths.append(base_key)
-                if previous_name:
-                    rename_map[file.filename] = previous_name
+                # Fail closed before any tree/content acquisition when rename metadata is malformed.
+                previous_name = require_distinct_rename_previous(
+                    getattr(file, "previous_filename", None),
+                    file.filename,
+                )
+                base_paths.append(previous_name)
+                rename_map[file.filename] = previous_name
 
         # Preserve order, drop duplicates while keeping first occurrence.
         def _unique(paths: list[str]) -> list[str]:

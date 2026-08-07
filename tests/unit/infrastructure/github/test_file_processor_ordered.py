@@ -110,3 +110,24 @@ class TestOrderedAssembly:
         async_result = anyio.run(run_async)
         assert [p.filename for p in sync_result] == [p.filename for p in async_result]
         assert [p.edit_type for p in sync_result] == [p.edit_type for p in async_result]
+
+
+def test_rename_without_previous_filename_fails_before_content(monkeypatch):
+    from types import SimpleNamespace
+    from unittest.mock import MagicMock
+    import pytest
+    from prdiffer.domain.exceptions import FullDiffIncompleteError, FullDiffIncompleteReason
+    from prdiffer.infrastructure.github.file_processor import FileProcessor
+
+    api = MagicMock()
+    proc = FileProcessor(
+        github_api_service=api,
+        pattern_matcher=MagicMock(is_valid_file=lambda p: True),
+        diff_utils=MagicMock(),
+    )
+    files = [SimpleNamespace(filename="new.py", status="renamed", previous_filename=None, patch="")]
+    with pytest.raises(FullDiffIncompleteError) as ei:
+        proc.process_files_to_patches(files, SimpleNamespace(full_name="o/r"), "h" * 40, "b" * 40)
+    assert ei.value.reason is FullDiffIncompleteReason.UNSUPPORTED_FILE_STATUS
+    api.get_files_content_batch.assert_not_called()
+    api.get_files_content_multi_ref_batch.assert_not_called()
