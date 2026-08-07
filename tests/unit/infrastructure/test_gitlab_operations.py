@@ -6,8 +6,8 @@ from typing import Any
 
 import pytest
 
-from prdiffer.domain.error_codes import E4001_REPO_NOT_FOUND, E4002_PR_NOT_FOUND
-from prdiffer.domain.exceptions import FullDiffIncompleteError, FullDiffIncompleteReason, PRDifferException
+from prdiffer.domain.error_codes import E1001_INVALID_URL, E4001_REPO_NOT_FOUND, E4002_PR_NOT_FOUND
+from prdiffer.domain.exceptions import FullDiffIncompleteError, FullDiffIncompleteReason, InvalidURLError, PRDifferException
 import prdiffer.infrastructure.vcs_providers.gitlab_operations as gitlab_operations
 from prdiffer.infrastructure.vcs_providers.gitlab_operations import GitLabOperations
 
@@ -242,9 +242,7 @@ class TestSelectDiffSnapshot:
         with pytest.raises(Exception) as exc:
             GitLabOperations().select_diff_snapshot("missing/project", 1)
         code = getattr(exc.value, "error_code", None)
-        assert code is E4001_REPO_NOT_FOUND or (
-            isinstance(exc.value, PRDifferException) and "not found" in exc.value.message.lower()
-        )
+        assert code is E4001_REPO_NOT_FOUND or (isinstance(exc.value, PRDifferException) and "not found" in exc.value.message.lower())
 
     def test_mr_404_maps_e4002(self, monkeypatch: pytest.MonkeyPatch) -> None:
         err = gitlab_operations.gitlab.GitlabGetError("nf", response_code=404)
@@ -254,3 +252,57 @@ class TestSelectDiffSnapshot:
             GitLabOperations().select_diff_snapshot("o/r", 99)
         code = getattr(exc.value, "error_code", None)
         assert code is E4002_PR_NOT_FOUND
+
+
+class TestGitLabOperationsHostAllowlist:
+    def test_select_diff_snapshot_rejects_disallowed_host(self) -> None:
+        ops = GitLabOperations(allowed_hosts=("gitlab.com",))
+        with pytest.raises(InvalidURLError) as exc:
+            ops.select_diff_snapshot("o/r", 1, base_url="https://evil.internal")
+        assert exc.value.error_code is E1001_INVALID_URL
+
+    def test_initialize_rejects_disallowed_host(self) -> None:
+        ops = GitLabOperations(allowed_hosts=("gitlab.com",))
+        with pytest.raises(InvalidURLError) as exc:
+            ops.initialize(base_url="https://evil.internal")
+        assert exc.value.error_code is E1001_INVALID_URL
+
+
+class TestParseGitlabRealSize:
+    def test_none_and_empty(self):
+        from prdiffer.infrastructure.vcs_providers.gitlab_operations import parse_gitlab_real_size
+
+        assert parse_gitlab_real_size(None) is None
+        assert parse_gitlab_real_size("") is None
+
+    def test_valid_int_and_digit_string(self):
+        from prdiffer.infrastructure.vcs_providers.gitlab_operations import parse_gitlab_real_size
+
+        assert parse_gitlab_real_size(1) == 1
+        assert parse_gitlab_real_size(0) == 0
+        assert parse_gitlab_real_size("1") == 1
+        assert parse_gitlab_real_size(" 12 ") == 12
+
+    def test_rejects_boolean_true(self):
+        from prdiffer.infrastructure.vcs_providers.gitlab_operations import parse_gitlab_real_size
+        import pytest
+
+        with pytest.raises(ValueError):
+            parse_gitlab_real_size(True)
+        with pytest.raises(ValueError):
+            parse_gitlab_real_size(False)
+
+    def test_rejects_float_negative_malformed(self):
+        from prdiffer.infrastructure.vcs_providers.gitlab_operations import parse_gitlab_real_size
+        import pytest
+
+        with pytest.raises(ValueError):
+            parse_gitlab_real_size(1.0)
+        with pytest.raises(ValueError):
+            parse_gitlab_real_size(-1)
+        with pytest.raises(ValueError):
+            parse_gitlab_real_size("1.5")
+        with pytest.raises(ValueError):
+            parse_gitlab_real_size("abc")
+        with pytest.raises(ValueError):
+            parse_gitlab_real_size([])

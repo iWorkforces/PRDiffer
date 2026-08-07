@@ -48,6 +48,7 @@ def processor() -> FileProcessor:
         max_files_allowed=50,
         # Unit tests mock the batch API; keep head/base sequential for determinism.
         parallel_head_base_fetch_enabled=False,
+        require_git_tree=False,
     )
 
 
@@ -110,3 +111,96 @@ class TestOrderedAssembly:
         async_result = anyio.run(run_async)
         assert [p.filename for p in sync_result] == [p.filename for p in async_result]
         assert [p.edit_type for p in sync_result] == [p.edit_type for p in async_result]
+
+
+def test_require_git_tree_fails_closed_without_tree_api() -> None:
+    from types import SimpleNamespace
+    from unittest.mock import MagicMock
+    import pytest
+    from prdiffer.domain.exceptions import FullDiffIncompleteError, FullDiffIncompleteReason
+    from prdiffer.infrastructure.github.file_processor import FileProcessor
+
+    api = MagicMock()
+    proc = FileProcessor(
+        github_api_service=api,
+        pattern_matcher=MagicMock(is_valid_file=lambda p: True),
+        diff_utils=MagicMock(),
+        require_git_tree=True,
+    )
+    files = [SimpleNamespace(filename="a.py", status="modified", patch="", additions=1, deletions=0)]
+    with pytest.raises(FullDiffIncompleteError) as ei:
+        proc.process_files_to_patches(files, SimpleNamespace(full_name="o/r"), "h" * 40, "b" * 40)
+    assert ei.value.reason is FullDiffIncompleteReason.INVENTORY_TRUNCATED
+    api.get_files_content_batch.assert_not_called()
+
+
+def test_rename_without_previous_filename_fails_before_content(monkeypatch):
+    from types import SimpleNamespace
+    from unittest.mock import MagicMock
+    import pytest
+    from prdiffer.domain.exceptions import FullDiffIncompleteError, FullDiffIncompleteReason
+    from prdiffer.infrastructure.github.file_processor import FileProcessor
+
+    api = MagicMock()
+    proc = FileProcessor(
+        github_api_service=api,
+        pattern_matcher=MagicMock(is_valid_file=lambda p: True),
+        diff_utils=MagicMock(),
+    )
+    files = [SimpleNamespace(filename="new.py", status="renamed", previous_filename=None, patch="")]
+    with pytest.raises(FullDiffIncompleteError) as ei:
+        proc.process_files_to_patches(files, SimpleNamespace(full_name="o/r"), "h" * 40, "b" * 40)
+    assert ei.value.reason is FullDiffIncompleteReason.UNSUPPORTED_FILE_STATUS
+    api.get_files_content_batch.assert_not_called()
+    api.get_files_content_multi_ref_batch.assert_not_called()
+
+
+def test_tree_path_assembles_modes_and_gitlink_without_contents_api():
+    from types import SimpleNamespace
+    from unittest.mock import MagicMock
+    from prdiffer.domain.entities.file_patch import EDIT_TYPE
+    from prdiffer.infrastructure.github.file_processor import FileProcessor
+
+    oid_blob = "1" * 40
+    oid_link = "2" * 40
+    base = "b" * 40
+    head = "c" * 40
+
+    def get_git_tree(sha, recursive=False):
+        if sha == head:
+            items = [
+                SimpleNamespace(path="sub", mode="160000", type="commit", sha=oid_link),
+                SimpleNamespace(path="a.py", mode="100644", type="blob", sha=oid_blob),
+            ]
+        else:
+            items = [
+                SimpleNamespace(path="a.py", mode="100644", type="blob", sha=oid_blob),
+            ]
+        return SimpleNamespace(truncated=False, tree=items)
+
+    def get_git_blob(sha):
+        assert sha == oid_blob
+        return SimpleNamespace(encoding="utf-8", content="hello\n", decoded_content=b"hello\n")
+
+    repo = SimpleNamespace(full_name="o/r", get_git_tree=get_git_tree, get_git_blob=get_git_blob)
+    api = MagicMock()
+    proc = FileProcessor(
+        github_api_service=api,
+        pattern_matcher=MagicMock(is_valid_file=lambda p: True),
+        diff_utils=MagicMock(),
+    )
+    files = [
+        SimpleNamespace(filename="a.py", status="modified", patch="", additions=1, deletions=0),
+        SimpleNamespace(filename="sub", status="added", patch="", additions=1, deletions=0),
+    ]
+    patches = proc.process_files_to_patches(files, repo, head, base)
+    assert len(patches) == 2
+    assert patches[0].edit_type is EDIT_TYPE.MODIFIED
+    assert patches[0].base_file == "hello\n"
+    assert patches[0].head_file == "hello\n"
+    assert patches[0].old_mode == "100644"
+    assert patches[0].new_mode == "100644"
+    assert patches[1].edit_type is EDIT_TYPE.ADDED
+    assert patches[1].head_file == f"Subproject commit {oid_link}\n"
+    assert patches[1].new_mode == "160000"
+    api.get_files_content_batch.assert_not_called()

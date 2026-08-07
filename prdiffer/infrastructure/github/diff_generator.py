@@ -171,7 +171,7 @@ class DiffGenerator:
             ) from exc
 
         # Stable header order: mode headers, then rename headers, then body.
-        mode_header = self._mode_change_header(file_patch.old_mode, file_patch.new_mode)
+        mode_header = self._mode_headers(file_patch)
         rename_header = ""
         if file_patch.edit_type is EDIT_TYPE.RENAMED and previous_path:
             rename_header = f"rename from {previous_path}\nrename to {file_patch.filename}\n"
@@ -194,13 +194,21 @@ class DiffGenerator:
         )
 
     @staticmethod
-    def _mode_change_header(old_mode: str | None, new_mode: str | None) -> str:
-        """Deterministic mode headers when both modes are present and differ."""
-        if old_mode is None or new_mode is None:
-            return ""
-        if old_mode == new_mode:
-            return ""
-        return f"old mode {old_mode}\nnew mode {new_mode}\n"
+    def _mode_headers(file_patch: FilePatchInfo) -> str:
+        """Deterministic Git-style mode headers (add/delete/change).
+
+        Supports regular (100644/100755), symlink (120000), and gitlink (160000).
+        """
+        old_mode = file_patch.old_mode
+        new_mode = file_patch.new_mode
+        edit = file_patch.edit_type
+        if edit is EDIT_TYPE.ADDED and new_mode:
+            return f"new file mode {new_mode}\n"
+        if edit is EDIT_TYPE.DELETED and old_mode:
+            return f"deleted file mode {old_mode}\n"
+        if old_mode is not None and new_mode is not None and old_mode != new_mode:
+            return f"old mode {old_mode}\nnew mode {new_mode}\n"
+        return ""
 
     # Whole-body sentinels only (legacy builders). Do NOT substring-scan unified
     # text: real source may contain "DIFF TRUNCATED" / "[DIFF TRUNCATED]" (e.g.
@@ -213,18 +221,18 @@ class DiffGenerator:
     )
 
     def _build_full_context_body(self, base_text: str, head_text: str, *, provider_patch: str) -> str:
-        """Build full-file unified body from required text; provider patch is fallback input only."""
-        # Prefer full-file generation from complete base/head (not hunk-only provider patch).
+        """Build full-file unified body from base/head text only (never provider hunks)."""
+        del provider_patch  # retained for call-site stability; never used as content source
         try:
             body = self._diff_utils.build_full_file_patch_chunked(base_text, head_text)
         except FullDiffIncompleteError:
             raise
-        except Exception:
-            # Fall back to extend_patch only when full build is unavailable.
-            if provider_patch:
-                body = self._diff_utils.extend_patch(base_text, provider_patch, new_file_str=head_text)
-            else:
-                body = self._diff_utils.build_full_file_patch(base_text, head_text)
+        except Exception as exc:
+            # Fail closed: never fall back to provider hunk text.
+            raise DiffGenerationError(
+                "Failed to reconstruct full-context diff from file text",
+                error_code=E5003_DIFF_GENERATION_ERROR,
+            ) from exc
 
         # Binary / pure-truncation are whole-response sentinels, not content scans.
         # Never substring-search for "DIFF TRUNCATED" — real source may contain that text.

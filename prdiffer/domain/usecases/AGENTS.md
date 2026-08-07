@@ -15,8 +15,8 @@ prdiffer/domain/usecases/
 | Task | Location | Notes |
 |------|----------|-------|
 | **Fetch structured diff** | `pr_diff_usecases.py` | Session path (GitHub + GitLab) vs legacy two-call path |
-| **Update description** | `pr_description_usecases.py` | Validates non-empty body then repository `update_pr_description` (provider-agnostic validation; MCP also routes GitLab directly) |
-| **Approve PR/MR** | `pr_approval_usecases.py` | Validates non-empty compliment then repository `approve_pr_with_comment` (MCP tools also call GitLab ops directly) |
+| **Update description** | `pr_description_usecases.py` | Validates non-empty body then repository `update_pr_description` (domain path; **MCP tools call repos/ops directly**, not this use case) |
+| **Approve PR/MR** | `pr_approval_usecases.py` | Validates non-empty compliment then repository `approve_pr_with_comment` (domain path; **MCP tools call repos/ops directly**, not this use case) |
 
 ## CODE MAP
 | Symbol | Type | Location | Role |

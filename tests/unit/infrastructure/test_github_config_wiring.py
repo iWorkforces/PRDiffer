@@ -47,6 +47,7 @@ class TestSettingsTomlDefaults:
     def test_real_settings_resolve_timeouts_and_parallel_flags(self, monkeypatch: pytest.MonkeyPatch) -> None:
         # Blank env (not delenv): Dynaconf load_dotenv must not re-inject developer .env values.
         monkeypatch.setenv("MAX_FILES_ALLOWED", "")
+        monkeypatch.setenv("MAX_TOTAL_CHARS", "")
         monkeypatch.setenv("GITHUB_IGNORE_PATTERNS", "")
         service = SettingsService(settings_files=["settings.toml"])
         service.clear_cache()
@@ -78,6 +79,21 @@ class TestSettingsTomlDefaults:
         service.clear_cache()
         config = service.get_github_config()
         assert config.max_files_allowed == 50
+
+    def test_max_total_chars_env_overrides_toml(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """MAX_TOTAL_CHARS wins over diff.max_total_chars — E5020 RESPONSE_SIZE_LIMIT budget."""
+        monkeypatch.setenv("MAX_TOTAL_CHARS", "  800000  ")
+        service = SettingsService(settings_files=["settings.toml"])
+        service.clear_cache()
+        config = service.get_github_config()
+        assert config.max_total_chars == 800_000
+
+    def test_empty_max_total_chars_env_falls_back_to_toml(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("MAX_TOTAL_CHARS", "   ")
+        service = SettingsService(settings_files=["settings.toml"])
+        service.clear_cache()
+        config = service.get_github_config()
+        assert config.max_total_chars == 600_000
 
     def test_github_ignore_patterns_env_overrides_toml(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """GITHUB_IGNORE_PATTERNS (CSV) replaces settings.toml — used by .env / start script."""

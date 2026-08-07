@@ -53,31 +53,6 @@ R = TypeVar("R")
 K = TypeVar("K")
 
 
-def _is_cancellation(exc: BaseException | None) -> bool:
-    if exc is None:
-        return False
-    if isinstance(exc, anyio.get_cancelled_exc_class()):
-        return True
-    name = type(exc).__name__
-    return name in {"CancelledError", "CancelledException"}
-
-
-def _first_root_failure(outcomes: tuple[IndexedItemOutcome[K, R], ...]) -> IndexedItemOutcome[K, R] | None:
-    """Prefer the first non-cancellation failure for identity reporting."""
-    non_cancel: list[IndexedItemOutcome[K, R]] = []
-    any_fail: list[IndexedItemOutcome[K, R]] = []
-    for outcome in outcomes:
-        if outcome.error is not None:
-            any_fail.append(outcome)
-            if not _is_cancellation(outcome.error):
-                non_cancel.append(outcome)
-    if non_cancel:
-        return non_cancel[0]
-    if any_fail:
-        return any_fail[0]
-    return None
-
-
 class AsyncParallelExecutor:
     """Native async parallel executor using anyio task groups.
 
@@ -510,7 +485,12 @@ class AsyncParallelExecutor:
                 for i, outcome in enumerate(outcomes)
             )
             if strict:
-                first = _first_root_failure(sealed)
+                # Single failure-selection algorithm: IndexedBatchError.first_failure only.
+                provisional = IndexedBatchError(
+                    "Indexed batch failed",
+                    outcomes=sealed,
+                )
+                first = provisional.first_failure
                 identity = first.key if first is not None else None
                 raise IndexedBatchError(
                     f"Indexed batch failed for item identity={identity!r}",
@@ -525,7 +505,11 @@ class AsyncParallelExecutor:
         )
         batch = IndexedBatchResult(outcomes=sealed_ok)
         if strict and not batch.all_succeeded:
-            first = _first_root_failure(sealed_ok)
+            provisional = IndexedBatchError(
+                "Indexed batch failed",
+                outcomes=sealed_ok,
+            )
+            first = provisional.first_failure
             assert first is not None
             raise IndexedBatchError(
                 f"Indexed batch failed for item identity={first.key!r}",

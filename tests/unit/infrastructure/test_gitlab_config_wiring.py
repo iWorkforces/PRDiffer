@@ -30,6 +30,7 @@ class TestSettingsTomlGitLabDefaults:
         # Blank env (not delenv): Dynaconf load_dotenv must not re-inject developer .env values.
         monkeypatch.setenv("GITLAB_ALLOWED_HOSTS", "")
         monkeypatch.setenv("MAX_FILES_ALLOWED", "")
+        monkeypatch.setenv("MAX_TOTAL_CHARS", "")
         service = SettingsService(settings_files=["settings.toml"])
         service.clear_cache()
         config = service.get_gitlab_config()
@@ -84,3 +85,18 @@ class TestSettingsTomlGitLabDefaults:
         service.clear_cache()
         config = service.get_gitlab_config()
         assert config.max_files_allowed == 50
+
+    def test_max_total_chars_env_overrides_toml(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """MAX_TOTAL_CHARS wins over settings.toml for GitLab RESPONSE_SIZE_LIMIT."""
+        monkeypatch.setenv("MAX_TOTAL_CHARS", "  750000  ")
+        service = SettingsService(settings_files=["settings.toml"])
+        service.clear_cache()
+        config = service.get_gitlab_config()
+        assert config.max_total_chars == 750_000
+
+    def test_empty_max_total_chars_env_falls_back_to_toml(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("MAX_TOTAL_CHARS", "   ")
+        service = SettingsService(settings_files=["settings.toml"])
+        service.clear_cache()
+        config = service.get_gitlab_config()
+        assert config.max_total_chars == 600_000

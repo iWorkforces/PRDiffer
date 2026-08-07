@@ -14,11 +14,11 @@ tests/unit/infrastructure/github/
 ├── test_file_processor_ordered.py             # ~112 — ordered strict assembly
 ├── test_file_processor_multi_ref.py           # ~93 — interleaved head/base multi-ref batch
 ├── test_diff_generator.py                     # ~101
-├── test_diff_generator_comprehensive.py       # ~738
-├── test_generated_file_diffs.py               # ~180 — ordered full-context generation
+├── test_diff_generator_comprehensive.py       # ~770
+├── test_generated_file_diffs.py               # ~206 — ordered full-context generation
 ├── test_github_mappers.py                     # ~417
 ├── test_inventory_admission.py                # ~91 — authoritative inventory + admission
-└── test_pr_diff_session.py                    # ~99 — session isolation / cache_identity / CapacityLimiter
+└── test_pr_diff_session.py                    # session v3 identity / merge-base capture / revalidate / CapacityLimiter
 ```
 
 ## WHERE TO LOOK
@@ -30,7 +30,7 @@ tests/unit/infrastructure/github/
 | **Inventory / 3000 cap** | `test_inventory_admission.py` | `INVENTORY_TRUNCATED`, admission selection |
 | **Ordered processor** | `test_file_processor_ordered.py` | Strict assembly, sync/async parity |
 | **Generated full-context diffs** | `test_generated_file_diffs.py` | Ordered diffs, E5003 mapping |
-| **PR diff session** | `test_pr_diff_session.py` | anyio limiter, aclose, GitHub v2 `cache_identity` |
+| **PR diff session** | `test_pr_diff_session.py` | anyio limiter, aclose, GitHub v3 merge-base `cache_identity` |
 | **Happy vs edge** | `*_comprehensive.py` | Edge/error branches |
 
 ## CONVENTIONS

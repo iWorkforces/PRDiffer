@@ -70,6 +70,7 @@ Helpers: `is_host_allowed(host)` (casefold; strips `:port`).
 - Runtime overrides (infrastructure, not this package) via `SettingsService` / `.env` (see `.env.example`):
   - `GITLAB_ALLOWED_HOSTS` CSV for host allowlist
   - `MAX_FILES_ALLOWED` positive int for selected-file admission (`app.max_files_allowed`)
+  - `MAX_TOTAL_CHARS` positive int for aggregate public-diff budget (`diff.max_total_chars`, E5020 `RESPONSE_SIZE_LIMIT`)
   - `GITHUB_IGNORE_PATTERNS` CSV replaces `github.ignore_patterns` (GitHub only)
 
 ## ANTI-PATTERNS

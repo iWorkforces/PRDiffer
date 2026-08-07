@@ -76,18 +76,11 @@ class GetPRDiffUseCase:
             unwrap_pr_diff_cache_value,
             wrap_pr_diff_for_cache,
         )
-        import inspect
 
         open_session = getattr(self._pr_diff_service, "open_pr_diff_session")
-        # Pass base_url only when the reader accepts it (GitLab); GitHub ignores.
-        try:
-            sig = inspect.signature(open_session)
-            if "base_url" in sig.parameters:
-                session = await open_session(repo_owner, repo_name, pr_number, base_url=base_url)
-            else:
-                session = await open_session(repo_owner, repo_name, pr_number)
-        except TypeError:
-            session = await open_session(repo_owner, repo_name, pr_number)
+        # All session readers accept base_url (GitHub ignores; GitLab uses it).
+        # Call exactly once — never swallow TypeError or probe signatures.
+        session = await open_session(repo_owner, repo_name, pr_number, base_url=base_url)
         try:
             identity = session.cache_identity
             # Provider-neutral key from session; ignore cache_namespace on strict path.
@@ -106,7 +99,8 @@ class GetPRDiffUseCase:
                 return unwrapped
 
             result = await session.build_pr_diff()
-            if result:
+            # Use identity check so authoritative empty PRDiff(files=()) still caches.
+            if result is not None:
                 _ = wrap_pr_diff_for_cache(result)  # validate constructibility
                 await self._cache_service.set(cache_key, validation_token, result)
             return result

@@ -23,13 +23,14 @@ EXPECTED_REASONS = (
     "UNSUPPORTED_FILE_STATUS",
     "DIFF_GENERATION_FAILED",
     "RESPONSE_SIZE_LIMIT",
+    "SNAPSHOT_CHANGED",
 )
 
 
 class TestFullDiffIncompleteReason:
     def test_exact_reason_taxonomy(self) -> None:
         assert tuple(member.value for member in FullDiffIncompleteReason) == EXPECTED_REASONS
-        assert len(FullDiffIncompleteReason) == 9
+        assert len(FullDiffIncompleteReason) == 10
 
 
 class TestE5020ErrorCode:

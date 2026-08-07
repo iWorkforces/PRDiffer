@@ -3,8 +3,8 @@
 Pure business logic. No external deps, no I/O. Entities, ports (ABC/Protocol), use cases, and factory contracts only.
 
 ## OVERVIEW
-Package **0.6.2**, Python **3.14.3+**.  
-**42** modules across root + **7** subpackages. Frozen dataclasses for most entities; ABC/Protocol for ports.
+Package **0.6.2**, Python **3.14.6+**.  
+**42** modules across root + **7** subpackages (no package-level `__init__.py` — import concrete modules). Frozen dataclasses for most entities; ABC/Protocol for ports.
 
 ## STRUCTURE
 ```
@@ -29,7 +29,7 @@ prdiffer/domain/
 | **MCP response shape** | `entities/file_diff_response.py`, `entities/pr_diff.py` | Frozen; `previous_path` on renames |
 | **Typed content** | `entities/file_content.py` | Available/Unavailable + `FileContentRequest`/`Response` |
 | **Generated diff unit** | `entities/generated_file_diff.py` | `GeneratedFileDiff` (index, path, previous_path, diff) |
-| **Strict cache identity** | `entities/pr_diff_cache.py` | GitHub v2 + GitLab v1 (host-aware) keys |
+| **Strict cache identity** | `entities/pr_diff_cache.py` | GitHub v3 (merge-base+head) + GitLab v1 (host-aware) |
 | **Session PR path** | `interfaces/pr_diff_reader.py` + `usecases/pr_diff_usecases.py` | Session reader vs legacy two-call path |
 | **Service interfaces** | `services/*.py` | ABC + `@abstractmethod` |
 | **Multi-ref content port** | `services/github_api.py` | `get_files_content_multi_ref_batch` |
@@ -101,8 +101,8 @@ prdiffer/domain/
 - Content union: available empty text ≠ deterministic unavailability; operational failures raise.
 - Multi-ref: `FileContentRequest`/`Response` + `get_files_content_multi_ref_batch` preserve path+ref identity and request order.
 - Aggregate response budget: `max_total_chars` default **600_000** (E5020/`RESPONSE_SIZE_LIMIT` on overflow).
-- Cache: `github-full-diff-v2` and host-aware `gitlab-full-diff-v1:{host}:…`; ignore unversioned/wrong-schema on read.
-- Sessions expose `StrictPRDiffCacheIdentity` (provider-neutral key + validation token).
+- Cache: `github-full-diff-v3` (merge-base+head; value schema `PRDiffCacheEntryV2`) and host-aware `gitlab-full-diff-v1:{host}:…`; non-strict keys miss on unwrap.
+- Sessions expose `StrictPRDiffCacheIdentity` (provider-neutral key + validation token). GitHub snapshot: `base_tip_sha` + `merge_base_sha` + `head_sha` + authoritative count; post-build drift → E5020 `SNAPSHOT_CHANGED`.
 
 ## ANTI-PATTERNS
 - **NO outer-layer imports** in domain.
@@ -117,3 +117,5 @@ prdiffer/domain/
 ## NOTES
 - Domain has no package `__init__` re-exports at root; import concrete modules.
 - Dual error surfaces: `exceptions.PRDifferException` (domain ops) and `errors.MCPError` (MCP response shaping).
+- Internal graph: `interfaces/pr_diff_reader.py` imports `PRDiffReader` from `usecases/pr_diff_usecases.py` (session ports depend on the use-case Protocol location).
+- MCP tools wire `GetPRDiffUseCase` for diffs; approve/describe use cases are available for tests but not the primary MCP path.

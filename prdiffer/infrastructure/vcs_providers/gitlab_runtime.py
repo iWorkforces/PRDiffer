@@ -103,9 +103,18 @@ def _parse_retry_after(exc: BaseException, remaining: float) -> int | None:
 
 
 def cache_host_from_base_url(base_url: str) -> str:
-    """Host identity for cache keys: hostname plus non-default port when present."""
+    """Host identity for cache keys: hostname plus non-default port when present.
+
+    Fail-closed when the URL has no hostname (never substitute gitlab.com).
+    """
     parsed = urlparse(base_url if "://" in base_url else f"https://{base_url}")
-    host = (parsed.hostname or "gitlab.com").casefold()
+    if not parsed.hostname:
+        raise InvalidURLError(
+            "GitLab base_url has no hostname",
+            error_code=E1001_INVALID_URL,
+            details={"base_url": base_url},
+        )
+    host = parsed.hostname.casefold()
     if parsed.port is not None and parsed.port not in (80, 443):
         return f"{host}:{parsed.port}"
     return host

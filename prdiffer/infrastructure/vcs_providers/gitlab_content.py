@@ -17,6 +17,15 @@ from prdiffer.infrastructure.utils.parallel.executor import AsyncParallelExecuto
 from prdiffer.infrastructure.utils.parallel.results import IndexedBatchError
 from prdiffer.infrastructure.vcs_providers.gitlab_inventory import GitLabInventoryFile
 from prdiffer.infrastructure.vcs_providers.gitlab_models import GitLabDiffSnapshot
+from prdiffer.infrastructure.vcs_providers.gitlab_objects import (
+    MODE_GITLINK,
+    MODE_SYMLINK,
+    fetch_raw_blob_bytes,
+    load_repository_tree_entries,
+    mode_uses_raw_file_api,
+    require_tree_entry,
+    resolve_entry_text,
+)
 from prdiffer.infrastructure.vcs_providers.gitlab_runtime import (
     GitLabNotFoundContext,
     GitLabNotFoundKind,
@@ -82,10 +91,10 @@ class GitLabContentFetcher:
         try:
             batch = await self._executor.execute_indexed_batch(work, indices, strict=True)
         except IndexedBatchError as exc:
-            # Re-raise the first underlying item error (E5020 / operational).
-            for outcome in exc.outcomes:
-                if outcome.error is not None:
-                    raise outcome.error from None
+            # Prefer the first stable non-cancellation root (lowest index).
+            first = exc.first_failure
+            if first is not None and first.error is not None:
+                raise first.error from None
             raise
 
         ordered: list[GitLabFileContents] = []
@@ -122,39 +131,39 @@ class GitLabContentFetcher:
         previous = record.old_path if edit is EDIT_TYPE.RENAMED else None
 
         if edit is EDIT_TYPE.ADDED:
-            head = await self._raw(
+            head = await self._content_for_side(
                 snapshot.project_path,
-                record.new_path,
-                snapshot.head_sha,
-                required=True,
+                path=record.new_path,
+                ref=snapshot.head_sha,
+                mode=record.b_mode,
                 base_url=base_url,
                 deadline_monotonic=deadline_monotonic,
             )
             base = FileContentAvailable(text="")
         elif edit is EDIT_TYPE.DELETED:
-            base = await self._raw(
+            base = await self._content_for_side(
                 snapshot.project_path,
-                record.old_path,
-                snapshot.base_sha,
-                required=True,
+                path=record.old_path,
+                ref=snapshot.base_sha,
+                mode=record.a_mode,
                 base_url=base_url,
                 deadline_monotonic=deadline_monotonic,
             )
             head = FileContentAvailable(text="")
         elif edit is EDIT_TYPE.RENAMED:
-            base = await self._raw(
+            base = await self._content_for_side(
                 snapshot.project_path,
-                record.old_path,
-                snapshot.base_sha,
-                required=True,
+                path=record.old_path,
+                ref=snapshot.base_sha,
+                mode=record.a_mode,
                 base_url=base_url,
                 deadline_monotonic=deadline_monotonic,
             )
-            head = await self._raw(
+            head = await self._content_for_side(
                 snapshot.project_path,
-                record.new_path,
-                snapshot.head_sha,
-                required=True,
+                path=record.new_path,
+                ref=snapshot.head_sha,
+                mode=record.b_mode,
                 base_url=base_url,
                 deadline_monotonic=deadline_monotonic,
             )
@@ -162,19 +171,19 @@ class GitLabContentFetcher:
             # modified / mode-only
             old_path = record.old_path or record.new_path
             new_path = record.new_path or record.old_path
-            base = await self._raw(
+            base = await self._content_for_side(
                 snapshot.project_path,
-                old_path,
-                snapshot.base_sha,
-                required=True,
+                path=old_path,
+                ref=snapshot.base_sha,
+                mode=record.a_mode,
                 base_url=base_url,
                 deadline_monotonic=deadline_monotonic,
             )
-            head = await self._raw(
+            head = await self._content_for_side(
                 snapshot.project_path,
-                new_path,
-                snapshot.head_sha,
-                required=True,
+                path=new_path,
+                ref=snapshot.head_sha,
+                mode=record.b_mode,
                 base_url=base_url,
                 deadline_monotonic=deadline_monotonic,
             )
@@ -188,6 +197,85 @@ class GitLabContentFetcher:
             head=head,
             old_mode=record.a_mode,
             new_mode=record.b_mode,
+        )
+
+    async def _content_for_side(
+        self,
+        project_path: str,
+        *,
+        path: str,
+        ref: str,
+        mode: str | None,
+        base_url: str | None,
+        deadline_monotonic: float | None,
+    ) -> FileContentAvailable:
+        """Fetch one side using mode-aware strategy (no raw-file for symlink/gitlink)."""
+        if mode in {MODE_SYMLINK, MODE_GITLINK}:
+            return await self._tree_object_content(
+                project_path,
+                path=path,
+                ref=ref,
+                expected_mode=mode,
+                base_url=base_url,
+                deadline_monotonic=deadline_monotonic,
+            )
+        if mode_uses_raw_file_api(mode):
+            return await self._raw(
+                project_path,
+                path,
+                ref,
+                required=True,
+                base_url=base_url,
+                deadline_monotonic=deadline_monotonic,
+            )
+        # Unknown/None mode: keep legacy raw-file path for regular content.
+        return await self._raw(
+            project_path,
+            path,
+            ref,
+            required=True,
+            base_url=base_url,
+            deadline_monotonic=deadline_monotonic,
+        )
+
+    async def _tree_object_content(
+        self,
+        project_path: str,
+        *,
+        path: str,
+        ref: str,
+        expected_mode: str,
+        base_url: str | None,
+        deadline_monotonic: float | None,
+    ) -> FileContentAvailable:
+        """Resolve symlink/gitlink from immutable tree + raw blob (never files.raw)."""
+
+        def callback(client: object) -> FileContentAvailable:
+            projects = getattr(client, "projects")
+            project = projects.get(project_path)
+            tree = load_repository_tree_entries(project, ref=ref)
+            entry = require_tree_entry(tree, path, ref=ref)
+            if entry.mode != expected_mode:
+                raise FullDiffIncompleteError(
+                    FullDiffIncompleteReason.UNSUPPORTED_FILE_STATUS,
+                    path=path,
+                    message=f"Tree mode {entry.mode} does not match inventory mode {expected_mode}",
+                    observed=entry.mode,
+                )
+            blob: bytes | None = None
+            if entry.mode != MODE_GITLINK:
+                blob = fetch_raw_blob_bytes(project, entry.object_id)
+            return resolve_entry_text(
+                entry,
+                blob_bytes=blob,
+                max_file_size_bytes=self._config.max_file_size_bytes,
+            )
+
+        return await self._runtime.run_blocking(
+            callback,
+            not_found=GitLabNotFoundContext(GitLabNotFoundKind.FILE),
+            base_url=base_url,
+            deadline_monotonic=deadline_monotonic,
         )
 
     async def _raw(

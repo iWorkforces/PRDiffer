@@ -60,6 +60,7 @@ Registered in `conftest.pytest_configure` (and partially in `pyproject.toml`):
 - Auto-use fixtures: `set_test_environment` (`ENV_FOR_DYNACONF=testing`, dummy tokens), `reset_singletons` (cache/settings/logger).
 - GitLab allowlist tests may set `GITLAB_ALLOWED_HOSTS` via monkeypatch.
 - Multi-ref tests assert request order, capacity bounds, cache hit/miss identity, and fail-closed operational errors.
+- Live API suite `integration/test_real_github_api.py` is **always skipped** (`skipif(True)`); unit tests never require network.
 - CI: `.github/workflows/pr-quality.yml` runs `ruff check`, `ty check`, `pytest tests` on PRs to `main`/`develop` (`uv sync --frozen --group dev`).
 
 ## COMMANDS

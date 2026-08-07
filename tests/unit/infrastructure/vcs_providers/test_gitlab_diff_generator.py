@@ -143,3 +143,65 @@ class TestGitLabDiffAssembler:
         with pytest.raises(FullDiffIncompleteError) as exc:
             assembler.assemble(inv, contents)
         assert exc.value.reason is FullDiffIncompleteReason.DIFF_GENERATION_FAILED
+
+
+class TestCountUnifiedStatsHunkState:
+    def test_double_plus_minus_source_lines_count_inside_hunk(self):
+        from prdiffer.infrastructure.vcs_providers.gitlab_diff_generator import _count_unified_stats
+
+        diff = "\n".join(
+            [
+                "--- a/f",
+                "+++ b/f",
+                "@@ -1,1 +1,1 @@",
+                "---old",
+                "+++new",
+            ]
+        )
+        additions, deletions = _count_unified_stats(diff)
+        assert deletions == 1
+        assert additions == 1
+
+    def test_file_headers_outside_hunk_do_not_count(self):
+        from prdiffer.infrastructure.vcs_providers.gitlab_diff_generator import _count_unified_stats
+
+        diff = "\n".join(
+            [
+                "--- a/path",
+                "+++ b/path",
+                "@@ -1,1 +1,1 @@",
+                "-x",
+                "+y",
+            ]
+        )
+        additions, deletions = _count_unified_stats(diff)
+        assert additions == 1
+        assert deletions == 1
+
+    def test_mode_and_rename_metadata_ignored(self):
+        from prdiffer.infrastructure.vcs_providers.gitlab_diff_generator import _count_unified_stats
+
+        diff = "\n".join(
+            [
+                "old mode 100644",
+                "new mode 100755",
+                "rename from a",
+                "rename to b",
+                "@@ -0,0 +0,0 @@",
+            ]
+        )
+        assert _count_unified_stats(diff) == (0, 0)
+
+    def test_no_newline_marker_ignored(self):
+        from prdiffer.infrastructure.vcs_providers.gitlab_diff_generator import _count_unified_stats
+
+        diff = "\n".join(
+            [
+                "@@ -1,1 +1,1 @@",
+                "-a",
+                "\\ No newline at end of file",
+                "+b",
+                "\\ No newline at end of file",
+            ]
+        )
+        assert _count_unified_stats(diff) == (1, 1)

@@ -39,6 +39,10 @@ class CoalescedPRDiffExecutionMixin:
         cache_namespace: str | None = None,
         base_url: str | None = None,
     ) -> PRDiff:
+        # Stampede control only: same PR URL collapses concurrent in-flight owners.
+        # Snapshot identity (merge_base:head / GitLab version pin) is established
+        # inside the owner fetch and used for cache keys — not the coalesce key.
+        # Waiters intentionally share one open/build result for the owner lifetime.
         coalesce_key = f"{repo_owner}/{repo_name}/pr/{pr_number}"
         if cache_namespace:
             coalesce_key = f"{cache_namespace}:{coalesce_key}"

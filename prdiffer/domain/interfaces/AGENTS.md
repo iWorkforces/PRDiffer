@@ -1,6 +1,6 @@
 # AGENTS.md - Domain/Interfaces
 
-Cross-cutting ports and Protocols (~520 lines). Package 0.6.2.
+Cross-cutting ports and Protocols (~560 lines). Package 0.6.2.
 
 ## STRUCTURE
 ```
@@ -26,7 +26,9 @@ prdiffer/domain/interfaces/
 | Symbol | Type | Location | Role |
 |--------|------|----------|------|
 | `VCSDiffRepositoryInterface` | ABC | `vcs_provider.py` | Multi-provider get_pr_diff / supports_repository |
-| `PRDiffSnapshot` | Frozen dataclass | `pr_diff_reader.py` | owner/repo/pr + base/head SHA + file count |
+| `PRDiffSnapshot` | Frozen dataclass | `pr_diff_reader.py` | owner/repo/pr + base_tip + merge_base + head + file count |
+| `require_git_object_sha` | Helper | `pr_diff_reader.py` | 40/64-hex SHA validation (GitHub open path) |
+| `require_changed_files_count` | Helper | `pr_diff_reader.py` | Non-boolean nonnegative int |
 | `PRDiffReadSessionInterface` | Protocol | `pr_diff_reader.py` | snapshot, `cache_identity`, `build_pr_diff`, `aclose` |
 | `SessionPRDiffReader` | Protocol | `pr_diff_reader.py` | Extends use-case `PRDiffReader` + open session |
 | `InputValidatorProtocol` | Protocol | `input_validation.py` | URL/path/token/sanitize contracts |
@@ -42,9 +44,10 @@ prdiffer/domain/interfaces/
 ## SESSION PATH (strict full-diff)
 - Strict sessions implement `SessionPRDiffReader`: one `open_pr_diff_session` → snapshot + `cache_identity` → cache key/token → `build_pr_diff` → always `aclose` in `finally`.
 - Every session exposes `cache_identity: StrictPRDiffCacheIdentity` (provider-neutral key + validation token + schema_version).
-- GitHub identity: `github-full-diff-v2:{owner}:{repo}:{pr}:{head_sha}` + `head_sha` token (schema 2).
+- GitHub identity: `github-full-diff-v3:{owner}:{repo}:{pr}:{merge_base}:{head}` + `merge_base:head` token (value schema `PRDiffCacheEntryV2`).
 - GitLab identity: `gitlab-full-diff-v1:{host}:{ns}:{repo}:{iid}:{ver}:{base}:{start}:{head}` + version/refs token (schema 1); host from request `base_url` (port-aware).
-- Optional `base_url` on open for GitLab custom-hosted instances (GitHub ignores).
+- `open_pr_diff_session(..., *, base_url=None)` on every implementation; use case calls once (GitHub ignores host).
+- Snapshot fields: `base_tip_sha`, `merge_base_sha`, `head_sha`, `authoritative_changed_files`.
 - Non-session readers keep legacy `PRDiffReader` methods (`get_pr_diff`, `get_latest_commit_sha`).
 - `GetPRDiffUseCase` selects path via structural check for `open_pr_diff_session` on the concrete type (not instance attrs).
 
