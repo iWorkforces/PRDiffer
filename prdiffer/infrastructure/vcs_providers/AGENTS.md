@@ -33,6 +33,8 @@ prdiffer/infrastructure/vcs_providers/
 | **Register provider** | `domain/vcs_provider_registry.py` | `supports_repository(url)` auto-detect |
 
 ## CONVENTIONS
+- Unified-diff stats: count `+`/`-` only inside `@@` hunks (source `++`/`--` payloads count).
+- `real_size` parse rejects booleans/floats/negatives; only nonnegative int or digit string.
 - Map provider models → domain entities at the boundary (`FileDiffResponse`, `PRDiff`).
 - Use shared retry/security utilities where applicable.
 - URL detection: GitHub.com PR paths vs any HTTPS host with `/-/merge_requests/` (custom GitLab).

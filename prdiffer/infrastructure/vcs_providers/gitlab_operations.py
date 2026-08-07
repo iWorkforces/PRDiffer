@@ -199,17 +199,13 @@ class GitLabOperations:
 
         state = str(getattr(version, "state", "") or "")
         real_size_raw = getattr(version, "real_size", None)
-        real_size: int | None
-        if real_size_raw is None or real_size_raw == "":
-            real_size = None
-        else:
-            try:
-                real_size = int(real_size_raw)
-            except TypeError, ValueError:
-                raise FullDiffIncompleteError(
-                    FullDiffIncompleteReason.INVENTORY_TRUNCATED,
-                    message="MR diff version real_size is malformed",
-                ) from None
+        try:
+            real_size = parse_gitlab_real_size(real_size_raw)
+        except ValueError:
+            raise FullDiffIncompleteError(
+                FullDiffIncompleteReason.INVENTORY_TRUNCATED,
+                message="MR diff version real_size is malformed",
+            ) from None
 
         raw_diffs: object = getattr(version, "diffs", None)
         if raw_diffs is None:
@@ -331,6 +327,29 @@ class GitLabOperations:
             if mapped is not exc:
                 raise mapped from None
             raise
+
+
+def parse_gitlab_real_size(raw: object) -> int | None:
+    """Parse MR diff-version ``real_size`` without boolean/float coercion.
+
+    Accepts only a nonnegative non-boolean integer or an explicitly decimal digit
+    string (e.g. ``\"1\"``). Rejects booleans, floats, negatives, empty/malformed
+    strings, and other types.
+    """
+    if raw is None or raw == "":
+        return None
+    if isinstance(raw, bool):
+        raise ValueError("boolean real_size is not allowed")
+    if isinstance(raw, int):
+        if raw < 0:
+            raise ValueError("negative real_size is not allowed")
+        return raw
+    if isinstance(raw, str):
+        stripped = raw.strip()
+        if stripped.isdigit():
+            return int(stripped)
+        raise ValueError("malformed real_size string")
+    raise ValueError(f"unsupported real_size type: {type(raw).__name__}")
 
 
 def _is_object_list(value: object) -> TypeGuard[list[object]]:
