@@ -60,11 +60,14 @@ class GitLabPRDiffSession(PRDiffReadSessionInterface):
             owner, repo = snapshot.project_path, ""
         else:
             owner, repo = path_parts[0], path_parts[1]
+        # Domain snapshot requires tip + merge-base fields; GitLab pins base as
+        # merge-base and start as base tip when both are available.
         self._snapshot = PRDiffSnapshot(
             owner=owner,
             repo=repo,
             pr_number=snapshot.iid,
-            base_sha=snapshot.base_sha,
+            base_tip_sha=snapshot.start_sha,
+            merge_base_sha=snapshot.base_sha,
             head_sha=snapshot.head_sha,
             authoritative_changed_files=len(snapshot.records),
         )

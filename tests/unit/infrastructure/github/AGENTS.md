@@ -18,7 +18,7 @@ tests/unit/infrastructure/github/
 ├── test_generated_file_diffs.py               # ~206 — ordered full-context generation
 ├── test_github_mappers.py                     # ~417
 ├── test_inventory_admission.py                # ~91 — authoritative inventory + admission
-└── test_pr_diff_session.py                    # ~99 — session isolation / cache_identity / CapacityLimiter
+└── test_pr_diff_session.py                    # session v3 identity / merge-base capture / revalidate / CapacityLimiter
 ```
 
 ## WHERE TO LOOK

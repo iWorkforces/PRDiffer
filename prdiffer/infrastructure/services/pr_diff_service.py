@@ -9,6 +9,7 @@ from github import GithubException
 if TYPE_CHECKING:
     from github.Repository import Repository
     from github.PullRequest import PullRequest
+    from prdiffer.domain.interfaces.pr_diff_reader import PRDiffSnapshot
 from prdiffer.domain.services.pr_diff_service import PRDiffServiceInterface
 from prdiffer.domain.services.logger import LoggerServiceInterface
 from prdiffer.domain.entities.pr_diff import PRDiff
@@ -196,6 +197,7 @@ class GitHubPRDiffService(CachingMixin, PRDiffServiceInterface):
 
             github_files = pull_request.get_files()
             max_files = self._file_processor.max_files_allowed if self._file_processor is not None else 50
+
             def accept_all(_name: str) -> bool:
                 return True
 
@@ -447,28 +449,42 @@ class GitHubPRDiffService(CachingMixin, PRDiffServiceInterface):
         assert_aggregate_within_limit(diffs, self._diff_max_total_chars)
         return PRDiff(files=tuple(responses))
 
-    def _generate_diff_content(self, repository: Repository, pull_request: PullRequest) -> list[FilePatchInfo]:
+    def _generate_diff_content(
+        self,
+        repository: Repository,
+        pull_request: PullRequest,
+        *,
+        snapshot: PRDiffSnapshot | None = None,
+    ) -> list[FilePatchInfo]:
         """Generate diff content for a pull request.
 
-        Returns FilePatchInfo list instead of concatenated string.
+        When ``snapshot`` is provided (strict session path), head/merge-base and the
+        authoritative changed-file count come from the immutable capture — never from
+        re-reading mutable PR tip fields during generation.
         """
         try:
-            latest_commit_sha = pull_request.head.sha
-            if not latest_commit_sha:
-                return []
-
-            base_commit_sha = self._get_base_commit_sha(repository, pull_request)
-            if not base_commit_sha:
-                return []
+            if snapshot is not None:
+                latest_commit_sha = snapshot.head_sha
+                base_commit_sha = snapshot.merge_base_sha
+                authoritative_changed_files: int | None = snapshot.authoritative_changed_files
+            else:
+                latest_commit_sha = pull_request.head.sha
+                if not latest_commit_sha:
+                    return []
+                base_commit_sha = self._get_base_commit_sha(repository, pull_request)
+                if not base_commit_sha:
+                    return []
+                authoritative_changed_files = None
 
             github_files = pull_request.get_files()
             max_files = self._file_processor.max_files_allowed if self._file_processor is not None else 50
+
             def accept_all(_name: str) -> bool:
                 return True
 
             is_valid = self._file_processor._pattern_matcher.is_valid_file if self._file_processor is not None else accept_all
             selected_files = prepare_selected_inventory(
-                authoritative_changed_files=None,
+                authoritative_changed_files=authoritative_changed_files,
                 provider_files=github_files,
                 is_valid_file=is_valid,
                 max_files_allowed=max_files,
@@ -493,7 +509,11 @@ class GitHubPRDiffService(CachingMixin, PRDiffServiceInterface):
             return []
 
     def _get_base_commit_sha(self, repository: Repository, pull_request: PullRequest) -> str | None:
-        """Get the base commit SHA (merge base) for the pull request."""
+        """Legacy non-session path: use PR base tip SHA (not Compare merge-base).
+
+        Strict sessions must pass ``snapshot.merge_base_sha`` into
+        ``_generate_diff_content`` instead of calling this helper.
+        """
         try:
             base_branch: str | None = pull_request.base.sha
             if base_branch:

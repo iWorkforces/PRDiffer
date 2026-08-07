@@ -14,7 +14,7 @@ prdiffer/infrastructure/github/
 ├── etag_adapter.py          # Conditional requests / 304 (~121)
 ├── inventory.py             # Authoritative inventory + admission (~130)
 ├── mappers.py               # API → domain mapping (~88)
-├── pr_diff_session.py       # anyio session isolation + cache_identity (~227)
+├── pr_diff_session.py       # anyio session + merge-base capture + v3 cache_identity + revalidate
 └── __init__.py
 ```
 
@@ -63,7 +63,9 @@ prdiffer/infrastructure/github/
 - `GitHubPRDiffSession` / `GitHubSessionPRDiffReader`: request-local client/repo/PR handles.
 - Blocking PyGithub work via `anyio.to_thread.run_sync` with CapacityLimiter (capacity 1 when parallel fetch disabled).
 - One metadata lookup per request; always close/drop strong refs in `aclose`.
-- `cache_identity` returns byte-stable GitHub v2 key + `head_sha` validation token (`github_full_diff_v2_identity`).
+- Open captures base tip + head + authoritative count, resolves **merge-base once** via Compare (no base-tip fallback), then returns the session.
+- `cache_identity` returns GitHub v3 key + `merge_base:head` token (`github_full_diff_v3_identity`); base-tip-only churn does not change identity.
+- `build_pr_diff` passes the immutable snapshot into generation and **revalidates** head/merge-base/count afterward; drift → E5020 `SNAPSHOT_CHANGED` (no cache write).
 
 ### Boundary
 - Never return raw PyGithub objects past this package boundary.

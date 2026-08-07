@@ -51,7 +51,7 @@ PRDifferMCP/
 | **URL parse (infra)** | `infrastructure/utils/url_parser.py` | Nested namespaces; custom GitLab hosts |
 | **Multi-ref content batch** | `domain/entities/file_content.py`, `domain/services/github_api.py`, `infrastructure/github/client_operations.py` | `FileContentRequest`/`Response` + `get_files_content_multi_ref_batch` |
 | **Retry logic** | `infrastructure/utils/retry/` | `base.py`, `handler.py`, `models.py`, `factories.py` |
-| **Caching** | `infrastructure/cache/` | GitHub v2 + GitLab v1 strict keys; unwrap rejects legacy |
+| **Caching** | `infrastructure/cache/` | GitHub v3 (merge-base+head) + GitLab v1 strict keys; unwrap rejects legacy v2 |
 | **Security** | `infrastructure/security/` | `input_validator.py`, `injection_detector.py`, `sanitizer.py` |
 | **Async / indexed batch** | `infrastructure/utils/parallel/executor.py` | anyio executor (~598) + `execute_indexed_batch`; per-batch semaphore |
 | **Circuit breaker** | `infrastructure/utils/circuit_breaker_core.py` | Canonical 215-line impl; package dir is re-export shim |
@@ -67,7 +67,7 @@ PRDifferMCP/
 | FileContentRequest / Response | Entity | `domain/entities/file_content.py` | Ref-qualified multi-ref content lookup identity |
 | GeneratedFileDiff | Entity | `domain/entities/generated_file_diff.py` | Ordered full-context generation result |
 | StrictPRDiffCacheIdentity | Entity | `domain/entities/pr_diff_cache.py` | Provider-neutral key + validation token |
-| FullDiffIncompleteError | Exception | `domain/exceptions.py` | E5020 fail-closed completeness (~580-line module) |
+| FullDiffIncompleteError | Exception | `domain/exceptions.py` | E5020 fail-closed completeness (incl. `SNAPSHOT_CHANGED`) |
 | GitHubConfig | Config | `domain/config/github_config.py` | Timeouts, size limits (`max_total_chars` 600k), parallel flags (~266) |
 | GitLabConfig | Config | `domain/config/gitlab_config.py` | Limits + `allowed_hosts` (~129) |
 | PRDiffReader / session | Interface | `domain/interfaces/pr_diff_reader.py` | Session-capable reader contract |
@@ -106,11 +106,11 @@ PRDifferMCP/
 - **Current analyzer result**: 1 Application → Infrastructure violation (`application.factory` → `infrastructure.factories.infrastructure_factory`). Lazy/in-function infrastructure imports exist for factory fallbacks.
 
 ### Full-diff completeness (strict)
-- Selected files must all succeed or raise **E5020** with `FullDiffIncompleteReason`.
+- Selected files must all succeed or raise **E5020** with `FullDiffIncompleteReason` (incl. `SNAPSHOT_CHANGED` on post-build metadata drift).
 - No truncation notices / partial payloads on size limit (`RESPONSE_SIZE_LIMIT`).
 - Aggregate public budget: `diff.max_total_chars` default **600_000** (`DEFAULT_MAX_TOTAL_CHARS`).
 - Content cache keys: `(repo_full_name, path, ref)`; unavailable results are not cached as success.
-- PR-diff response cache: **GitHub** `github-full-diff-v2`; **GitLab** `gitlab-full-diff-v1:{host}:…` (host/port-aware); legacy entries ignored.
+- PR-diff response cache: **GitHub** `github-full-diff-v3:{owner}:{repo}:{pr}:{merge_base}:{head}` (token `merge_base:head`; value schema still V2); **GitLab** `gitlab-full-diff-v1:{host}:…` (host/port-aware); legacy `github-full-diff-v2` entries ignored (never migrated).
 - Parallel fetch/generation defaults **on** (`performance.parallel_* = true`); capacity uses `github.max_concurrent` / `gitlab.max_concurrent` (disable flags for serialized capacity 1).
 - GitHub multi-ref head/base: when `parallel_head_base_fetch_enabled`, one interleaved `get_files_content_multi_ref_batch` (provider order; one capacity bound for all refs).
 - Blocking SDK calls stay off the event loop via session + `anyio.to_thread` / `GitLabRuntime.run_blocking` + limiter.

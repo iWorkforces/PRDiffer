@@ -26,7 +26,9 @@ prdiffer/domain/interfaces/
 | Symbol | Type | Location | Role |
 |--------|------|----------|------|
 | `VCSDiffRepositoryInterface` | ABC | `vcs_provider.py` | Multi-provider get_pr_diff / supports_repository |
-| `PRDiffSnapshot` | Frozen dataclass | `pr_diff_reader.py` | owner/repo/pr + base/head SHA + file count |
+| `PRDiffSnapshot` | Frozen dataclass | `pr_diff_reader.py` | owner/repo/pr + base_tip + merge_base + head + file count |
+| `require_git_object_sha` | Helper | `pr_diff_reader.py` | 40/64-hex SHA validation (GitHub open path) |
+| `require_changed_files_count` | Helper | `pr_diff_reader.py` | Non-boolean nonnegative int |
 | `PRDiffReadSessionInterface` | Protocol | `pr_diff_reader.py` | snapshot, `cache_identity`, `build_pr_diff`, `aclose` |
 | `SessionPRDiffReader` | Protocol | `pr_diff_reader.py` | Extends use-case `PRDiffReader` + open session |
 | `InputValidatorProtocol` | Protocol | `input_validation.py` | URL/path/token/sanitize contracts |

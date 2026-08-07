@@ -7,29 +7,153 @@ serialized CapacityLimiter (capacity 1 when parallel fetch is disabled).
 from __future__ import annotations
 
 import time
-from typing import Any
+from typing import Any, Callable, ParamSpec, TypeVar
 
 import anyio
 import anyio.to_thread
-from github import Github
-from typing import Callable, ParamSpec, TypeVar
+from github import Github, GithubException
 from github.PullRequest import PullRequest as PyGithubPullRequest
 from github.Repository import Repository as PyGithubRepository
 
 from prdiffer.domain.entities.pr_diff import PRDiff
 from prdiffer.domain.entities.pr_diff_cache import (
     StrictPRDiffCacheIdentity,
-    github_full_diff_v2_identity,
+    github_full_diff_v3_identity,
 )
-from prdiffer.domain.interfaces.pr_diff_reader import PRDiffReadSessionInterface, PRDiffSnapshot
-from prdiffer.domain.exceptions import PRDifferException, TimeoutError as DomainTimeoutError
-from prdiffer.domain.errors import E5004_TIMEOUT_ERROR, E5009_CONFIGURATION_ERROR
+from prdiffer.domain.errors import E5002_GITHUB_API_ERROR, E5004_TIMEOUT_ERROR, E5009_CONFIGURATION_ERROR
+from prdiffer.domain.exceptions import (
+    FullDiffIncompleteError,
+    FullDiffIncompleteReason,
+    GitHubAPIError,
+    PRDifferException,
+    TimeoutError as DomainTimeoutError,
+)
+from prdiffer.domain.interfaces.pr_diff_reader import (
+    PRDiffReadSessionInterface,
+    PRDiffSnapshot,
+    require_changed_files_count,
+    require_git_object_sha,
+)
 from prdiffer.infrastructure.logging.console_logger import get_logger
+from prdiffer.infrastructure.logging.exception_utils import sanitize_exception_for_logging
 from prdiffer.infrastructure.services.pr_diff_service import GitHubPRDiffService
 
 
 _P = ParamSpec("_P")
 _T = TypeVar("_T")
+
+
+def _resolve_merge_base_sha(repository: PyGithubRepository, base_tip_sha: str, head_sha: str) -> str:
+    """Resolve merge-base via Compare API; never fall back to base tip."""
+    try:
+        compare = repository.compare(base_tip_sha, head_sha)
+    except GithubException as exc:
+        sanitized = sanitize_exception_for_logging(exc)
+        raise GitHubAPIError(
+            "Failed to resolve GitHub merge base via compare",
+            status_code=getattr(exc, "status", None),
+            error_code=E5002_GITHUB_API_ERROR,
+            details={"status": sanitized.get("status")},
+        ) from exc
+    except (TimeoutError, ConnectionError, OSError) as exc:
+        sanitized = sanitize_exception_for_logging(exc)
+        raise GitHubAPIError(
+            "Failed to resolve GitHub merge base via compare",
+            error_code=E5002_GITHUB_API_ERROR,
+            details=sanitized,
+        ) from exc
+
+    merge_base_commit = getattr(compare, "merge_base_commit", None)
+    raw_sha = getattr(merge_base_commit, "sha", None) if merge_base_commit is not None else None
+    if not isinstance(raw_sha, str) or not raw_sha:
+        raise FullDiffIncompleteError(
+            FullDiffIncompleteReason.INVENTORY_TRUNCATED,
+            message="GitHub compare omitted merge_base_commit.sha",
+        )
+    try:
+        return require_git_object_sha(raw_sha, field="merge_base_sha")
+    except ValueError as exc:
+        raise FullDiffIncompleteError(
+            FullDiffIncompleteReason.INVENTORY_TRUNCATED,
+            message="GitHub compare returned an invalid merge_base_commit.sha",
+        ) from exc
+
+
+def _capture_github_snapshot(
+    *,
+    repo_owner: str,
+    repo_name: str,
+    pr_number: int,
+    repository: PyGithubRepository,
+    pull_request: PyGithubPullRequest,
+) -> PRDiffSnapshot:
+    """Capture base tip, head, authoritative count, and resolve merge-base once."""
+    try:
+        base_tip_sha = require_git_object_sha(getattr(pull_request.base, "sha", None), field="base_tip_sha")
+        head_sha = require_git_object_sha(getattr(pull_request.head, "sha", None), field="head_sha")
+        authoritative = require_changed_files_count(
+            getattr(pull_request, "changed_files", None),
+            field="authoritative_changed_files",
+        )
+    except ValueError as exc:
+        raise FullDiffIncompleteError(
+            FullDiffIncompleteReason.INVENTORY_TRUNCATED,
+            message=f"Invalid GitHub PR snapshot metadata: {exc}",
+        ) from exc
+
+    merge_base_sha = _resolve_merge_base_sha(repository, base_tip_sha, head_sha)
+    return PRDiffSnapshot(
+        owner=repo_owner,
+        repo=repo_name,
+        pr_number=pr_number,
+        base_tip_sha=base_tip_sha,
+        merge_base_sha=merge_base_sha,
+        head_sha=head_sha,
+        authoritative_changed_files=authoritative,
+    )
+
+
+def revalidate_github_snapshot(
+    repository: PyGithubRepository,
+    snapshot: PRDiffSnapshot,
+) -> None:
+    """Re-fetch PR metadata + merge-base; raise SNAPSHOT_CHANGED on drift.
+
+    Base-tip alone may change without failing when merge-base, head, and count match.
+    """
+    try:
+        pull_request = repository.get_pull(snapshot.pr_number)
+    except GithubException as exc:
+        sanitized = sanitize_exception_for_logging(exc)
+        raise GitHubAPIError(
+            "Failed to revalidate GitHub PR snapshot",
+            status_code=getattr(exc, "status", None),
+            error_code=E5002_GITHUB_API_ERROR,
+            details={"status": sanitized.get("status")},
+        ) from exc
+
+    try:
+        base_tip_sha = require_git_object_sha(getattr(pull_request.base, "sha", None), field="base_tip_sha")
+        head_sha = require_git_object_sha(getattr(pull_request.head, "sha", None), field="head_sha")
+        authoritative = require_changed_files_count(
+            getattr(pull_request, "changed_files", None),
+            field="authoritative_changed_files",
+        )
+    except ValueError as exc:
+        raise FullDiffIncompleteError(
+            FullDiffIncompleteReason.SNAPSHOT_CHANGED,
+            message=f"GitHub PR snapshot became invalid during revalidation: {exc}",
+            observed=str(exc),
+        ) from exc
+
+    merge_base_sha = _resolve_merge_base_sha(repository, base_tip_sha, head_sha)
+    if head_sha != snapshot.head_sha or merge_base_sha != snapshot.merge_base_sha or authoritative != snapshot.authoritative_changed_files:
+        raise FullDiffIncompleteError(
+            FullDiffIncompleteReason.SNAPSHOT_CHANGED,
+            message="GitHub PR comparison snapshot changed during build",
+            observed=f"head={head_sha},merge_base={merge_base_sha},count={authoritative}",
+            limit=f"head={snapshot.head_sha},merge_base={snapshot.merge_base_sha},count={snapshot.authoritative_changed_files}",
+        )
 
 
 class GitHubPRDiffSession(PRDiffReadSessionInterface):
@@ -64,9 +188,15 @@ class GitHubPRDiffSession(PRDiffReadSessionInterface):
 
     @property
     def cache_identity(self) -> StrictPRDiffCacheIdentity:
-        """GitHub full-diff v2 key bytes + head_sha validation token."""
+        """GitHub full-diff v3 key + merge-base:head validation token."""
         snap = self._snapshot
-        return github_full_diff_v2_identity(snap.owner, snap.repo, snap.pr_number, snap.head_sha)
+        return github_full_diff_v3_identity(
+            snap.owner,
+            snap.repo,
+            snap.pr_number,
+            snap.merge_base_sha,
+            snap.head_sha,
+        )
 
     @property
     def metadata_lookup_count(self) -> int:
@@ -98,17 +228,20 @@ class GitHubPRDiffSession(PRDiffReadSessionInterface):
         )
 
     async def build_pr_diff(self) -> PRDiff:
-        """Build PRDiff using the already-open session handles."""
+        """Build PRDiff using the already-open session handles, then revalidate snapshot."""
         self._ensure_budget()
 
         def _build() -> PRDiff:
-            # Reuse request-local repository/PR objects; avoid a second metadata lookup.
+            # Reuse request-local repository/PR objects; avoid a second metadata lookup for build.
             repo = self._repository
             pr = self._pull_request
             if repo is None or pr is None:
                 raise PRDifferException("Session closed", error_code=E5009_CONFIGURATION_ERROR)
-            patches = self._service._generate_diff_content(repo, pr)
-            return self._service._build_pr_diff_strict(patches)
+            patches = self._service._generate_diff_content(repo, pr, snapshot=self._snapshot)
+            result = self._service._build_pr_diff_strict(patches)
+            # Re-fetch metadata + merge-base; fail closed on drift before use-case cache write.
+            revalidate_github_snapshot(repo, self._snapshot)
+            return result
 
         return await self._run_sync(_build)
 
@@ -187,17 +320,13 @@ class GitHubSessionPRDiffReader:
                     f"Pull request not found: {repo_owner}/{repo_name}#{pr_number}",
                     error_code=E5009_CONFIGURATION_ERROR,
                 )
-            base_sha = str(pr.base.sha)
-            head_sha = str(pr.head.sha)
-            changed = getattr(pr, "changed_files", 0)
-            authoritative = int(changed) if isinstance(changed, int) and not isinstance(changed, bool) else 0
-            snapshot = PRDiffSnapshot(
-                owner=repo_owner,
-                repo=repo_name,
+            # Merge-base is resolved before session returns (before any cache read).
+            snapshot = _capture_github_snapshot(
+                repo_owner=repo_owner,
+                repo_name=repo_name,
                 pr_number=pr_number,
-                base_sha=base_sha,
-                head_sha=head_sha,
-                authoritative_changed_files=authoritative,
+                repository=repo,
+                pull_request=pr,
             )
             return gh, repo, pr, snapshot
 

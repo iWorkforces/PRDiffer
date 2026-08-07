@@ -44,10 +44,16 @@ def test_unwrap_ignores_wrong_schema() -> None:
     assert unwrap_pr_diff_cache_value(bad) is None
 
 
-def test_unwrap_bare_prdiff_only_under_v2_key() -> None:
+def test_unwrap_bare_prdiff_only_under_active_strict_keys() -> None:
+    from prdiffer.domain.entities.pr_diff_cache import github_full_diff_v3_key
+
     value = _diff()
     assert unwrap_pr_diff_cache_value(value, key="owner/repo/pr/1") is None
-    assert unwrap_pr_diff_cache_value(value, key=github_full_diff_v2_key("o", "r", 1, "h")) is value
+    # Legacy v2 keys are ignored (no migration).
+    assert unwrap_pr_diff_cache_value(value, key=github_full_diff_v2_key("o", "r", 1, "h")) is None
+    mb = "b" * 40
+    hd = "c" * 40
+    assert unwrap_pr_diff_cache_value(value, key=github_full_diff_v3_key("o", "r", 1, mb, hd)) is value
 
 
 def test_unwrap_rejects_wrong_version_entry() -> None:
