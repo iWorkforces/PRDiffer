@@ -47,8 +47,11 @@ prdiffer/infrastructure/utils/
   - Canonical metrics: `metrics/performance.py`; flat `performance.py` re-exports
 - Coalescing: only `coalescing_service.py` — no `utils/coalescing/` package path.
 - Owner cancel publishes terminal exception under a shielded scope so waiters wake and pending is cleared.
+- Max-waiters overflow runs a **standalone** fetch and must not replace the pending owner entry.
 - Parallel full-diff work must preserve identity/order via `execute_indexed_batch`.
+- Strict indexed failures use **only** `IndexedBatchError.first_failure` (no second selection helper).
 - Executor creates a fresh semaphore per batch (safe across independent anyio loops).
+- Chunked large-file diffs apply Git `\ No newline at end of file` markers on the **last** hunk.
 
 ## ANTI-PATTERNS
 - NO sleeping without jitter/caps on hot paths.

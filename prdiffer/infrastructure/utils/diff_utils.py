@@ -154,8 +154,8 @@ class DiffUtils(LazyLoggerMixin, DiffServiceInterface):
         large_file_threshold = large_file_threshold if large_file_threshold is not None else self._config.large_file_threshold
         max_diff_size = self._config.max_diff_size
 
-        orig_lines, _orig_nl = _lines_and_final_newline(original_file_str)
-        new_lines, _new_nl = _lines_and_final_newline(new_file_str)
+        orig_lines, orig_nl = _lines_and_final_newline(original_file_str)
+        new_lines, new_nl = _lines_and_final_newline(new_file_str)
 
         max_lines = max(len(orig_lines), len(new_lines))
         if max_lines > max_diff_size:
@@ -176,15 +176,27 @@ class DiffUtils(LazyLoggerMixin, DiffServiceInterface):
 
         hunks: list[str] = []
         chunk_index = 0
+        total_chunks = (max_lines + chunk_size - 1) // chunk_size if max_lines else 0
 
         while chunk_index * chunk_size < max_lines:
             start_line = chunk_index * chunk_size
             end_line = min((chunk_index + 1) * chunk_size, max_lines)
+            is_last_chunk = chunk_index + 1 >= total_chunks
 
             orig_chunk = orig_lines[start_line:end_line]
             new_chunk = new_lines[start_line:end_line]
 
-            hunk = self._build_chunk_hunk(orig_chunk, new_chunk, start_line + 1, start_line + 1)
+            hunk = self._build_chunk_hunk(
+                orig_chunk,
+                new_chunk,
+                start_line + 1,
+                start_line + 1,
+                apply_eof_markers=is_last_chunk,
+                orig_ends_with_newline=orig_nl,
+                new_ends_with_newline=new_nl,
+                file_orig_count=len(orig_lines),
+                file_new_count=len(new_lines),
+            )
             if hunk:
                 hunks.append(hunk)
 
@@ -198,8 +210,19 @@ class DiffUtils(LazyLoggerMixin, DiffServiceInterface):
         new_lines: list[str],
         orig_start: int,
         new_start: int,
+        *,
+        apply_eof_markers: bool = False,
+        orig_ends_with_newline: bool = True,
+        new_ends_with_newline: bool = True,
+        file_orig_count: int = 0,
+        file_new_count: int = 0,
     ) -> str:
-        """Build a diff hunk for a chunk of lines."""
+        """Build a diff hunk for a chunk of lines.
+
+        When ``apply_eof_markers`` is true (last chunk of a large file), inserts
+        Git-style ``\\ No newline at end of file`` markers for the whole file's
+        final-newline state — matching ``build_full_file_patch``.
+        """
         if not orig_lines and not new_lines:
             return ""
 
@@ -226,9 +249,22 @@ class DiffUtils(LazyLoggerMixin, DiffServiceInterface):
                 for k in range(j1, j2):
                     body_lines.append("+" + new_lines[k])
 
-        if any(line.startswith("+") or line.startswith("-") for line in body_lines):
-            return "\n".join(["", header] + body_lines)
-        return ""
+        has_edits = any(line.startswith(("+", "-")) for line in body_lines)
+        needs_eof = apply_eof_markers and ((not orig_ends_with_newline and file_orig_count > 0) or (not new_ends_with_newline and file_new_count > 0))
+        # Equal-only chunks are omitted unless this is the last chunk and EOF
+        # markers must appear after the final body lines.
+        if not has_edits and not needs_eof:
+            return ""
+
+        if apply_eof_markers:
+            body_lines = _append_no_newline_markers(
+                body_lines,
+                orig_ends_with_newline=orig_ends_with_newline,
+                new_ends_with_newline=new_ends_with_newline,
+                orig_count=file_orig_count,
+                new_count=file_new_count,
+            )
+        return "\n".join(["", header] + body_lines)
 
     def decode_if_bytes(self, content: str | bytes | bytearray) -> str:
         """Decode bytes content to string with fallback encoding support.
