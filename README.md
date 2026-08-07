@@ -154,9 +154,10 @@ Once the `prdiffer` skill is installed and the MCP server is running, you can pr
 ### `prdiffer__get_pr_diff` — Fetch & Analyze a PR
 
 > **Strict full-context diffs:** Successful responses include every selected file with
-> generated full-context `diff` text and optional `previous_path` on renames. Incomplete
-> inventories, oversize/binary content, or generation failures return `E5020_FULL_DIFF_INCOMPLETE`
-> with a stable `reason` — never a partial `files` list.
+> generated full-context `diff` text and optional `previous_path` on renames. GitHub keys
+> use merge-base + head (`github-full-diff-v3`); snapshot drift returns `SNAPSHOT_CHANGED`.
+> Incomplete inventories, oversize/binary content, or generation failures return
+> `E5020_FULL_DIFF_INCOMPLETE` with a stable `reason` — never a partial `files` list.
 
 
 Use this to retrieve the full structured diff and perform a thorough code review.
@@ -212,5 +213,7 @@ are ignored; strict cache identity uses `gitlab-full-diff-v1:...`.
 Configure via `gitlab.*` settings (`timeout`, `max_retries`, `max_concurrent`,
 `retry_transient_errors`, `obey_rate_limit`, `max_file_size_bytes`) plus shared
 `app.max_files_allowed`, `diff.max_total_chars`, and
-`mcp.pr_diff_request_timeout_seconds`.
+`mcp.pr_diff_request_timeout_seconds`. Override file admission and the
+aggregate `RESPONSE_SIZE_LIMIT` budget at runtime with `MAX_FILES_ALLOWED` and
+`MAX_TOTAL_CHARS` in `.env` (see `.env.example` / `start-prdiffer-mcp-server.sh`).
 

@@ -4,6 +4,8 @@ Comprehensive tests covering initialization, GitHub API interactions,
 diff retrieval, PR approval, and error handling.
 """
 
+from types import SimpleNamespace
+
 import pytest
 from unittest.mock import Mock, AsyncMock, patch
 from github.GithubException import (
@@ -62,6 +64,7 @@ def mock_settings():
     settings.get_app_settings.return_value = {
         "max_files_allowed": 50,
     }
+    settings.get_github_config.return_value = SimpleNamespace(max_total_chars=600000)
     settings.get.side_effect = lambda key, default=None: {
         "file_processing.parallel_fetch_threshold": 10,
         "file_processing.concurrent_downloads": 3,
@@ -554,8 +557,8 @@ class TestGitHubPRDiffRepositoryGetMergeBaseCommits:
         assert base_sha == "merge123"
         assert head_sha == "head123"
 
-    async def test_get_merge_base_commits_fallback_on_exception(self, repository):
-        """Test fallback to base commit when compare fails."""
+    async def test_get_merge_base_commits_no_fallback_on_exception(self, repository):
+        """Compare failure raises (no silent base-tip fallback)."""
         mock_repo = Mock()
         mock_pr = Mock()
         mock_pr.base.sha = "base123"
@@ -567,10 +570,8 @@ class TestGitHubPRDiffRepositoryGetMergeBaseCommits:
         repository._pull_request = mock_pr
         repository._initialized = True
 
-        base_sha, head_sha = await repository._get_merge_base_commits()
-
-        assert base_sha == "base123"
-        assert head_sha == "head123"
+        with pytest.raises(GithubException):
+            await repository._get_merge_base_commits()
 
 
 class TestGitHubPRDiffRepositoryLogFilteredFiles:

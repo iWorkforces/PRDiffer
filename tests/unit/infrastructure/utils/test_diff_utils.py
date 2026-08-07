@@ -241,12 +241,14 @@ class TestBuildChunkHunk:
         result = diff_utils._build_chunk_hunk([], [], 1, 1)
         assert result == ""
 
-    def test_identical_chunks(self):
-        """Test with identical chunks returns empty (no changes)."""
+    def test_identical_chunks_emit_equal_context(self):
+        """Full-context: identical chunks still emit equal context lines."""
         diff_utils = DiffUtils()
         lines = ["line1", "line2"]
         result = diff_utils._build_chunk_hunk(lines, lines, 1, 1)
-        assert result == ""
+        assert " line1" in result
+        assert " line2" in result
+        assert "@@ -1,2 +1,2 @@" in result
 
     def test_modified_chunks(self):
         """Test with modified chunks."""
@@ -257,12 +259,15 @@ class TestBuildChunkHunk:
         assert "-old" in result
         assert "+new" in result
 
-    def test_no_changes_returns_empty(self):
-        """Test that chunks with no changes return empty string."""
-        diff_utils = DiffUtils()
-        lines = ["line1", "line2"]
-        result = diff_utils._build_chunk_hunk(lines, lines, 1, 1)
-        assert result == ""
+    def test_chunked_identical_large_file_emits_context(self):
+        """Mode-only / identical large files must not produce an empty body."""
+        utils = DiffUtils(config=DiffProcessingConfig(large_file_threshold=5, chunk_size=3))
+        lines = [f"line{i}" for i in range(8)]
+        content = "\n".join(lines) + "\n"
+        patch = utils.build_full_file_patch_chunked(content, content, chunk_size=3, large_file_threshold=5)
+        assert patch != ""
+        assert " line0" in patch
+        assert " line7" in patch
 
     def test_custom_line_numbers(self):
         """Test with custom line numbers."""
@@ -427,3 +432,61 @@ class TestGetDiffUtils:
         instance1 = get_diff_utils()
         instance2 = get_diff_utils()
         assert instance1 is not instance2
+
+
+class TestNoNewlineMarkers:
+    """Git-style \\ No newline at end of file markers."""
+
+    def test_missing_newline_on_both_sides_for_modified_line(self):
+        utils = DiffUtils()
+        # Neither side ends with newline
+        patch = utils.build_full_file_patch("old", "new")
+        assert "\\ No newline at end of file" in patch
+        assert "-old" in patch
+        assert "+new" in patch
+
+    def test_newline_present_on_both_sides_has_no_marker(self):
+        utils = DiffUtils()
+        patch = utils.build_full_file_patch("old\n", "new\n")
+        assert "\\ No newline at end of file" not in patch
+        assert "-old" in patch
+        assert "+new" in patch
+
+    def test_only_old_side_missing_newline(self):
+        utils = DiffUtils()
+        patch = utils.build_full_file_patch("old", "new\n")
+        # Marker after the deleted old line
+        lines = patch.splitlines()
+        assert "-old" in lines
+        old_idx = lines.index("-old")
+        assert lines[old_idx + 1] == "\\ No newline at end of file"
+
+    def test_chunked_path_preserves_eof_markers(self):
+        """Large-file chunked path must emit Git no-newline markers on last hunk."""
+        # Force chunked path: threshold 5, 8 lines, last line without final newline.
+        utils = DiffUtils(config=DiffProcessingConfig(large_file_threshold=5, chunk_size=3))
+        orig_lines = [f"line{i}" for i in range(8)]
+        new_lines = orig_lines.copy()
+        new_lines[7] = "changed"
+        # No trailing newline on either side
+        original = "\n".join(orig_lines)
+        new = "\n".join(new_lines)
+        assert not original.endswith("\n")
+        assert not new.endswith("\n")
+        patch = utils.build_full_file_patch_chunked(original, new, chunk_size=3, large_file_threshold=5)
+        assert "\\ No newline at end of file" in patch
+        assert "-line7" in patch or "+changed" in patch
+        # Markers must appear after the last body line in the last hunk
+        lines = patch.splitlines()
+        assert any(line == "\\ No newline at end of file" for line in lines)
+
+    def test_chunked_path_no_marker_when_both_sides_have_newline(self):
+        utils = DiffUtils(config=DiffProcessingConfig(large_file_threshold=5, chunk_size=3))
+        orig_lines = [f"line{i}" for i in range(8)]
+        new_lines = orig_lines.copy()
+        new_lines[7] = "changed"
+        original = "\n".join(orig_lines) + "\n"
+        new = "\n".join(new_lines) + "\n"
+        patch = utils.build_full_file_patch_chunked(original, new, chunk_size=3, large_file_threshold=5)
+        assert "\\ No newline at end of file" not in patch
+        assert "+changed" in patch

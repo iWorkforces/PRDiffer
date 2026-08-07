@@ -7,7 +7,7 @@ Cross-cutting MCP components (~1.3K lines). Constructor DI + mixin composition.
 prdiffer/application/components/
 ├── authentication.py        # AuthenticationMiddleware (350) + AuthFailureRecord
 ├── jwt_handler.py           # JWTHandlerMixin (161)
-├── api_key_manager.py       # APIKeyManagerMixin (135)
+├── api_key_manager.py       # APIKeyManagerMixin (136)
 ├── rate_limiter.py          # RateLimiter (136)
 ├── metrics_tracker.py       # MetricsTracker (145)
 ├── health_monitor.py        # HealthMonitor (99)

@@ -64,9 +64,21 @@ class FakeOps(GitLabOperations):
 
 
 class FakeClient:
-    def __init__(self, files: dict[tuple[str, str], bytes]) -> None:
+    def __init__(
+        self,
+        files: dict[tuple[str, str], bytes],
+        *,
+        trees: dict[str, list[Any]] | None = None,
+        blobs: dict[str, bytes] | None = None,
+    ) -> None:
         self._files = files
+        self._trees = trees or {}
+        self._blobs = blobs or {}
+        self.raw_blob_calls: list[str] = []
+        self.tree_calls: list[str] = []
+        self.raw_file_calls: list[tuple[str, str]] = []
         self.session = type("S", (), {"close": lambda self: None})()
+        outer = self
 
         class _Files:
             def __init__(self, store: dict[tuple[str, str], bytes]) -> None:
@@ -75,6 +87,7 @@ class FakeClient:
 
             def raw(self, file_path: str, ref: str) -> bytes:
                 self.calls.append((file_path, ref))
+                outer.raw_file_calls.append((file_path, ref))
                 if (file_path, ref) not in self.store:
                     import gitlab
 
@@ -82,17 +95,47 @@ class FakeClient:
                 return self.store[(file_path, ref)]
 
         class _Project:
-            def __init__(self, store: dict[tuple[str, str], bytes]) -> None:
+            def __init__(
+                self,
+                store: dict[tuple[str, str], bytes],
+                trees: dict[str, list[Any]],
+                blobs: dict[str, bytes],
+            ) -> None:
                 self.files = _Files(store)
+                self._trees = trees
+                self._blobs = blobs
+
+            def repository_tree(self, ref: str = "", recursive: bool = False, get_all: bool = False, **kwargs: Any) -> Any:
+                outer.tree_calls.append(ref)
+                raw = self._trees.get(ref, [])
+                # Preserve incomplete-paginator fakes (e.g. next_page set) for fail-closed tests.
+                if isinstance(raw, list):
+                    return list(raw)
+                return raw
+
+            def repository_raw_blob(self, sha: str) -> bytes:
+                outer.raw_blob_calls.append(sha)
+                if sha not in self._blobs:
+                    import gitlab
+
+                    raise gitlab.GitlabGetError("blob nf", response_code=404)
+                return self._blobs[sha]
 
         class _Projects:
-            def __init__(self, store: dict[tuple[str, str], bytes]) -> None:
+            def __init__(
+                self,
+                store: dict[tuple[str, str], bytes],
+                trees: dict[str, list[Any]],
+                blobs: dict[str, bytes],
+            ) -> None:
                 self._store = store
+                self._trees = trees
+                self._blobs = blobs
 
             def get(self, path: str) -> Any:
-                return _Project(self._store)
+                return _Project(self._store, self._trees, self._blobs)
 
-        self.projects = _Projects(files)
+        self.projects = _Projects(files, self._trees, self._blobs)
 
 
 def _record(
@@ -121,12 +164,19 @@ def _record(
     )
 
 
-def _build_reader(snapshot: GitLabDiffSnapshot, file_store: dict[tuple[str, str], bytes]) -> tuple[GitLabSessionPRDiffReader, FakeOps, MemoryCache]:
+def _build_reader(
+    snapshot: GitLabDiffSnapshot,
+    file_store: dict[tuple[str, str], bytes],
+    *,
+    trees: dict[str, list[Any]] | None = None,
+    blobs: dict[str, bytes] | None = None,
+    parallel_enabled: bool = True,
+) -> tuple[GitLabSessionPRDiffReader, FakeOps, MemoryCache, FakeClient]:
     config = GitLabConfig()
-    client = FakeClient(file_store)
+    client = FakeClient(file_store, trees=trees, blobs=blobs)
     runtime = GitLabRuntime(config, client_factory=lambda *a, **k: client)
     ops = FakeOps(snapshot)
-    content = GitLabContentFetcher(runtime, config, parallel_enabled=True)
+    content = GitLabContentFetcher(runtime, config, parallel_enabled=parallel_enabled)
     assembler = GitLabDiffAssembler(DiffGenerator(diff_utils=DiffUtils(), parallel_enabled=False), config)
     reader = GitLabSessionPRDiffReader(
         operations=ops,
@@ -135,7 +185,7 @@ def _build_reader(snapshot: GitLabDiffSnapshot, file_store: dict[tuple[str, str]
         assembler=assembler,
         config=config,
     )
-    return reader, ops, MemoryCache()
+    return reader, ops, MemoryCache(), client
 
 
 @pytest.mark.integration
@@ -174,7 +224,7 @@ async def test_strict_mixed_file_success_ordered() -> None:
         ("col.py", "base"): b"x\n",
         ("col.py", "head"): b"y\n",
     }
-    reader, ops, cache = _build_reader(snap, store)
+    reader, ops, cache, _client = _build_reader(snap, store)
     use_case = GetPRDiffUseCase(reader, cache)
     result = await use_case.execute("group/sub", "project", 42)
     assert result is not None
@@ -209,7 +259,7 @@ async def test_incomplete_binary_no_cache_write() -> None:
         records=records,
     )
     store = {("bin.dat", "h"): b"a\x00b"}
-    reader, _, cache = _build_reader(snap, store)
+    reader, _, cache, _client = _build_reader(snap, store)
     use_case = GetPRDiffUseCase(reader, cache)
     with pytest.raises(FullDiffIncompleteError) as exc:
         await use_case.execute("o", "r", 1)
@@ -233,7 +283,7 @@ async def test_legacy_cache_key_does_not_hit_strict_identity() -> None:
         records=records,
     )
     store = {("a.py", "h"): b"hi\n"}
-    reader, ops, cache = _build_reader(snap, store)
+    reader, ops, cache, _client = _build_reader(snap, store)
     # Preload legacy-style wrong key (must not satisfy strict identity lookup)
     cache.store[("gitlab:o:r:1", "h")] = object()
     use_case = GetPRDiffUseCase(reader, cache)
@@ -242,3 +292,124 @@ async def test_legacy_cache_key_does_not_hit_strict_identity() -> None:
     identity = gitlab_full_diff_v1_identity("o", "r", 1, 2, "b", "s", "h")
     assert (identity.cache_key, identity.validation_token) in cache.store
     assert ops.select_calls >= 1
+
+
+def _tree(path: str, mode: str, otype: str, oid: str) -> dict[str, str]:
+    return {"path": path, "mode": mode, "type": otype, "id": oid}
+
+
+@pytest.mark.integration
+@pytest.mark.anyio
+async def test_symlink_and_gitlink_use_tree_not_raw_file() -> None:
+    link_oid = "a" * 40
+    git_oid = "b" * 40
+    records = (
+        _record("link", "link", new_file=True, a_mode=None, b_mode="120000"),
+        _record("sub", "sub", new_file=True, a_mode=None, b_mode="160000"),
+    )
+    snap = GitLabDiffSnapshot(
+        project_path="o/r",
+        iid=5,
+        version_id=1,
+        base_sha="base",
+        start_sha="start",
+        head_sha="head",
+        state="collected",
+        real_size=2,
+        records=records,
+    )
+    trees = {
+        "head": [
+            _tree("link", "120000", "blob", link_oid),
+            _tree("sub", "160000", "commit", git_oid),
+        ],
+        "base": [],
+    }
+    blobs = {link_oid: b"../target"}
+    reader, ops, cache, client = _build_reader(snap, {}, trees=trees, blobs=blobs)
+    use_case = GetPRDiffUseCase(reader, cache)
+    result = await use_case.execute("o", "r", 5)
+    assert result is not None
+    assert [f.path for f in result.files] == ["link", "sub"]
+    assert "../target" in result.files[0].diff
+    assert result.files[0].diff.startswith("new file mode 120000")
+    assert f"Subproject commit {git_oid}" in result.files[1].diff
+    assert result.files[1].diff.startswith("new file mode 160000")
+    assert cache.sets == 1
+    # files.raw must not be used for these modes
+    assert client.raw_file_calls == []
+    assert link_oid in client.raw_blob_calls
+    assert git_oid not in client.raw_blob_calls  # gitlink synthesizes text
+
+
+@pytest.mark.integration
+@pytest.mark.anyio
+async def test_double_plus_minus_source_stats() -> None:
+    records = (_record("a.py", "a.py"),)
+    snap = GitLabDiffSnapshot(
+        project_path="o/r",
+        iid=6,
+        version_id=1,
+        base_sha="base",
+        start_sha="start",
+        head_sha="head",
+        state="collected",
+        real_size=1,
+        records=records,
+    )
+    # Content lines that start with ++ / -- once prefixed in unified output
+    store = {
+        ("a.py", "base"): b"--old\n",
+        ("a.py", "head"): b"++new\n",
+    }
+    reader, _ops, cache, _client = _build_reader(snap, store)
+    result = await GetPRDiffUseCase(reader, cache).execute("o", "r", 6)
+    assert result is not None
+    f = result.files[0]
+    assert f.stats.deletions == 1
+    assert f.stats.additions == 1
+    assert cache.sets == 1
+
+
+@pytest.mark.integration
+@pytest.mark.anyio
+async def test_ops_failure_no_cache_write() -> None:
+    class BoomOps(FakeOps):
+        def select_with_client(self, client: object, project_path: str, iid: int) -> GitLabDiffSnapshot:
+            self.select_calls += 1
+            raise FullDiffIncompleteError(
+                FullDiffIncompleteReason.INVENTORY_TRUNCATED,
+                message="version list incomplete",
+            )
+
+    records = (_record("a.py", "a.py", new_file=True),)
+    snap = GitLabDiffSnapshot(
+        project_path="o/r",
+        iid=7,
+        version_id=1,
+        base_sha="b",
+        start_sha="s",
+        head_sha="h",
+        state="collected",
+        real_size=1,
+        records=records,
+    )
+    config = GitLabConfig()
+    client = FakeClient({("a.py", "h"): b"x\n"})
+    runtime = GitLabRuntime(config, client_factory=lambda *a, **k: client)
+    ops = BoomOps(snap)
+    content = GitLabContentFetcher(runtime, config)
+    assembler = GitLabDiffAssembler(DiffGenerator(diff_utils=DiffUtils(), parallel_enabled=False), config)
+    reader = GitLabSessionPRDiffReader(
+        operations=ops,
+        runtime=runtime,
+        content_fetcher=content,
+        assembler=assembler,
+        config=config,
+    )
+    cache = MemoryCache()
+    with pytest.raises(FullDiffIncompleteError) as ei:
+        await GetPRDiffUseCase(reader, cache).execute("o", "r", 7)
+    assert ei.value.reason is FullDiffIncompleteReason.INVENTORY_TRUNCATED
+    assert cache.sets == 0
+    assert ops.select_calls == 1

@@ -131,7 +131,11 @@ class GitHubPRDiffRepository(GitHubPROperationsMixin, PRDiffRepositoryInterface)
 
         self._parallel_diff_generation_enabled = self.settings_service.get("performance.parallel_diff_generation_enabled", True)
         self._diff_truncate_enabled = self.settings_service.get("diff.truncate_enabled", False)
-        self._diff_max_total_chars = int(self.settings_service.get("diff.max_total_chars", DEFAULT_MAX_TOTAL_CHARS))
+        get_github_config = getattr(self.settings_service, "get_github_config", None)
+        if callable(get_github_config):
+            self._diff_max_total_chars = int(get_github_config().max_total_chars)
+        else:
+            self._diff_max_total_chars = int(self.settings_service.get("diff.max_total_chars", DEFAULT_MAX_TOTAL_CHARS))
         self._diff_truncation_notice = self.settings_service.get("diff.truncation_notice", "[DIFF TRUNCATED]")
 
         self._github_api_client = get_github_api_client(
@@ -385,18 +389,18 @@ class GitHubPRDiffRepository(GitHubPROperationsMixin, PRDiffRepositoryInterface)
         try:
             compare = await asyncer.asyncify(repository.compare)(base_sha_ref, head_sha_ref)
             merge_base_commit = compare.merge_base_commit
+            if merge_base_commit is None or not getattr(merge_base_commit, "sha", None):
+                raise RuntimeError("Compare response missing merge_base_commit.sha")
             base_sha = merge_base_commit.sha
-        except (UnknownObjectException, RateLimitExceededException) as e:
+        except (UnknownObjectException, RateLimitExceededException, GithubException) as e:
             sanitized = sanitize_exception_for_logging(e)
-            self._logger.warning(
-                "Could not determine merge base, falling back to base commit",
+            self._logger.error(
+                "Could not determine merge base (no base-tip fallback)",
                 extra=sanitized,
             )
-            base_sha = self._pull_request.base.sha
-        except GithubException as e:
-            sanitized = sanitize_exception_for_logging(e)
-            self._logger.error("Failed to get merge base commit", extra=sanitized)
-            base_sha = self._pull_request.base.sha
+            raise
+        except RuntimeError:
+            raise
 
         if base_sha != self._pull_request.base.sha:
             self._logger.info(f"Using merge base commit {base_sha} instead of base commit {self._pull_request.base.sha}")

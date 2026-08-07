@@ -117,11 +117,22 @@ class IndexedBatchError(Exception):
 
     @property
     def first_failure(self) -> IndexedItemOutcome[object, object] | None:
-        """First non-cancellation failure when present; else first failure."""
+        """First non-cancellation failure when present; else first failure.
+
+        Cancellation is detected by type name (asyncio/anyio) so callers can
+        surface a stable non-cancel root without importing event-loop classes.
+        """
+        cancel_names = {
+            "CancelledError",
+            "CancelledException",
+            "CancelExc",
+        }
         for outcome in self.failed:
-            if outcome.error is not None and type(outcome.error).__name__ not in {
-                "CancelledError",
-                "CancelledException",
-            }:
-                return outcome
+            err = outcome.error
+            if err is None:
+                continue
+            name = type(err).__name__
+            if name in cancel_names or name.endswith("Cancelled"):
+                continue
+            return outcome
         return self.failed[0] if self.failed else None

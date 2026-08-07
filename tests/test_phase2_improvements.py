@@ -113,7 +113,7 @@ class TestChunkedProcessing:
         assert "+modified" in result
 
     def test_build_chunk_hunk_no_changes(self):
-        """Test chunk hunk generation with no changes."""
+        """Equal-only chunks still emit full-context equal lines."""
         from prdiffer.infrastructure.utils.diff_utils import DiffUtils
 
         diff_utils = DiffUtils()
@@ -123,8 +123,8 @@ class TestChunkedProcessing:
 
         result = diff_utils._build_chunk_hunk(orig_lines, new_lines, 1, 1)
 
-        # No changes should return empty string
-        assert result == ""
+        assert " line1" in result
+        assert " line2" in result
 
     def test_build_full_file_patch_chunked_small_file(self):
         """Test chunked processing falls back to standard for small files."""

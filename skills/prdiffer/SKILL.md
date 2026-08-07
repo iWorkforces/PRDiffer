@@ -36,6 +36,8 @@ A running PRDifferMCP server must be configured in the agent's MCP settings:
 | `GITHUB_TOKEN` | GitHub API (diff, approve review, edit body) |
 | `GITLAB_TOKEN` | GitLab API — **read** (`read_api` + `read_repository`) for `get_pr_diff`; **write** (`api` or equivalent) for `approve_pr` / `describe_pr` |
 | `GITLAB_ALLOWED_HOSTS` | CSV bare hostnames (default `gitlab.com`). Required for custom/self-hosted GitLab |
+| `MAX_FILES_ALLOWED` | Selected-file admission cap (default 50) |
+| `MAX_TOTAL_CHARS` | Aggregate full-diff char budget; over → `E5020` `RESPONSE_SIZE_LIMIT` (default 600000) |
 
 If the server has `MCP_AUTH_ENABLED=true`, pass a valid `api_key` on every tool call.
 
@@ -96,7 +98,7 @@ FileDiffResponse {
 
 **Strict completeness:** Success means every selected file is fully reconstructed. Partial/truncated `files` lists are never returned. Failures use `E5020_FULL_DIFF_INCOMPLETE` with a stable `reason`:
 
-`INVENTORY_TRUNCATED` · `FILE_COUNT_LIMIT` · `BINARY_CONTENT` · `FILE_SIZE_LIMIT` · `CONTENT_UNAVAILABLE` · `CONTENT_DECODE_FAILED` · `UNSUPPORTED_FILE_STATUS` · `DIFF_GENERATION_FAILED` · `RESPONSE_SIZE_LIMIT`
+`INVENTORY_TRUNCATED` · `FILE_COUNT_LIMIT` · `BINARY_CONTENT` · `FILE_SIZE_LIMIT` · `CONTENT_UNAVAILABLE` · `CONTENT_DECODE_FAILED` · `UNSUPPORTED_FILE_STATUS` · `DIFF_GENERATION_FAILED` · `RESPONSE_SIZE_LIMIT` · `SNAPSHOT_CHANGED`
 
 At the MCP boundary, E5020 is often a `ToolError` with compact JSON: `{"error_code","message","details"}` (safe details only; no `files` payload).
 
@@ -104,9 +106,9 @@ At the MCP boundary, E5020 is often a `ToolError` with compact JSON: `{"error_co
 
 | | GitHub | GitLab |
 |--|--------|--------|
-| Snapshot | Session-scoped PR head/base | Immutable MR diff version pinned to `diff_refs` |
-| Diff text | Generated full-context unified | Same (not raw hunk-only provider patch) |
-| Cache | `github-full-diff-v2:…` | `gitlab-full-diff-v1:{host}:…` (port-aware host) |
+| Snapshot | Immutable merge-base + head + file count (Compare once; revalidate after build) | Immutable MR diff version pinned to `diff_refs` |
+| Diff text | Generated full-context unified (modes/EOF; symlink/gitlink canonical text) | Same (not raw hunk-only provider patch) |
+| Cache | `github-full-diff-v3:{owner}:{repo}:{pr}:{merge_base}:{head}`  | `gitlab-full-diff-v1:{host}:…` (port-aware host) |
 
 **Examples:**
 
@@ -299,7 +301,7 @@ For E5020 via MCP `ToolError`, parse JSON text for `error_code`, `message`, and 
 - **Empty bodies**: `compliment` and `pr_description` must be non-empty strings.
 - **Auth**: With `MCP_AUTH_ENABLED=true`, every tool needs a valid `api_key`.
 - **Rate limits**: Avoid tight loops on `get_pr_diff`.
-- **Caching**: Diff responses are cached by provider identity (commit / MR version). Re-fetch after new pushes.
+- **Caching**: Diff responses are cached by provider identity (GitHub merge-base+head v3 / GitLab version+refs). Re-fetch after new pushes.
 - **Filtering**: Server-side ignore/extension policy may exclude files before admission; selected set is still all-or-nothing.
 - **Strict diffs**: Never invent a partial file list when the tool errors with E5020.
 - **Do not** rewrite a GitLab MR URL into a GitHub URL (or vice versa); route by the real host/path.

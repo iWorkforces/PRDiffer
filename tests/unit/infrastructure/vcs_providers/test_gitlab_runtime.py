@@ -206,6 +206,11 @@ class TestCacheHostAndAllowlist:
         assert cache_host_from_base_url("https://gitlab.example.com:8443") == "gitlab.example.com:8443"
         assert cache_host_from_base_url("https://gitlab.example.com:443") == "gitlab.example.com"
 
+    def test_cache_host_missing_hostname_fails_closed(self) -> None:
+        with pytest.raises(InvalidURLError) as exc:
+            cache_host_from_base_url("https://")
+        assert exc.value.error_code is E1001_INVALID_URL
+
     def test_disallowed_host_raises_before_client(self) -> None:
         runtime = GitLabRuntime(_config(allowed_hosts=("gitlab.com",)), client_factory=FakeClient)
         with pytest.raises(InvalidURLError) as exc:

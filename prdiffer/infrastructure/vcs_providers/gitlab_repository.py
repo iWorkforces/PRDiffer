@@ -34,7 +34,10 @@ class GitLabVCSRepository(VCSDiffRepositoryInterface):
         session_reader: GitLabSessionPRDiffReader | None = None,
     ) -> None:
         self._config = config or GitLabConfig()
-        self._operations = operations or GitLabOperations(gitlab_token)
+        self._operations = operations or GitLabOperations(
+            gitlab_token,
+            allowed_hosts=tuple(self._config.allowed_hosts),
+        )
         self._runtime = runtime or GitLabRuntime(self._config, private_token=gitlab_token)
         if session_reader is not None:
             self._session_reader = session_reader

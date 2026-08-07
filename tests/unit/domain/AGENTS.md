@@ -15,7 +15,7 @@ tests/unit/domain/
 ├── test_errors.py
 ├── test_exceptions.py
 ├── test_full_diff_incomplete_error.py  # E5020 + FullDiffIncompleteReason taxonomy
-├── test_pr_diff_cache_v2.py            # Schema v2 keys / wrap / unwrap
+├── test_pr_diff_cache_v2.py            # Value schema wrap/unwrap (PRDiffCacheEntryV2)
 ├── test_gitlab_pr_diff_cache.py        # GitLab v1 identity builders + legacy rejection
 ├── test_vcs_provider_interface.py
 └── test_vcs_provider_registry.py     # 601 — URL auto-detection
@@ -25,7 +25,7 @@ tests/unit/domain/
 | Task | Location | Notes |
 |------|----------|-------|
 | **E5020 incomplete full-diff** | `test_full_diff_incomplete_error.py` | Reason enum (9 values), exception contract |
-| **PRDiff cache v2** | `test_pr_diff_cache_v2.py` | `github_full_diff_v2_key`, wrap/unwrap |
+| **PRDiff cache value schema** | `test_pr_diff_cache_v2.py` | `PRDiffCacheEntryV2` wrap/unwrap |
 | **GitLab cache identity** | `test_gitlab_pr_diff_cache.py` | Host-aware `gitlab-full-diff-v1` key/token/immutability |
 | **GitLabConfig** | `config/test_gitlab_config.py` | Defaults, allowlist, `is_host_allowed` |
 | **GitHubConfig defaults** | `config/test_github_config.py` | Size limits incl. `max_total_chars` 600k |

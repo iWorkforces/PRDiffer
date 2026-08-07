@@ -21,6 +21,9 @@
 #                          e.g. gitlab.com,gitlab.example.com
 #   MAX_FILES_ALLOWED      Max selected files for full-context PR/MR diffs (default: 50
 #                          from settings.toml app.max_files_allowed; positive integer)
+#   MAX_TOTAL_CHARS        Aggregate public-diff char budget; exceeding it fails closed
+#                          with E5020 RESPONSE_SIZE_LIMIT (default: 600000 from
+#                          settings.toml diff.max_total_chars; positive integer)
 #   GITHUB_IGNORE_PATTERNS Comma-separated ignore globs for GitHub PR file filtering
 #                          (replaces settings.toml github.ignore_patterns when set)
 #   PID_FILE               Custom PID file location (default: .prdiffer-server.pid)
@@ -183,7 +186,7 @@ load_env_file() {
         # shellcheck source=/dev/null
         source "$ENV_FILE"
         set +a
-        log_debug "Loaded .env (GITLAB_ALLOWED_HOSTS=${GITLAB_ALLOWED_HOSTS:-<unset>}, MAX_FILES_ALLOWED=${MAX_FILES_ALLOWED:-<unset>}, GITHUB_IGNORE_PATTERNS=${GITHUB_IGNORE_PATTERNS:-<unset, use settings.toml>})"
+        log_debug "Loaded .env (GITLAB_ALLOWED_HOSTS=${GITLAB_ALLOWED_HOSTS:-<unset>}, MAX_FILES_ALLOWED=${MAX_FILES_ALLOWED:-<unset>}, MAX_TOTAL_CHARS=${MAX_TOTAL_CHARS:-<unset>}, GITHUB_IGNORE_PATTERNS=${GITHUB_IGNORE_PATTERNS:-<unset, use settings.toml>})"
     fi
 }
 
@@ -345,7 +348,7 @@ if [[ -z "${GITHUB_TOKEN:-}" && -z "${GITLAB_TOKEN:-}" ]]; then
     echo ""
     echo -e "${PURPLE}Option 2: Copy .env.example to .env${NC}"
     echo -e "  cp .env.example .env"
-    echo -e "  # then edit .env: GITHUB_TOKEN / GITLAB_TOKEN / GITLAB_ALLOWED_HOSTS / MAX_FILES_ALLOWED"
+    echo -e "  # then edit .env: GITHUB_TOKEN / GITLAB_TOKEN / GITLAB_ALLOWED_HOSTS / MAX_FILES_ALLOWED / MAX_TOTAL_CHARS"
     echo ""
     echo -e "${CYAN}Generate a personal access token in your selected provider account, then set its environment variable.${NC}"
     echo ""
@@ -372,6 +375,14 @@ if [[ -n "${MAX_FILES_ALLOWED:-}" ]]; then
 else
     log_info "Max files allowed: settings.toml app.max_files_allowed (default 50)"
     log_debug "Set MAX_FILES_ALLOWED=N to raise/lower the full-diff selected-file admission limit"
+fi
+
+# Surface aggregate RESPONSE_SIZE_LIMIT budget (env overrides settings.toml diff.max_total_chars)
+if [[ -n "${MAX_TOTAL_CHARS:-}" ]]; then
+    log_info "Max total diff chars (MAX_TOTAL_CHARS / RESPONSE_SIZE_LIMIT): ${MAX_TOTAL_CHARS}"
+else
+    log_info "Max total diff chars: settings.toml diff.max_total_chars (default 600000)"
+    log_debug "Set MAX_TOTAL_CHARS=N to raise/lower the E5020 RESPONSE_SIZE_LIMIT aggregate budget"
 fi
 
 # Surface GitHub ignore patterns when overridden via env

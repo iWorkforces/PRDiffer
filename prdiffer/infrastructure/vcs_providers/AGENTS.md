@@ -10,7 +10,8 @@ prdiffer/infrastructure/vcs_providers/
 ├── gitlab_repository.py     # GitLabVCSRepository session + MR approve/describe (~185)
 ├── gitlab_models.py         # Diff refs / version / snapshot / record models (~167)
 ├── gitlab_inventory.py      # State/cardinality admission + edit classification (~198)
-├── gitlab_content.py        # Ref-pinned typed raw content fetch (~281)
+├── gitlab_content.py        # Ref-pinned content; tree for symlink/gitlink; first_failure
+├── gitlab_objects.py        # Immutable tree/blob helpers (no submodule traversal)
 ├── gitlab_diff_generator.py # Ordered full-context FileDiffResponse assembly (~149)
 ├── gitlab_diff_session.py   # Request-scoped session + SessionPRDiffReader (~224)
 ├── gitlab_operations.py     # Version pin + approve/describe SDK helpers (~355)
@@ -33,13 +34,16 @@ prdiffer/infrastructure/vcs_providers/
 | **Register provider** | `domain/vcs_provider_registry.py` | `supports_repository(url)` auto-detect |
 
 ## CONVENTIONS
+- Unified-diff stats: count `+`/`-` only inside `@@` hunks (source `++`/`--` payloads count).
+- `real_size` parse rejects booleans/floats/negatives; only nonnegative int or digit string.
 - Map provider models → domain entities at the boundary (`FileDiffResponse`, `PRDiff`).
 - Use shared retry/security utilities where applicable.
 - URL detection: GitHub.com PR paths vs any HTTPS host with `/-/merge_requests/` (custom GitLab).
 - GitLab renames set `FileDiffResponse.previous_path` from `old_path` when distinct; no retrieval redesign.
 - Prefer domain interfaces (`PRDiffRepositoryInterface` / `VCSDiffRepositoryInterface`) for registration.
 - **GitLabRuntime**: process-shared limiter only; **per-call** `base_url` + `deadline_monotonic` (never shared mutable request state); each `run_blocking` uses a fresh client closed in `finally`; `abandon_on_cancel=False`; post-worker wall-clock deadline → E5004; inject `max_retries`/`obey_rate_limit` via `http_request` defaults (python-gitlab 8.5).
-- **Host allowlist**: `GitLabConfig.allowed_hosts` (default `gitlab.com`); env `GITLAB_ALLOWED_HOSTS` CSV; `ensure_host_allowed` rejects non-allowlisted hosts before SDK (E1001).
+- **Host allowlist**: `GitLabConfig.allowed_hosts` (default `gitlab.com`); env `GITLAB_ALLOWED_HOSTS` CSV; `ensure_host_allowed` rejects non-allowlisted hosts before SDK (E1001). `GitLabOperations` helpers that open their own clients also enforce the same allowlist.
+- **Tree completeness**: `load_repository_tree_entries` requires full pagination (`get_all`/`all`) and fails closed with `INVENTORY_TRUNCATED` when `next_page` remains set.
 - **Session open**: pin snapshot via `runtime.run_blocking(ops.select_with_client, base_url=…, deadline=…)` — never block the event loop on direct `select_diff_snapshot`.
 - **Content fetch**: forward per-request `base_url` + `deadline_monotonic` into every raw content `run_blocking`.
 - **Cache identity**: host from `cache_host_from_base_url` (port-aware for non-80/443).

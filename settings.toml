@@ -58,7 +58,7 @@ gitlab.max_file_size_bytes = 10485760  # 10MB — binary/oversize fail closed (E
 gitlab.allowed_hosts = ["gitlab.com"]
 # max_files_allowed / max_total_chars / pr_diff_request_timeout_seconds also resolve
 # from app.max_files_allowed, diff.max_total_chars, mcp.pr_diff_request_timeout_seconds
-# when gitlab.* overrides are absent.
+# when gitlab.* overrides are absent. Runtime: MAX_FILES_ALLOWED / MAX_TOTAL_CHARS in .env.
 
 # Performance optimization feature flags (dotted keys under [default]; not a Dynaconf env)
 # Bounded concurrency (indexed batch, session CapacityLimiter, max_concurrent).
@@ -155,6 +155,8 @@ diff.max_diff_size = 100000          # Maximum lines - files larger return trunc
 
 # Diff size limits
 diff.truncate_enabled = true
+# Aggregate public-diff char budget (E5020 RESPONSE_SIZE_LIMIT). Runtime override
+# via MAX_TOTAL_CHARS in .env (see .env.example / start-prdiffer-mcp-server.sh).
 diff.max_total_chars = 600000
 diff.truncation_notice = "[DIFF TRUNCATED]"
 

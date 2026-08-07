@@ -139,11 +139,26 @@ class GitLabDiffAssembler:
 
 
 def _count_unified_stats(diff: str) -> tuple[int, int]:
+    """Count `+`/`-` source lines only inside ``@@`` hunks.
+
+    File headers (``--- a/…`` / ``+++ b/…``) and mode/rename metadata before the
+    first hunk are ignored. Source lines whose payload starts with ``++`` or
+    ``--`` (unified form ``+++…`` / ``---…``) count normally once inside a hunk.
+    """
     additions = 0
     deletions = 0
+    in_hunk = False
     for line in diff.splitlines():
-        if line.startswith("+") and not line.startswith("+++"):
+        if line.startswith("@@"):
+            in_hunk = True
+            continue
+        if not in_hunk:
+            continue
+        if line.startswith("\\"):
+            # "\ No newline at end of file"
+            continue
+        if line.startswith("+"):
             additions += 1
-        elif line.startswith("-") and not line.startswith("---"):
+        elif line.startswith("-"):
             deletions += 1
     return additions, deletions
