@@ -119,9 +119,7 @@ class TestTreeLoadAndResolve:
         from types import SimpleNamespace
         from prdiffer.infrastructure.github.git_objects import load_recursive_tree_entries
 
-        repo = SimpleNamespace(
-            get_git_tree=lambda sha, recursive=False: SimpleNamespace(truncated=True, tree=[])
-        )
+        repo = SimpleNamespace(get_git_tree=lambda sha, recursive=False: SimpleNamespace(truncated=True, tree=[]))
         with pytest.raises(FullDiffIncompleteError) as ei:
             load_recursive_tree_entries(repo, OID)
         assert ei.value.reason is FullDiffIncompleteReason.INVENTORY_TRUNCATED
@@ -136,9 +134,7 @@ class TestTreeLoadAndResolve:
             SimpleNamespace(path="sub", mode="160000", type="commit", sha=OID2),
             SimpleNamespace(path="link", mode="120000", type="blob", sha=OID),
         ]
-        repo = SimpleNamespace(
-            get_git_tree=lambda sha, recursive=False: SimpleNamespace(truncated=False, tree=items)
-        )
+        repo = SimpleNamespace(get_git_tree=lambda sha, recursive=False: SimpleNamespace(truncated=False, tree=items))
         tree = load_recursive_tree_entries(repo, REF)
         assert set(tree) == {"a.py", "sub", "link"}
         assert tree["sub"].mode == MODE_GITLINK
