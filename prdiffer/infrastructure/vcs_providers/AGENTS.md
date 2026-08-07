@@ -10,7 +10,8 @@ prdiffer/infrastructure/vcs_providers/
 ├── gitlab_repository.py     # GitLabVCSRepository session + MR approve/describe (~185)
 ├── gitlab_models.py         # Diff refs / version / snapshot / record models (~167)
 ├── gitlab_inventory.py      # State/cardinality admission + edit classification (~198)
-├── gitlab_content.py        # Ref-pinned typed raw content fetch (~281)
+├── gitlab_content.py        # Ref-pinned content; tree for symlink/gitlink; first_failure
+├── gitlab_objects.py        # Immutable tree/blob helpers (no submodule traversal)
 ├── gitlab_diff_generator.py # Ordered full-context FileDiffResponse assembly (~149)
 ├── gitlab_diff_session.py   # Request-scoped session + SessionPRDiffReader (~224)
 ├── gitlab_operations.py     # Version pin + approve/describe SDK helpers (~355)
