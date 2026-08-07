@@ -69,7 +69,9 @@ prdiffer/application/
 
 ## ARCHITECTURE NOTES
 - Analyzer reports **1** top-level Application → Infrastructure import: `factory.py` → `infrastructure.factories.infrastructure_factory`.
-- Several modules still lazy-import `get_infrastructure_factory()` / coalescing service for default validators — transitional; prefer injected ports.
+- Lazy in-function App→Infra imports (validator/coalescing/GitLab URL parts) remain as DI fallbacks — analyzer ignores those; prefer injected ports.
+- Domain `ApprovePRUseCase` / `UpdatePRDescriptionUseCase` exist and are unit-tested; MCP tools call repositories / `GitLabPROperationsProtocol` **directly** (use cases not wired into `ToolRegistry`).
+- `PROperationHandler` is a GitHub-oriented helper wired on the server; primary MCP `get_pr_diff` uses `GetPRDiffUseCase` + session readers.
 
 ## ANTI-PATTERNS
 - NO business rules that belong in domain entities/use cases.
@@ -80,3 +82,4 @@ prdiffer/application/
 - NO returning partial PR diffs; incompleteness must surface as `E5020`.
 - NO using `parse_pr_url` for GitLab (use `parse_pr_target`).
 - NO hard-coding GitHub-only URL validation on `approve_pr` / `describe_pr` (provider dispatch required).
+- NO trusting unverified JWT for auth decisions (API keys primary).

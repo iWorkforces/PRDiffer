@@ -74,10 +74,12 @@ prdiffer/infrastructure/
 
 ### Flattened modules + package shims
 Several packages re-export flattened canonical modules for import stability:
-- `utils/circuit_breaker/*` → `circuit_breaker_core.py` / `circuit_breaker_registry.py`
-- `utils/coalescing/*` → `coalescing_service.py`
+- `utils/circuit_breaker/*` → `circuit_breaker_core.py` / `circuit_breaker_registry.py` (true re-export shims)
 - `cache/decorators/*` → `cache_decorators.py`
 - `cache/repository/*` → `cache_repository.py`
+- `utils/performance.py` → re-exports `utils/metrics/performance.py`
+
+**Coalescing special case:** `utils/coalescing_service.py` and `utils/coalescing/service.py` are **full duplicates** (~220 each), not a re-export shim. Always import the **flattened** path to avoid dual-singleton drift.
 
 Prefer importing the **canonical flattened module** in new code.
 

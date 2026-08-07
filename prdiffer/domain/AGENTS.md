@@ -3,8 +3,8 @@
 Pure business logic. No external deps, no I/O. Entities, ports (ABC/Protocol), use cases, and factory contracts only.
 
 ## OVERVIEW
-Package **0.6.2**, Python **3.14.3+**.  
-**42** modules across root + **7** subpackages. Frozen dataclasses for most entities; ABC/Protocol for ports.
+Package **0.6.2**, Python **3.14.6+**.  
+**42** modules across root + **7** subpackages (no package-level `__init__.py` — import concrete modules). Frozen dataclasses for most entities; ABC/Protocol for ports.
 
 ## STRUCTURE
 ```
@@ -117,3 +117,5 @@ prdiffer/domain/
 ## NOTES
 - Domain has no package `__init__` re-exports at root; import concrete modules.
 - Dual error surfaces: `exceptions.PRDifferException` (domain ops) and `errors.MCPError` (MCP response shaping).
+- Internal graph: `interfaces/pr_diff_reader.py` imports `PRDiffReader` from `usecases/pr_diff_usecases.py` (session ports depend on the use-case Protocol location).
+- MCP tools wire `GetPRDiffUseCase` for diffs; approve/describe use cases are available for tests but not the primary MCP path.

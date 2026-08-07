@@ -1,6 +1,6 @@
 # AGENTS.md - Domain/Interfaces
 
-Cross-cutting ports and Protocols (~520 lines). Package 0.6.2.
+Cross-cutting ports and Protocols (~560 lines). Package 0.6.2.
 
 ## STRUCTURE
 ```

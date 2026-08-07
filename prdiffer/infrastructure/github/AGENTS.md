@@ -6,15 +6,15 @@ PyGithub-backed API client, inventory admission, ordered file processing, full-c
 ## STRUCTURE
 ```
 prdiffer/infrastructure/github/
-├── client.py                # GitHubAPIClient facade (280)
-├── client_operations.py     # File content / multi-ref batch / cache mixin (437)
-├── client_models.py         # Exception tuples + cache defaults (16)
+├── client.py                # GitHubAPIClient facade (~280)
+├── client_operations.py     # File content / multi-ref batch / cache mixin (~441)
+├── client_models.py         # Exception tuples + cache defaults (~16)
 ├── file_processor.py        # Ordered fetch/filter → FilePatchInfo (~593)
-├── diff_generator.py        # generate_ordered_file_diffs → GeneratedFileDiff (~517)
-├── etag_adapter.py          # Conditional requests / 304 (121)
-├── inventory.py             # Authoritative inventory + admission (126)
-├── mappers.py               # API → domain mapping (88)
-├── pr_diff_session.py       # anyio session isolation + cache_identity (~223)
+├── diff_generator.py        # generate_ordered_file_diffs → GeneratedFileDiff (~514)
+├── etag_adapter.py          # Conditional requests / 304 (~121)
+├── inventory.py             # Authoritative inventory + admission (~130)
+├── mappers.py               # API → domain mapping (~88)
+├── pr_diff_session.py       # anyio session isolation + cache_identity (~227)
 └── __init__.py
 ```
 

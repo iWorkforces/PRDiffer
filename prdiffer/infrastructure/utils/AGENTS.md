@@ -8,22 +8,22 @@ Resilience, parallelism, parsing, and shared utilities (including subpackages).
 prdiffer/infrastructure/utils/
 ├── retry/                      # Unified retry package (base, handler, models, factories)
 ├── parallel/                   # AsyncParallelExecutor (~598 in executor.py; per-batch semaphore)
-├── coalescing/                 # Package path for coalescing
+├── coalescing/                 # FULL DUPLICATE of coalescing_service.py (do not import)
 ├── circuit_breaker/            # SHIM → circuit_breaker_core / registry
-├── metrics/                    # Performance metrics package
-├── circuit_breaker_core.py     # Canonical CircuitBreaker (215)
-├── circuit_breaker_registry.py # Global registry (271)
-├── coalescing_service.py       # Request coalescing (220)
-├── delay_calculator.py         # Backoff + jitter (160)
-├── error_classifier.py         # Retryability classification (151)
-├── rate_limit_parser.py        # Retry-After / rate headers (183)
-├── api_health_tracker.py       # Sliding window health (131)
-├── diff_limits.py              # Strict size hard limits (67)
+├── metrics/                    # Canonical performance metrics (`performance.py`)
+├── circuit_breaker_core.py     # Canonical CircuitBreaker (~215)
+├── circuit_breaker_registry.py # Global registry (~271)
+├── coalescing_service.py       # Request coalescing (~220) — preferred import
+├── delay_calculator.py         # Backoff + jitter (~160)
+├── error_classifier.py         # Retryability classification (~151)
+├── rate_limit_parser.py        # Retry-After / rate headers (~183)
+├── api_health_tracker.py       # Sliding window health (~131)
+├── diff_limits.py              # Strict size hard limits (~67)
 ├── diff_utils.py               # DiffServiceInterface impl
 ├── pattern_matcher.py          # Ignore/extension patterns
 ├── url_parser.py               # GitHub PR + GitLab MR URL parsing (~281; custom hosts)
-├── logger_factory.py           # get_logger helpers, LazyLoggerMixin (123)
-├── performance.py              # Metrics (may mirror metrics/)
+├── logger_factory.py           # get_logger helpers, LazyLoggerMixin (~123)
+├── performance.py              # Re-exports metrics/performance.py
 └── retry_logger.py
 ```
 
@@ -45,7 +45,8 @@ prdiffer/infrastructure/utils/
 - Document **shim vs canonical** when flattening modules:
   - Canonical CB: `circuit_breaker_core.py` / `circuit_breaker_registry.py`
   - Package `circuit_breaker/` re-exports only
-- Coalescing: prefer consistent imports (`coalescing_service` vs package) within a change set.
+  - Canonical metrics: `metrics/performance.py`; flat `performance.py` re-exports
+- Coalescing: import **only** `coalescing_service.py` (package path is a full duplicate, not a shim).
 - Parallel full-diff work must preserve identity/order via `execute_indexed_batch`.
 - Executor creates a fresh semaphore per batch (safe across independent anyio loops).
 
@@ -55,3 +56,4 @@ prdiffer/infrastructure/utils/
 - NO blind retry of all exceptions (especially content 404s).
 - NO completion-order append for identity-sensitive full-diff batches.
 - NO truncating diffs in `diff_limits` helpers — hard-fail only.
+- NO dual import of coalescing package + flattened module (dual singletons).
