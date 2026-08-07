@@ -8,11 +8,9 @@ from prdiffer.domain.entities.pr_diff import PRDiff
 
 PRDIFF_CACHE_SCHEMA_V1 = 1
 PRDIFF_CACHE_SCHEMA_V2 = 2
-# Legacy GitHub key prefix (ignored on read; never migrated).
-GITHUB_FULL_DIFF_CACHE_PREFIX_V2 = "github-full-diff-v2"
-GITHUB_FULL_DIFF_CACHE_PREFIX = GITHUB_FULL_DIFF_CACHE_PREFIX_V2  # back-compat alias
-# Active GitHub strict identity (merge-base + head). Value schema remains V2.
-GITHUB_FULL_DIFF_CACHE_PREFIX_V3 = "github-full-diff-v3"
+# GitHub strict identity prefix (merge-base + head). Value schema remains V2.
+GITHUB_FULL_DIFF_CACHE_PREFIX = "github-full-diff-v3"
+GITHUB_FULL_DIFF_CACHE_PREFIX_V3 = GITHUB_FULL_DIFF_CACHE_PREFIX
 GITLAB_FULL_DIFF_CACHE_PREFIX = "gitlab-full-diff-v1"
 
 
@@ -27,7 +25,10 @@ class StrictPRDiffCacheIdentity:
 
 @dataclass(frozen=True)
 class PRDiffCacheEntryV2:
-    """Strict full-diff cache value (schema version 2 only)."""
+    """Strict full-diff cache *value* wrapper (schema version 2 only).
+
+    Name refers to the value serialization schema, not the GitHub key prefix.
+    """
 
     schema_version: int
     value: PRDiff
@@ -35,25 +36,6 @@ class PRDiffCacheEntryV2:
     def __post_init__(self) -> None:
         if self.schema_version != PRDIFF_CACHE_SCHEMA_V2:
             raise ValueError(f"Unsupported PRDiff cache schema_version: {self.schema_version}")
-
-
-def github_full_diff_v2_key(owner: str, repo: str, pr_number: int, head_sha: str) -> str:
-    """Legacy GitHub PRDiff cache key (v2; head-only). Kept for rejection tests."""
-    return f"{GITHUB_FULL_DIFF_CACHE_PREFIX_V2}:{owner.casefold()}:{repo.casefold()}:{pr_number}:{head_sha}"
-
-
-def github_full_diff_v2_identity(
-    owner: str,
-    repo: str,
-    pr_number: int,
-    head_sha: str,
-) -> StrictPRDiffCacheIdentity:
-    """Legacy GitHub full-diff v2 identity (not used by active sessions)."""
-    return StrictPRDiffCacheIdentity(
-        cache_key=github_full_diff_v2_key(owner, repo, pr_number, head_sha),
-        validation_token=head_sha,
-        schema_version=PRDIFF_CACHE_SCHEMA_V2,
-    )
 
 
 def github_full_diff_v3_key(
@@ -137,12 +119,8 @@ def gitlab_full_diff_v1_identity(
     )
 
 
-def _is_active_github_strict_key(key: str) -> bool:
+def _is_github_strict_key(key: str) -> bool:
     return key.startswith(GITHUB_FULL_DIFF_CACHE_PREFIX_V3)
-
-
-def _is_legacy_github_v2_key(key: str) -> bool:
-    return key.startswith(GITHUB_FULL_DIFF_CACHE_PREFIX_V2)
 
 
 def _key_matches_identity(key: str, identity: StrictPRDiffCacheIdentity) -> bool:
@@ -159,27 +137,17 @@ def unwrap_pr_diff_cache_value(
 ) -> PRDiff | None:
     """Accept strict bare PRDiff under GitHub-v3 or GitLab-v1 key prefixes.
 
-    GitHub v2 keys are never migrated: bare or wrapped values under a v2 key
-    miss when the active identity is v3. ``PRDiffCacheEntryV2`` remains the
-    value schema for successful strict writes under active keys.
+    Unknown or non-strict keys miss. ``PRDiffCacheEntryV2`` is the value schema
+    for successful writes under active keys (not a key-prefix version).
     """
     if isinstance(raw, PRDiffCacheEntryV2):
         if raw.schema_version != PRDIFF_CACHE_SCHEMA_V2:
             return None
-        if identity is not None:
-            if identity.cache_key.startswith(GITHUB_FULL_DIFF_CACHE_PREFIX_V2):
-                # Legacy v2 identity is never an active session hit.
-                return None
-            if not _key_matches_identity(key, identity):
-                return None
-            if identity.cache_key.startswith(GITHUB_FULL_DIFF_CACHE_PREFIX_V3):
-                if key and _is_legacy_github_v2_key(key):
-                    return None
-                if key and not (_is_active_github_strict_key(key) or key == identity.cache_key or key.endswith(identity.cache_key)):
-                    return None
-        elif key and _is_legacy_github_v2_key(key):
-            # Wrapped values under legacy v2 keys are ignored (no migration).
+        if identity is not None and not _key_matches_identity(key, identity):
             return None
+        if identity is not None and identity.cache_key.startswith(GITHUB_FULL_DIFF_CACHE_PREFIX_V3):
+            if key and not (_is_github_strict_key(key) or key == identity.cache_key or key.endswith(identity.cache_key)):
+                return None
         return raw.value
     if not isinstance(raw, PRDiff):
         return None
@@ -187,17 +155,12 @@ def unwrap_pr_diff_cache_value(
         if not _key_matches_identity(key, identity):
             return None
         if identity.cache_key.startswith(GITHUB_FULL_DIFF_CACHE_PREFIX_V3):
-            if key and _is_legacy_github_v2_key(key):
-                return None
-            return raw if (not key) or _is_active_github_strict_key(key) or key == identity.cache_key or key.endswith(identity.cache_key) else None
-        if identity.cache_key.startswith(GITHUB_FULL_DIFF_CACHE_PREFIX_V2):
-            return None
+            return raw if (not key) or _is_github_strict_key(key) or key == identity.cache_key or key.endswith(identity.cache_key) else None
         if identity.cache_key.startswith(GITLAB_FULL_DIFF_CACHE_PREFIX):
             return raw if (not key) or key.startswith(GITLAB_FULL_DIFF_CACHE_PREFIX) or key == identity.cache_key else None
         return None
-    if _is_active_github_strict_key(key) or key.startswith(GITLAB_FULL_DIFF_CACHE_PREFIX):
+    if _is_github_strict_key(key) or key.startswith(GITLAB_FULL_DIFF_CACHE_PREFIX):
         return raw
-    # Bare PRDiff under legacy GitHub v2 or unversioned keys is ignored.
     return None
 
 

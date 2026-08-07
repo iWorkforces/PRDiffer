@@ -1,4 +1,4 @@
-"""Tests for strict PRDiff cache identity: GitHub v3 active, v2 legacy rejection."""
+"""Tests for strict PRDiff cache identity (GitHub v3 + GitLab v1)."""
 
 from __future__ import annotations
 
@@ -8,12 +8,9 @@ from prdiffer.domain.entities.file_diff_response import FileDiffResponse, FileSt
 from prdiffer.domain.entities.file_patch import EDIT_TYPE
 from prdiffer.domain.entities.pr_diff import PRDiff
 from prdiffer.domain.entities.pr_diff_cache import (
-    GITHUB_FULL_DIFF_CACHE_PREFIX_V2,
     GITHUB_FULL_DIFF_CACHE_PREFIX_V3,
     PRDIFF_CACHE_SCHEMA_V2,
     StrictPRDiffCacheIdentity,
-    github_full_diff_v2_identity,
-    github_full_diff_v2_key,
     github_full_diff_v3_identity,
     github_full_diff_v3_key,
     unwrap_pr_diff_cache_value,
@@ -56,7 +53,7 @@ def test_github_v3_identity_includes_merge_base_and_head() -> None:
     assert identity.cache_key == expected_key
     assert identity.cache_key == f"{GITHUB_FULL_DIFF_CACHE_PREFIX_V3}:owner:repo:7:{MB}:{HD}"
     assert identity.validation_token == f"{MB}:{HD}"
-    assert identity.schema_version == PRDIFF_CACHE_SCHEMA_V2  # value schema unchanged
+    assert identity.schema_version == PRDIFF_CACHE_SCHEMA_V2
 
 
 def test_github_v3_distinct_merge_base_same_head() -> None:
@@ -66,14 +63,7 @@ def test_github_v3_distinct_merge_base_same_head() -> None:
     assert a.validation_token != b.validation_token
 
 
-def test_github_v2_key_bytes_unchanged_for_legacy() -> None:
-    """Regression: legacy v2 key format remains byte-for-byte stable (rejection only)."""
-    assert github_full_diff_v2_key("o", "r", 1, "h") == f"{GITHUB_FULL_DIFF_CACHE_PREFIX_V2}:o:r:1:h"
-    identity = github_full_diff_v2_identity("Owner", "Repo", 7, "abc")
-    assert identity.cache_key == f"{GITHUB_FULL_DIFF_CACHE_PREFIX_V2}:owner:repo:7:abc"
-
-
-def test_unwrap_and_wrap_value_schema_v2_under_v3_key() -> None:
+def test_unwrap_and_wrap_value_schema_under_v3_key() -> None:
     value = _diff()
     entry = wrap_pr_diff_for_cache(value)
     assert entry.schema_version == PRDIFF_CACHE_SCHEMA_V2
@@ -84,14 +74,4 @@ def test_unwrap_and_wrap_value_schema_v2_under_v3_key() -> None:
     assert unwrap_pr_diff_cache_value(value, key=key, identity=identity) is value
     assert unwrap_pr_diff_cache_value(entry, key=key, identity=identity) is value
     assert unwrap_pr_diff_cache_value(value, key="legacy") is None
-
-
-def test_unwrap_rejects_legacy_v2_under_v3_identity() -> None:
-    value = _diff()
-    entry = wrap_pr_diff_for_cache(value)
-    v3 = github_full_diff_v3_identity("o", "r", 1, MB, HD)
-    v2_key = github_full_diff_v2_key("o", "r", 1, HD)
-    assert unwrap_pr_diff_cache_value(value, key=v2_key, identity=v3) is None
-    assert unwrap_pr_diff_cache_value(entry, key=v2_key, identity=v3) is None
-    assert unwrap_pr_diff_cache_value(value, key=v2_key) is None
-    assert unwrap_pr_diff_cache_value(entry, key=v2_key) is None
+    assert unwrap_pr_diff_cache_value(value, key="not-a-strict-key:o:r:1:h") is None

@@ -12,7 +12,6 @@ from prdiffer.domain.entities.file_patch import EDIT_TYPE
 from prdiffer.domain.entities.pr_diff import PRDiff
 from prdiffer.domain.entities.pr_diff_cache import (
     StrictPRDiffCacheIdentity,
-    github_full_diff_v2_identity,
     github_full_diff_v3_identity,
     gitlab_full_diff_v1_identity,
     unwrap_pr_diff_cache_value,
@@ -96,21 +95,18 @@ class SessionReader:
 
 @pytest.mark.integration
 @pytest.mark.anyio
-async def test_github_v3_hit_miss_and_v2_rejection() -> None:
+async def test_github_v3_hit_and_miss() -> None:
     cache = RecordingCache()
     identity = github_full_diff_v3_identity("o", "r", 1, _MB, _HD)
     value = _pr()
-    # Preload legacy v2 under old key — must not hit v3 identity
-    v2 = github_full_diff_v2_identity("o", "r", 1, _HD)
-    cache.store[(v2.cache_key, v2.validation_token)] = value
-    cache.store[(v2.cache_key, v2.validation_token)] = wrap_pr_diff_for_cache(value)
+    # Preload unrelated key — must not hit v3 identity
+    cache.store[("unrelated:key", "token")] = wrap_pr_diff_for_cache(value)
 
     build = AsyncMock(return_value=value)
     session = FakeSession(identity, build)
     reader = SessionReader(session)
     use_case = GetPRDiffUseCase(reader, cache)
 
-    # Miss (v2 not accepted for v3 key)
     result = await use_case.execute("o", "r", 1)
     assert result is value
     assert build.await_count == 1
@@ -168,12 +164,11 @@ async def test_e5020_and_empty_cache_semantics() -> None:
 
 
 @pytest.mark.integration
-def test_unwrap_rejects_v2_for_v3_identity() -> None:
+def test_unwrap_accepts_only_v3_github_keys() -> None:
     value = _pr()
     v3 = github_full_diff_v3_identity("o", "r", 1, _MB, _HD)
-    v2_key = github_full_diff_v2_identity("o", "r", 1, _HD).cache_key
-    assert unwrap_pr_diff_cache_value(value, key=v2_key, identity=v3) is None
-    assert unwrap_pr_diff_cache_value(wrap_pr_diff_for_cache(value), key=v2_key, identity=v3) is None
+    assert unwrap_pr_diff_cache_value(value, key="not-a-strict-key:o:r:1:h", identity=v3) is None
+    assert unwrap_pr_diff_cache_value(wrap_pr_diff_for_cache(value), key="not-a-strict-key:o:r:1:h", identity=v3) is None
     assert unwrap_pr_diff_cache_value(value, key=v3.cache_key, identity=v3) is value
 
 
