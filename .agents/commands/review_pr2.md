@@ -62,7 +62,12 @@ Review the pull request identified by `$1`. `$1` is the sole argument and is
           severity: high
           relevant_file: path/to/file
           issue_header: Short actionable title
-          issue_content: Concrete defect, impact, and correction needed.
+          issue_content: |
+            **Defect:** Concrete faulty behavior or root cause.
+
+            **Impact:** User or system consequence.
+
+            **Suggestion:** Actionable correction.
           start_line: 1
           end_line: 1
           line_side: new
@@ -77,7 +82,11 @@ Review the pull request identified by `$1`. `$1` is the sole argument and is
       ```
 
    This schema and every other subagent field are internal metadata. They never
-   enter the report.
+   enter the report. `issue_content` must be a YAML literal block with exactly
+   one each of `**Defect:**`, `**Impact:**`, and `**Suggestion:**`, in that
+   order, separated by blank lines. The sections state the concrete faulty
+   behavior or root cause, the user or system consequence, and the actionable
+   correction, respectively.
 5. Wait for all five `Agent` results. If any reviewer fails, returns malformed
    data, or has a coverage manifest that omits a snapshot file or changes its
    provider order, stop before reading or writing the report.
@@ -95,6 +104,10 @@ Review the pull request identified by `$1`. `$1` is the sole argument and is
    speculation, style-only feedback, informational notes, and generic coverage
    requests. Independently assess the impact, severity, evidence, and
    recommended fix. Record only confirmed, concrete, actionable defects. Use
+   the required `issue_content` structure when validating candidates: each
+   label must appear exactly once, in the required order, with blank lines
+   between sections, and each section must match its stated purpose. Reject a
+   candidate that does not meet this contract. Use
    the available `tavily-mcp` tools when
    confirmation requires current external knowledge, when an API, library,
    standard, vulnerability, or other external behavior is uncertain, or in any
@@ -124,33 +137,46 @@ Review the pull request identified by `$1`. `$1` is the sole argument and is
    preserve facts, severity, evidence, file path, line range and side, header
    intent, impact, and recommended fix. It must not add claims, remove needed
    qualifications, weaken or exaggerate the finding, or introduce
-   recommendations. Do not send existing findings to the skill; preserve them
-   unchanged.
+   recommendations. It may rewrite section prose only. It must not remove,
+   rename, reorder, or duplicate `**Defect:**`, `**Impact:**`, and
+   `**Suggestion:**`; retain each label exactly once in that order, with blank
+   lines between sections. Do not send existing findings to the skill; preserve
+   them unchanged.
 9. Compare every final rewrite with its immutable validated finding. If any
-   rewrite changes meaning, stop without changing the report. Otherwise use only
-   the approved final `issue_content` values for the new findings.
+   rewrite changes meaning or violates the required `issue_content` format,
+   stop without changing the report. Reject malformed final rewrites before
+   report writing. Otherwise use only the approved final `issue_content` values
+   for the new findings.
 10. Append only the remaining non-duplicate confirmed findings to the sole
-     `findings` sequence. For every finding, set `relevant_file` to the `path`
-     of the matching `result.files` entry. Immediately before writing, verify
-     every final finding again: `start_line` and `end_line` must be new-file line
-     numbers, and every line in that inclusive range must be newly added code
-     marked `+` in the full diff. Never emit a range containing context, removed,
-     or old-side lines. Each finding must use exactly these keys:
+    `findings` sequence. For every finding, set `relevant_file` to the `path`
+    of the matching `result.files` entry. Immediately before writing, verify
+    every final finding again: `start_line` and `end_line` must be new-file line
+    numbers, and every line in that inclusive range must be newly added code
+    marked `+` in the full diff. Never emit a range containing context, removed,
+    or old-side lines. Each finding must use exactly these keys:
 
-   ```yaml
-   - relevant_file: |
-       path/to/file
-     issue_header: |
-       Short actionable title
-     issue_content: |
-       Explain the defect, impact, and correction needed.
-     start_line: 1
-     end_line: 3
-   ```
+    ```yaml
+    - relevant_file: |
+        path/to/file
+      issue_header: |
+        Short actionable title
+      issue_content: |
+        **Defect:** Concrete faulty behavior or root cause.
+
+        **Impact:** User or system consequence.
+
+        **Suggestion:** Actionable correction.
+      start_line: 1
+      end_line: 3
+    ```
 
     `issue_content` must always be a YAML literal block. Do not add required
     finding keys beyond `relevant_file`, `issue_header`, `issue_content`,
-    `start_line`, and `end_line`.
+    `start_line`, and `end_line`. Its Markdown must contain exactly one
+    `**Defect:**`, `**Impact:**`, and `**Suggestion:**`, in that order, with
+    blank lines between sections. Those sections describe the concrete faulty
+    behavior or root cause, user or system consequence, and actionable
+    correction, respectively.
 11. If there are no new findings, leave an existing report unchanged. If there
     is no existing report, create it with exactly:
 
