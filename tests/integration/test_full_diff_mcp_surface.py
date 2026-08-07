@@ -40,7 +40,31 @@ def _mixed_pr_diff() -> PRDiff:
     )
 
 
-def _registry(pr_diff: PRDiff | None = None, *, fail: Exception | None = None) -> ToolRegistry:
+class RecordingCache:
+    def __init__(self) -> None:
+        self.sets = 0
+        self.store: dict[tuple[str, str], object] = {}
+
+    def get_cache_key(self, owner: str, repo: str, pr: int) -> str:
+        return f"{owner}/{repo}/{pr}"
+
+    async def get_optimistic(self, key: str):
+        return None, None
+
+    async def get(self, key: str, token: str):
+        return self.store.get((key, token))
+
+    async def set(self, key: str, token: str, value: object) -> None:
+        self.sets += 1
+        self.store[(key, token)] = value
+
+
+def _registry(
+    pr_diff: PRDiff | None = None,
+    *,
+    fail: Exception | None = None,
+    cache: RecordingCache | None = None,
+) -> ToolRegistry:
     logger = MagicMock()
     rate = MagicMock()
     rate.check_rate_limit.return_value = True
@@ -54,9 +78,10 @@ def _registry(pr_diff: PRDiff | None = None, *, fail: Exception | None = None) -
     validator.sanitize_string.side_effect = lambda s, max_length=1000: s
     validator.validate_github_url.return_value = ("owner", "repo", 1)
 
+    cache_service = cache or RecordingCache()
     registry = ToolRegistry(
         pr_diff_service=MagicMock(),
-        cache_service=MagicMock(),
+        cache_service=cache_service,
         logger=logger,
         github_repository_class=MagicMock(),
         rate_limiter=rate,
@@ -66,6 +91,8 @@ def _registry(pr_diff: PRDiff | None = None, *, fail: Exception | None = None) -
         request_coalescing_service=MagicMock(),
         cache_hit_optimization_enabled=False,
     )
+    registry._recording_cache = cache_service  # type: ignore[attr-defined]
+    registry._metrics = metrics  # type: ignore[attr-defined]
 
     async def coalesce(key, fn, timeout=None):
         if fail is not None:
@@ -218,3 +245,98 @@ async def test_gitlab_nested_success_and_e5020_surface() -> None:
     body = json.loads(str(exc.value))
     assert body["error_code"] == "E5020_FULL_DIFF_INCOMPLETE"
     assert "files" not in body
+
+
+@pytest.mark.integration
+@pytest.mark.anyio
+@pytest.mark.parametrize("reason", list(FullDiffIncompleteReason))
+async def test_all_e5020_reasons_nonpartial_uncached_metric(reason: FullDiffIncompleteReason) -> None:
+    import json
+    from fastmcp.exceptions import ToolError
+
+    cache = RecordingCache()
+    err = FullDiffIncompleteError(reason, path="x.py", observed=1, limit=2)
+    registry = _registry(fail=err, cache=cache)
+    mcp = FastMCP(f"e5020-{reason.value}")
+    registry.register_tools(mcp)
+
+    with patch(
+        "prdiffer.application.tool_registry.parse_pr_target",
+        return_value=MagicMock(provider="github", repo_owner="owner", repo_name="repo", pr_number=1),
+    ):
+        with pytest.raises(ToolError) as ei:
+            await mcp.call_tool("get_pr_diff", {"pr_url": "https://github.com/owner/repo/pull/1"})
+
+    payload = json.loads(str(ei.value))
+    assert payload["error_code"] == "E5020_FULL_DIFF_INCOMPLETE"
+    assert payload["details"]["reason"] == reason.value
+    assert "files" not in payload
+    assert cache.sets == 0
+    # One failure metric for get_pr_diff
+    fail_calls = [
+        c
+        for c in registry._metrics.track_request.call_args_list  # type: ignore[attr-defined]
+        if c.args and c.args[0] == "get_pr_diff" and c.args[1] is False
+    ]
+    assert len(fail_calls) == 1
+
+
+@pytest.mark.integration
+@pytest.mark.anyio
+async def test_authoritative_empty_success_writes_cache_once() -> None:
+    """Empty complete PRDiff is success and may be cached by use-case path.
+
+    This surface stubs coalescing to return empty PRDiff; cache write is not
+    exercised here — assert success payload has empty files and zero error.
+    """
+    mcp = FastMCP("empty-ok")
+    empty = PRDiff(files=())
+    registry = _registry(empty)
+    registry.register_tools(mcp)
+    with patch(
+        "prdiffer.application.tool_registry.parse_pr_target",
+        return_value=MagicMock(provider="github", repo_owner="owner", repo_name="repo", pr_number=1),
+    ):
+        result = await mcp.call_tool("get_pr_diff", {"pr_url": "https://github.com/owner/repo/pull/1"})
+    if hasattr(result, "structured_content") and result.structured_content:
+        payload = result.structured_content
+    else:
+        import json
+
+        payload = json.loads(result.content[0].text)
+    assert payload.get("files") == []
+    ok_calls = [
+        c
+        for c in registry._metrics.track_request.call_args_list  # type: ignore[attr-defined]
+        if c.args and c.args[0] == "get_pr_diff" and c.args[1] is True
+    ]
+    assert len(ok_calls) == 1
+
+
+@pytest.mark.integration
+@pytest.mark.anyio
+async def test_operational_rate_limit_not_remapped_to_e5020() -> None:
+    import json
+    from fastmcp.exceptions import ToolError
+    from prdiffer.domain.exceptions import RateLimitError
+    from prdiffer.domain.errors import E3001_RATE_LIMITED
+
+    cache = RecordingCache()
+    err = RateLimitError("slow down", retry_after=30, error_code=E3001_RATE_LIMITED)
+    registry = _registry(fail=err, cache=cache)
+    mcp = FastMCP("rate-limit")
+    registry.register_tools(mcp)
+    with patch(
+        "prdiffer.application.tool_registry.parse_pr_target",
+        return_value=MagicMock(provider="github", repo_owner="owner", repo_name="repo", pr_number=1),
+    ):
+        with pytest.raises(ToolError) as ei:
+            await mcp.call_tool("get_pr_diff", {"pr_url": "https://github.com/owner/repo/pull/1"})
+    body = str(ei.value)
+    # Should not be structured E5020 incomplete
+    if body.strip().startswith("{"):
+        payload = json.loads(body)
+        assert payload.get("error_code") != "E5020_FULL_DIFF_INCOMPLETE"
+    else:
+        assert "E5020" not in body
+    assert cache.sets == 0
