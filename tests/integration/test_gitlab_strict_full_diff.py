@@ -105,9 +105,13 @@ class FakeClient:
                 self._trees = trees
                 self._blobs = blobs
 
-            def repository_tree(self, ref: str = "", recursive: bool = False, get_all: bool = False, **kwargs: Any) -> list[Any]:
+            def repository_tree(self, ref: str = "", recursive: bool = False, get_all: bool = False, **kwargs: Any) -> Any:
                 outer.tree_calls.append(ref)
-                return list(self._trees.get(ref, []))
+                raw = self._trees.get(ref, [])
+                # Preserve incomplete-paginator fakes (e.g. next_page set) for fail-closed tests.
+                if isinstance(raw, list):
+                    return list(raw)
+                return raw
 
             def repository_raw_blob(self, sha: str) -> bytes:
                 outer.raw_blob_calls.append(sha)

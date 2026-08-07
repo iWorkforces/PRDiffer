@@ -211,8 +211,51 @@ def require_tree_entry(tree: dict[str, GitLabTreeEntry], path: str, *, ref: str)
     return entry
 
 
+def _coerce_complete_tree_list(raw: object) -> list[object]:
+    """Materialize repository_tree output; fail closed on incomplete pagination."""
+    if raw is None:
+        return []
+    # Incomplete paginator markers used by python-gitlab when get_all is omitted.
+    next_page = getattr(raw, "next_page", None)
+    if next_page not in (None, False, 0, ""):
+        raise FullDiffIncompleteError(
+            FullDiffIncompleteReason.INVENTORY_TRUNCATED,
+            message="repository_tree result is incomplete (next page present)",
+            observed=str(next_page),
+        )
+    if isinstance(raw, list):
+        return list(raw)
+    if isinstance(raw, tuple):
+        return list(raw)
+    if isinstance(raw, (str, bytes, bytearray)):
+        raise FullDiffIncompleteError(
+            FullDiffIncompleteReason.INVENTORY_TRUNCATED,
+            message="repository_tree did not return a list",
+        )
+    iterator = getattr(raw, "__iter__", None)
+    if not callable(iterator):
+        raise FullDiffIncompleteError(
+            FullDiffIncompleteReason.INVENTORY_TRUNCATED,
+            message="repository_tree did not return a list",
+        )
+    materialized = list(iterator())
+    # After materialization, some paginators still expose that more pages exist.
+    next_page = getattr(raw, "next_page", None)
+    if next_page not in (None, False, 0, ""):
+        raise FullDiffIncompleteError(
+            FullDiffIncompleteReason.INVENTORY_TRUNCATED,
+            message="repository_tree result is incomplete after materialization",
+            observed=str(next_page),
+        )
+    return materialized
+
+
 def load_repository_tree_entries(project: object, *, ref: str) -> dict[str, GitLabTreeEntry]:
-    """Load complete recursive tree via project.repository_tree(get_all=True)."""
+    """Load complete recursive tree via project.repository_tree(get_all=True).
+
+    Incomplete pagination (``next_page`` still set) fails closed as
+    ``INVENTORY_TRUNCATED`` rather than silently under-enumerating special modes.
+    """
     tree_ref = str(ref)
     if not tree_ref:
         raise FullDiffIncompleteError(
@@ -231,18 +274,17 @@ def load_repository_tree_entries(project: object, *, ref: str) -> dict[str, GitL
         raise
     except TypeError:
         # Some fakes/SDK variants use ``all=True`` instead of ``get_all=True``.
-        raw_list = repository_tree(ref=tree_ref, recursive=True, all=True)
+        try:
+            raw_list = repository_tree(ref=tree_ref, recursive=True, all=True)
+        except TypeError as exc:
+            raise FullDiffIncompleteError(
+                FullDiffIncompleteReason.INVENTORY_TRUNCATED,
+                message="repository_tree does not support get_all/all pagination",
+            ) from exc
 
-    if raw_list is None:
-        raw_list = []
-    if not isinstance(raw_list, (list, tuple)):
-        raise FullDiffIncompleteError(
-            FullDiffIncompleteReason.INVENTORY_TRUNCATED,
-            message="repository_tree did not return a list",
-        )
-
+    coerced = _coerce_complete_tree_list(raw_list)
     entries: list[GitLabTreeEntry] = []
-    for raw in raw_list:
+    for raw in coerced:
         parsed = parse_tree_item(raw, ref=str(ref))
         if parsed is not None:
             entries.append(parsed)

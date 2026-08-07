@@ -60,6 +60,17 @@ class TestTreeIndex:
         assert set(tree) == {"a.py", "sub", "link"}
         assert tree["sub"].mode == MODE_GITLINK
 
+    def test_load_rejects_incomplete_paginator(self) -> None:
+        items = [SimpleNamespace(path="a.py", mode="100644", type="blob", id=OID)]
+
+        class PartialPage(list):
+            next_page = 2
+
+        project = SimpleNamespace(repository_tree=lambda **kwargs: PartialPage(items))
+        with pytest.raises(FullDiffIncompleteError) as ei:
+            load_repository_tree_entries(project, ref=REF)
+        assert ei.value.reason is FullDiffIncompleteReason.INVENTORY_TRUNCATED
+
     def test_missing_path(self) -> None:
         tree = index_tree_entries([_entry("a.py")])
         with pytest.raises(FullDiffIncompleteError) as ei:
