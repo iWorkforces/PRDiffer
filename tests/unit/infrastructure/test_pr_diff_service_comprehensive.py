@@ -561,7 +561,7 @@ class TestGenerateDiffContent:
         assert len(result) == 1
 
     def test_generate_diff_no_commit_sha(self, mock_github_api, mock_logger):
-        """Test diff generation with no commit SHA."""
+        """Missing head SHA fails closed (never empty success)."""
         mock_repo = MagicMock()
         mock_pr = MagicMock()
         mock_pr.head.sha = None
@@ -571,17 +571,16 @@ class TestGenerateDiffContent:
             logger=mock_logger,
         )
 
-        result = service._generate_diff_content(mock_repo, mock_pr)
-
-        assert result == []
+        with pytest.raises(ValueError, match="head SHA"):
+            service._generate_diff_content(mock_repo, mock_pr)
 
     def test_generate_diff_no_files(self, mock_github_api, mock_logger):
-        """Test diff generation with no files."""
+        """Empty file list returns empty patch list (authoritative empty inventory)."""
         mock_repo = MagicMock()
         mock_pr = MagicMock()
         mock_pr.head.sha = "abc123"
         mock_pr.base.sha = "def456"
-        mock_pr.get_files.return_value = None
+        mock_pr.get_files.return_value = []
 
         service = GitHubPRDiffService(
             github_api_client=mock_github_api,

@@ -185,23 +185,24 @@ class GitHubPRDiffService(CachingMixin, PRDiffServiceInterface):
                 pr_number=pr_number,
                 extra=sanitized,
             )
-            return None
+            # Fail closed: never convert provider failures into empty/None success.
+            raise
 
     async def _generate_diff_content_async(self, repository: Repository, pull_request: PullRequest) -> tuple[str, list[FilePatchInfo]]:
         """Generate diff content using async parallel processing.
 
         Returns:
-            tuple[str, list[FilePatchInfo]]: Combined diff content and file metadata,
-            empty string/list on error
+            tuple[str, list[FilePatchInfo]]: Combined diff content and file metadata.
+            Provider failures raise rather than returning empty success.
         """
         try:
             latest_commit_sha = pull_request.head.sha
             if not latest_commit_sha:
-                return "", []
+                raise ValueError("Pull request head SHA is missing")
 
             base_commit_sha = self._get_base_commit_sha(repository, pull_request)
             if not base_commit_sha:
-                return "", []
+                raise ValueError("Pull request base SHA is missing")
 
             github_files = pull_request.get_files()
             max_files = self._file_processor.max_files_allowed if self._file_processor is not None else 50
@@ -250,7 +251,7 @@ class GitHubPRDiffService(CachingMixin, PRDiffServiceInterface):
             exc = cast(Exception, e)
             sanitized = sanitize_exception_for_logging(exc)
             self._logger.error("Failed to generate diff content (async)", extra=sanitized)
-            return "", []
+            raise
 
     async def get_latest_commit_sha(
         self,
@@ -478,10 +479,10 @@ class GitHubPRDiffService(CachingMixin, PRDiffServiceInterface):
             else:
                 latest_commit_sha = pull_request.head.sha
                 if not latest_commit_sha:
-                    return []
+                    raise ValueError("Pull request head SHA is missing")
                 base_commit_sha = self._get_base_commit_sha(repository, pull_request)
                 if not base_commit_sha:
-                    return []
+                    raise ValueError("Pull request base SHA is missing")
                 authoritative_changed_files = None
 
             github_files = pull_request.get_files()
@@ -514,10 +515,8 @@ class GitHubPRDiffService(CachingMixin, PRDiffServiceInterface):
             exc = cast(Exception, e)
             sanitized = sanitize_exception_for_logging(exc)
             self._logger.error("Failed to generate diff content", extra=sanitized)
-            # Strict session path: never convert provider/inventory failures into empty success.
-            if snapshot is not None:
-                raise
-            return []
+            # Fail closed for both session and legacy callers — never empty success.
+            raise
 
     def _get_base_commit_sha(self, repository: Repository, pull_request: PullRequest) -> str | None:
         """Legacy non-session path: use PR base tip SHA (not Compare merge-base).
