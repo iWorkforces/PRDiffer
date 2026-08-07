@@ -99,7 +99,8 @@ class GetPRDiffUseCase:
                 return unwrapped
 
             result = await session.build_pr_diff()
-            if result:
+            # Use identity check so authoritative empty PRDiff(files=()) still caches.
+            if result is not None:
                 _ = wrap_pr_diff_for_cache(result)  # validate constructibility
                 await self._cache_service.set(cache_key, validation_token, result)
             return result

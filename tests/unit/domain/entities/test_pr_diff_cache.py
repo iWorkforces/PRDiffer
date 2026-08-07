@@ -75,3 +75,26 @@ def test_unwrap_and_wrap_value_schema_under_v3_key() -> None:
     assert unwrap_pr_diff_cache_value(entry, key=key, identity=identity) is value
     assert unwrap_pr_diff_cache_value(value, key="legacy") is None
     assert unwrap_pr_diff_cache_value(value, key="not-a-strict-key:o:r:1:h") is None
+
+
+def test_unwrap_rejects_literal_github_v2_key_under_v3_identity() -> None:
+    """Legacy github-full-diff-v2 keys must miss for an active v3 identity."""
+    value = _diff()
+    entry = wrap_pr_diff_for_cache(value)
+    identity = github_full_diff_v3_identity("o", "r", 1, MB, HD)
+    v2_key = f"github-full-diff-v2:o:r:1:{MB}:{HD}"
+    assert unwrap_pr_diff_cache_value(value, key=v2_key, identity=identity) is None
+    assert unwrap_pr_diff_cache_value(entry, key=v2_key, identity=identity) is None
+    # Bare v2-shaped key without identity also misses (not a v3 prefix).
+    assert unwrap_pr_diff_cache_value(value, key=v2_key) is None
+
+
+def test_github_v2_key_builder_apis_removed() -> None:
+    """Hard cutover: no v2 key/token builders remain in the cache module."""
+    import prdiffer.domain.entities.pr_diff_cache as cache_mod
+
+    assert not hasattr(cache_mod, "github_full_diff_v2_key")
+    assert not hasattr(cache_mod, "github_full_diff_v2_identity")
+    assert not hasattr(cache_mod, "github_full_diff_v2_validation_token")
+    assert not hasattr(cache_mod, "GITHUB_FULL_DIFF_CACHE_PREFIX_V2")
+    assert cache_mod.GITHUB_FULL_DIFF_CACHE_PREFIX == "github-full-diff-v3"

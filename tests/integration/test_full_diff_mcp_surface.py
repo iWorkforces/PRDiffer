@@ -283,6 +283,86 @@ async def test_all_e5020_reasons_nonpartial_uncached_metric(reason: FullDiffInco
 
 @pytest.mark.integration
 @pytest.mark.anyio
+async def test_real_use_case_empty_success_writes_cache_once_via_coalescer() -> None:
+    """Real GetPRDiffUseCase + RequestCoalescingService: empty PRDiff caches once."""
+    from prdiffer.domain.entities.pr_diff_cache import github_full_diff_v3_identity
+    from prdiffer.infrastructure.utils.coalescing_service import RequestCoalescingService
+
+    mb = "b" * 40
+    hd = "c" * 40
+    identity = github_full_diff_v3_identity("owner", "repo", 1, mb, hd)
+    empty = PRDiff(files=())
+    cache = RecordingCache()
+
+    class FakeSession:
+        cache_identity = identity
+
+        async def build_pr_diff(self):
+            return empty
+
+        async def aclose(self):
+            return None
+
+    class FakeReader:
+        async def open_pr_diff_session(self, owner, repo, pr, /, *, base_url=None):
+            return FakeSession()
+
+        async def get_pr_diff(self, owner, repo, pr, /):
+            return empty
+
+        async def get_latest_commit_sha(self, owner, repo, pr, /):
+            return hd
+
+    logger = MagicMock()
+    rate = MagicMock()
+    rate.check_rate_limit.return_value = True
+    rate.get_rate_limit_info.return_value = {"max_requests": 100, "window_seconds": 60}
+    metrics = MagicMock()
+    metrics.generate_request_id.return_value = "req-empty"
+    metrics.track_request = MagicMock()
+    auth = MagicMock()
+    auth.authenticate.return_value = (True, "client-1")
+    validator = MagicMock()
+    validator.sanitize_string.side_effect = lambda s, max_length=1000: s
+    validator.validate_github_url.return_value = ("owner", "repo", 1)
+
+    registry = ToolRegistry(
+        pr_diff_service=FakeReader(),  # type: ignore[arg-type]
+        cache_service=cache,  # type: ignore[arg-type]
+        logger=logger,
+        github_repository_class=MagicMock(),
+        rate_limiter=rate,
+        metrics_tracker=metrics,
+        authentication=auth,
+        input_validator=validator,
+        request_coalescing_service=RequestCoalescingService(max_waiters=10),
+        cache_hit_optimization_enabled=False,
+    )
+    mcp = FastMCP("empty-real-uc")
+    registry.register_tools(mcp)
+
+    with patch(
+        "prdiffer.application.tool_registry.parse_pr_target",
+        return_value=MagicMock(provider="github", repo_owner="owner", repo_name="repo", pr_number=1),
+    ):
+        result = await mcp.call_tool("get_pr_diff", {"pr_url": "https://github.com/owner/repo/pull/1"})
+        # Second call should hit cache (no second set)
+        result2 = await mcp.call_tool("get_pr_diff", {"pr_url": "https://github.com/owner/repo/pull/1"})
+
+    if hasattr(result, "structured_content") and result.structured_content:
+        payload = result.structured_content
+    else:
+        import json
+
+        payload = json.loads(result.content[0].text)
+    assert payload.get("files") == []
+    assert cache.sets == 1
+    del result2  # hit path exercised; sets stay at 1
+    assert cache.sets == 1
+
+
+@pytest.mark.integration
+@pytest.mark.anyio
 async def test_authoritative_empty_success_writes_cache_once() -> None:
     """Empty complete PRDiff is success and may be cached by use-case path.
 

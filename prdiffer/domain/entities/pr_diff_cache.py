@@ -124,9 +124,10 @@ def _is_github_strict_key(key: str) -> bool:
 
 
 def _key_matches_identity(key: str, identity: StrictPRDiffCacheIdentity) -> bool:
+    """Exact key match only (no empty-key pass-through, no endswith)."""
     if not key:
-        return True
-    return key == identity.cache_key or key.endswith(identity.cache_key)
+        return False
+    return key == identity.cache_key
 
 
 def unwrap_pr_diff_cache_value(
