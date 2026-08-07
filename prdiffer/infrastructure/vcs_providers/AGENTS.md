@@ -42,7 +42,7 @@ prdiffer/infrastructure/vcs_providers/
 - GitLab renames set `FileDiffResponse.previous_path` from `old_path` when distinct; no retrieval redesign.
 - Prefer domain interfaces (`PRDiffRepositoryInterface` / `VCSDiffRepositoryInterface`) for registration.
 - **GitLabRuntime**: process-shared limiter only; **per-call** `base_url` + `deadline_monotonic` (never shared mutable request state); each `run_blocking` uses a fresh client closed in `finally`; `abandon_on_cancel=False`; post-worker wall-clock deadline → E5004; inject `max_retries`/`obey_rate_limit` via `http_request` defaults (python-gitlab 8.5).
-- **Host allowlist**: `GitLabConfig.allowed_hosts` (default `gitlab.com`); env `GITLAB_ALLOWED_HOSTS` CSV; `ensure_host_allowed` rejects non-allowlisted hosts before SDK (E1001).
+- **Host allowlist**: `GitLabConfig.allowed_hosts` (default `gitlab.com`); env `GITLAB_ALLOWED_HOSTS` CSV; `ensure_host_allowed` rejects non-allowlisted hosts before SDK (E1001). `GitLabOperations` helpers that open their own clients also enforce the same allowlist.
 - **Session open**: pin snapshot via `runtime.run_blocking(ops.select_with_client, base_url=…, deadline=…)` — never block the event loop on direct `select_diff_snapshot`.
 - **Content fetch**: forward per-request `base_url` + `deadline_monotonic` into every raw content `run_blocking`.
 - **Cache identity**: host from `cache_host_from_base_url` (port-aware for non-80/443).

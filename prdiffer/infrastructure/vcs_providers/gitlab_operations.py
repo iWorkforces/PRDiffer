@@ -14,6 +14,7 @@ from prdiffer.domain.error_codes import (
 from prdiffer.domain.exceptions import (
     FullDiffIncompleteError,
     FullDiffIncompleteReason,
+    InvalidURLError,
     PRDifferException,
     ValidationError,
 )
@@ -27,6 +28,7 @@ from prdiffer.infrastructure.vcs_providers.gitlab_runtime import (
     GITLAB_COM_URL,
     GitLabNotFoundContext,
     GitLabNotFoundKind,
+    cache_host_from_base_url,
     map_gitlab_exception,
 )
 
@@ -56,13 +58,26 @@ class GitLabOperations:
         gitlab_token: str | None = None,
         *,
         base_url: str = GITLAB_COM_URL,
+        allowed_hosts: tuple[str, ...] = ("gitlab.com",),
     ) -> None:
         self._gitlab_token = gitlab_token
         self._base_url = (base_url or GITLAB_COM_URL).rstrip("/")
+        self._allowed_hosts = tuple(h.casefold() for h in allowed_hosts) or ("gitlab.com",)
+
+    def _ensure_host_allowed(self, base_url: str) -> None:
+        """Reject token-bearing client construction outside the host allowlist."""
+        host = cache_host_from_base_url(base_url).split(":", 1)[0]
+        if host not in self._allowed_hosts:
+            raise InvalidURLError(
+                f"GitLab host {host!r} is not in allowed_hosts {list(self._allowed_hosts)!r}",
+                error_code=E1001_INVALID_URL,
+                details={"host": host},
+            )
 
     def initialize(self, *, base_url: str | None = None) -> None:
         """Authenticate a newly created GitLab client (blocking probe)."""
         url = (base_url or self._base_url).rstrip("/")
+        self._ensure_host_allowed(url)
         try:
             with gitlab.Gitlab(url=url, private_token=self._gitlab_token) as client:
                 client.auth()
@@ -94,10 +109,11 @@ class GitLabOperations:
         short-lived client for unit tests and non-session callers.
         """
         url = (base_url or self._base_url).rstrip("/")
+        self._ensure_host_allowed(url)
         try:
             with gitlab.Gitlab(url=url, private_token=self._gitlab_token) as client:
                 return self.select_with_client(client, project_path, iid)
-        except FullDiffIncompleteError:
+        except FullDiffIncompleteError, InvalidURLError:
             raise
         except Exception as exc:
             mapped = map_gitlab_exception(

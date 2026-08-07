@@ -6,8 +6,8 @@ from typing import Any
 
 import pytest
 
-from prdiffer.domain.error_codes import E4001_REPO_NOT_FOUND, E4002_PR_NOT_FOUND
-from prdiffer.domain.exceptions import FullDiffIncompleteError, FullDiffIncompleteReason, PRDifferException
+from prdiffer.domain.error_codes import E1001_INVALID_URL, E4001_REPO_NOT_FOUND, E4002_PR_NOT_FOUND
+from prdiffer.domain.exceptions import FullDiffIncompleteError, FullDiffIncompleteReason, InvalidURLError, PRDifferException
 import prdiffer.infrastructure.vcs_providers.gitlab_operations as gitlab_operations
 from prdiffer.infrastructure.vcs_providers.gitlab_operations import GitLabOperations
 
@@ -252,6 +252,20 @@ class TestSelectDiffSnapshot:
             GitLabOperations().select_diff_snapshot("o/r", 99)
         code = getattr(exc.value, "error_code", None)
         assert code is E4002_PR_NOT_FOUND
+
+
+class TestGitLabOperationsHostAllowlist:
+    def test_select_diff_snapshot_rejects_disallowed_host(self) -> None:
+        ops = GitLabOperations(allowed_hosts=("gitlab.com",))
+        with pytest.raises(InvalidURLError) as exc:
+            ops.select_diff_snapshot("o/r", 1, base_url="https://evil.internal")
+        assert exc.value.error_code is E1001_INVALID_URL
+
+    def test_initialize_rejects_disallowed_host(self) -> None:
+        ops = GitLabOperations(allowed_hosts=("gitlab.com",))
+        with pytest.raises(InvalidURLError) as exc:
+            ops.initialize(base_url="https://evil.internal")
+        assert exc.value.error_code is E1001_INVALID_URL
 
 
 class TestParseGitlabRealSize:
