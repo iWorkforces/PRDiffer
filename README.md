@@ -213,5 +213,7 @@ are ignored; strict cache identity uses `gitlab-full-diff-v1:...`.
 Configure via `gitlab.*` settings (`timeout`, `max_retries`, `max_concurrent`,
 `retry_transient_errors`, `obey_rate_limit`, `max_file_size_bytes`) plus shared
 `app.max_files_allowed`, `diff.max_total_chars`, and
-`mcp.pr_diff_request_timeout_seconds`.
+`mcp.pr_diff_request_timeout_seconds`. Override file admission and the
+aggregate `RESPONSE_SIZE_LIMIT` budget at runtime with `MAX_FILES_ALLOWED` and
+`MAX_TOTAL_CHARS` in `.env` (see `.env.example` / `start-prdiffer-mcp-server.sh`).
 

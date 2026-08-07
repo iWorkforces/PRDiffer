@@ -131,7 +131,11 @@ class GitHubPRDiffRepository(GitHubPROperationsMixin, PRDiffRepositoryInterface)
 
         self._parallel_diff_generation_enabled = self.settings_service.get("performance.parallel_diff_generation_enabled", True)
         self._diff_truncate_enabled = self.settings_service.get("diff.truncate_enabled", False)
-        self._diff_max_total_chars = int(self.settings_service.get("diff.max_total_chars", DEFAULT_MAX_TOTAL_CHARS))
+        get_github_config = getattr(self.settings_service, "get_github_config", None)
+        if callable(get_github_config):
+            self._diff_max_total_chars = int(get_github_config().max_total_chars)
+        else:
+            self._diff_max_total_chars = int(self.settings_service.get("diff.max_total_chars", DEFAULT_MAX_TOTAL_CHARS))
         self._diff_truncation_notice = self.settings_service.get("diff.truncation_notice", "[DIFF TRUNCATED]")
 
         self._github_api_client = get_github_api_client(

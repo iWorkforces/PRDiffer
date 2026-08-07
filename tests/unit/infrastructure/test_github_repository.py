@@ -4,6 +4,8 @@ Comprehensive tests covering initialization, GitHub API interactions,
 diff retrieval, PR approval, and error handling.
 """
 
+from types import SimpleNamespace
+
 import pytest
 from unittest.mock import Mock, AsyncMock, patch
 from github.GithubException import (
@@ -62,6 +64,7 @@ def mock_settings():
     settings.get_app_settings.return_value = {
         "max_files_allowed": 50,
     }
+    settings.get_github_config.return_value = SimpleNamespace(max_total_chars=600000)
     settings.get.side_effect = lambda key, default=None: {
         "file_processing.parallel_fetch_threshold": 10,
         "file_processing.concurrent_downloads": 3,

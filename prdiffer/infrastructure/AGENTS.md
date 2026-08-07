@@ -68,6 +68,7 @@ prdiffer/infrastructure/
 - Authoritative GitLab config: `SettingsService.get_gitlab_config()` → frozen slotted `GitLabConfig`.
   - Priority for allowlist: `GITLAB_ALLOWED_HOSTS` env (CSV) → `settings.toml` `gitlab.allowed_hosts` → default `gitlab.com`.
   - Priority for file admission: `MAX_FILES_ALLOWED` env → `gitlab.max_files_allowed` / `app.max_files_allowed` → default `50`.
+  - Priority for RESPONSE_SIZE_LIMIT budget: `MAX_TOTAL_CHARS` env → `gitlab.max_total_chars` / `diff.max_total_chars` → default `600_000`.
   - Priority for GitHub ignore list: `GITHUB_IGNORE_PATTERNS` env (CSV, replaces) → `settings.toml` `github.ignore_patterns`.
 - Manual settings cache with `RLock` (Dynaconf unhashable → no `@lru_cache`); `clear_cache` drops GitHub and GitLab config caches.
 - Parallel performance flags default **true** (bounded by `max_concurrent` / `diff_max_workers`).

@@ -130,7 +130,7 @@ PRDifferMCP/
 ### Configuration
 - **Dynaconf** via `settings.toml` + optional `.secrets.toml`.
 - Manual caching with `RLock` in `SettingsService` (Dynaconf unhashable → no `@lru_cache`).
-- Env overrides: `GITHUB_TOKEN`, `GITLAB_TOKEN`, `GITLAB_ALLOWED_HOSTS` (CSV), `MCP_AUTH_ENABLED`, `MCP_API_KEYS`, `MCP_TRANSPORT`, `MCP_PORT`, `MCP_HOST`, `MAX_FILES_ALLOWED`, `GITHUB_IGNORE_PATTERNS`.
+- Env overrides: `GITHUB_TOKEN`, `GITLAB_TOKEN`, `GITLAB_ALLOWED_HOSTS` (CSV), `MCP_AUTH_ENABLED`, `MCP_API_KEYS`, `MCP_TRANSPORT`, `MCP_PORT`, `MCP_HOST`, `MAX_FILES_ALLOWED`, `MAX_TOTAL_CHARS` (E5020 `RESPONSE_SIZE_LIMIT` budget), `GITHUB_IGNORE_PATTERNS`.
 - Copy `.env.example` → `.env`; `start-prdiffer-mcp-server.sh` sources `.env`.
 - `GitHubConfig` frozen dataclass: `timeout` (30), `pr_diff_request_timeout_seconds` (180), `max_total_chars` (600_000), size limits, `parallel_*` default true.
 - `GitLabConfig` frozen slotted: same timeout shape + `allowed_hosts` default `("gitlab.com",)`.
