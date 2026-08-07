@@ -10,6 +10,7 @@ tests/integration/
 ├── test_security.py                 # Security integration
 ├── test_webhook_invalidation.py     # Cache invalidation
 ├── test_full_diff_mcp_surface.py    # Strict full-diff FastMCP surface (E5020 ToolError JSON)
+├── test_github_strict_full_diff.py  # No-network GitHub session pipeline matrix
 ├── test_gitlab_strict_full_diff.py  # No-network GitLab session + cache identity (~244)
 ├── test_real_github_api.py          # Always-skipped live API suite (skipif True)
 ├── test_server_launcher.py          # Process/launcher (token gate; isolated ENV_FILE)
@@ -21,6 +22,7 @@ tests/integration/
 | Task | Location | Notes |
 |------|----------|-------|
 | **Strict full-diff MCP contract** | `test_full_diff_mcp_surface.py` | In-process FastMCP; success + E5020; rename `previous_path` (get_pr_diff) |
+| **GitHub strict path** | `test_github_strict_full_diff.py` | Fake PyGithub surface; mixed statuses; v3 cache; drift/E5020 |
 | **GitLab strict path** | `test_gitlab_strict_full_diff.py` | FakeOps + FakeClient; ordered multi-status; cache host identity |
 | **Tool workflow** | `test_complete_workflow.py` | End-to-end tool orchestration with mocks |
 | **Attack / injection paths** | `test_security.py` | Marked `integration` |
