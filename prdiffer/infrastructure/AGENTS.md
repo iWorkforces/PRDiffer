@@ -79,7 +79,7 @@ Several packages re-export flattened canonical modules for import stability:
 - `cache/repository/*` → `cache_repository.py`
 - `utils/performance.py` → re-exports `utils/metrics/performance.py`
 
-- Coalescing: `utils/coalescing_service.py` is canonical; `utils/coalescing/*` re-exports (same class/singleton identity).
+- Coalescing: only `utils/coalescing_service.py` (no package re-export shim).
 
 Prefer importing the **canonical flattened module** in new code.
 

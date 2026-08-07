@@ -277,18 +277,12 @@ class TestCoalescingCancellationCleanup:
 
 
 @pytest.mark.unit
-class TestCoalescingImportIdentity:
-    def test_package_and_flat_class_and_singleton_are_identical(self):
-        from prdiffer.infrastructure.utils import coalescing_service as flat
-        from prdiffer.infrastructure.utils.coalescing import service as pkg
-        from prdiffer.infrastructure.utils import coalescing as pkg_init
+class TestCoalescingImportSurface:
+    def test_package_path_removed(self):
+        """Legacy utils.coalescing package shim must not exist."""
+        import importlib
 
-        assert flat.RequestCoalescingService is pkg.RequestCoalescingService
-        assert flat.RequestCoalescingService is pkg_init.RequestCoalescingService
-        assert flat.get_request_coalescing_service is pkg.get_request_coalescing_service
-        # Reset then compare singleton identity across import paths
-        flat._request_coalescing_service = None
-        a = flat.get_request_coalescing_service()
-        b = pkg.get_request_coalescing_service()
-        c = pkg_init.get_request_coalescing_service()
-        assert a is b is c
+        with pytest.raises(ModuleNotFoundError):
+            importlib.import_module("prdiffer.infrastructure.utils.coalescing")
+        with pytest.raises(ModuleNotFoundError):
+            importlib.import_module("prdiffer.infrastructure.utils.coalescing.service")
