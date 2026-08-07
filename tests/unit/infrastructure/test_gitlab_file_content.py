@@ -175,3 +175,63 @@ class TestGitLabContentFetcher:
         with pytest.raises(FullDiffIncompleteError) as exc3:
             await fetcher3.fetch_all(_snap(), (_item(EDIT_TYPE.MODIFIED, "u.py", "u.py"),))
         assert exc3.value.reason is FullDiffIncompleteReason.CONTENT_DECODE_FAILED
+
+
+@pytest.mark.anyio
+async def test_fetch_all_prefers_first_failure_non_cancel_root():
+    """Index-0 cancel + index-1 real error surfaces the non-cancel root."""
+    from unittest.mock import MagicMock
+    import anyio
+    from prdiffer.domain.config.gitlab_config import GitLabConfig
+    from prdiffer.domain.entities.file_patch import EDIT_TYPE
+    from prdiffer.domain.exceptions import FullDiffIncompleteError, FullDiffIncompleteReason
+    from prdiffer.infrastructure.utils.parallel.results import IndexedBatchError, IndexedItemOutcome
+    from prdiffer.infrastructure.vcs_providers.gitlab_content import GitLabContentFetcher
+    from prdiffer.infrastructure.vcs_providers.gitlab_inventory import GitLabInventoryFile
+    from prdiffer.infrastructure.vcs_providers.gitlab_models import GitLabDiffRecord, GitLabDiffSnapshot
+
+    runtime = MagicMock()
+    config = GitLabConfig()
+    fetcher = GitLabContentFetcher(runtime, config, parallel_enabled=True)
+
+    inv = (
+        GitLabInventoryFile(
+            record=GitLabDiffRecord("a.py", "a.py", False, False, False, a_mode="100644", b_mode="100644"),
+            edit_type=EDIT_TYPE.MODIFIED,
+            index=0,
+        ),
+        GitLabInventoryFile(
+            record=GitLabDiffRecord("b.py", "b.py", False, False, False, a_mode="100644", b_mode="100644"),
+            edit_type=EDIT_TYPE.MODIFIED,
+            index=1,
+        ),
+    )
+    snap = GitLabDiffSnapshot(
+        project_path="g/p",
+        iid=1,
+        version_id=1,
+        base_sha="b" * 40,
+        start_sha="s" * 40,
+        head_sha="h" * 40,
+        state="collected",
+        real_size=2,
+        records=tuple(i.record for i in inv),
+    )
+
+    cancel = anyio.get_cancelled_exc_class()()
+    real = FullDiffIncompleteError(FullDiffIncompleteReason.CONTENT_UNAVAILABLE, path="b.py")
+    outcomes = (
+        IndexedItemOutcome(index=0, key=0, error=cancel),
+        IndexedItemOutcome(index=1, key=1, error=real),
+    )
+    err = IndexedBatchError("batch failed", outcomes=outcomes)
+
+    async def boom(*args, **kwargs):
+        raise err
+
+    fetcher._executor.execute_indexed_batch = boom  # type: ignore[method-assign]
+
+    with pytest.raises(FullDiffIncompleteError) as ei:
+        await fetcher.fetch_all(snap, inv)
+    assert ei.value.reason is FullDiffIncompleteReason.CONTENT_UNAVAILABLE
+    assert ei.value.details.get("path") == "b.py"
