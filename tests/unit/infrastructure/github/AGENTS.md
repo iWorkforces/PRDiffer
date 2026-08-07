@@ -30,7 +30,7 @@ tests/unit/infrastructure/github/
 | **Inventory / 3000 cap** | `test_inventory_admission.py` | `INVENTORY_TRUNCATED`, admission selection |
 | **Ordered processor** | `test_file_processor_ordered.py` | Strict assembly, sync/async parity |
 | **Generated full-context diffs** | `test_generated_file_diffs.py` | Ordered diffs, E5003 mapping |
-| **PR diff session** | `test_pr_diff_session.py` | anyio limiter, aclose, GitHub v2 `cache_identity` |
+| **PR diff session** | `test_pr_diff_session.py` | anyio limiter, aclose, GitHub v3 merge-base `cache_identity` |
 | **Happy vs edge** | `*_comprehensive.py` | Edge/error branches |
 
 ## CONVENTIONS

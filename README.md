@@ -154,9 +154,10 @@ Once the `prdiffer` skill is installed and the MCP server is running, you can pr
 ### `prdiffer__get_pr_diff` — Fetch & Analyze a PR
 
 > **Strict full-context diffs:** Successful responses include every selected file with
-> generated full-context `diff` text and optional `previous_path` on renames. Incomplete
-> inventories, oversize/binary content, or generation failures return `E5020_FULL_DIFF_INCOMPLETE`
-> with a stable `reason` — never a partial `files` list.
+> generated full-context `diff` text and optional `previous_path` on renames. GitHub keys
+> use merge-base + head (`github-full-diff-v3`); snapshot drift returns `SNAPSHOT_CHANGED`.
+> Incomplete inventories, oversize/binary content, or generation failures return
+> `E5020_FULL_DIFF_INCOMPLETE` with a stable `reason` — never a partial `files` list.
 
 
 Use this to retrieve the full structured diff and perform a thorough code review.
