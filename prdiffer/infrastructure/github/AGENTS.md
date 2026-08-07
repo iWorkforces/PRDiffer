@@ -13,6 +13,7 @@ prdiffer/infrastructure/github/
 ├── diff_generator.py        # generate_ordered_file_diffs → GeneratedFileDiff (~514)
 ├── etag_adapter.py          # Conditional requests / 304 (~121)
 ├── inventory.py             # Authoritative inventory + admission (~130)
+├── git_objects.py           # Immutable tree/blob descriptors + load/resolve helpers
 ├── mappers.py               # API → domain mapping (~88)
 ├── pr_diff_session.py       # anyio session + merge-base capture + v3 cache_identity + revalidate
 └── __init__.py

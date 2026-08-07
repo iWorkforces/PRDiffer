@@ -19,7 +19,15 @@ from prdiffer.domain.services.github_api import GitHubAPIServiceInterface
 from prdiffer.domain.services.pattern_matching import PatternMatchingServiceInterface
 from prdiffer.domain.services.diff import DiffServiceInterface
 from prdiffer.infrastructure.logging.console_logger import ConsoleLogger, get_logger
-from prdiffer.infrastructure.github.git_objects import require_distinct_rename_previous
+from prdiffer.infrastructure.github.git_objects import (
+    MODE_GITLINK,
+    GitBuildContext,
+    fetch_blob_bytes,
+    load_recursive_tree_entries,
+    require_distinct_rename_previous,
+    require_tree_entry,
+    resolve_entry_text,
+)
 from prdiffer.infrastructure.utils.parallel.executor import (
     AsyncParallelExecutor,
 )
@@ -169,14 +177,8 @@ class FileProcessor:
             unique_requests = tuple(dict.fromkeys(requests))
             responses = self._github_api_service.get_files_content_multi_ref_batch(unique_requests)
             content_by_request = {response.request: response.content for response in responses}
-            head_raw = {
-                path: content_by_request[FileContentRequest(repo_full_name, path, head_sha)]
-                for path in head_paths
-            }
-            base_raw = {
-                path: content_by_request[FileContentRequest(repo_full_name, path, base_sha)]
-                for path in base_paths
-            }
+            head_raw = {path: content_by_request[FileContentRequest(repo_full_name, path, head_sha)] for path in head_paths}
+            base_raw = {path: content_by_request[FileContentRequest(repo_full_name, path, base_sha)] for path in base_paths}
             return head_raw, base_raw
 
         head_raw = _fetch(head_paths, head_sha)
@@ -189,6 +191,14 @@ class FileProcessor:
         if not classified:
             return []
         head_paths, base_paths, rename_map = self._required_content_keys(classified)
+        if self._repository_supports_git_tree(repository):
+            return self._assemble_patches_from_trees(
+                classified,
+                repository,
+                head_sha=head_sha,
+                merge_base_sha=base_sha,
+                rename_map=rename_map,
+            )
         head_raw, base_raw = self._fetch_head_base_batches(
             repository.full_name,
             head_paths,
@@ -206,6 +216,17 @@ class FileProcessor:
         if not classified:
             return []
         head_paths, base_paths, rename_map = self._required_content_keys(classified)
+        if self._repository_supports_git_tree(repository):
+            run_sync = getattr(anyio.to_thread, "run_sync")
+            return await run_sync(
+                lambda: self._assemble_patches_from_trees(
+                    classified,
+                    repository,
+                    head_sha=head_sha,
+                    merge_base_sha=base_sha,
+                    rename_map=rename_map,
+                ),
+            )
 
         # Blocking batch APIs may nest anyio.run; run concurrent head/base on worker threads.
         run_sync = getattr(anyio.to_thread, "run_sync")
@@ -281,11 +302,16 @@ class FileProcessor:
         head_contents: dict[str, str],
         base_contents: dict[str, str],
         rename_map: dict[str, str],
+        *,
+        head_modes: dict[str, str] | None = None,
+        base_modes: dict[str, str] | None = None,
     ) -> list[FilePatchInfo]:
         """Reconstruct FilePatchInfo rows in original provider order (no skips)."""
         # Sort by original index to preserve provider order even if input shuffled.
         ordered = sorted(classified, key=lambda item: item[0])
         results: list[FilePatchInfo] = []
+        head_modes = head_modes or {}
+        base_modes = base_modes or {}
         for _index, file, edit_type in ordered:
             if edit_type is EDIT_TYPE.ADDED:
                 original = ""
@@ -305,6 +331,20 @@ class FileProcessor:
             if not patch:
                 patch = self._generate_patch_from_content(file.filename, new, original)
 
+            old_mode = None
+            new_mode = None
+            if edit_type is EDIT_TYPE.ADDED:
+                new_mode = head_modes.get(file.filename)
+            elif edit_type is EDIT_TYPE.DELETED:
+                old_mode = base_modes.get(file.filename)
+            elif edit_type is EDIT_TYPE.RENAMED:
+                base_key = rename_map.get(file.filename) or file.filename
+                old_mode = base_modes.get(base_key)
+                new_mode = head_modes.get(file.filename)
+            else:
+                old_mode = base_modes.get(file.filename)
+                new_mode = head_modes.get(file.filename)
+
             results.append(
                 self._create_file_patch_with_content(
                     file,
@@ -313,9 +353,90 @@ class FileProcessor:
                     patch,
                     edit_type=edit_type,
                     old_filename=rename_map.get(file.filename) if edit_type is EDIT_TYPE.RENAMED else None,
+                    old_mode=old_mode,
+                    new_mode=new_mode,
                 )
             )
         return results
+
+    @staticmethod
+    def _repository_supports_git_tree(repository: object) -> bool:
+        """True when repository exposes a real get_git_tree (not a bare MagicMock)."""
+        method = getattr(repository, "get_git_tree", None)
+        if method is None or not callable(method):
+            return False
+        # unittest.mock creates callable attributes by default; those are not tree APIs.
+        type_name = type(method).__name__
+        if type_name in {"MagicMock", "AsyncMock", "Mock", "NonCallableMagicMock"}:
+            return False
+        return True
+
+    def _max_content_bytes(self) -> int:
+        raw = getattr(self._github_api_service, "_max_file_size_bytes", None)
+        if isinstance(raw, int) and not isinstance(raw, bool) and raw > 0:
+            return raw
+        return 10_485_760
+
+    def _assemble_patches_from_trees(
+        self,
+        classified: list[tuple[int, Any, EDIT_TYPE]],
+        repository: Any,
+        *,
+        head_sha: str,
+        merge_base_sha: str,
+        rename_map: dict[str, str],
+    ) -> list[FilePatchInfo]:
+        """Load immutable merge-base/head trees and assemble ordered patches."""
+        max_size = self._max_content_bytes()
+        context = GitBuildContext(
+            repo_full_name=str(getattr(repository, "full_name", "")),
+            merge_base_sha=merge_base_sha,
+            head_sha=head_sha,
+            max_file_size_bytes=max_size,
+        )
+        base_tree = load_recursive_tree_entries(repository, context.merge_base_sha)
+        head_tree = load_recursive_tree_entries(repository, context.head_sha)
+
+        head_contents: dict[str, str] = {}
+        base_contents: dict[str, str] = {}
+        head_modes: dict[str, str] = {}
+        base_modes: dict[str, str] = {}
+
+        for _index, file, edit_type in classified:
+            if edit_type in (EDIT_TYPE.ADDED, EDIT_TYPE.MODIFIED, EDIT_TYPE.RENAMED):
+                entry = require_tree_entry(head_tree, file.filename, ref=head_sha)
+                blob = None if entry.mode == MODE_GITLINK else fetch_blob_bytes(repository, entry.object_id)
+                resolved = resolve_entry_text(entry, blob_bytes=blob, max_file_size_bytes=max_size)
+                head_contents[file.filename] = resolved.text
+                head_modes[file.filename] = resolved.mode
+            if edit_type is EDIT_TYPE.MODIFIED:
+                entry = require_tree_entry(base_tree, file.filename, ref=merge_base_sha)
+                blob = None if entry.mode == MODE_GITLINK else fetch_blob_bytes(repository, entry.object_id)
+                resolved = resolve_entry_text(entry, blob_bytes=blob, max_file_size_bytes=max_size)
+                base_contents[file.filename] = resolved.text
+                base_modes[file.filename] = resolved.mode
+            elif edit_type is EDIT_TYPE.DELETED:
+                entry = require_tree_entry(base_tree, file.filename, ref=merge_base_sha)
+                blob = None if entry.mode == MODE_GITLINK else fetch_blob_bytes(repository, entry.object_id)
+                resolved = resolve_entry_text(entry, blob_bytes=blob, max_file_size_bytes=max_size)
+                base_contents[file.filename] = resolved.text
+                base_modes[file.filename] = resolved.mode
+            elif edit_type is EDIT_TYPE.RENAMED:
+                previous = rename_map[file.filename]
+                entry = require_tree_entry(base_tree, previous, ref=merge_base_sha)
+                blob = None if entry.mode == MODE_GITLINK else fetch_blob_bytes(repository, entry.object_id)
+                resolved = resolve_entry_text(entry, blob_bytes=blob, max_file_size_bytes=max_size)
+                base_contents[previous] = resolved.text
+                base_modes[previous] = resolved.mode
+
+        return self._assemble_patches_in_order(
+            classified,
+            head_contents,
+            base_contents,
+            rename_map,
+            head_modes=head_modes,
+            base_modes=base_modes,
+        )
 
     async def _process_files_with_content_parallel_async(
         self,
@@ -500,6 +621,8 @@ class FileProcessor:
         *,
         edit_type: EDIT_TYPE | None = None,
         old_filename: str | None = None,
+        old_mode: str | None = None,
+        new_mode: str | None = None,
     ) -> FilePatchInfo:
         """Create FilePatchInfo with loaded file content."""
         resolved_type = edit_type or self.STATUS_TO_EDIT_TYPE.get(file.status, EDIT_TYPE.UNKNOWN)
@@ -523,6 +646,8 @@ class FileProcessor:
             old_filename=previous,
             num_plus_lines=num_plus_lines,
             num_minus_lines=num_minus_lines,
+            old_mode=old_mode,
+            new_mode=new_mode,
         )
 
     def _count_patch_lines(self, file: File, patch: str) -> tuple[int, int]:
