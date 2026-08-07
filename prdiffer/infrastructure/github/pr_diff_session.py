@@ -215,17 +215,24 @@ class GitHubPRDiffSession(PRDiffReadSessionInterface):
             )
 
     async def _run_sync(self, func: Callable[_P, _T], *args: _P.args, **kwargs: _P.kwargs) -> _T:
-        """Run blocking work on a worker thread with abandon_on_cancel=False."""
+        """Run blocking work on a worker thread with abandon_on_cancel=False.
+
+        Capacity is acquired here so remaining budget can be re-checked after the
+        queue wait (mirrors GitLabRuntime.run_blocking). The limiter is not also
+        passed to ``run_sync`` (would double-acquire).
+        """
         self._ensure_budget()
 
         def _call() -> _T:
             return func(*args, **kwargs)
 
-        return await anyio.to_thread.run_sync(
-            _call,
-            abandon_on_cancel=False,
-            limiter=self._limiter,
-        )
+        async with self._limiter:
+            # Reject if the request waited on capacity past the deadline.
+            self._ensure_budget()
+            return await anyio.to_thread.run_sync(
+                _call,
+                abandon_on_cancel=False,
+            )
 
     async def build_pr_diff(self) -> PRDiff:
         """Build PRDiff using the already-open session handles, then revalidate snapshot."""
@@ -345,11 +352,18 @@ class GitHubSessionPRDiffReader:
 
         to_thread = anyio.to_thread
         run_sync = getattr(to_thread, "run_sync")
-        gh, repo, pr, snapshot = await run_sync(
-            _open,
-            abandon_on_cancel=False,
-            limiter=self._limiter,
-        )
+        # Acquire capacity first so post-queue budget can reject overdue open work.
+        async with self._limiter:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise DomainTimeoutError(
+                    "PR diff request deadline exhausted while waiting for capacity",
+                    error_code=E5004_TIMEOUT_ERROR,
+                )
+            gh, repo, pr, snapshot = await run_sync(
+                _open,
+                abandon_on_cancel=False,
+            )
         # Post-worker budget check: late open workers must not return after deadline.
         remaining = deadline - time.monotonic()
         if remaining <= 0:

@@ -66,7 +66,7 @@ prdiffer/infrastructure/github/
 
 ### Sessions
 - `GitHubPRDiffSession` / `GitHubSessionPRDiffReader`: request-local client/repo/PR handles.
-- Blocking PyGithub work via `anyio.to_thread.run_sync` with CapacityLimiter (capacity 1 when parallel fetch disabled).
+- Blocking PyGithub work: acquire session `CapacityLimiter` first, re-check request deadline after the queue wait, then `run_sync(..., abandon_on_cancel=False)` (capacity 1 when parallel fetch disabled).
 - One metadata lookup per request; always close/drop strong refs in `aclose`.
 - Open captures base tip + head + authoritative count, resolves **merge-base once** via Compare (no base-tip fallback), then returns the session.
 - `cache_identity` returns GitHub v3 key + `merge_base:head` token (`github_full_diff_v3_identity`); base-tip-only churn does not change identity.

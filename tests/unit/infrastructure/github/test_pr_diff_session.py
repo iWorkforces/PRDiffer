@@ -15,7 +15,13 @@ from prdiffer.domain.entities.pr_diff_cache import (
     github_full_diff_v3_identity,
     github_full_diff_v3_key,
 )
-from prdiffer.domain.exceptions import FullDiffIncompleteError, FullDiffIncompleteReason, GitHubAPIError
+from prdiffer.domain.error_codes import E5004_TIMEOUT_ERROR
+from prdiffer.domain.exceptions import (
+    FullDiffIncompleteError,
+    FullDiffIncompleteReason,
+    GitHubAPIError,
+    TimeoutError as DomainTimeoutError,
+)
 from prdiffer.domain.interfaces.pr_diff_reader import PRDiffSnapshot
 from prdiffer.infrastructure.github.pr_diff_session import (
     GitHubPRDiffSession,
@@ -212,6 +218,25 @@ def test_revalidate_raises_snapshot_changed_on_count_drift() -> None:
 
 
 @pytest.mark.unit
+def test_revalidate_raises_snapshot_changed_on_merge_base_drift() -> None:
+    """Merge-base-only drift (head/count stable) must raise SNAPSHOT_CHANGED."""
+    repo = MagicMock()
+    pr = MagicMock()
+    pr.base.sha = BASE_TIP
+    pr.head.sha = HEAD
+    pr.changed_files = 3
+    merge_commit = MagicMock()
+    merge_commit.sha = MERGE_BASE2
+    compare = MagicMock()
+    compare.merge_base_commit = merge_commit
+    repo.compare.return_value = compare
+    repo.get_pull.return_value = pr
+    with pytest.raises(FullDiffIncompleteError) as ei:
+        revalidate_github_snapshot(repo, _snapshot(count=3))
+    assert ei.value.reason is FullDiffIncompleteReason.SNAPSHOT_CHANGED
+
+
+@pytest.mark.unit
 @pytest.mark.anyio
 async def test_session_build_passes_snapshot_and_revalidates() -> None:
     limiter = anyio.CapacityLimiter(1)
@@ -246,6 +271,83 @@ async def test_session_build_passes_snapshot_and_revalidates() -> None:
     kwargs = service._generate_diff_content.call_args.kwargs
     assert kwargs["snapshot"].merge_base_sha == MERGE_BASE
     repo.get_pull.assert_called()
+    await session.aclose()
+
+
+@pytest.mark.unit
+@pytest.mark.anyio
+async def test_session_build_rejects_late_worker_after_deadline() -> None:
+    """Post-worker budget check discards results after the deadline elapses during work."""
+    limiter = anyio.CapacityLimiter(1)
+    service = MagicMock()
+    service._generate_diff_content.return_value = []
+    service._build_pr_diff_strict.return_value = PRDiff(files=())
+
+    repo = MagicMock()
+    pr = MagicMock()
+    pr.base.sha = BASE_TIP
+    pr.head.sha = HEAD
+    pr.changed_files = 0
+    merge_commit = MagicMock()
+    merge_commit.sha = MERGE_BASE
+    compare = MagicMock()
+    compare.merge_base_commit = merge_commit
+    repo.compare.return_value = compare
+    repo.get_pull.return_value = pr
+
+    # Deadline already past: _run_sync pre-check fails before worker.
+    session = GitHubPRDiffSession(
+        snapshot=_snapshot(count=0),
+        github_client=MagicMock(),
+        repository=repo,
+        pull_request=pr,
+        service=service,
+        limiter=limiter,
+        deadline_monotonic=time.monotonic() - 1.0,
+    )
+    with pytest.raises(DomainTimeoutError) as ei:
+        await session.build_pr_diff()
+    assert ei.value.error_code is E5004_TIMEOUT_ERROR
+    service._generate_diff_content.assert_not_called()
+    await session.aclose()
+
+
+@pytest.mark.unit
+@pytest.mark.anyio
+async def test_session_build_rejects_when_capacity_wait_exhausts_budget(monkeypatch: pytest.MonkeyPatch) -> None:
+    """After capacity is acquired, re-check rejects overdue work (GitLab-parity)."""
+    limiter = anyio.CapacityLimiter(1)
+    service = MagicMock()
+    service._generate_diff_content.return_value = []
+    service._build_pr_diff_strict.return_value = PRDiff(files=())
+
+    repo = MagicMock()
+    pr = MagicMock()
+    session = GitHubPRDiffSession(
+        snapshot=_snapshot(count=0),
+        github_client=MagicMock(),
+        repository=repo,
+        pull_request=pr,
+        service=service,
+        limiter=limiter,
+        deadline_monotonic=time.monotonic() + 60.0,
+    )
+
+    calls = {"n": 0}
+    real_monotonic = time.monotonic
+
+    def fake_monotonic() -> float:
+        calls["n"] += 1
+        # First pre-check OK; post-acquire check exhausts budget.
+        if calls["n"] <= 1:
+            return real_monotonic()
+        return real_monotonic() + 120.0
+
+    monkeypatch.setattr(time, "monotonic", fake_monotonic)
+    with pytest.raises(DomainTimeoutError) as ei:
+        await session.build_pr_diff()
+    assert ei.value.error_code is E5004_TIMEOUT_ERROR
+    service._generate_diff_content.assert_not_called()
     await session.aclose()
 
 
