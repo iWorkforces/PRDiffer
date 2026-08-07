@@ -180,3 +180,48 @@ async def test_github_failure_mode_matches_serial_parallel() -> None:
 
     assert await run(capacity=1) is FullDiffIncompleteReason.INVENTORY_TRUNCATED
     assert await run(capacity=4) is FullDiffIncompleteReason.INVENTORY_TRUNCATED
+
+
+@pytest.mark.integration
+@pytest.mark.anyio
+async def test_gitlab_failure_mode_matches_serial_parallel() -> None:
+    """Incomplete tree fails with same E5020 reason in serial and parallel capacity."""
+    from prdiffer.domain.exceptions import FullDiffIncompleteError, FullDiffIncompleteReason
+
+    records = (_record("link", "link", a_mode="120000", b_mode="120000"),)
+    snap = GitLabDiffSnapshot(
+        project_path="g/p",
+        iid=77,
+        version_id=9,
+        base_sha="base",
+        start_sha="start",
+        head_sha="head",
+        state="collected",
+        real_size=1,
+        records=records,
+    )
+
+    class TruncTree:
+        next_page = 2
+
+        def __iter__(self):
+            return iter([])
+
+    incomplete = TruncTree()
+    trees = {"base": incomplete, "head": incomplete, "start": incomplete}
+    store: dict[tuple[str, str], bytes] = {}
+
+    async def run(*, parallel: bool) -> FullDiffIncompleteReason:
+        reader, _ops, cache, _client = _build_reader(
+            snap,
+            store,
+            trees=trees,
+            parallel_enabled=parallel,
+        )
+        with pytest.raises(FullDiffIncompleteError) as ei:
+            await GetPRDiffUseCase(reader, cache).execute("g", "p", 77)
+        assert cache.sets == 0
+        return ei.value.reason
+
+    assert await run(parallel=False) is FullDiffIncompleteReason.INVENTORY_TRUNCATED
+    assert await run(parallel=True) is FullDiffIncompleteReason.INVENTORY_TRUNCATED
