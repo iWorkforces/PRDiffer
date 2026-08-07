@@ -44,7 +44,7 @@ prdiffer/domain/interfaces/
 ## SESSION PATH (strict full-diff)
 - Strict sessions implement `SessionPRDiffReader`: one `open_pr_diff_session` → snapshot + `cache_identity` → cache key/token → `build_pr_diff` → always `aclose` in `finally`.
 - Every session exposes `cache_identity: StrictPRDiffCacheIdentity` (provider-neutral key + validation token + schema_version).
-- GitHub identity: `github-full-diff-v3:{owner}:{repo}:{pr}:{merge_base}:{head}` + `merge_base:head` token (value schema 2; legacy v2 keys ignored).
+- GitHub identity: `github-full-diff-v3:{owner}:{repo}:{pr}:{merge_base}:{head}` + `merge_base:head` token (value schema `PRDiffCacheEntryV2`).
 - GitLab identity: `gitlab-full-diff-v1:{host}:{ns}:{repo}:{iid}:{ver}:{base}:{start}:{head}` + version/refs token (schema 1); host from request `base_url` (port-aware).
 - `open_pr_diff_session(..., *, base_url=None)` on every implementation; use case calls once (GitHub ignores host).
 - Snapshot fields: `base_tip_sha`, `merge_base_sha`, `head_sha`, `authoritative_changed_files`.

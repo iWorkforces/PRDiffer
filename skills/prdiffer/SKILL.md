@@ -106,7 +106,7 @@ At the MCP boundary, E5020 is often a `ToolError` with compact JSON: `{"error_co
 |--|--------|--------|
 | Snapshot | Immutable merge-base + head + file count (Compare once; revalidate after build) | Immutable MR diff version pinned to `diff_refs` |
 | Diff text | Generated full-context unified (modes/EOF; symlink/gitlink canonical text) | Same (not raw hunk-only provider patch) |
-| Cache | `github-full-diff-v3:{owner}:{repo}:{pr}:{merge_base}:{head}` (legacy v2 ignored) | `gitlab-full-diff-v1:{host}:…` (port-aware host) |
+| Cache | `github-full-diff-v3:{owner}:{repo}:{pr}:{merge_base}:{head}`  | `gitlab-full-diff-v1:{host}:…` (port-aware host) |
 
 **Examples:**
 
@@ -299,7 +299,7 @@ For E5020 via MCP `ToolError`, parse JSON text for `error_code`, `message`, and 
 - **Empty bodies**: `compliment` and `pr_description` must be non-empty strings.
 - **Auth**: With `MCP_AUTH_ENABLED=true`, every tool needs a valid `api_key`.
 - **Rate limits**: Avoid tight loops on `get_pr_diff`.
-- **Caching**: Diff responses are cached by provider identity (GitHub merge-base+head v3 / GitLab version+refs). Legacy GitHub v2 keys never hit. Re-fetch after new pushes.
+- **Caching**: Diff responses are cached by provider identity (GitHub merge-base+head v3 / GitLab version+refs). Re-fetch after new pushes.
 - **Filtering**: Server-side ignore/extension policy may exclude files before admission; selected set is still all-or-nothing.
 - **Strict diffs**: Never invent a partial file list when the tool errors with E5020.
 - **Do not** rewrite a GitLab MR URL into a GitHub URL (or vice versa); route by the real host/path.
