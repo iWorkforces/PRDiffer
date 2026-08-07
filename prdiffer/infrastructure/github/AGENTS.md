@@ -26,7 +26,8 @@ prdiffer/infrastructure/github/
 | **File content + batch** | `client_operations.py` | Typed content union; multi-ref batch; repo-scoped cache |
 | **Multi-ref batch** | `get_files_content_multi_ref_batch` | Ordered `FileContentResponse`; one capacity bound for all refs |
 | **Inventory admission** | `inventory.py` | Authoritative `changed_files` vs enumeration; selected N+1 → E5020 |
-| **Ordered file processing** | `file_processor.py` | Deleted/rename-only included; multi-ref head/base when enabled |
+| **Immutable trees/objects** | `git_objects.py` | Recursive tree load; blob/symlink/gitlink resolve; rename previous check |
+| **Ordered file processing** | `file_processor.py` | Tree path when real `get_git_tree`; else multi-ref content batches |
 | **Full-context diffs** | `diff_generator.py` | `GeneratedFileDiff` in provider order; hard-fail incompleteness |
 | **Request session** | `pr_diff_session.py` | anyio `to_thread` + CapacityLimiter; one metadata lookup per request |
 | **ETag bandwidth** | `etag_adapter.py` | Conditional GET / 304 |
@@ -53,7 +54,8 @@ prdiffer/infrastructure/github/
 - Ignore/extension filter, then **selected-file admission**: exactly N succeeds; N+1 → `FILE_COUNT_LIMIT` (E5020).
 
 ### Ordered processing + generation
-- `FileProcessor` assembles ordered `FilePatchInfo` (including deleted / rename-only).
+- `FileProcessor` assembles ordered `FilePatchInfo` (including deleted / rename-only). Renames require distinct `previous_filename` before content.
+- Prefer immutable trees when repository has a real `get_git_tree` (not MagicMock): merge-base/head trees, modes on patches, gitlinks without Contents.
 - When `parallel_head_base_fetch_enabled` and both head and base path sets are non-empty: one interleaved multi-ref batch (head/base alternating in provider order), then split into head/base maps.
 - Disabled flag or one-sided path sets: sequential single-ref batches.
 - `DiffGenerator.generate_ordered_file_diffs` returns one full-context `GeneratedFileDiff` per selected file in order, or hard-fails.
