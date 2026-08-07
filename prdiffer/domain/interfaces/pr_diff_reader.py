@@ -98,6 +98,12 @@ class SessionPRDiffReader(PRDiffReader, Protocol):
         repo_name: str,
         pr_number: int,
         /,
+        *,
+        base_url: str | None = None,
     ) -> PRDiffReadSessionInterface:
-        """Open one session (one client/repo/PR metadata lookup)."""
+        """Open one session (one client/repo/PR metadata lookup).
+
+        ``base_url`` is provider-specific (GitLab custom hosts). GitHub ignores it
+        (callers pass ``None``). Implementations must accept the keyword even when unused.
+        """
         ...

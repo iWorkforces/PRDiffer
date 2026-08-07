@@ -109,9 +109,17 @@ class GitHubPRDiffService(CachingMixin, PRDiffServiceInterface):
             )
         return self._session_reader
 
-    async def open_pr_diff_session(self, repo_owner: str, repo_name: str, pr_number: int, /):
+    async def open_pr_diff_session(
+        self,
+        repo_owner: str,
+        repo_name: str,
+        pr_number: int,
+        /,
+        *,
+        base_url: str | None = None,
+    ):
         """Open a request-local GitHub session (enables use-case session path)."""
-        return await self._get_session_reader().open_pr_diff_session(repo_owner, repo_name, pr_number)
+        return await self._get_session_reader().open_pr_diff_session(repo_owner, repo_name, pr_number, base_url=base_url)
 
     async def get_pr_diff(
         self,

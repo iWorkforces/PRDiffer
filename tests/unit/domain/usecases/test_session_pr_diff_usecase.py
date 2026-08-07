@@ -55,11 +55,21 @@ class SessionReader:
     def __init__(self, session: FakeSession):
         self.session = session
         self.open_calls = 0
+        self.open_kwargs: list[dict[str, object]] = []
         self.get_pr_diff = AsyncMock(side_effect=AssertionError("legacy get_pr_diff must not be used"))
         self.get_latest_commit_sha = AsyncMock(side_effect=AssertionError("legacy sha must not be used"))
 
-    async def open_pr_diff_session(self, owner: str, repo: str, pr: int, /) -> FakeSession:
+    async def open_pr_diff_session(
+        self,
+        owner: str,
+        repo: str,
+        pr: int,
+        /,
+        *,
+        base_url: str | None = None,
+    ) -> FakeSession:
         self.open_calls += 1
+        self.open_kwargs.append({"owner": owner, "repo": repo, "pr": pr, "base_url": base_url})
         return self.session
 
 
@@ -234,3 +244,24 @@ async def test_legacy_hunk_key_misses_on_strict_session() -> None:
     build.assert_awaited_once()
     cache.set.assert_awaited_once()
     assert session.closed is True
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_session_path_passes_base_url_exactly_once() -> None:
+    cache = MagicMock()
+    cache.get_optimistic = AsyncMock(return_value=(None, None))
+    cache.get = AsyncMock(return_value=None)
+    cache.set = AsyncMock()
+    build = AsyncMock(return_value=_pr_diff())
+    identity = github_full_diff_v3_identity("o", "r", 1, _MB, _HD)
+    session = FakeSession(
+        snapshot=PRDiffSnapshot("o", "r", 1, _BT, _MB, _HD, 1),
+        cache_identity=identity,
+        build=build,
+    )
+    reader = SessionReader(session)
+    use_case = GetPRDiffUseCase(reader, cache)
+    await use_case.execute("o", "r", 1, base_url="https://gitlab.example.com")
+    assert reader.open_calls == 1
+    assert reader.open_kwargs[0]["base_url"] == "https://gitlab.example.com"

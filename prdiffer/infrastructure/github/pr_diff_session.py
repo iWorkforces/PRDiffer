@@ -243,7 +243,10 @@ class GitHubPRDiffSession(PRDiffReadSessionInterface):
             revalidate_github_snapshot(repo, self._snapshot)
             return result
 
-        return await self._run_sync(_build)
+        result = await self._run_sync(_build)
+        # Post-worker budget: discard late results after the blocking worker exits.
+        self._ensure_budget()
+        return result
 
     async def aclose(self) -> None:
         if self._closed:
@@ -296,7 +299,10 @@ class GitHubSessionPRDiffReader:
         repo_name: str,
         pr_number: int,
         /,
+        *,
+        base_url: str | None = None,
     ) -> GitHubPRDiffSession:
+        del base_url  # GitHub.com only; keyword accepted for protocol uniformity
         deadline = time.monotonic() + float(self._request_timeout_seconds)
 
         def _open() -> tuple[Github, PyGithubRepository, PyGithubPullRequest, PRDiffSnapshot]:
@@ -344,6 +350,13 @@ class GitHubSessionPRDiffReader:
             abandon_on_cancel=False,
             limiter=self._limiter,
         )
+        # Post-worker budget check: late open workers must not return after deadline.
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise DomainTimeoutError(
+                "PR diff request deadline exhausted after session open",
+                error_code=E5004_TIMEOUT_ERROR,
+            )
         return GitHubPRDiffSession(
             snapshot=snapshot,
             github_client=gh,
