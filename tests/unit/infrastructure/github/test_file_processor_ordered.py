@@ -48,6 +48,7 @@ def processor() -> FileProcessor:
         max_files_allowed=50,
         # Unit tests mock the batch API; keep head/base sequential for determinism.
         parallel_head_base_fetch_enabled=False,
+        require_git_tree=False,
     )
 
 
@@ -110,6 +111,27 @@ class TestOrderedAssembly:
         async_result = anyio.run(run_async)
         assert [p.filename for p in sync_result] == [p.filename for p in async_result]
         assert [p.edit_type for p in sync_result] == [p.edit_type for p in async_result]
+
+
+def test_require_git_tree_fails_closed_without_tree_api() -> None:
+    from types import SimpleNamespace
+    from unittest.mock import MagicMock
+    import pytest
+    from prdiffer.domain.exceptions import FullDiffIncompleteError, FullDiffIncompleteReason
+    from prdiffer.infrastructure.github.file_processor import FileProcessor
+
+    api = MagicMock()
+    proc = FileProcessor(
+        github_api_service=api,
+        pattern_matcher=MagicMock(is_valid_file=lambda p: True),
+        diff_utils=MagicMock(),
+        require_git_tree=True,
+    )
+    files = [SimpleNamespace(filename="a.py", status="modified", patch="", additions=1, deletions=0)]
+    with pytest.raises(FullDiffIncompleteError) as ei:
+        proc.process_files_to_patches(files, SimpleNamespace(full_name="o/r"), "h" * 40, "b" * 40)
+    assert ei.value.reason is FullDiffIncompleteReason.INVENTORY_TRUNCATED
+    api.get_files_content_batch.assert_not_called()
 
 
 def test_rename_without_previous_filename_fails_before_content(monkeypatch):

@@ -129,6 +129,7 @@ class InfrastructureFactory(InfrastructureFactoryInterface):
             parallel_fetch_threshold=10 if config.parallel_file_fetch_enabled else 10**9,
             max_parallel_workers=max_workers,
             parallel_head_base_fetch_enabled=config.parallel_head_base_fetch_enabled,
+            require_git_tree=True,
         )
 
         diff_generator = get_diff_generator(
@@ -162,6 +163,7 @@ class InfrastructureFactory(InfrastructureFactoryInterface):
             diff_utils=diff_service,
             max_files_allowed=config.max_files_allowed,
             parallel_fetch_threshold=10 if config.parallel_file_fetch_enabled else 10**9,
+            require_git_tree=True,
             max_parallel_workers=config.github_worker_capacity,
             parallel_head_base_fetch_enabled=config.parallel_head_base_fetch_enabled,
         )

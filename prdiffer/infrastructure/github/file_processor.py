@@ -1,16 +1,14 @@
 """File processing service for GitHub repositories."""
 
-import inspect
 import time
 from collections.abc import Mapping
-from typing import Any, Sequence, cast
+from typing import Any, Sequence
 
 import anyio
 import asyncer
 from github.File import File
 from github.PaginatedList import PaginatedList
 from github.PullRequest import PullRequest as PyGithubPullRequest
-from github.Repository import Repository
 
 from prdiffer.domain.entities.file_patch import FilePatchInfo, EDIT_TYPE
 from prdiffer.domain.entities.file_content import FileContentAvailable, FileContentRequest, FileContentResult
@@ -66,6 +64,8 @@ class FileProcessor:
         max_parallel_workers: int = 4,
         logger: ConsoleLogger | None = None,
         parallel_head_base_fetch_enabled: bool | None = None,
+        *,
+        require_git_tree: bool = False,
     ) -> None:
         self._github_api_service = github_api_service
         self._pattern_matcher = pattern_matcher
@@ -73,6 +73,8 @@ class FileProcessor:
         self.max_files_allowed = max_files_allowed
         self._parallel_fetch_threshold = parallel_fetch_threshold
         self._max_parallel_workers = max_parallel_workers
+        # Production/session wiring sets True so mode/symlink/gitlink cannot silently degrade.
+        self._require_git_tree = require_git_tree
         self._logger = logger or get_logger()
 
         self._cache_lock = anyio.Lock()
@@ -191,7 +193,13 @@ class FileProcessor:
         if not classified:
             return []
         head_paths, base_paths, rename_map = self._required_content_keys(classified)
-        if self._repository_supports_git_tree(repository):
+        tree_ok = self._repository_supports_git_tree(repository)
+        if self._require_git_tree and not tree_ok:
+            raise FullDiffIncompleteError(
+                FullDiffIncompleteReason.INVENTORY_TRUNCATED,
+                message="Strict full-diff requires repository.get_git_tree for mode-accurate assembly",
+            )
+        if tree_ok:
             return self._assemble_patches_from_trees(
                 classified,
                 repository,
@@ -216,7 +224,13 @@ class FileProcessor:
         if not classified:
             return []
         head_paths, base_paths, rename_map = self._required_content_keys(classified)
-        if self._repository_supports_git_tree(repository):
+        tree_ok = self._repository_supports_git_tree(repository)
+        if self._require_git_tree and not tree_ok:
+            raise FullDiffIncompleteError(
+                FullDiffIncompleteReason.INVENTORY_TRUNCATED,
+                message="Strict full-diff requires repository.get_git_tree for mode-accurate assembly",
+            )
+        if tree_ok:
             run_sync = getattr(anyio.to_thread, "run_sync")
             return await run_sync(
                 lambda: self._assemble_patches_from_trees(
@@ -437,161 +451,6 @@ class FileProcessor:
             head_modes=head_modes,
             base_modes=base_modes,
         )
-
-    async def _process_files_with_content_parallel_async(
-        self,
-        files: list[File],
-        repository: Repository,
-        head_sha: str,
-        base_sha: str,
-    ) -> list[FilePatchInfo]:
-        """Process files with parallel content loading using AsyncParallelExecutor."""
-        start_time = time.time()
-        diff_files: list[FilePatchInfo] = []
-
-        head_files: list[str] = []
-        base_files: list[str] = []
-        renamed_file_mapping: dict[str, str] = {}
-
-        for file in files:
-            if file.status in ["added", "modified", "renamed"]:
-                head_files.append(file.filename)
-            if file.status == "modified":
-                base_files.append(file.filename)
-            elif file.status == "renamed":
-                previous_name = getattr(file, "previous_filename", None)
-                if previous_name:
-                    base_files.append(previous_name)
-                    renamed_file_mapping[file.filename] = previous_name
-                else:
-                    base_files.append(file.filename)
-
-        fetch_tasks: list[Any] = []
-        if head_files:
-            fetch_tasks.append(self._github_api_service.get_files_content_batch(repository.full_name, head_files, head_sha))
-        else:
-            fetch_tasks.append(anyio.sleep(0))
-
-        if base_files:
-            fetch_tasks.append(self._github_api_service.get_files_content_batch(repository.full_name, base_files, base_sha))
-        else:
-            fetch_tasks.append(anyio.sleep(0))
-
-        head_contents: dict[str, str] = {}
-        base_contents: dict[str, str] = {}
-        try:
-            head_result: Any = fetch_tasks[0] if head_files else {}
-            if inspect.iscoroutine(head_result):
-                head_result = await head_result
-            if isinstance(head_result, dict):
-                head_contents = self._text_map(cast(dict[str, Any], head_result), ref=head_sha)
-
-            base_result: Any = fetch_tasks[1] if base_files else {}
-            if inspect.iscoroutine(base_result):
-                base_result = await base_result
-            if isinstance(base_result, dict):
-                base_contents = self._text_map(cast(dict[str, Any], base_result), ref=base_sha)
-        except FullDiffIncompleteError:
-            raise
-        except (AttributeError, TypeError) as e:
-            self._logger.warning(
-                "Tasks not awaitable, using empty contents",
-                extra={
-                    "error": str(e),
-                    "error_type": type(e).__name__,
-                    "has_head_files": bool(head_files),
-                    "has_base_files": bool(base_files),
-                },
-            )
-            head_contents = {}
-            base_contents = {}
-
-        for file in files:
-            if file.status == "added":
-                new_file_content = head_contents.get(file.filename, "")
-                original_file_content = ""
-            elif file.status == "removed":
-                self._logger.info(f"Skipping deleted file: {file.filename}")
-                continue
-            elif file.status == "renamed":
-                new_file_content = head_contents.get(file.filename, "")
-                base_key = renamed_file_mapping.get(file.filename, file.filename)
-                original_file_content = base_contents.get(base_key, "")
-
-                if self._is_rename_only(file, original_file_content, new_file_content):
-                    previous_name = getattr(file, "previous_filename", "?")
-                    self._logger.info(f"Skipping rename-only file: {previous_name} -> {file.filename}")
-                    continue
-            else:  # modified or other statuses
-                new_file_content = head_contents.get(file.filename, "")
-                original_file_content = base_contents.get(file.filename, "")
-
-            patch = file.patch
-            if not patch:
-                patch = self._generate_patch_from_content(file.filename, new_file_content, original_file_content)
-
-            file_patch = self._create_file_patch_with_content(file, original_file_content, new_file_content, patch)
-            diff_files.append(file_patch)
-
-        elapsed = time.time() - start_time
-        self._logger.debug(f"Async parallel content processing: {len(files)} files in {elapsed:.2f}s")
-
-        return diff_files
-
-    def _process_files_with_content(self, files: list[File], repository: Repository, head_sha: str, base_sha: str) -> list[FilePatchInfo]:
-        """Process files with content loading (batch mode, synchronous)."""
-        diff_files: list[FilePatchInfo] = []
-
-        head_files: list[str] = []
-        base_files: list[str] = []
-        renamed_file_mapping: dict[str, str] = {}
-
-        for file in files:
-            if file.status in ["added", "modified", "renamed"]:
-                head_files.append(file.filename)
-            if file.status == "modified":
-                base_files.append(file.filename)
-            elif file.status == "renamed":
-                previous_name = getattr(file, "previous_filename", None)
-                if previous_name:
-                    base_files.append(previous_name)
-                    renamed_file_mapping[file.filename] = previous_name
-                else:
-                    base_files.append(file.filename)
-
-        head_raw = self._github_api_service.get_files_content_batch(repository.full_name, head_files, head_sha) if head_files else {}
-        base_raw = self._github_api_service.get_files_content_batch(repository.full_name, base_files, base_sha) if base_files else {}
-        head_contents = self._text_map(cast(dict[str, Any], head_raw), ref=head_sha)
-        base_contents = self._text_map(cast(dict[str, Any], base_raw), ref=base_sha)
-
-        for file in files:
-            if file.status == "added":
-                new_file_content = head_contents.get(file.filename, "")
-                original_file_content = ""
-            elif file.status == "removed":
-                self._logger.info(f"Skipping deleted file: {file.filename}")
-                continue
-            elif file.status == "renamed":
-                new_file_content = head_contents.get(file.filename, "")
-                base_key = renamed_file_mapping.get(file.filename, file.filename)
-                original_file_content = base_contents.get(base_key, "")
-
-                if self._is_rename_only(file, original_file_content, new_file_content):
-                    previous_name = getattr(file, "previous_filename", "?")
-                    self._logger.info(f"Skipping rename-only file: {previous_name} -> {file.filename}")
-                    continue
-            else:  # modified or other statuses
-                new_file_content = head_contents.get(file.filename, "")
-                original_file_content = base_contents.get(file.filename, "")
-
-            patch = file.patch
-            if not patch:
-                patch = self._generate_patch_from_content(file.filename, new_file_content, original_file_content)
-
-            file_patch = self._create_file_patch_with_content(file, original_file_content, new_file_content, patch)
-            diff_files.append(file_patch)
-
-        return diff_files
 
     def _create_file_patch_without_content(self, file: File) -> FilePatchInfo:
         """Create FilePatchInfo without loading file content."""
