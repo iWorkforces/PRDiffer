@@ -30,6 +30,60 @@ class DiffProcessingConfig:
         )
 
 
+_NO_NEWLINE_MARKER = "\\ No newline at end of file"
+
+
+def _lines_and_final_newline(text: str) -> tuple[list[str], bool]:
+    """Split content into logical lines and report whether a final newline is present.
+
+    ``splitlines()`` drops terminator information; callers use the boolean to emit
+    Git-style ``\\ No newline at end of file`` markers. Empty content is treated as
+    having no missing-final-newline marker (no lines to annotate).
+    """
+    if text == "":
+        return [], True
+    return text.splitlines(), text.endswith("\n")
+
+
+def _append_no_newline_markers(
+    body_lines: list[str],
+    *,
+    orig_ends_with_newline: bool,
+    new_ends_with_newline: bool,
+    orig_count: int,
+    new_count: int,
+) -> list[str]:
+    """Insert Git no-newline markers after the last old/new-side body lines."""
+    if not body_lines:
+        return body_lines
+
+    last_old: int | None = None
+    last_new: int | None = None
+    for index, line in enumerate(body_lines):
+        if line.startswith(("-", " ")):
+            last_old = index
+        if line.startswith(("+", " ")):
+            last_new = index
+
+    inserts: list[tuple[int, str]] = []
+    if not orig_ends_with_newline and orig_count > 0 and last_old is not None:
+        inserts.append((last_old + 1, _NO_NEWLINE_MARKER))
+    if not new_ends_with_newline and new_count > 0 and last_new is not None:
+        inserts.append((last_new + 1, _NO_NEWLINE_MARKER))
+
+    # Insert from the end so earlier indices stay valid. Same index (shared
+    # context line for both sides) gets a single marker.
+    inserts.sort(key=lambda item: item[0], reverse=True)
+    result = list(body_lines)
+    seen_indices: set[int] = set()
+    for index, marker in inserts:
+        if index in seen_indices:
+            continue
+        seen_indices.add(index)
+        result.insert(index, marker)
+    return result
+
+
 class DiffUtils(LazyLoggerMixin, DiffServiceInterface):
     """Utility for diff generation, patch extension, and content decoding.
 
@@ -44,9 +98,13 @@ class DiffUtils(LazyLoggerMixin, DiffServiceInterface):
         self._config = (config or DiffProcessingConfig()).validate()
 
     def build_full_file_patch(self, original_file_str: str, new_file_str: str) -> str:
-        """Build a single unified-diff hunk that covers the entire file."""
-        orig_lines = original_file_str.splitlines()
-        new_lines = new_file_str.splitlines()
+        """Build a single unified-diff hunk that covers the entire file.
+
+        Preserves final-newline state with Git-style
+        ``\\ No newline at end of file`` markers when either side lacks a trailing newline.
+        """
+        orig_lines, orig_nl = _lines_and_final_newline(original_file_str)
+        new_lines, new_nl = _lines_and_final_newline(new_file_str)
 
         orig_count = len(orig_lines)
         new_count = len(new_lines)
@@ -71,6 +129,13 @@ class DiffUtils(LazyLoggerMixin, DiffServiceInterface):
                 for k in range(j1, j2):
                     body_lines.append("+" + new_lines[k])
 
+        body_lines = _append_no_newline_markers(
+            body_lines,
+            orig_ends_with_newline=orig_nl,
+            new_ends_with_newline=new_nl,
+            orig_count=orig_count,
+            new_count=new_count,
+        )
         return "\n".join(["", header] + body_lines)
 
     def build_full_file_patch_chunked(
@@ -89,8 +154,8 @@ class DiffUtils(LazyLoggerMixin, DiffServiceInterface):
         large_file_threshold = large_file_threshold if large_file_threshold is not None else self._config.large_file_threshold
         max_diff_size = self._config.max_diff_size
 
-        orig_lines = original_file_str.splitlines()
-        new_lines = new_file_str.splitlines()
+        orig_lines, _orig_nl = _lines_and_final_newline(original_file_str)
+        new_lines, _new_nl = _lines_and_final_newline(new_file_str)
 
         max_lines = max(len(orig_lines), len(new_lines))
         if max_lines > max_diff_size:
@@ -103,6 +168,7 @@ class DiffUtils(LazyLoggerMixin, DiffServiceInterface):
                 limit=max_diff_size,
             )
 
+        # Small files: single-hunk path preserves EOF markers correctly.
         if max_lines <= large_file_threshold:
             return self.build_full_file_patch(original_file_str, new_file_str)
 

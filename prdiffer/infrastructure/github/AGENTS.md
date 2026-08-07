@@ -56,7 +56,9 @@ prdiffer/infrastructure/github/
 - When `parallel_head_base_fetch_enabled` and both head and base path sets are non-empty: one interleaved multi-ref batch (head/base alternating in provider order), then split into head/base maps.
 - Disabled flag or one-sided path sets: sequential single-ref batches.
 - `DiffGenerator.generate_ordered_file_diffs` returns one full-context `GeneratedFileDiff` per selected file in order, or hard-fails.
-- When `old_mode`/`new_mode` are both set and differ, prepend deterministic `old mode`/`new mode` headers (before rename headers).
+- Mode headers (before rename, then body): `new file mode` / `deleted file mode` / `old mode`+`new mode` for 100644/100755/120000/160000.
+- `DiffUtils` emits Git-style `\ No newline at end of file` when either side lacks a trailing newline.
+- Never fall back to provider hunk text when reconstruction fails (E5003 / E5020 only).
 - Contract inability → **E5020** / `FullDiffIncompleteError`; unexpected defects → E5003.
 
 ### Sessions

@@ -427,3 +427,31 @@ class TestGetDiffUtils:
         instance1 = get_diff_utils()
         instance2 = get_diff_utils()
         assert instance1 is not instance2
+
+
+class TestNoNewlineMarkers:
+    """Git-style \\ No newline at end of file markers."""
+
+    def test_missing_newline_on_both_sides_for_modified_line(self):
+        utils = DiffUtils()
+        # Neither side ends with newline
+        patch = utils.build_full_file_patch("old", "new")
+        assert "\\ No newline at end of file" in patch
+        assert "-old" in patch
+        assert "+new" in patch
+
+    def test_newline_present_on_both_sides_has_no_marker(self):
+        utils = DiffUtils()
+        patch = utils.build_full_file_patch("old\n", "new\n")
+        assert "\\ No newline at end of file" not in patch
+        assert "-old" in patch
+        assert "+new" in patch
+
+    def test_only_old_side_missing_newline(self):
+        utils = DiffUtils()
+        patch = utils.build_full_file_patch("old", "new\n")
+        # Marker after the deleted old line
+        lines = patch.splitlines()
+        assert "-old" in lines
+        old_idx = lines.index("-old")
+        assert lines[old_idx + 1] == "\\ No newline at end of file"
