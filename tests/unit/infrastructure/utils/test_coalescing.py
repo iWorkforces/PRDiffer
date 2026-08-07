@@ -16,7 +16,7 @@ from prdiffer.infrastructure.utils.coalescing_service import (
 def coalescing_service():
     """Create RequestCoalescingService with mocked dependencies."""
     mock_logger = Mock()
-    with patch("prdiffer.infrastructure.utils.coalescing.service.get_settings_service") as mock_settings:
+    with patch("prdiffer.infrastructure.utils.coalescing_service.get_settings_service") as mock_settings:
         mock_settings.return_value.get.return_value = 100
         service = RequestCoalescingService(logger=mock_logger, max_waiters=50)
     return service
@@ -48,14 +48,14 @@ class TestRequestCoalescingServiceInit:
     def test_init_with_logger(self):
         """Logger is stored."""
         mock_logger = Mock()
-        with patch("prdiffer.infrastructure.utils.coalescing.service.get_settings_service") as mock_settings:
+        with patch("prdiffer.infrastructure.utils.coalescing_service.get_settings_service") as mock_settings:
             mock_settings.return_value.get.return_value = DEFAULT_MAX_WAITERS
             service = RequestCoalescingService(logger=mock_logger, max_waiters=50)
         assert service._logger is mock_logger
 
     def test_init_max_waiters_from_param(self):
         """max_waiters from parameter is used."""
-        with patch("prdiffer.infrastructure.utils.coalescing.service.get_settings_service") as mock_settings:
+        with patch("prdiffer.infrastructure.utils.coalescing_service.get_settings_service") as mock_settings:
             mock_settings.return_value.get.return_value = DEFAULT_MAX_WAITERS
             service = RequestCoalescingService(logger=Mock(), max_waiters=25)
         assert service._max_waiters == 25
@@ -196,8 +196,99 @@ class TestGetRequestCoalescingServiceSingleton:
     def test_singleton_returns_instance(self):
         """get_request_coalescing_service returns an instance."""
         with patch(
-            "prdiffer.infrastructure.utils.coalescing.service._request_coalescing_service",
+            "prdiffer.infrastructure.utils.coalescing_service._request_coalescing_service",
             None,
         ):
             service = get_request_coalescing_service()
             assert isinstance(service, RequestCoalescingService)
+
+
+@pytest.mark.unit
+class TestCoalescingCancellationCleanup:
+    """Owner cancellation must wake waiters and clear pending state."""
+
+    @pytest.mark.anyio
+    async def test_owner_cancel_wakes_waiter_and_clears_pending(self, coalescing_service):
+        owner_started = anyio.Event()
+        release_owner = anyio.Event()
+        outcomes: dict[str, object] = {}
+
+        async def slow_fetch():
+            owner_started.set()
+            await release_owner.wait()
+            return "should-not-return"
+
+        async def owner():
+            try:
+                await coalescing_service.coalesce("same", slow_fetch, timeout=30.0)
+                outcomes["owner"] = "ok"
+            except BaseException as exc:  # noqa: BLE001 — assert cancel identity
+                outcomes["owner"] = type(exc)
+
+        async def waiter():
+            await owner_started.wait()
+
+            async def should_not_run():
+                raise AssertionError("waiter must not start a second fetch")
+
+            try:
+                await coalescing_service.coalesce("same", should_not_run, timeout=30.0)
+                outcomes["waiter"] = "ok"
+            except BaseException as exc:  # noqa: BLE001
+                outcomes["waiter"] = type(exc)
+
+        async with anyio.create_task_group() as tg:
+            tg.start_soon(owner)
+            tg.start_soon(waiter)
+            await owner_started.wait()
+            # Cancel the whole group → owner cancelled mid-fetch; waiter must terminate.
+            tg.cancel_scope.cancel()
+
+        stats = await coalescing_service.get_stats()
+        assert stats["pending_count"] == 0
+        assert stats["total_waiters"] == 0
+        assert stats["pending_keys"] == []
+        # Both sides terminated (cancel), not timed out hanging.
+        assert outcomes.get("owner") is not None
+        assert outcomes.get("waiter") is not None
+
+    @pytest.mark.anyio
+    async def test_same_key_works_after_cancelled_owner(self, coalescing_service):
+        owner_started = anyio.Event()
+        hold = anyio.Event()
+
+        async def blocked_fetch():
+            owner_started.set()
+            await hold.wait()
+            return "blocked"
+
+        async with anyio.create_task_group() as tg:
+            tg.start_soon(coalescing_service.coalesce, "k", blocked_fetch)
+            await owner_started.wait()
+            tg.cancel_scope.cancel()
+
+        stats = await coalescing_service.get_stats()
+        assert stats["pending_count"] == 0
+
+        fetch = AsyncMock(return_value="recovered")
+        result = await coalescing_service.coalesce("k", fetch, timeout=5.0)
+        assert result == "recovered"
+        fetch.assert_awaited_once()
+
+
+@pytest.mark.unit
+class TestCoalescingImportIdentity:
+    def test_package_and_flat_class_and_singleton_are_identical(self):
+        from prdiffer.infrastructure.utils import coalescing_service as flat
+        from prdiffer.infrastructure.utils.coalescing import service as pkg
+        from prdiffer.infrastructure.utils import coalescing as pkg_init
+
+        assert flat.RequestCoalescingService is pkg.RequestCoalescingService
+        assert flat.RequestCoalescingService is pkg_init.RequestCoalescingService
+        assert flat.get_request_coalescing_service is pkg.get_request_coalescing_service
+        # Reset then compare singleton identity across import paths
+        flat._request_coalescing_service = None
+        a = flat.get_request_coalescing_service()
+        b = pkg.get_request_coalescing_service()
+        c = pkg_init.get_request_coalescing_service()
+        assert a is b is c

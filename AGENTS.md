@@ -224,7 +224,7 @@ PRDifferMCP/
 - Dual factories: domain interfaces (`domain/factories/`), infrastructure/application implement.
 - VCS registry + `supports_repository()` for multi-provider URLs (GitHub.com + GitLab MR path marker incl. custom hosts).
 - Tools registered in `ToolRegistry` (not a separate plugin package; `application/plugins/` is empty reserved path).
-- Cache, circuit breaker, and some utils use **flattened modules + package shims** for backward-compatible imports. Prefer flattened paths in new code. **Exception:** `utils/coalescing_service.py` and `utils/coalescing/service.py` are full duplicates (not a re-export shim) — import the flattened module only.
+- Cache, circuit breaker, coalescing, and some utils use **flattened modules + package shims** for backward-compatible imports. Prefer flattened paths in new code.
 - GitHub full-diff pipeline under `infrastructure/github/`; GitLab under `infrastructure/vcs_providers/gitlab_*`.
 - MCP tools route via `parse_pr_target` (not the domain `VCSProviderRegistry` hot path). Domain `ApprovePRUseCase` / `UpdatePRDescriptionUseCase` exist for tests; MCP approve/describe call repositories/ops directly.
 

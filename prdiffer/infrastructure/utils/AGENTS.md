@@ -8,12 +8,12 @@ Resilience, parallelism, parsing, and shared utilities (including subpackages).
 prdiffer/infrastructure/utils/
 ├── retry/                      # Unified retry package (base, handler, models, factories)
 ├── parallel/                   # AsyncParallelExecutor (~598 in executor.py; per-batch semaphore)
-├── coalescing/                 # FULL DUPLICATE of coalescing_service.py (do not import)
+├── coalescing/                 # SHIM → coalescing_service
 ├── circuit_breaker/            # SHIM → circuit_breaker_core / registry
 ├── metrics/                    # Canonical performance metrics (`performance.py`)
 ├── circuit_breaker_core.py     # Canonical CircuitBreaker (~215)
 ├── circuit_breaker_registry.py # Global registry (~271)
-├── coalescing_service.py       # Request coalescing (~220) — preferred import
+├── coalescing_service.py       # Canonical request coalescing — preferred import
 ├── delay_calculator.py         # Backoff + jitter (~160)
 ├── error_classifier.py         # Retryability classification (~151)
 ├── rate_limit_parser.py        # Retry-After / rate headers (~183)
@@ -46,7 +46,8 @@ prdiffer/infrastructure/utils/
   - Canonical CB: `circuit_breaker_core.py` / `circuit_breaker_registry.py`
   - Package `circuit_breaker/` re-exports only
   - Canonical metrics: `metrics/performance.py`; flat `performance.py` re-exports
-- Coalescing: import **only** `coalescing_service.py` (package path is a full duplicate, not a shim).
+- Coalescing: canonical `coalescing_service.py`; package path re-exports (identical singleton).
+- Owner cancel publishes terminal exception under a shielded scope so waiters wake and pending is cleared.
 - Parallel full-diff work must preserve identity/order via `execute_indexed_batch`.
 - Executor creates a fresh semaphore per batch (safe across independent anyio loops).
 
@@ -56,4 +57,4 @@ prdiffer/infrastructure/utils/
 - NO blind retry of all exceptions (especially content 404s).
 - NO completion-order append for identity-sensitive full-diff batches.
 - NO truncating diffs in `diff_limits` helpers — hard-fail only.
-- NO dual import of coalescing package + flattened module (dual singletons).
+- NO second coalescing state machine in the package shim.

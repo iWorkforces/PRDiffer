@@ -119,7 +119,7 @@ class RequestCoalescingService:
             if existing_request.exception is not None:
                 raise existing_request.exception
 
-            self._logger.debug("Request coalesced for key '{key}' - returning cached result")
+            self._logger.debug(f"Request coalesced for key '{key}' - returning cached result")
             return existing_request.result
         except TimeoutError:
             self._logger.error(f"Coalesced request timed out for key '{key}'")
@@ -130,6 +130,26 @@ class RequestCoalescingService:
         finally:
             await self._decrement_waiter(key)
 
+    async def _publish_terminal(
+        self,
+        key: str,
+        request: CoalescedRequest,
+        *,
+        result: Any = None,
+        exception: BaseException | None = None,
+    ) -> None:
+        """Publish terminal result/exception, signal waiters, remove exact owner entry."""
+        async with self._lock:
+            if exception is not None:
+                request.exception = exception
+            else:
+                request.result = result
+                request.exception = None
+            request.event.set()
+            pending = self._pending_requests.get(key)
+            if pending is request:
+                del self._pending_requests[key]
+
     async def _execute_request(
         self,
         new_request: CoalescedRequest,
@@ -137,7 +157,6 @@ class RequestCoalescingService:
         fetch_func: Callable[[], Awaitable[Any]],
         timeout: float,
     ) -> Any:
-        cleanup_done = False
         try:
             with anyio.fail_after(timeout):
                 result = await fetch_func()
@@ -146,51 +165,51 @@ class RequestCoalescingService:
                 if key in self._pending_requests and self._pending_requests[key] is new_request:
                     waiter_count = self._pending_requests[key].request_count
                     new_request.result = result
+                    new_request.exception = None
                     new_request.event.set()
                     del self._pending_requests[key]
-                    cleanup_done = True
                     self._logger.info(f"Request completed for key '{key}' (served {waiter_count} waiters)")
                 else:
                     new_request.result = result
+                    new_request.exception = None
                     new_request.event.set()
-                    cleanup_done = True
                     self._logger.warning(f"Request completed for key '{key}' but state was modified")
 
             return result
 
         except TimeoutError:
-            await self._cleanup_on_failure(key, new_request, cleanup_done)
             exc = TimeoutError(f"Request timed out after {timeout} seconds")
-            new_request.exception = exc
-            new_request.event.set()
+            # Shield so timeout cleanup still runs if a parent cancel arrives mid-cleanup.
+            with anyio.CancelScope(shield=True):
+                await self._publish_terminal(key, new_request, exception=exc)
             self._logger.error(f"Request timed out for key '{key}' after {timeout} seconds")
             raise exc
 
         except Exception as e:
-            await self._cleanup_on_failure(key, new_request, cleanup_done)
-            new_request.exception = e
-            new_request.event.set()
+            with anyio.CancelScope(shield=True):
+                await self._publish_terminal(key, new_request, exception=e)
             self._logger.error(f"Request failed for key '{key}': {e}")
+            raise
+
+        except BaseException as e:
+            # Owner cancellation (and other BaseException): publish terminal, wake waiters,
+            # drop pending entry, then re-raise so waiters terminate with the same cancel.
+            with anyio.CancelScope(shield=True):
+                await self._publish_terminal(key, new_request, exception=e)
+                self._logger.info(f"Request owner cancelled for key '{key}'; waiters notified")
             raise
 
     async def _decrement_waiter(self, key: str) -> None:
         async with self._lock:
-            if key in self._pending_requests:
-                pending = self._pending_requests[key]
+            if key not in self._pending_requests:
+                return
+            pending = self._pending_requests[key]
+            if pending.request_count > 0:
                 pending.request_count -= 1
 
-                if pending.request_count <= 0 and pending.event.is_set():
-                    del self._pending_requests[key]
-                    self._logger.debug(f"Cleaned up request for key '{key}' (no more waiters)")
-
-    async def _cleanup_on_failure(self, key: str, request: CoalescedRequest, cleanup_done: bool) -> None:
-        if cleanup_done:
-            return
-
-        async with self._lock:
-            if key in self._pending_requests and self._pending_requests[key] is request:
+            if pending.request_count <= 0 and pending.event.is_set():
                 del self._pending_requests[key]
-                self._logger.debug(f"Cleaned up failed request for key '{key}'")
+                self._logger.debug(f"Cleaned up request for key '{key}' (no more waiters)")
 
     async def clear(self) -> None:
         async with self._lock:
