@@ -55,16 +55,24 @@ class RequestCoalescingService:
         Otherwise, execute the fetch function and share the result with all waiters.
         """
         existing_request = None
+        overflow_standalone = False
         async with self._lock:
             if key in self._pending_requests:
                 pending = self._pending_requests[key]
 
                 if pending.request_count >= self._max_waiters:
-                    self._logger.warning(f"Maximum waiters ({self._max_waiters}) reached for key '{key}', executing new request instead of waiting")
+                    # Do not wait and do not replace the in-flight owner — run a
+                    # standalone fetch that leaves the existing pending entry intact.
+                    overflow_standalone = True
+                    self._logger.warning(f"Maximum waiters ({self._max_waiters}) reached for key '{key}', executing standalone request without replacing owner")
                 else:
                     pending.request_count += 1
                     existing_request = pending
                     self._logger.debug(f"Coalescing request for key '{key}' (total waiting: {pending.request_count})")
+
+        if overflow_standalone:
+            effective_timeout = timeout if timeout is not None else 30.0
+            return await self._execute_standalone(fetch_func, key, effective_timeout)
 
         if existing_request is not None:
             effective_timeout = timeout if timeout is not None else 30.0
@@ -76,12 +84,13 @@ class RequestCoalescingService:
                 pending = self._pending_requests[key]
 
                 if pending.request_count >= self._max_waiters:
-                    self._logger.warning(f"Maximum waiters ({self._max_waiters}) reached for key '{key}', executing new request instead of waiting")
+                    overflow_standalone = True
+                    self._logger.warning(f"Maximum waiters ({self._max_waiters}) reached for key '{key}', executing standalone request without replacing owner")
                 else:
                     pending.request_count += 1
                     existing_request = pending
 
-            if existing_request is None:
+            if existing_request is None and not overflow_standalone:
                 # Check if we've reached max pending requests limit (DoS prevention)
                 if len(self._pending_requests) >= self._max_pending_requests:
                     self._logger.warning(f"Maximum pending requests ({self._max_pending_requests}) reached, evicting oldest request")
@@ -97,6 +106,10 @@ class RequestCoalescingService:
                 self._pending_requests[key] = new_request
                 self._logger.debug(f"Starting new request for key '{key}' (total pending: {len(self._pending_requests)})")
 
+        if overflow_standalone:
+            effective_timeout = timeout if timeout is not None else 30.0
+            return await self._execute_standalone(fetch_func, key, effective_timeout)
+
         if existing_request is not None:
             effective_timeout = timeout if timeout is not None else 30.0
             return await self._wait_for_request(existing_request, key, effective_timeout)
@@ -110,6 +123,20 @@ class RequestCoalescingService:
 
         effective_timeout = timeout if timeout is not None else 30.0
         return await self._execute_request(new_request, key, fetch_func, effective_timeout)
+
+    async def _execute_standalone(
+        self,
+        fetch_func: Callable[[], Awaitable[Any]],
+        key: str,
+        timeout: float,
+    ) -> Any:
+        """Run fetch without registering as the pending owner for ``key``."""
+        try:
+            with anyio.fail_after(timeout):
+                return await fetch_func()
+        except TimeoutError:
+            self._logger.error(f"Standalone coalesced overflow request timed out for key '{key}'")
+            raise TimeoutError(f"Request timed out after {timeout} seconds") from None
 
     async def _wait_for_request(self, existing_request: CoalescedRequest, key: str, timeout: float) -> Any:
         try:

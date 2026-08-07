@@ -286,3 +286,50 @@ class TestCoalescingImportSurface:
             importlib.import_module("prdiffer.infrastructure.utils.coalescing")
         with pytest.raises(ModuleNotFoundError):
             importlib.import_module("prdiffer.infrastructure.utils.coalescing.service")
+
+
+@pytest.mark.unit
+class TestMaxWaitersOverflow:
+    @pytest.mark.anyio
+    async def test_overflow_does_not_replace_pending_owner(self):
+        """When max_waiters is hit, overflow runs standalone without clobbering owner."""
+        service = RequestCoalescingService(logger=Mock(), max_waiters=1)
+        owner_started = anyio.Event()
+        release_owner = anyio.Event()
+        overflow_ran = anyio.Event()
+        owner_fetches = 0
+        overflow_fetches = 0
+
+        async def owner_fetch():
+            nonlocal owner_fetches
+            owner_fetches += 1
+            owner_started.set()
+            await release_owner.wait()
+            return "owner"
+
+        async def overflow_fetch():
+            nonlocal overflow_fetches
+            overflow_fetches += 1
+            overflow_ran.set()
+            return "overflow"
+
+        async with anyio.create_task_group() as tg:
+
+            async def run_owner():
+                result = await service.coalesce("k", owner_fetch, timeout=5.0)
+                assert result == "owner"
+
+            tg.start_soon(run_owner)
+            await owner_started.wait()
+            # max_waiters=1 and owner already counts as 1 → overflow standalone
+            overflow_result = await service.coalesce("k", overflow_fetch, timeout=5.0)
+            assert overflow_result == "overflow"
+            await overflow_ran.wait()
+            stats = await service.get_stats()
+            # Original owner still pending (not replaced)
+            assert stats["pending_count"] == 1
+            assert "k" in stats["pending_keys"]
+            release_owner.set()
+
+        assert owner_fetches == 1
+        assert overflow_fetches == 1
