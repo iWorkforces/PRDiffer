@@ -704,3 +704,60 @@ class TestPRServiceExceptions:
         assert RuntimeError in PR_SERVICE_EXCEPTIONS
         assert ValueError in PR_SERVICE_EXCEPTIONS
         assert TypeError in PR_SERVICE_EXCEPTIONS
+
+
+class TestStrictInventoryFailurePropagation:
+    """Session/snapshot path must not convert provider inventory failures to empty."""
+
+    def test_page_two_failure_does_not_return_empty(self):
+        from unittest.mock import MagicMock
+        import pytest
+        from github import GithubException
+        from prdiffer.domain.interfaces.pr_diff_reader import PRDiffSnapshot
+        from prdiffer.infrastructure.services.pr_diff_service import GitHubPRDiffService
+
+        base = "a" * 40
+        mb = "b" * 40
+        head = "c" * 40
+        snapshot = PRDiffSnapshot("o", "r", 1, base, mb, head, 2)
+
+        class PageTwoFail:
+            def __iter__(self):
+                yield MagicMock(filename="a.py")
+                raise GithubException(500, {"message": "page2"}, None)
+
+        service = GitHubPRDiffService.__new__(GitHubPRDiffService)
+        service._logger = MagicMock()
+        service._file_processor = MagicMock()
+        service._file_processor.max_files_allowed = 50
+        service._file_processor._pattern_matcher.is_valid_file = lambda name: True
+        service._file_processor.process_files_to_patches = MagicMock(return_value=[])
+        service._diff_generator = None
+
+        repo = MagicMock()
+        pr = MagicMock()
+        pr.get_files.return_value = PageTwoFail()
+
+        with pytest.raises(GithubException):
+            service._generate_diff_content(repo, pr, snapshot=snapshot)
+        service._file_processor.process_files_to_patches.assert_not_called()
+
+    def test_authoritative_zero_returns_empty_list(self):
+        from unittest.mock import MagicMock
+        from prdiffer.domain.interfaces.pr_diff_reader import PRDiffSnapshot
+        from prdiffer.infrastructure.services.pr_diff_service import GitHubPRDiffService
+
+        base = "a" * 40
+        mb = "b" * 40
+        head = "c" * 40
+        snapshot = PRDiffSnapshot("o", "r", 1, base, mb, head, 0)
+        service = GitHubPRDiffService.__new__(GitHubPRDiffService)
+        service._logger = MagicMock()
+        service._file_processor = MagicMock()
+        service._file_processor.max_files_allowed = 50
+        service._file_processor._pattern_matcher.is_valid_file = lambda name: True
+        repo = MagicMock()
+        pr = MagicMock()
+        pr.get_files.return_value = []
+        result = service._generate_diff_content(repo, pr, snapshot=snapshot)
+        assert result == []

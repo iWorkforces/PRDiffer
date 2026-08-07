@@ -506,6 +506,9 @@ class GitHubPRDiffService(CachingMixin, PRDiffServiceInterface):
             exc = cast(Exception, e)
             sanitized = sanitize_exception_for_logging(exc)
             self._logger.error("Failed to generate diff content", extra=sanitized)
+            # Strict session path: never convert provider/inventory failures into empty success.
+            if snapshot is not None:
+                raise
             return []
 
     def _get_base_commit_sha(self, repository: Repository, pull_request: PullRequest) -> str | None:
