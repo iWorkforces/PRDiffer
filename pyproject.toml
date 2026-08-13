@@ -18,7 +18,7 @@ classifiers = [
     "Topic :: Software Development :: Version Control :: Git",
 ]
 dependencies = [
-    "fastmcp>=3.4.6",
+    "fastmcp>=3.4.7",
     "pydantic>=2.13.4",
     "fastapi[standard]>=0.141.1",
     "uvicorn[standard]>=0.52.1",
@@ -69,7 +69,7 @@ dev = [
     "pytest-asyncio>=1.4.0",
     "pytest-cov>=7.1.0",
     "pytest-xdist>=3.8.0",
-    "ty>=0.0.69",
+    "ty>=0.0.71",
     "vulture>=2.16",
     "pyright>=1.1.411",
 ]
