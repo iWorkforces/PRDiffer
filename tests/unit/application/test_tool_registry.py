@@ -8,7 +8,14 @@ from unittest.mock import MagicMock, AsyncMock, patch
 from urllib.parse import urlparse
 
 from prdiffer.application.tool_registry import ToolRegistry
-from prdiffer.application.provider_resolver import ProviderCapabilityResolver, ProviderTarget, StrictDiffCapability, create_provider_capability_resolver
+from prdiffer.application.provider_resolver import (
+    ProviderCapabilityResolver,
+    ProviderTarget,
+    StrictDiffCapability,
+    create_provider_capability_resolver,
+    parse_github_target,
+    parse_gitlab_target,
+)
 from prdiffer.domain.entities.pr_diff_cache import (
     StrictPRDiffCacheIdentity,
     github_full_diff_v3_identity,
@@ -1431,3 +1438,99 @@ class TestProviderCapabilityResolver:
 
         failed_calls = [call for call in mock_metrics_tracker.track_request.call_args_list if call.args[:2] == (operation, False)]
         assert len(failed_calls) == 1
+
+    @pytest.mark.parametrize(
+        ("padded_url", "provider", "expected_url", "expected_base_url"),
+        [
+            (
+                "  https://github.com/owner/repo/pull/17\n",
+                "github",
+                "https://github.com/owner/repo/pull/17",
+                None,
+            ),
+            (
+                "\thttps://gitlab.com/owner/repo/-/merge_requests/17  ",
+                "gitlab",
+                "https://gitlab.com/owner/repo/-/merge_requests/17",
+                "https://gitlab.com",
+            ),
+        ],
+    )
+    async def test_resolve_target_strips_surrounding_whitespace_before_prefix_match(
+        self,
+        padded_url: str,
+        provider: ProviderName,
+        expected_url: str,
+        expected_base_url: str | None,
+        session_reader: ProviderReader,
+        mock_github_repository_class,
+    ) -> None:
+        resolver = create_test_provider_resolver(
+            session_reader,
+            mock_github_repository_class,
+            gitlab_reader=ProviderReader(PRDiff(files=()), "f" * 40, provider="gitlab"),
+        )
+
+        target = resolver.resolve_target(padded_url, ProviderAwareValidator())
+
+        assert target.provider == provider
+        assert target.repo_owner == "owner"
+        assert target.repo_name == "repo"
+        assert target.pr_number == 17
+        assert target.url == expected_url
+        assert target.base_url == expected_base_url
+
+    async def test_default_parsers_strip_before_ownership_prefix_checks(self) -> None:
+        validator = ProviderAwareValidator()
+
+        github = parse_github_target(" \nhttps://github.com/owner/repo/pull/17 ", validator)
+        gitlab = parse_gitlab_target("\thttps://gitlab.com/owner/repo/-/merge_requests/17\n", validator)
+
+        assert github is not None
+        assert github.provider == "github"
+        assert github.url == "https://github.com/owner/repo/pull/17"
+        assert gitlab is not None
+        assert gitlab.provider == "gitlab"
+        assert gitlab.url == "https://gitlab.com/owner/repo/-/merge_requests/17"
+        assert gitlab.base_url == "https://gitlab.com"
+
+    async def test_resolve_target_rejects_whitespace_only_url(
+        self,
+        session_reader: ProviderReader,
+        mock_github_repository_class,
+    ) -> None:
+        resolver = create_test_provider_resolver(session_reader, mock_github_repository_class)
+
+        with pytest.raises(InvalidURLError, match="empty or whitespace-only"):
+            resolver.resolve_target(" \t\n ", ProviderAwareValidator())
+
+    @pytest.mark.anyio
+    async def test_get_pr_diff_accepts_leading_whitespace_github_url(
+        self,
+        mock_logger,
+        mock_github_repository_class,
+        mock_rate_limiter,
+        mock_metrics_tracker,
+        mock_authentication,
+    ) -> None:
+        github_diff = PRDiff(files=())
+        github_reader = ProviderReader(github_diff, "github-commit", provider="github")
+        registry = ToolRegistry(
+            pr_diff_service=github_reader,
+            cache_service=RecordingCache(),
+            logger=mock_logger,
+            rate_limiter=mock_rate_limiter,
+            metrics_tracker=mock_metrics_tracker,
+            provider_resolver=create_test_provider_resolver(github_reader, mock_github_repository_class),
+            authentication=mock_authentication,
+            input_validator=ProviderAwareValidator(),
+            request_coalescing_service=RecordingCoalescer(),
+        )
+        capture = MCPToolCapture()
+        registry.register_tools(capture)
+        assert capture.get_pr_diff_tool is not None
+
+        result = await capture.get_pr_diff_tool("  https://github.com/owner/repo/pull/17", None)
+
+        assert result is github_diff
+        assert github_reader.open_calls == [("owner", "repo", 17, None)]
