@@ -6,7 +6,8 @@ from dataclasses import dataclass, field
 from typing import Any
 from unittest.mock import MagicMock, AsyncMock, patch
 
-from prdiffer.application.tool_registry import ToolRegistry
+from prdiffer.application.tool_registry import ToolRegistry as ProductionToolRegistry
+from prdiffer.application.provider_resolver import ProviderCapabilityResolver, ProviderTarget, StrictDiffCapability, create_provider_capability_resolver
 from prdiffer.domain.entities.pr_diff import PRDiff
 from prdiffer.domain.entities.file_diff_response import FileDiffResponse, FileStats
 from prdiffer.domain.entities.file_patch import EDIT_TYPE
@@ -19,6 +20,19 @@ from prdiffer.domain.exceptions import (
     InputSanitizationError,
 )
 from prdiffer.domain.error_codes import E1001_INVALID_URL
+from fastmcp.exceptions import ToolError
+
+
+class ToolRegistry(ProductionToolRegistry):
+    def __init__(self, *args, github_repository_class=None, gitlab_reader=None, gitlab_pr_operations=None, **kwargs) -> None:
+        if "provider_resolver" not in kwargs:
+            kwargs["provider_resolver"] = create_provider_capability_resolver(
+                github_reader=kwargs["pr_diff_service"],
+                github_repository_factory=github_repository_class,
+                gitlab_reader=gitlab_reader,
+                gitlab_operations=gitlab_pr_operations,
+            )
+        super().__init__(*args, **kwargs)
 
 
 @dataclass
@@ -1073,14 +1087,14 @@ class TestApproveDescribeProviderDispatch:
         registry.register_tools(mcp)
         assert mcp.approve_pr_tool is not None
 
-        with pytest.raises(GitHubAPIError) as exc_info:
+        with pytest.raises(ToolError) as exc_info:
             await mcp.approve_pr_tool(
                 "https://gitlab.com/owner/repo/-/merge_requests/17",
                 "Nice",
                 None,
             )
 
-        assert "approve_pr" in str(exc_info.value)
+        assert str(exc_info.value) == "E5022_PROVIDER_CAPABILITY_UNAVAILABLE"
         fail_metrics = [
             c for c in mock_metrics_tracker.track_request.call_args_list if c.args[:2] == ("approve_pr", False)
         ]
@@ -1139,3 +1153,101 @@ class TestApproveDescribeProviderDispatch:
         assert gitlab_ops.approve_calls == [
             ("group/sub", "project", 3, "Solid nested MR", "https://gitlab.com"),
         ]
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+class TestProviderCapabilityResolver:
+    async def test_third_provider_registration_routes_all_advertised_capabilities(
+        self,
+        mock_logger,
+        mock_rate_limiter,
+        mock_metrics_tracker,
+        mock_authentication,
+    ) -> None:
+        class ThirdProviderWrites:
+            async def approve(self, target: ProviderTarget, compliment: str, /) -> str:
+                return f"approved:{target.repo_owner}/{target.repo_name}:{compliment}"
+
+            async def describe(self, target: ProviderTarget, description: str, /) -> str:
+                return f"described:{target.repo_owner}/{target.repo_name}:{description}"
+
+        third_diff = PRDiff(files=())
+        reader = ProviderReader(third_diff, "third-head")
+        resolver = ProviderCapabilityResolver()
+
+        def parse_third(url: str, _validator: ProviderAwareValidator) -> ProviderTarget | None:
+            if url.startswith("https://third.example/"):
+                return ProviderTarget("third", "team/sub", "project", 9, url, "https://third.example")
+            return None
+
+        resolver.register_parser("third", parse_third)
+        resolver.register_strict_diff("third", StrictDiffCapability(reader, "third"))
+        writes = ThirdProviderWrites()
+        resolver.register_approval("third", writes)
+        resolver.register_description("third", writes)
+        registry = ToolRegistry(
+            pr_diff_service=reader,
+            cache_service=RecordingCache(),
+            logger=mock_logger,
+            rate_limiter=mock_rate_limiter,
+            metrics_tracker=mock_metrics_tracker,
+            authentication=mock_authentication,
+            input_validator=ProviderAwareValidator(),
+            request_coalescing_service=RecordingCoalescer(),
+            provider_resolver=resolver,
+        )
+        capture = MCPToolCapture()
+        registry.register_tools(capture)
+
+        assert capture.get_pr_diff_tool is not None
+        assert capture.approve_pr_tool is not None
+        assert capture.describe_pr_tool is not None
+        assert await capture.get_pr_diff_tool("https://third.example/team/sub/project/changes/9") == third_diff
+        assert await capture.approve_pr_tool("https://third.example/team/sub/project/changes/9", "Great", None) == "approved:team/sub/project:Great"
+        assert await capture.describe_pr_tool("https://third.example/team/sub/project/changes/9", "Body", None) == "described:team/sub/project:Body"
+
+    @pytest.mark.parametrize("operation", ["get_pr_diff", "approve_pr", "describe_pr"])
+    async def test_missing_capability_returns_e5022_before_provider_invocation(
+        self,
+        operation: str,
+        mock_logger,
+        mock_rate_limiter,
+        mock_metrics_tracker,
+        mock_authentication,
+    ) -> None:
+        resolver = ProviderCapabilityResolver()
+
+        def parse_read_only(url: str, _validator: ProviderAwareValidator) -> ProviderTarget | None:
+            if url.startswith("https://readonly.example/"):
+                return ProviderTarget("read-only", "team", "project", 9, url)
+            return None
+
+        resolver.register_parser("read-only", parse_read_only)
+        registry = ToolRegistry(
+            pr_diff_service=ProviderReader(PRDiff(files=()), "head"),
+            cache_service=RecordingCache(),
+            logger=mock_logger,
+            rate_limiter=mock_rate_limiter,
+            metrics_tracker=mock_metrics_tracker,
+            authentication=mock_authentication,
+            input_validator=ProviderAwareValidator(),
+            request_coalescing_service=RecordingCoalescer(),
+            provider_resolver=resolver,
+        )
+        capture = MCPToolCapture()
+        registry.register_tools(capture)
+
+        with pytest.raises(ToolError, match="E5022_PROVIDER_CAPABILITY_UNAVAILABLE"):
+            if operation == "get_pr_diff":
+                assert capture.get_pr_diff_tool is not None
+                await capture.get_pr_diff_tool("https://readonly.example/team/project/9")
+            elif operation == "approve_pr":
+                assert capture.approve_pr_tool is not None
+                await capture.approve_pr_tool("https://readonly.example/team/project/9", "Great", None)
+            else:
+                assert capture.describe_pr_tool is not None
+                await capture.describe_pr_tool("https://readonly.example/team/project/9", "Body", None)
+
+        failed_calls = [call for call in mock_metrics_tracker.track_request.call_args_list if call.args[:2] == (operation, False)]
+        assert len(failed_calls) == 1

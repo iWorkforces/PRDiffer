@@ -7,7 +7,7 @@ providing better error handling and more informative error messages.
 from enum import StrEnum
 from typing import Any
 
-from .errors import ErrorCode, E5001_INTERNAL_ERROR, E5020_FULL_DIFF_INCOMPLETE
+from .errors import E5001_INTERNAL_ERROR, E5020_FULL_DIFF_INCOMPLETE, E5022_PROVIDER_CAPABILITY_UNAVAILABLE, ErrorCode
 
 
 class PRDifferException(Exception):
@@ -196,6 +196,17 @@ class GitHubAPIError(PRDifferException):
         """
         super().__init__(message, error_code, details)
         self.status_code = status_code
+
+
+class ProviderCapabilityUnavailableError(PRDifferException):
+    """Raised when a resolved provider does not advertise a requested MCP capability."""
+
+    def __init__(self, operation: str) -> None:
+        super().__init__(
+            "The requested operation is not available for this provider",
+            error_code=E5022_PROVIDER_CAPABILITY_UNAVAILABLE,
+            details={"operation": operation},
+        )
 
 
 class GitLabAPIError(PRDifferException):

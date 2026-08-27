@@ -409,6 +409,14 @@ E5020_FULL_DIFF_INCOMPLETE = ErrorCode(
     category=ErrorCategory.INTERNAL,
 )
 
+E5022_PROVIDER_CAPABILITY_UNAVAILABLE = ErrorCode(
+    code="E5022",
+    name="PROVIDER_CAPABILITY_UNAVAILABLE",
+    message="The requested operation is not available for this provider",
+    remediation="Use a provider that supports the requested operation",
+    category=ErrorCategory.INTERNAL,
+)
+
 E5021_GITLAB_API_ERROR = ErrorCode(
     code="E5021",
     name="GITLAB_API_ERROR",
