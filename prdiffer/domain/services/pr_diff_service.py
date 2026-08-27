@@ -8,7 +8,6 @@ dependency for use cases.
 from abc import ABC, abstractmethod
 
 from prdiffer.domain.entities.pr_diff import PRDiff
-from prdiffer.domain.interfaces.pr_diff_reader import PRDiffReadSessionInterface
 
 
 class PRDiffServiceInterface(ABC):
@@ -61,18 +60,6 @@ class PRDiffServiceInterface(ABC):
             AuthenticationError: If authentication fails
         """
         pass
-
-    async def open_pr_diff_session(
-        self,
-        repo_owner: str,
-        repo_name: str,
-        pr_number: int,
-        /,
-        *,
-        base_url: str | None = None,
-    ) -> PRDiffReadSessionInterface:
-        """Open a strict request-scoped diff session."""
-        raise NotImplementedError
 
     @abstractmethod
     def validate_repository_access(

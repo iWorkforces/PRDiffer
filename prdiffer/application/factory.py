@@ -83,6 +83,8 @@ def create_mcp_server(
 
     if pr_diff_service is None:
         pr_diff_service = infrastructure_factory.create_pr_diff_service()
+    if not isinstance(pr_diff_service, SessionPRDiffReader):
+        raise TypeError("MCP strict diff routing requires a session-capable GitHub reader")
 
     input_validator_instance = infrastructure_factory.create_input_validator()
     from prdiffer.infrastructure.utils.coalescing_service import get_request_coalescing_service

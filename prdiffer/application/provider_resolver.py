@@ -57,6 +57,10 @@ class StrictDiffCapability:
     reader: SessionPRDiffReader
     cache_namespace: str | None
 
+    def __post_init__(self) -> None:
+        if not isinstance(self.reader, SessionPRDiffReader):
+            raise TypeError("Strict diff capabilities require a session-capable reader")
+
 
 class ProviderCapabilityResolver:
     """Select provider targets and operation capabilities from independent registrations."""
