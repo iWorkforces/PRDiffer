@@ -122,7 +122,7 @@ class TestCreateMcpServerGitLabOpsWiring:
         infra.create_logger_service.return_value = MagicMock()
         infra.create_cache_service.return_value = MagicMock()
         infra.create_repository_cache_service.return_value = MagicMock()
-        infra.create_pr_diff_service.return_value = MagicMock()
+        infra.create_pr_diff_service.return_value = ReaderOnly()
         infra.create_input_validator.return_value = MagicMock()
         infra.create_diff_service.return_value = MagicMock()
         infra.create_pattern_matching_service.return_value = MagicMock()

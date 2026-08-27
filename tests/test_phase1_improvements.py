@@ -6,6 +6,7 @@ import pytest
 import anyio
 from unittest.mock import Mock, patch
 
+from prdiffer.application.provider_resolver import ProviderCapabilityResolver
 from prdiffer.infrastructure.security.input_validator import InputValidator
 from prdiffer.infrastructure.utils.circuit_breaker_core import (
     CircuitBreaker,
@@ -422,7 +423,7 @@ class TestErrorMessageSanitization:
             "repository_cache_service": Mock(),
             "pr_diff_service": Mock(),
             "logger": Mock(),
-            "github_repository_class": Mock(),
+            "provider_resolver": ProviderCapabilityResolver(),
             "input_validator": Mock(),
             "rate_limiter": Mock(),
             "metrics_tracker": Mock(),

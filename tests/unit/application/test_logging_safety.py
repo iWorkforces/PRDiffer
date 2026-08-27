@@ -9,6 +9,7 @@ from unittest.mock import Mock
 import pytest
 
 from prdiffer.application.mcp_server import FastMCPServer
+from prdiffer.application.provider_resolver import ProviderCapabilityResolver
 from prdiffer.domain.entities.pr_diff import PRDiff
 from prdiffer.domain.entities.file_diff_response import FileDiffResponse, FileStats
 from prdiffer.domain.entities.file_patch import EDIT_TYPE
@@ -35,7 +36,6 @@ def server_with_mock_logger(mock_logger: Mock) -> FastMCPServer:
     cache_service = Mock()
     repository_cache_service = Mock()
     pr_diff_service = Mock()
-    github_repository_class = Mock()
     rate_limiter = Mock()
     metrics_tracker = Mock()
     pr_operation_handler = Mock()
@@ -52,7 +52,7 @@ def server_with_mock_logger(mock_logger: Mock) -> FastMCPServer:
         repository_cache_service=repository_cache_service,
         pr_diff_service=pr_diff_service,
         logger=mock_logger,
-        github_repository_class=github_repository_class,
+        provider_resolver=ProviderCapabilityResolver(),
         rate_limiter=rate_limiter,
         metrics_tracker=metrics_tracker,
         pr_operation_handler=pr_operation_handler,

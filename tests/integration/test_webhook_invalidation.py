@@ -7,6 +7,7 @@ import pytest
 from unittest.mock import Mock, patch, AsyncMock
 
 from prdiffer.application.mcp_server import FastMCPServer
+from prdiffer.application.provider_resolver import ProviderCapabilityResolver
 
 
 @pytest.fixture
@@ -38,7 +39,6 @@ def mcp_server(mock_cache_service, mock_repository_cache_service, mock_settings)
     """Create an MCP server instance with mocked dependencies."""
     mock_pr_diff_service = Mock()
     mock_logger = Mock()
-    mock_github_repo_class = Mock()
     mock_rate_limiter = Mock()
     mock_metrics_tracker = Mock()
     mock_pr_operation_handler = Mock()
@@ -53,7 +53,7 @@ def mcp_server(mock_cache_service, mock_repository_cache_service, mock_settings)
         repository_cache_service=mock_repository_cache_service,
         pr_diff_service=mock_pr_diff_service,
         logger=mock_logger,
-        github_repository_class=mock_github_repo_class,
+        provider_resolver=ProviderCapabilityResolver(),
         rate_limiter=mock_rate_limiter,
         metrics_tracker=mock_metrics_tracker,
         pr_operation_handler=mock_pr_operation_handler,
