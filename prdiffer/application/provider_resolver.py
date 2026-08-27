@@ -6,7 +6,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Protocol
 
-from prdiffer.application.utils.pr_url_parser import parse_pr_url
+from prdiffer.application.utils.pr_url_parser import PRTarget, normalize_request_url, parse_pr_target
 from prdiffer.domain.exceptions import InvalidURLError, ProviderCapabilityUnavailableError
 from prdiffer.domain.interfaces.input_validation import InputValidatorProtocol
 from prdiffer.domain.interfaces.pr_diff_reader import SessionPRDiffReader
@@ -97,6 +97,7 @@ class ProviderCapabilityResolver:
 
     def resolve_target(self, url: str, input_validator: InputValidatorProtocol, /) -> ProviderTarget:
         """Resolve a sanitized URL through registered provider parsers."""
+        url = normalize_request_url(url)
         matches: list[ProviderTarget] = []
         for parser in self._parsers.values():
             target = parser(url, input_validator)
@@ -170,23 +171,31 @@ class GitLabWriteCapability:
         )
 
 
+def _provider_target_from_parsed(url: str, parsed: PRTarget, /) -> ProviderTarget:
+    return ProviderTarget(
+        parsed.provider,
+        parsed.repo_owner,
+        parsed.repo_name,
+        parsed.pr_number,
+        url,
+        parsed.base_url,
+    )
+
+
 def parse_github_target(url: str, input_validator: InputValidatorProtocol, /) -> ProviderTarget | None:
     """Parse GitHub URLs using the established validation path."""
+    url = normalize_request_url(url)
     if not url.startswith("https://github.com/"):
         return None
-    owner, repository, number = parse_pr_url(url, input_validator)
-    return ProviderTarget("github", owner, repository, number, url)
+    return _provider_target_from_parsed(url, parse_pr_target(url, input_validator))
 
 
 def parse_gitlab_target(url: str, input_validator: InputValidatorProtocol, /) -> ProviderTarget | None:
     """Parse GitLab MR URLs using the established validation and URL-part parser."""
+    url = normalize_request_url(url)
     if not (url.startswith("https://") and "/-/merge_requests/" in url):
         return None
-    from prdiffer.infrastructure.utils.url_parser import parse_gitlab_merge_request_parts
-
-    owner, repository, number = input_validator.validate_gitlab_url(url)
-    parts = parse_gitlab_merge_request_parts(url)
-    return ProviderTarget("gitlab", owner, repository, number, url, base_url=parts.base_url)
+    return _provider_target_from_parsed(url, parse_pr_target(url, input_validator))
 
 
 def create_provider_capability_resolver(

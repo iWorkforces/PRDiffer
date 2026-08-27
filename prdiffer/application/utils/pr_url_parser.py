@@ -24,6 +24,21 @@ class PRTarget:
     base_url: str | None = None
 
 
+def normalize_request_url(pr_url: object) -> str:
+    """Require a string URL and strip surrounding whitespace.
+
+    Shared by ``parse_pr_url``, ``parse_pr_target``, and MCP provider routing so
+    prefix ownership checks see the same normalized form as validation.
+    """
+    if not isinstance(pr_url, str):
+        raise InvalidURLError(f"PR URL must be a string, got {type(pr_url).__name__}")
+
+    stripped = pr_url.strip()
+    if not stripped:
+        raise InvalidURLError("PR URL cannot be empty or whitespace-only")
+    return stripped
+
+
 def parse_pr_url(
     pr_url: object,
     input_validator: InputValidatorProtocol | None = None,
@@ -51,12 +66,7 @@ def parse_pr_url(
         >>> parse_pr_url("https://github.com/owner/repo/pulls/456")
         ('owner', 'repo', 456)
     """
-    if not isinstance(pr_url, str):
-        raise InvalidURLError(f"PR URL must be a string, got {type(pr_url).__name__}")
-
-    pr_url_stripped = pr_url.strip()
-    if not pr_url_stripped:
-        raise InvalidURLError("PR URL cannot be empty or whitespace-only")
+    pr_url_stripped = normalize_request_url(pr_url)
     if input_validator is None:
         from prdiffer.infrastructure.factories.infrastructure_factory import get_infrastructure_factory
 
@@ -69,12 +79,7 @@ def parse_pr_target(
     input_validator: InputValidatorProtocol | None = None,
 ) -> PRTarget:
     """Parse a supported PR or merge request URL into a provider-aware target."""
-    if not isinstance(pr_url, str):
-        raise InvalidURLError(f"PR URL must be a string, got {type(pr_url).__name__}")
-
-    pr_url_stripped = pr_url.strip()
-    if not pr_url_stripped:
-        raise InvalidURLError("PR URL cannot be empty or whitespace-only")
+    pr_url_stripped = normalize_request_url(pr_url)
     if input_validator is None:
         from prdiffer.infrastructure.factories.infrastructure_factory import get_infrastructure_factory
 
