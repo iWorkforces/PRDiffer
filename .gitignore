@@ -233,3 +233,4 @@ start-oc-zai.sh
 # CocoIndex Code (ccc)
 /.cocoindex_code/
 .omo/
+.tmp/
