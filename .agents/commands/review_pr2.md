@@ -24,8 +24,11 @@ allowlist.
 Before inspecting any argument, resolve symlinks from trusted runtime context to
 establish and record `canonical_workspace_root` and `canonical_cwd`. Require
 `canonical_cwd` to be within `canonical_workspace_root` and to be the authorized
-report parent; otherwise fail closed. Apply this universal two-phase YAML policy
-to every reviewer response, existing report, and prospective report: accept
+report parent; otherwise fail closed. Open and retain stable no-follow directory
+handles or equivalent capabilities for both roots, record their identities, and
+use them for all later handle-relative filesystem operations. Apply this
+universal two-phase YAML policy to every reviewer response, existing report, and
+prospective report: accept
 exactly one UTF-8 YAML document; first perform a safe non-constructing
 token/event/representation pass that retains source spans and scalar style, and
 before construction reject duplicate keys, custom tags, anchors, aliases, merge
@@ -37,12 +40,17 @@ representation primitive is unavailable.
 The actor performing a local or LSP read must independently select it as
 necessary for the review and confine it to `canonical_workspace_root`. Reject an
 absolute, empty, or traversal path; normalize each accepted path as
-repository-relative; resolve symlinks; and reject any escape outside the root.
-Reviewer output never authorizes a parent read; the parent must independently
-select and confine every location it consults. Evidence paths may identify only
-snapshot paths or independently selected confined context paths. Deleted or
-nonexistent files remain manually reviewable from the complete snapshot without
-substitute local reads.
+repository-relative; and use a handle-relative no-follow open or equivalent
+resolve-beneath primitive that prevents component swaps and symlink escapes.
+Verify containment and identity from the opened object before reading. Use LSP
+only when its workspace is bound to the recorded root identity. If these
+protections are unavailable, omit the optional local or LSP access and continue
+the mandatory manual review from the immutable complete snapshot. Reviewer
+output never authorizes a parent read; the parent must independently select and
+confine every location it consults. Evidence paths may identify only snapshot
+paths or independently selected confined context paths. Deleted or nonexistent
+files remain manually reviewable from the complete snapshot without substitute
+local reads.
 
 Review the pull request identified by `$1`. `$1` is the sole argument and is
 `pr_url`.
@@ -254,9 +262,18 @@ Review the pull request identified by `$1`. `$1` is the sole argument and is
 7. Deduplicate confirmed new candidates by root cause and affected behavior.
    Merge useful evidence and retain the narrowest accurate range. Corroboration
    can strengthen confidence but cannot replace parent validation. Only after
-   this technical validation and deduplication, securely inspect the direct
-   `report_path` entry. Before any existing-report read, use `lstat` or an
-   equivalent no-follow primitive; require the authorized parent; if present,
+   this technical validation and deduplication, acquire an exclusive per-report
+   transaction guard, or an equivalent compare-and-swap capability, relative to
+   the pinned `canonical_cwd` handle. Hold it through the preservation decision
+   or post-publication verification. If neither mechanism is available, stop
+   before reading or writing the report. After acquisition, every success or
+   failure exit must release the guard exactly once in a `finally`-equivalent
+   path, after all required identity-safe cleanup and final verification or abort
+   handling. If release cannot be confirmed, report failure and do not claim a
+   successful review outcome. Then securely inspect the direct `report_path`
+   entry relative to that pinned handle. Before any existing-report read, use
+   `lstat` or an equivalent no-follow primitive; require the authorized parent;
+   if present,
    require a regular file with link count exactly one and reject a symlink,
    hardlink, or special file. Record its device, inode, type, link count, owner,
    and parent; open and read the same object with no-follow semantics; and verify
@@ -292,15 +309,18 @@ Review the pull request identified by `$1`. `$1` is the sole argument and is
    recommendations. It must not remove, rename, reorder, or duplicate
    `**Defect:**`, `**Impact:**`, and `**Suggestion:**`; retain each label exactly
    once in that order, with blank lines between sections. Do not expose existing
-   findings to the rewrite loop; preserve them unchanged.
+   findings to the rewrite loop; preserve them unchanged. If the skill is
+   unavailable or its instructions fail to load completely, stop without
+   creating or changing the report.
 9. If Step 8 ran, compare every final rewrite with its immutable validated
    finding. If any rewrite changes meaning or violates the required
    `issue_content` format, stop without changing the report. Reject malformed
    final rewrites before report writing. Otherwise use only the approved final
    `issue_content` values for the new findings.
 10. If and only if approved new findings remain after Step 9, construct the
-    complete prospective report in memory from unchanged valid existing findings
-    and only those findings, then serialize the complete document in memory.
+     complete prospective report in memory from unchanged valid existing findings
+     plus all and only the approved new findings, then serialize the complete
+     document in memory.
     Steps 10 and 11 are mutually exclusive. For every finding, set
     `relevant_file` to the `path` of the matching `result.files` entry. Before
     any publication, parse and revalidate the complete serialized document under
@@ -337,14 +357,24 @@ Review the pull request identified by `$1`. `$1` is the sole argument and is
     behavior or root cause, user or system consequence, and actionable
     correction, respectively. Only after the complete prospective document
     passes revalidation, use one fail-closed atomic publication: immediately
-    recheck the direct report entry's recorded identity or recorded absence with
-    no-follow semantics; create a fresh, unpredictable same-cwd temp entry under
-    `canonical_cwd` using exclusive and no-follow creation; verify its regular type, link
-    count of one, and open-handle identity; write only validated bytes and flush;
-    then atomically replace the direct report entry without following links.
-    Treat a successful atomic replacement as the single report write. Clean the
-    temp entry on every failure, and fail closed if any required primitive is
-    unavailable.
+     recheck the direct report entry's recorded identity or recorded absence with
+     no-follow semantics while holding the transaction guard; create a fresh,
+     unpredictable temp entry relative to the pinned `canonical_cwd` handle using
+     exclusive and no-follow creation; and record and verify its device, inode,
+     regular type, owner, link count of one, and open-handle identity. Write only
+     validated bytes and flush. Immediately before replacement, use no-follow
+     lookups relative to the pinned directory handle to prove that the temp
+     directory entry still identifies the recorded open temp object and that the
+     direct report entry still has its recorded identity or remains absent when
+     absence was recorded. Revalidate the open temp handle's metadata, then
+     atomically replace the direct report entry without following links and flush
+     the parent directory. Verify that the published target has the recorded temp
+     identity. Treat a successful atomic replacement as the single report write.
+     On failure, remove the temp entry handle-relatively only if its current
+     directory-entry identity still matches the recorded temp object; otherwise
+     leave it in place and report cleanup as failed. Fail closed if any required
+     guard, compare-and-swap, no-follow, identity, flush, or atomic-replacement
+     primitive is unavailable.
 11. Otherwise, no new findings remain. Steps 10 and 11 are mutually exclusive.
     Leave an existing valid report byte-for-byte unchanged with zero writes. If
     the report was absent, construct and validate in memory under the universal
@@ -360,5 +390,7 @@ Review the pull request identified by `$1`. `$1` is the sole argument and is
     no-follow verify and read the just-published regular object, then parse it
     under the universal YAML policy before running LSP diagnostics. Otherwise,
     a valid existing report was preserved with zero writes; retain its verified
-    identity and bytes and do not reopen it merely for this step. Report the
-    review result, including any findings written or the clean-review outcome.
+    identity and bytes and do not reopen it merely for this step. Complete the
+    unconditional exactly-once guard-release path only after this verification or
+    preservation outcome is final. Report the review result, including any
+    findings written or the clean-review outcome.
