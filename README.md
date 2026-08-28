@@ -1,14 +1,14 @@
-# PRDifferMCP
+# PRDiffer
 
 [![Python Version](https://img.shields.io/badge/python-3.14+-blue.svg)](https://www.python.org/downloads/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![PR Quality](https://github.com/iWorkforces/PRDifferMCP/actions/workflows/pr-quality.yml/badge.svg)](https://github.com/iWorkforces/PRDifferMCP/actions/workflows/pr-quality.yml)
+[![PR Quality](https://github.com/iWorkforces/PRDiffer/actions/workflows/pr-quality.yml/badge.svg)](https://github.com/iWorkforces/PRDiffer/actions/workflows/pr-quality.yml)
 
 A Model Context Protocol (MCP) server that provides comprehensive GitHub Pull Request diff analysis with full file context for AI assistants and code review tools.
 
 ## Overview
 
-PRDifferMCP is an MCP server that extracts and analyzes GitHub PR diffs, providing AI assistants with rich context for code review, analysis, and assistance. Unlike standard diff tools that only show changed hunks, PRDifferMCP provides full-file context, commit messages, and intelligent file filtering.
+PRDiffer is an MCP server that extracts and analyzes GitHub PR diffs, providing AI assistants with rich context for code review, analysis, and assistance. Unlike standard diff tools that only show changed hunks, PRDiffer provides full-file context, commit messages, and intelligent file filtering.
 
 ### Key Features
 
@@ -33,8 +33,8 @@ PRDifferMCP is an MCP server that extracts and analyzes GitHub PR diffs, providi
 
 ```bash
 # Clone the repository
-git clone https://github.com/OCWorkforces/PRDifferMCP.git
-cd PRDifferMCP
+git clone https://github.com/iWorkforces/PRDiffer.git
+cd PRDiffer
 
 # Install dependencies with uv (recommended)
 uv install
@@ -82,27 +82,33 @@ File `opencode.json`:
 }
 ```
 
+#### Add to Grok build
+
+```bash
+grok mcp add --transport http prdiffer http://127.0.0.1:9102/mcp
+```
+
 ## AI Agent Skill
 
-PRDifferMCP ships with an **[Agent Skill](https://skills.sh)** that teaches AI coding assistants how to use `prdiffer__get_pr_diff`, `prdiffer__approve_pr`, and `prdiffer__describe_pr` MCP tools effectively. The skill provides tool signatures, structured return type documentation, common workflows, error handling patterns, and constraints — so your AI agent can analyze PRs without guessing.
+PRDiffer ships with an **[Agent Skill](https://skills.sh)** that teaches AI coding assistants how to use `prdiffer__get_pr_diff`, `prdiffer__approve_pr`, and `prdiffer__describe_pr` MCP tools effectively. The skill provides tool signatures, structured return type documentation, common workflows, error handling patterns, and constraints — so your AI agent can analyze PRs without guessing.
 
 ### Install the Skill
 
 ```bash
-npx skills add OCWorkforces/PRDifferMCP
+npx skills add iWorkforces/PRDiffer
 ```
 
 This installs the skill to all detected AI coding agents. For specific agents:
 
 ```bash
 # Claude Code only
-npx skills add OCWorkforces/PRDifferMCP -a claude-code
+npx skills add iWorkforces/PRDiffer -a claude-code
 
 # OpenCode only
-npx skills add OCWorkforces/PRDifferMCP -a opencode
+npx skills add iWorkforces/PRDiffer -a opencode
 
 # Multiple agents
-npx skills add OCWorkforces/PRDifferMCP -a claude-code -a opencode -a cursor
+npx skills add iWorkforces/PRDiffer -a claude-code -a opencode -a cursor
 ```
 
 ### Supported Agents
