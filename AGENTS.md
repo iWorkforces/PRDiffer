@@ -3,10 +3,10 @@
 **Generated:** 2026-08-07
 **Commit:** d4b78ea
 **Branch:** develop
-**Version:** 0.6.3
+**Version:** 0.6.4
 
 ## OVERVIEW
-Python 3.14.6+ MCP server for GitHub/GitLab PR (merge request) analysis with Clean Architecture (Domain → Application → Infrastructure). FastMCP 3.x, Pydantic v2 (application boundary), anyio async. **296** Python files (**146** src + **150** tests), **44** AGENTS.md files. **~2565** test defs across **134** `test_*.py` files.
+Python 3.14.4+ MCP server for GitHub/GitLab PR (merge request) analysis with Clean Architecture (Domain → Application → Infrastructure). FastMCP 3.x, Pydantic v2 (application boundary), anyio async. **296** Python files (**146** src + **150** tests), **44** AGENTS.md files. **~2565** test defs across **134** `test_*.py` files.
 
 Strict full-context diffs are **all-or-nothing**: complete ordered multi-file context or structured `E5020_FULL_DIFF_INCOMPLETE` (no partial files, no truncation notices). Both GitHub and GitLab use session-scoped open/build/close paths. GitHub head/base content can load in one interleaved multi-ref batch (`FileContentRequest` / `get_files_content_multi_ref_batch`).
 
@@ -160,7 +160,8 @@ PRDifferMCP/
 - Primary type checker in scripts/CI: **ty** (Astral); pyright also configured.
 
 ### Python Version
-- **requires-python**: `>=3.14.6` (`pyproject.toml`); `.python-version`: `3.14.6` (CI setup-uv uses `"3.14"`).
+
+- **requires-python**: `>=3.14.4` (`pyproject.toml`); `.python-version`: `3.14.4` (CI setup-uv uses `"3.14"`).
 - Prefer built-in generics (`list[str]`, `X | None`). ~65 files still use `from typing import …` (documented deviation).
 - **0** `# type: ignore` in `prdiffer/`.
 
@@ -286,7 +287,7 @@ uv run pytest tests -v --tb=short
 - **VCS**: GitHub (session-isolated full-diff + approve review + describe) + GitLab (strict version-pinned full-diff + **note-then-approve** + description update; host allowlist). Factory auto-wires `gitlab_pr_operations` from dual-role `GitLabVCSRepository` when ops not injected separately.
 - **Custom GitLab**: `GITLAB_ALLOWED_HOSTS=gitlab.com,your.host` + `GITLAB_TOKEN` (write/`api` for approve/describe; read scopes suffice for diff-only); MR URLs via `https://host/group/project/-/merge_requests/N`.
 - **Package version**: `pyproject.toml` = `0.6.2` (keep `prdiffer/version.py` in sync when releasing).
-- **Python**: 3.14.6+ required (`requires-python`); local pin `.python-version` = 3.14.6.
+- **Python**: 3.14.4+ required (`requires-python`); local pin `.python-version` = 3.14.7.
 - **AGENTS.md coverage**: 44 files (root + layer/package docs under `prdiffer/`, `tests/`, `scripts/`).
 - **Skill**: `skills/prdiffer/SKILL.md` documents dual-provider tools, MR URL formats, GitLab error codes.
 - **Empty reserved dirs**: `application/plugins/`, `application/services/` (AGENTS only); `application/interfaces/` (`__init__.py` + AGENTS); `infrastructure/interfaces/` (AGENTS only). Protocols live in `domain/interfaces/`.
