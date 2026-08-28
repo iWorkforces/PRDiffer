@@ -1,13 +1,13 @@
 [project]
 name = "prdiffer"
-version = "0.6.3"
+version = "0.6.4"
 description = "MCP Server For GitHub PR/GitLab MR Review Process With Full Contexts"
 readme = "README.md"
 license = { text = "MIT" }
 authors = [
     { name = "iWorkforces Engineers" }
 ]
-requires-python = ">=3.14.6"
+requires-python = ">=3.14.4"
 keywords = ["mcp", "github", "pr-review", "code-review", "diff", "model-context-protocol"]
 classifiers = [
     "Development Status :: 4 - Beta",
@@ -64,12 +64,12 @@ packages = ["prdiffer"]
 
 [dependency-groups]
 dev = [
-    "ruff>=0.16.4",
+    "ruff>=0.16.5",
     "pytest>=9.1.1",
     "pytest-asyncio>=1.4.0",
     "pytest-cov>=7.1.0",
     "pytest-xdist>=3.8.0",
-    "ty>=0.0.74",
+    "ty>=0.0.75",
     "vulture>=2.16",
     "pyright>=1.1.411",
 ]

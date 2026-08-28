@@ -3,7 +3,7 @@
 Pure business logic. No external deps, no I/O. Entities, ports (ABC/Protocol), use cases, and factory contracts only.
 
 ## OVERVIEW
-Package **0.6.2**, Python **3.14.6+**.  
+Package **0.6.2**, Python **3.14.4+**.
 **42** modules across root + **7** subpackages (no package-level `__init__.py` — import concrete modules). Frozen dataclasses for most entities; ABC/Protocol for ports.
 
 ## STRUCTURE
