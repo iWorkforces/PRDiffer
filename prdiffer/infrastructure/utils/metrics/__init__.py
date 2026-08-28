@@ -1,1 +1,1 @@
-"""Performance monitoring metrics for PRDifferMCP."""
+"""Performance monitoring metrics for PRDiffer."""

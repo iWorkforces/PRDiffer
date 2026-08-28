@@ -1,4 +1,4 @@
-# PRDifferMCP Development Roadmap
+# PRDiffer Development Roadmap
 
 **Version:** 0.4.8
 **Last Updated:** 2025-01-25
@@ -8,7 +8,7 @@
 
 ## Overview
 
-This roadmap outlines planned features and improvements for PRDifferMCP, a Model Context Protocol server for GitHub PR diff analysis with full context.
+This roadmap outlines planned features and improvements for PRDiffer, a Model Context Protocol server for GitHub PR diff analysis with full context.
 
 **Current Status:** Core functionality fully implemented with comprehensive test coverage (880+ tests).
 

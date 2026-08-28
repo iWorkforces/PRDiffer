@@ -20,7 +20,7 @@ Strict full-context diffs are **all-or-nothing**: complete ordered multi-file co
 
 ## STRUCTURE
 ```
-PRDifferMCP/
+PRDiffer/
 ├── prdiffer/
 │   ├── domain/           # Pure business logic (42 modules, 7 packages)
 │   ├── infrastructure/   # External integrations (80 modules: cache/github/security/utils/vcs)

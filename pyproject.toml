@@ -47,10 +47,10 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/OCWorkforces/PRDifferMCP"
-Repository = "https://github.com/OCWorkforces/PRDifferMCP"
-Issues = "https://github.com/OCWorkforces/PRDifferMCP/issues"
-Documentation = "https://github.com/OCWorkforces/PRDifferMCP#readme"
+Homepage = "https://github.com/iWorkforces/PRDiffer"
+Repository = "https://github.com/iWorkforces/PRDiffer"
+Issues = "https://github.com/iWorkforces/PRDiffer/issues"
+Documentation = "https://github.com/iWorkforces/PRDiffer#readme"
 
 [project.scripts]
 prdiffer = "prdiffer.server:main"
