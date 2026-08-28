@@ -4,15 +4,12 @@ import time
 import hashlib
 import json
 from dataclasses import asdict
-from collections.abc import Callable
 from typing import NoReturn
-from prdiffer.domain.repositories.pr_diff_repository import PRDiffRepositoryInterface
 
 from fastmcp import FastMCP
 from fastmcp.exceptions import ToolError
 
 from prdiffer.domain.entities.pr_diff import PRDiff
-from prdiffer.domain.usecases.pr_diff_usecases import PRDiffReader
 from prdiffer.domain.services.pr_diff_service import PRDiffServiceInterface
 from prdiffer.domain.services.cache import CacheServiceInterface
 from prdiffer.domain.services.logger import LoggerServiceInterface, LogLevel
@@ -20,11 +17,11 @@ from prdiffer.domain.interfaces.protocols import (
     RateLimiterProtocol,
     MetricsTrackerProtocol,
     AuthenticationProtocol,
-    GitLabPROperationsProtocol,
 )
 from prdiffer.domain.interfaces.input_validation import InputValidatorProtocol
 from prdiffer.domain.interfaces.request_coalescing import RequestCoalescingProtocol
-from prdiffer.application.utils.pr_url_parser import parse_pr_target, parse_pr_url
+from prdiffer.application.provider_resolver import ProviderCapabilityResolver
+from prdiffer.application.utils.pr_url_parser import parse_pr_url
 from prdiffer.application.pr_diff_executor import CoalescedPRDiffExecutionMixin
 
 from prdiffer.domain.exceptions import (
@@ -37,6 +34,7 @@ from prdiffer.domain.exceptions import (
     AuthenticationError,
     FullDiffIncompleteError,
     GitHubAPIError,
+    ProviderCapabilityUnavailableError,
     RateLimitError,
 )
 from prdiffer.domain.errors import (
@@ -45,7 +43,10 @@ from prdiffer.domain.errors import (
     E3001_RATE_LIMITED,
     E5002_GITHUB_API_ERROR,
     E5020_FULL_DIFF_INCOMPLETE,
+    E5022_PROVIDER_CAPABILITY_UNAVAILABLE,
 )
+
+__all__ = ["ToolRegistry"]
 
 
 class ToolRegistry(CoalescedPRDiffExecutionMixin):
@@ -56,11 +57,9 @@ class ToolRegistry(CoalescedPRDiffExecutionMixin):
         pr_diff_service: PRDiffServiceInterface,
         cache_service: CacheServiceInterface,
         logger: LoggerServiceInterface,
-        github_repository_class: Callable[[str, str, int], PRDiffRepositoryInterface],
         rate_limiter: RateLimiterProtocol,
         metrics_tracker: MetricsTrackerProtocol,
-        gitlab_reader: PRDiffReader | None = None,
-        gitlab_pr_operations: GitLabPROperationsProtocol | None = None,
+        provider_resolver: ProviderCapabilityResolver,
         authentication: AuthenticationProtocol | None = None,
         input_validator: InputValidatorProtocol | None = None,
         request_coalescing_service: RequestCoalescingProtocol | None = None,
@@ -68,11 +67,9 @@ class ToolRegistry(CoalescedPRDiffExecutionMixin):
         pr_diff_request_timeout_seconds: float | None = None,
     ):
         self._pr_diff_service = pr_diff_service
-        self._gitlab_reader = gitlab_reader
-        self._gitlab_pr_operations = gitlab_pr_operations
         self._cache_service = cache_service
         self._logger = logger
-        self._github_repository_class = github_repository_class
+        self._provider_resolver = provider_resolver
         self._rate_limiter = rate_limiter
         self._metrics_tracker = metrics_tracker
         self._cache_hit_optimization_enabled = cache_hit_optimization_enabled
@@ -264,6 +261,12 @@ class ToolRegistry(CoalescedPRDiffExecutionMixin):
             error_code=E5002_GITHUB_API_ERROR,
         )
 
+    def _handle_capability_exception(self, exception: ProviderCapabilityUnavailableError, start_time: float, operation: str) -> NoReturn:
+        """Return the stable unsupported-capability error and record one failure metric."""
+        execution_time = time.time() - start_time
+        self._metrics_tracker.track_request(operation, False, execution_time)
+        raise ToolError(str(E5022_PROVIDER_CAPABILITY_UNAVAILABLE)) from exception
+
     def register_tools(self, mcp: FastMCP) -> None:
 
         @mcp.tool()
@@ -309,28 +312,17 @@ class ToolRegistry(CoalescedPRDiffExecutionMixin):
                 if not pr_url:
                     raise InputSanitizationError("PR URL parameter is required")
                 sanitized_pr_url = self._input_validator.sanitize_string(pr_url, max_length=2000)
-                target = parse_pr_target(sanitized_pr_url, self._input_validator)
-
-                match target.provider:
-                    case "github":
-                        pr_diff = await self._execute_use_case_with_coalescing(
-                            request_id,
-                            target.repo_owner,
-                            target.repo_name,
-                            target.pr_number,
-                        )
-                    case "gitlab":
-                        if self._gitlab_reader is None:
-                            raise RuntimeError("GitLab reader is not configured")
-                        pr_diff = await self._execute_use_case_with_coalescing(
-                            request_id,
-                            target.repo_owner,
-                            target.repo_name,
-                            target.pr_number,
-                            pr_diff_reader=self._gitlab_reader,
-                            cache_namespace="gitlab",
-                            base_url=target.base_url,
-                        )
+                target = self._provider_resolver.resolve_target(sanitized_pr_url, self._input_validator)
+                capability = self._provider_resolver.resolve_strict_diff(target)
+                pr_diff = await self._execute_use_case_with_coalescing(
+                    request_id,
+                    target.repo_owner,
+                    target.repo_name,
+                    target.pr_number,
+                    pr_diff_reader=capability.reader,
+                    cache_namespace=capability.cache_namespace,
+                    base_url=target.base_url,
+                )
 
                 return self._log_metrics_and_return_success(start_time, pr_diff)
 
@@ -344,6 +336,9 @@ class ToolRegistry(CoalescedPRDiffExecutionMixin):
                     "details": e.details,
                 }
                 raise ToolError(json.dumps(payload, separators=(",", ":"), sort_keys=False)) from e
+
+            except ProviderCapabilityUnavailableError as e:
+                self._handle_capability_exception(e, start_time, "get_pr_diff")
 
             except (
                 InvalidURLError,
@@ -405,7 +400,7 @@ class ToolRegistry(CoalescedPRDiffExecutionMixin):
                 if not pr_url:
                     raise InputSanitizationError("PR URL parameter is required")
                 sanitized_pr_url = self._input_validator.sanitize_string(pr_url, max_length=2000)
-                target = parse_pr_target(sanitized_pr_url, self._input_validator)
+                target = self._provider_resolver.resolve_target(sanitized_pr_url, self._input_validator)
 
                 if not isinstance(compliment, str) or not compliment.strip():
                     raise ValidationError(
@@ -414,27 +409,8 @@ class ToolRegistry(CoalescedPRDiffExecutionMixin):
                     )
                 compliment = compliment.strip()
 
-                match target.provider:
-                    case "github":
-                        repository = self._github_repository_class(
-                            target.repo_owner,
-                            target.repo_name,
-                            target.pr_number,
-                        )
-                        result = await repository.approve_pr_with_comment(
-                            pr_url=sanitized_pr_url,
-                            compliment=compliment,
-                        )
-                    case "gitlab":
-                        if self._gitlab_pr_operations is None:
-                            raise RuntimeError("GitLab PR operations are not configured")
-                        result = await self._gitlab_pr_operations.approve_pr_with_comment(
-                            target.repo_owner,
-                            target.repo_name,
-                            target.pr_number,
-                            compliment,
-                            base_url=target.base_url,
-                        )
+                capability = self._provider_resolver.resolve_approval(target)
+                result = await capability.approve(target, compliment)
 
                 execution_time = time.time() - start_time
                 self._metrics_tracker.track_request("approve_pr", True, execution_time)
@@ -453,6 +429,9 @@ class ToolRegistry(CoalescedPRDiffExecutionMixin):
 
             except ValueError as e:
                 self._handle_validation_exception(e, start_time, request_id, pr_url, operation="approve_pr")
+
+            except ProviderCapabilityUnavailableError as e:
+                self._handle_capability_exception(e, start_time, "approve_pr")
 
             except (
                 RuntimeError,
@@ -501,7 +480,7 @@ class ToolRegistry(CoalescedPRDiffExecutionMixin):
                 if not pr_url:
                     raise InputSanitizationError("PR URL parameter is required")
                 sanitized_pr_url = self._input_validator.sanitize_string(pr_url, max_length=2000)
-                target = parse_pr_target(sanitized_pr_url, self._input_validator)
+                target = self._provider_resolver.resolve_target(sanitized_pr_url, self._input_validator)
 
                 if not isinstance(pr_description, str) or not pr_description.strip():
                     raise ValidationError(
@@ -510,27 +489,8 @@ class ToolRegistry(CoalescedPRDiffExecutionMixin):
                     )
                 pr_description = pr_description.strip()
 
-                match target.provider:
-                    case "github":
-                        repository = self._github_repository_class(
-                            target.repo_owner,
-                            target.repo_name,
-                            target.pr_number,
-                        )
-                        result = await repository.update_pr_description(
-                            pr_url=sanitized_pr_url,
-                            description=pr_description,
-                        )
-                    case "gitlab":
-                        if self._gitlab_pr_operations is None:
-                            raise RuntimeError("GitLab PR operations are not configured")
-                        result = await self._gitlab_pr_operations.update_pr_description(
-                            target.repo_owner,
-                            target.repo_name,
-                            target.pr_number,
-                            pr_description,
-                            base_url=target.base_url,
-                        )
+                capability = self._provider_resolver.resolve_description(target)
+                result = await capability.describe(target, pr_description)
 
                 execution_time = time.time() - start_time
                 self._metrics_tracker.track_request("describe_pr", True, execution_time)
@@ -549,6 +509,9 @@ class ToolRegistry(CoalescedPRDiffExecutionMixin):
 
             except ValueError as e:
                 self._handle_validation_exception(e, start_time, request_id, pr_url, operation="describe_pr")
+
+            except ProviderCapabilityUnavailableError as e:
+                self._handle_capability_exception(e, start_time, "describe_pr")
 
             except (
                 RuntimeError,

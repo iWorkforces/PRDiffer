@@ -4,7 +4,7 @@ from typing import Any, Protocol
 
 import pytest
 from prdiffer.application.utils import pr_url_parser
-from prdiffer.application.utils.pr_url_parser import parse_pr_url
+from prdiffer.application.utils.pr_url_parser import normalize_request_url, parse_pr_url
 from prdiffer.domain.exceptions import (
     InvalidURLError,
     InvalidPRNumberError,
@@ -18,6 +18,20 @@ class PRTarget(Protocol):
     repo_owner: str
     repo_name: str
     pr_number: int
+
+
+@pytest.mark.unit
+class TestNormalizeRequestURL:
+    def test_strips_surrounding_whitespace(self) -> None:
+        assert normalize_request_url("  https://github.com/owner/repo/pull/1\n") == "https://github.com/owner/repo/pull/1"
+
+    def test_rejects_non_string(self) -> None:
+        with pytest.raises(InvalidURLError, match="must be a string"):
+            normalize_request_url(None)
+
+    def test_rejects_whitespace_only(self) -> None:
+        with pytest.raises(InvalidURLError, match="empty or whitespace-only"):
+            normalize_request_url(" \t\n ")
 
 
 @pytest.mark.unit
@@ -252,6 +266,21 @@ class TestParsePRTarget:
         validator = InputValidator()
         with pytest.raises((InvalidURLError, InvalidPRNumberError, SuspiciousOperationError)):
             pr_url_parser.parse_pr_target(bad_url, validator)
+
+    def test_parse_pr_target_strips_surrounding_whitespace(self) -> None:
+        validator = InputValidator()
+
+        github = pr_url_parser.parse_pr_target("  https://github.com/owner/repo/pull/17\n", validator)
+        gitlab = pr_url_parser.parse_pr_target("\thttps://gitlab.com/owner/repo/-/merge_requests/17  ", validator)
+
+        assert github.provider == "github"
+        assert github.repo_owner == "owner"
+        assert github.repo_name == "repo"
+        assert github.pr_number == 17
+        assert gitlab.provider == "gitlab"
+        assert gitlab.repo_owner == "owner"
+        assert gitlab.repo_name == "repo"
+        assert gitlab.pr_number == 17
 
     def test_parse_custom_hosted_gitlab_url(self) -> None:
         """Custom-hosted GitLab MR URL (placeholder host)."""

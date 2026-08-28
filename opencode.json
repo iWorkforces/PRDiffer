@@ -8,6 +8,11 @@
                 "--mcp"
             ],
             "enabled": true
+        },
+        "prdiffer": {
+            "type": "remote",
+            "url": "http://127.0.0.1:9102/mcp",
+            "enabled": true
         }
     }
 }

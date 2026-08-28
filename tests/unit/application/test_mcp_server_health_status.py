@@ -3,6 +3,7 @@ from unittest.mock import Mock, patch
 import anyio
 
 from prdiffer.application.mcp_server import FastMCPServer
+from prdiffer.application.provider_resolver import ProviderCapabilityResolver
 
 
 class DummyCoalescingService:
@@ -20,7 +21,6 @@ def test_health_status_includes_cache_and_coalescing():
 
     pr_diff_service = Mock()
     logger = Mock()
-    github_repository_class = Mock()
     rate_limiter = Mock()
     metrics_tracker = Mock()
     pr_operation_handler = Mock()
@@ -41,7 +41,7 @@ def test_health_status_includes_cache_and_coalescing():
             repository_cache_service=repository_cache_service,
             pr_diff_service=pr_diff_service,
             logger=logger,
-            github_repository_class=github_repository_class,
+            provider_resolver=ProviderCapabilityResolver(),
             rate_limiter=rate_limiter,
             metrics_tracker=metrics_tracker,
             pr_operation_handler=pr_operation_handler,

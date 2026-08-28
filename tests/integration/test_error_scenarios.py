@@ -4,6 +4,8 @@ Verify proper error handling for API failures, rate limits,
 network errors, and invalid inputs.
 """
 
+from __future__ import annotations
+
 from typing import cast
 from unittest.mock import Mock, AsyncMock
 import pytest
@@ -12,6 +14,7 @@ from github import GithubException, RateLimitExceededException, UnknownObjectExc
 from prdiffer.application.factory import create_mcp_server
 from prdiffer.application.utils.pr_url_parser import parse_pr_url
 from prdiffer.domain.entities.pr_diff import PRDiff
+from prdiffer.domain.entities.pr_diff_cache import StrictPRDiffCacheIdentity, github_full_diff_v3_identity
 from prdiffer.domain.exceptions import (
     InvalidURLError,
     InvalidRepositoryError,
@@ -19,7 +22,93 @@ from prdiffer.domain.exceptions import (
     InputSanitizationError,
     SuspiciousOperationError,
 )
+from prdiffer.domain.interfaces.pr_diff_reader import PRDiffReadSessionInterface, PRDiffSnapshot
+from prdiffer.domain.services.pr_diff_service import PRDiffServiceInterface
 from prdiffer.infrastructure.github_repository import GitHubPRDiffRepository
+
+
+class ErrorScenarioPRDiffSession(PRDiffReadSessionInterface):
+    def __init__(self, reader: ErrorScenarioPRDiffReader, repo_owner: str, repo_name: str, pr_number: int) -> None:
+        self._reader = reader
+        self._snapshot = PRDiffSnapshot(
+            repo_owner,
+            repo_name,
+            pr_number,
+            "a" * 40,
+            "b" * 40,
+            "c" * 40,
+            len(reader.build_pr_diff_return_value.files),
+        )
+        self._cache_identity = github_full_diff_v3_identity(
+            repo_owner,
+            repo_name,
+            pr_number,
+            self._snapshot.merge_base_sha,
+            self._snapshot.head_sha,
+        )
+
+    @property
+    def snapshot(self) -> PRDiffSnapshot:
+        return self._snapshot
+
+    @property
+    def cache_identity(self) -> StrictPRDiffCacheIdentity:
+        return self._cache_identity
+
+    async def build_pr_diff(self) -> PRDiff:
+        self._reader.build_calls.append((self._snapshot.owner, self._snapshot.repo, self._snapshot.pr_number))
+        side_effect = self._reader.build_pr_diff_side_effect
+        if side_effect is not None:
+            raise side_effect
+        return self._reader.build_pr_diff_return_value
+
+    async def aclose(self) -> None:
+        return None
+
+
+class ErrorScenarioPRDiffReader(PRDiffServiceInterface):
+    def __init__(self, pr_diff: PRDiff | None = None) -> None:
+        self.build_pr_diff_return_value = pr_diff if pr_diff is not None else PRDiff(files=())
+        self.build_pr_diff_side_effect: Exception | None = None
+        self.build_calls: list[tuple[str, str, int]] = []
+
+    async def open_pr_diff_session(
+        self,
+        repo_owner: str,
+        repo_name: str,
+        pr_number: int,
+        /,
+        *,
+        base_url: str | None = None,
+    ) -> PRDiffReadSessionInterface:
+        del base_url
+        return ErrorScenarioPRDiffSession(self, repo_owner, repo_name, pr_number)
+
+    async def get_pr_diff(self, repo_owner: str, repo_name: str, pr_number: int) -> PRDiff | None:
+        session = await self.open_pr_diff_session(repo_owner, repo_name, pr_number)
+        try:
+            return await session.build_pr_diff()
+        finally:
+            await session.aclose()
+
+    async def get_latest_commit_sha(self, repo_owner: str, repo_name: str, pr_number: int) -> str | None:
+        return "c" * 40
+
+    def validate_repository_access(self, repo_owner: str, repo_name: str) -> bool:
+        return True
+
+
+@pytest.fixture
+def mock_pr_diff_service() -> ErrorScenarioPRDiffReader:
+    return ErrorScenarioPRDiffReader()
+
+
+async def _build_pr_diff_through_session(reader: ErrorScenarioPRDiffReader) -> PRDiff:
+    session = await reader.open_pr_diff_session("owner", "repo", 1)
+    try:
+        return await session.build_pr_diff()
+    finally:
+        await session.aclose()
 
 
 @pytest.mark.integration
@@ -64,12 +153,6 @@ class TestAPIErrorScenarios:
         return mock_repo_cache
 
     @pytest.fixture
-    def mock_pr_diff_service(self):
-        mock_service = Mock()
-        mock_service.get_pr_diff = AsyncMock()
-        return mock_service
-
-    @pytest.fixture
     def server(
         self,
         mock_settings,
@@ -90,37 +173,60 @@ class TestAPIErrorScenarios:
             logger=mock_logger,
         )
 
-    def test_rate_limit_exceeded_error(self, server, mock_pr_diff_service):
-        mock_pr_diff_service.get_pr_diff.side_effect = RateLimitExceededException(403, {"message": "API rate limit exceeded"}, {"remaining": 0})
+    @pytest.mark.anyio
+    async def test_rate_limit_exceeded_error(self, server, mock_pr_diff_service):
+        expected_error = RateLimitExceededException(403, {"message": "API rate limit exceeded"}, {"remaining": 0})
+        mock_pr_diff_service.build_pr_diff_side_effect = expected_error
 
-        with pytest.raises(Exception):  # Generic exception from safe error handling
-            raise Exception("Rate limit scenario test")
+        with pytest.raises(RateLimitExceededException) as exception_info:
+            await _build_pr_diff_through_session(mock_pr_diff_service)
 
-    def test_repository_not_found_error(self, server, mock_pr_diff_service):
-        mock_pr_diff_service.get_pr_diff.side_effect = UnknownObjectException(404, {"message": "Repository not found"}, {})
+        assert exception_info.value is expected_error
+        assert mock_pr_diff_service.build_calls == [("owner", "repo", 1)]
 
-        with pytest.raises(Exception):
-            raise Exception("Not found scenario test")
+    @pytest.mark.anyio
+    async def test_repository_not_found_error(self, server, mock_pr_diff_service):
+        expected_error = UnknownObjectException(404, {"message": "Repository not found"}, {})
+        mock_pr_diff_service.build_pr_diff_side_effect = expected_error
 
-    def test_generic_github_exception(self, server, mock_pr_diff_service):
-        mock_pr_diff_service.get_pr_diff.side_effect = GithubException(500, {"message": "Internal server error"}, {})
+        with pytest.raises(UnknownObjectException) as exception_info:
+            await _build_pr_diff_through_session(mock_pr_diff_service)
 
-        with pytest.raises(Exception):
-            raise Exception("GitHub exception scenario test")
+        assert exception_info.value is expected_error
+        assert mock_pr_diff_service.build_calls == [("owner", "repo", 1)]
 
-    def test_timeout_error(self, server, mock_pr_diff_service):
-        import asyncio
+    @pytest.mark.anyio
+    async def test_generic_github_exception(self, server, mock_pr_diff_service):
+        expected_error = GithubException(500, {"message": "Internal server error"}, {})
+        mock_pr_diff_service.build_pr_diff_side_effect = expected_error
 
-        mock_pr_diff_service.get_pr_diff.side_effect = asyncio.TimeoutError("Request timed out")
+        with pytest.raises(GithubException) as exception_info:
+            await _build_pr_diff_through_session(mock_pr_diff_service)
 
-        with pytest.raises(asyncio.TimeoutError):
-            raise asyncio.TimeoutError("Timeout scenario test")
+        assert exception_info.value is expected_error
+        assert mock_pr_diff_service.build_calls == [("owner", "repo", 1)]
 
-    def test_connection_error(self, server, mock_pr_diff_service):
-        mock_pr_diff_service.get_pr_diff.side_effect = ConnectionError("Failed to connect to GitHub")
+    @pytest.mark.anyio
+    async def test_timeout_error(self, server, mock_pr_diff_service):
+        expected_error = TimeoutError("Request timed out")
+        mock_pr_diff_service.build_pr_diff_side_effect = expected_error
 
-        with pytest.raises(ConnectionError):
-            raise ConnectionError("Connection error scenario test")
+        with pytest.raises(TimeoutError) as exception_info:
+            await _build_pr_diff_through_session(mock_pr_diff_service)
+
+        assert exception_info.value is expected_error
+        assert mock_pr_diff_service.build_calls == [("owner", "repo", 1)]
+
+    @pytest.mark.anyio
+    async def test_connection_error(self, server, mock_pr_diff_service):
+        expected_error = ConnectionError("Failed to connect to GitHub")
+        mock_pr_diff_service.build_pr_diff_side_effect = expected_error
+
+        with pytest.raises(ConnectionError) as exception_info:
+            await _build_pr_diff_through_session(mock_pr_diff_service)
+
+        assert exception_info.value is expected_error
+        assert mock_pr_diff_service.build_calls == [("owner", "repo", 1)]
 
 
 @pytest.mark.integration
@@ -150,12 +256,6 @@ class TestValidationErrorScenarios:
         mock_repo_cache = Mock()
         mock_repo_cache.retrieve = Mock(return_value=None)
         return mock_repo_cache
-
-    @pytest.fixture
-    def mock_pr_diff_service(self):
-        mock_service = Mock()
-        mock_service.get_pr_diff = AsyncMock()
-        return mock_service
 
     @pytest.fixture
     def server(
@@ -291,12 +391,6 @@ class TestRateLimitingScenarios:
         return mock_repo_cache
 
     @pytest.fixture
-    def mock_pr_diff_service(self):
-        mock_service = Mock()
-        mock_service.get_pr_diff = AsyncMock()
-        return mock_service
-
-    @pytest.fixture
     def server(
         self,
         mock_settings,
@@ -414,13 +508,6 @@ class TestCacheErrorScenarios:
         return mock_repo_cache
 
     @pytest.fixture
-    def mock_pr_diff_service(self):
-
-        mock_service = Mock()
-        mock_service.get_pr_diff = AsyncMock(return_value=PRDiff(files=()))
-        return mock_service
-
-    @pytest.fixture
     def server_with_failing_cache(
         self,
         mock_settings,
@@ -473,12 +560,6 @@ class TestAuthenticationErrorScenarios:
         mock_repo_cache = Mock()
         mock_repo_cache.retrieve = Mock(return_value=None)
         return mock_repo_cache
-
-    @pytest.fixture
-    def mock_pr_diff_service(self):
-        mock_service = Mock()
-        mock_service.get_pr_diff = AsyncMock()
-        return mock_service
 
     @pytest.fixture
     def server(

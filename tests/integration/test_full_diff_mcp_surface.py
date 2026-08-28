@@ -2,16 +2,29 @@
 
 from __future__ import annotations
 
+from typing import Literal, assert_never
 from unittest.mock import AsyncMock, MagicMock, patch
+from urllib.parse import urlparse
 
 import pytest
 from fastmcp import FastMCP
 
 from prdiffer.application.tool_registry import ToolRegistry
+from prdiffer.application.provider_resolver import StrictDiffCapability, create_provider_capability_resolver
 from prdiffer.domain.entities.file_diff_response import FileDiffResponse, FileStats
 from prdiffer.domain.entities.file_patch import EDIT_TYPE
 from prdiffer.domain.entities.pr_diff import PRDiff
+from prdiffer.domain.entities.pr_diff_cache import (
+    StrictPRDiffCacheIdentity,
+    github_full_diff_v3_identity,
+    gitlab_full_diff_v1_identity,
+)
+from prdiffer.domain.interfaces.pr_diff_reader import PRDiffReadSessionInterface, PRDiffSnapshot
+from prdiffer.domain.services.pr_diff_service import PRDiffServiceInterface
 from prdiffer.domain.exceptions import FullDiffIncompleteError, FullDiffIncompleteReason
+
+
+ProviderName = Literal["github", "gitlab"]
 
 
 def _mixed_pr_diff() -> PRDiff:
@@ -59,6 +72,103 @@ class RecordingCache:
         self.store[(key, token)] = value
 
 
+class FakeSession(PRDiffReadSessionInterface):
+    def __init__(
+        self,
+        pr_diff: PRDiff,
+        repo_owner: str,
+        repo_name: str,
+        pr_number: int,
+        provider: ProviderName,
+        base_url: str | None,
+    ) -> None:
+        self._pr_diff = pr_diff
+        match provider:
+            case "github":
+                self._snapshot = PRDiffSnapshot(
+                    repo_owner,
+                    repo_name,
+                    pr_number,
+                    "a" * 40,
+                    "b" * 40,
+                    "c" * 40,
+                    len(pr_diff.files),
+                )
+                self._cache_identity = github_full_diff_v3_identity(
+                    repo_owner,
+                    repo_name,
+                    pr_number,
+                    self._snapshot.merge_base_sha,
+                    self._snapshot.head_sha,
+                )
+            case "gitlab":
+                base_sha = "dddddddddddddddddddddddddddddddddddddddd"
+                start_sha = "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+                head_sha = "ffffffffffffffffffffffffffffffffffffffff"
+                host = urlparse(base_url).netloc if base_url is not None else "gitlab.com"
+                self._snapshot = PRDiffSnapshot(
+                    repo_owner,
+                    repo_name,
+                    pr_number,
+                    start_sha,
+                    base_sha,
+                    head_sha,
+                    len(pr_diff.files),
+                )
+                self._cache_identity = gitlab_full_diff_v1_identity(
+                    repo_owner,
+                    repo_name,
+                    pr_number,
+                    7,
+                    base_sha,
+                    start_sha,
+                    head_sha,
+                    host=host,
+                )
+            case unreachable:
+                assert_never(unreachable)
+
+    @property
+    def snapshot(self) -> PRDiffSnapshot:
+        return self._snapshot
+
+    @property
+    def cache_identity(self) -> StrictPRDiffCacheIdentity:
+        return self._cache_identity
+
+    async def build_pr_diff(self) -> PRDiff:
+        return self._pr_diff
+
+    async def aclose(self) -> None:
+        return None
+
+
+class FakeReader(PRDiffServiceInterface):
+    def __init__(self, pr_diff: PRDiff | None = None, *, provider: ProviderName = "github") -> None:
+        self._pr_diff = pr_diff or PRDiff(files=())
+        self._provider: ProviderName = provider
+
+    async def open_pr_diff_session(
+        self,
+        repo_owner: str,
+        repo_name: str,
+        pr_number: int,
+        /,
+        *,
+        base_url: str | None = None,
+    ) -> PRDiffReadSessionInterface:
+        return FakeSession(self._pr_diff, repo_owner, repo_name, pr_number, self._provider, base_url)
+
+    async def get_pr_diff(self, repo_owner: str, repo_name: str, pr_number: int) -> PRDiff | None:
+        return self._pr_diff
+
+    async def get_latest_commit_sha(self, repo_owner: str, repo_name: str, pr_number: int) -> str | None:
+        return "c" * 40
+
+    def validate_repository_access(self, repo_owner: str, repo_name: str) -> bool:
+        return True
+
+
 def _registry(
     pr_diff: PRDiff | None = None,
     *,
@@ -77,13 +187,20 @@ def _registry(
     validator = MagicMock()
     validator.sanitize_string.side_effect = lambda s, max_length=1000: s
     validator.validate_github_url.return_value = ("owner", "repo", 1)
+    validator.validate_gitlab_url.return_value = ("group/sub", "project", 42)
 
     cache_service = cache or RecordingCache()
+    pr_diff_service = FakeReader(pr_diff)
     registry = ToolRegistry(
-        pr_diff_service=MagicMock(),
+        pr_diff_service=pr_diff_service,
         cache_service=cache_service,
         logger=logger,
-        github_repository_class=MagicMock(),
+        provider_resolver=create_provider_capability_resolver(
+            github_reader=pr_diff_service,
+            github_repository_factory=MagicMock(),
+            gitlab_reader=None,
+            gitlab_operations=None,
+        ),
         rate_limiter=rate,
         metrics_tracker=metrics,
         authentication=auth,
@@ -118,6 +235,7 @@ async def test_registered_get_pr_diff_success_surface() -> None:
 
     with patch(
         "prdiffer.application.tool_registry.parse_pr_target",
+        create=True,
         return_value=MagicMock(provider="github", repo_owner="owner", repo_name="repo", pr_number=1),
     ):
         # Call tool through FastMCP call_tool if available
@@ -166,6 +284,7 @@ async def test_registered_get_pr_diff_strict_binary_failure() -> None:
 
     with patch(
         "prdiffer.application.tool_registry.parse_pr_target",
+        create=True,
         return_value=MagicMock(provider="github", repo_owner="owner", repo_name="repo", pr_number=1),
     ):
         with pytest.raises(ToolError) as exc_info:
@@ -207,12 +326,13 @@ async def test_gitlab_nested_success_and_e5020_surface() -> None:
         )
     )
     registry = _registry(success)
-    # Force GitLab routing
-    registry._gitlab_reader = MagicMock()
+    gitlab_reader = FakeReader(success, provider="gitlab")
+    registry._provider_resolver.register_strict_diff("gitlab", StrictDiffCapability(gitlab_reader, "gitlab"))
     registry.register_tools(mcp)
 
     with patch(
         "prdiffer.application.tool_registry.parse_pr_target",
+        create=True,
         return_value=MagicMock(provider="gitlab", repo_owner="group/sub", repo_name="project", pr_number=42),
     ):
         result = await mcp.call_tool(
@@ -226,15 +346,38 @@ async def test_gitlab_nested_success_and_e5020_surface() -> None:
     files = payload.get("files", [])
     assert len(files) == 1
     assert files[0]["previous_path"] == "old.py"
+    gitlab_session = await gitlab_reader.open_pr_diff_session(
+        "group/sub",
+        "project",
+        42,
+        base_url="https://gitlab.com",
+    )
+    try:
+        gitlab_identity = gitlab_session.cache_identity
+        assert gitlab_identity.cache_key == (
+            "gitlab-full-diff-v1:gitlab.com:group/sub:project:42:7:"
+            "dddddddddddddddddddddddddddddddddddddddd:"
+            "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee:"
+            "ffffffffffffffffffffffffffffffffffffffff"
+        )
+        assert gitlab_identity.validation_token == (
+            "7:dddddddddddddddddddddddddddddddddddddddd:"
+            "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee:"
+            "ffffffffffffffffffffffffffffffffffffffff"
+        )
+        assert gitlab_identity.schema_version == 1
+    finally:
+        await gitlab_session.aclose()
 
     # E5020 path
     mcp2 = FastMCP("test-gitlab-e5020")
     err = FullDiffIncompleteError(FullDiffIncompleteReason.BINARY_CONTENT, path="x.bin")
     reg2 = _registry(fail=err)
-    reg2._gitlab_reader = MagicMock()
+    reg2._provider_resolver.register_strict_diff("gitlab", StrictDiffCapability(FakeReader(provider="gitlab"), "gitlab"))
     reg2.register_tools(mcp2)
     with patch(
         "prdiffer.application.tool_registry.parse_pr_target",
+        create=True,
         return_value=MagicMock(provider="gitlab", repo_owner="group/sub", repo_name="project", pr_number=42),
     ):
         with pytest.raises(ToolError) as exc:
@@ -262,6 +405,7 @@ async def test_all_e5020_reasons_nonpartial_uncached_metric(reason: FullDiffInco
 
     with patch(
         "prdiffer.application.tool_registry.parse_pr_target",
+        create=True,
         return_value=MagicMock(provider="github", repo_owner="owner", repo_name="repo", pr_number=1),
     ):
         with pytest.raises(ToolError) as ei:
@@ -285,33 +429,10 @@ async def test_all_e5020_reasons_nonpartial_uncached_metric(reason: FullDiffInco
 @pytest.mark.anyio
 async def test_real_use_case_empty_success_writes_cache_once_via_coalescer() -> None:
     """Real GetPRDiffUseCase + RequestCoalescingService: empty PRDiff caches once."""
-    from prdiffer.domain.entities.pr_diff_cache import github_full_diff_v3_identity
     from prdiffer.infrastructure.utils.coalescing_service import RequestCoalescingService
 
-    mb = "b" * 40
-    hd = "c" * 40
-    identity = github_full_diff_v3_identity("owner", "repo", 1, mb, hd)
     empty = PRDiff(files=())
     cache = RecordingCache()
-
-    class FakeSession:
-        cache_identity = identity
-
-        async def build_pr_diff(self):
-            return empty
-
-        async def aclose(self):
-            return None
-
-    class FakeReader:
-        async def open_pr_diff_session(self, owner, repo, pr, /, *, base_url=None):
-            return FakeSession()
-
-        async def get_pr_diff(self, owner, repo, pr, /):
-            return empty
-
-        async def get_latest_commit_sha(self, owner, repo, pr, /):
-            return hd
 
     logger = MagicMock()
     rate = MagicMock()
@@ -326,11 +447,17 @@ async def test_real_use_case_empty_success_writes_cache_once_via_coalescer() -> 
     validator.sanitize_string.side_effect = lambda s, max_length=1000: s
     validator.validate_github_url.return_value = ("owner", "repo", 1)
 
+    reader = FakeReader(empty)
     registry = ToolRegistry(
-        pr_diff_service=FakeReader(),  # type: ignore[arg-type]
+        pr_diff_service=reader,
         cache_service=cache,  # type: ignore[arg-type]
         logger=logger,
-        github_repository_class=MagicMock(),
+        provider_resolver=create_provider_capability_resolver(
+            github_reader=reader,
+            github_repository_factory=MagicMock(),
+            gitlab_reader=None,
+            gitlab_operations=None,
+        ),
         rate_limiter=rate,
         metrics_tracker=metrics,
         authentication=auth,
@@ -343,6 +470,7 @@ async def test_real_use_case_empty_success_writes_cache_once_via_coalescer() -> 
 
     with patch(
         "prdiffer.application.tool_registry.parse_pr_target",
+        create=True,
         return_value=MagicMock(provider="github", repo_owner="owner", repo_name="repo", pr_number=1),
     ):
         result = await mcp.call_tool("get_pr_diff", {"pr_url": "https://github.com/owner/repo/pull/1"})
@@ -375,6 +503,7 @@ async def test_authoritative_empty_success_writes_cache_once() -> None:
     registry.register_tools(mcp)
     with patch(
         "prdiffer.application.tool_registry.parse_pr_target",
+        create=True,
         return_value=MagicMock(provider="github", repo_owner="owner", repo_name="repo", pr_number=1),
     ):
         result = await mcp.call_tool("get_pr_diff", {"pr_url": "https://github.com/owner/repo/pull/1"})
@@ -408,6 +537,7 @@ async def test_operational_rate_limit_not_remapped_to_e5020() -> None:
     registry.register_tools(mcp)
     with patch(
         "prdiffer.application.tool_registry.parse_pr_target",
+        create=True,
         return_value=MagicMock(provider="github", repo_owner="owner", repo_name="repo", pr_number=1),
     ):
         with pytest.raises(ToolError) as ei:

@@ -9,13 +9,74 @@ import pytest
 
 from prdiffer.application.factory import create_mcp_server
 from prdiffer.application.utils.pr_url_parser import parse_pr_url
+from prdiffer.domain.entities.pr_diff import PRDiff
+from prdiffer.domain.entities.pr_diff_cache import StrictPRDiffCacheIdentity, github_full_diff_v3_identity
 from prdiffer.domain.exceptions import (
     InvalidURLError,
     InvalidRepositoryError,
     InputSanitizationError,
     SuspiciousOperationError,
 )
+from prdiffer.domain.interfaces.pr_diff_reader import PRDiffReadSessionInterface, PRDiffSnapshot
+from prdiffer.domain.services.pr_diff_service import PRDiffServiceInterface
 from prdiffer.infrastructure.github_repository import GitHubPRDiffRepository
+
+
+class SecurityFakeSession(PRDiffReadSessionInterface):
+    def __init__(self, repo_owner: str, repo_name: str, pr_number: int) -> None:
+        self._snapshot = PRDiffSnapshot(
+            repo_owner,
+            repo_name,
+            pr_number,
+            "a" * 40,
+            "b" * 40,
+            "c" * 40,
+            0,
+        )
+        self._cache_identity = github_full_diff_v3_identity(
+            repo_owner,
+            repo_name,
+            pr_number,
+            self._snapshot.merge_base_sha,
+            self._snapshot.head_sha,
+        )
+
+    @property
+    def snapshot(self) -> PRDiffSnapshot:
+        return self._snapshot
+
+    @property
+    def cache_identity(self) -> StrictPRDiffCacheIdentity:
+        return self._cache_identity
+
+    async def build_pr_diff(self) -> PRDiff:
+        return PRDiff(files=())
+
+    async def aclose(self) -> None:
+        return None
+
+
+class SecurityFakeReader(PRDiffServiceInterface):
+    async def open_pr_diff_session(
+        self,
+        repo_owner: str,
+        repo_name: str,
+        pr_number: int,
+        /,
+        *,
+        base_url: str | None = None,
+    ) -> PRDiffReadSessionInterface:
+        del base_url
+        return SecurityFakeSession(repo_owner, repo_name, pr_number)
+
+    async def get_pr_diff(self, repo_owner: str, repo_name: str, pr_number: int) -> PRDiff | None:
+        return PRDiff(files=())
+
+    async def get_latest_commit_sha(self, repo_owner: str, repo_name: str, pr_number: int) -> str | None:
+        return "c" * 40
+
+    def validate_repository_access(self, repo_owner: str, repo_name: str) -> bool:
+        return True
 
 
 @pytest.mark.integration
@@ -40,8 +101,7 @@ class TestCommandInjectionPrevention:
         mock_repo_cache = Mock()
         mock_repo_cache.retrieve = Mock(return_value=None)
 
-        mock_pr_diff_service = Mock()
-        mock_pr_diff_service.get_pr_diff = AsyncMock()
+        mock_pr_diff_service = SecurityFakeReader()
 
         mock_repo = Mock(spec=GitHubPRDiffRepository)
         mock_repo.get_pr_diff = AsyncMock()
@@ -157,8 +217,7 @@ class TestSQLInjectionPrevention:
         mock_repo_cache = Mock()
         mock_repo_cache.retrieve = Mock(return_value=None)
 
-        mock_pr_diff_service = Mock()
-        mock_pr_diff_service.get_pr_diff = AsyncMock()
+        mock_pr_diff_service = SecurityFakeReader()
 
         mock_repo = Mock(spec=GitHubPRDiffRepository)
         mock_repo.get_pr_diff = AsyncMock()
@@ -274,8 +333,7 @@ class TestPathTraversalPrevention:
         mock_repo_cache = Mock()
         mock_repo_cache.retrieve = Mock(return_value=None)
 
-        mock_pr_diff_service = Mock()
-        mock_pr_diff_service.get_pr_diff = AsyncMock()
+        mock_pr_diff_service = SecurityFakeReader()
 
         mock_repo = Mock(spec=GitHubPRDiffRepository)
         mock_repo.get_pr_diff = AsyncMock()
@@ -367,8 +425,7 @@ class TestXSSPrevention:
         mock_repo_cache = Mock()
         mock_repo_cache.retrieve = Mock(return_value=None)
 
-        mock_pr_diff_service = Mock()
-        mock_pr_diff_service.get_pr_diff = AsyncMock()
+        mock_pr_diff_service = SecurityFakeReader()
 
         mock_repo = Mock(spec=GitHubPRDiffRepository)
         mock_repo.get_pr_diff = AsyncMock()
@@ -434,8 +491,7 @@ class TestInputSanitization:
         mock_repo_cache = Mock()
         mock_repo_cache.retrieve = Mock(return_value=None)
 
-        mock_pr_diff_service = Mock()
-        mock_pr_diff_service.get_pr_diff = AsyncMock()
+        mock_pr_diff_service = SecurityFakeReader()
 
         mock_repo = Mock(spec=GitHubPRDiffRepository)
         mock_repo.get_pr_diff = AsyncMock()
@@ -515,8 +571,7 @@ class TestRepositoryValidation:
         mock_repo_cache = Mock()
         mock_repo_cache.retrieve = Mock(return_value=None)
 
-        mock_pr_diff_service = Mock()
-        mock_pr_diff_service.get_pr_diff = AsyncMock()
+        mock_pr_diff_service = SecurityFakeReader()
 
         mock_repo = Mock(spec=GitHubPRDiffRepository)
         mock_repo.get_pr_diff = AsyncMock()
@@ -601,8 +656,7 @@ class TestSecureLogging:
         mock_repo_cache = Mock()
         mock_repo_cache.retrieve = Mock(return_value=None)
 
-        mock_pr_diff_service = Mock()
-        mock_pr_diff_service.get_pr_diff = AsyncMock()
+        mock_pr_diff_service = SecurityFakeReader()
 
         mock_repo = Mock(spec=GitHubPRDiffRepository)
         mock_repo.get_pr_diff = AsyncMock()
@@ -658,8 +712,7 @@ class TestBranchValidationSecurity:
         mock_repo_cache = Mock()
         mock_repo_cache.retrieve = Mock(return_value=None)
 
-        mock_pr_diff_service = Mock()
-        mock_pr_diff_service.get_pr_diff = AsyncMock()
+        mock_pr_diff_service = SecurityFakeReader()
 
         mock_repo = Mock(spec=GitHubPRDiffRepository)
         mock_repo.get_pr_diff = AsyncMock()

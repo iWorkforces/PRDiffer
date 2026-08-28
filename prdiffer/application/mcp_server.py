@@ -1,14 +1,15 @@
 import os
-from typing import Literal, TypeAlias, Callable, Any
+from typing import Literal, TypeAlias
 
 from fastmcp import FastMCP
+
+from prdiffer.application.provider_resolver import ProviderCapabilityResolver
 from prdiffer.version import __version__
 
 from prdiffer.domain.services.settings import SettingsServiceInterface
 from prdiffer.domain.services.cache import CacheServiceInterface
 from prdiffer.domain.services.repository_cache import RepositoryCacheServiceInterface
 from prdiffer.domain.services.pr_diff_service import PRDiffServiceInterface
-from prdiffer.domain.usecases.pr_diff_usecases import PRDiffReader
 from prdiffer.domain.services.logger import LoggerServiceInterface
 from prdiffer.domain.interfaces.protocols import (
     RateLimiterProtocol,
@@ -17,7 +18,6 @@ from prdiffer.domain.interfaces.protocols import (
     HealthMonitorProtocol,
     ServerConfigurationProtocol,
     AuthenticationProtocol,
-    GitLabPROperationsProtocol,
 )
 from prdiffer.domain.interfaces.input_validation import InputValidatorProtocol
 from prdiffer.domain.interfaces.request_coalescing import RequestCoalescingProtocol
@@ -40,14 +40,12 @@ class FastMCPServer:
         repository_cache_service: RepositoryCacheServiceInterface,
         pr_diff_service: PRDiffServiceInterface,
         logger: LoggerServiceInterface,
-        github_repository_class: Callable[..., Any],
+        provider_resolver: ProviderCapabilityResolver,
         rate_limiter: RateLimiterProtocol,
         metrics_tracker: MetricsTrackerProtocol,
         pr_operation_handler: PROperationHandlerProtocol,
         health_monitor: HealthMonitorProtocol,
         server_configuration: ServerConfigurationProtocol,
-        gitlab_reader: PRDiffReader | None = None,
-        gitlab_pr_operations: GitLabPROperationsProtocol | None = None,
         authentication: AuthenticationProtocol | None = None,
         input_validator: InputValidatorProtocol | None = None,
         request_coalescing_service: RequestCoalescingProtocol | None = None,
@@ -56,10 +54,8 @@ class FastMCPServer:
         self._cache_service = cache_service
         self._repository_cache_service = repository_cache_service
         self._pr_diff_service = pr_diff_service
-        self._gitlab_reader = gitlab_reader
-        self._gitlab_pr_operations = gitlab_pr_operations
         self._logger = logger
-        self._github_repository_class: Callable[..., Any] = github_repository_class
+        self._provider_resolver = provider_resolver
 
         self._rate_limiter = rate_limiter
         self._metrics_tracker = metrics_tracker
@@ -111,11 +107,9 @@ class FastMCPServer:
 
         self._tool_registry = ToolRegistry(
             pr_diff_service=self._pr_diff_service,
-            gitlab_reader=self._gitlab_reader,
-            gitlab_pr_operations=self._gitlab_pr_operations,
             cache_service=self._cache_service,
             logger=self._logger,
-            github_repository_class=self._github_repository_class,
+            provider_resolver=self._provider_resolver,
             rate_limiter=self._rate_limiter,
             metrics_tracker=self._metrics_tracker,
             authentication=self._authentication,
