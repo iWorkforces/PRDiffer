@@ -1,6 +1,6 @@
 # Security Usage Guide
 
-This guide explains how to configure and use the authentication and security features of PRDifferMCP.
+This guide explains how to configure and use the authentication and security features of PRDiffer.
 
 ## Table of Contents
 
@@ -15,7 +15,7 @@ This guide explains how to configure and use the authentication and security fea
 
 ## Overview
 
-PRDifferMCP implements API key-based authentication to control access to the MCP server. The authentication system includes:
+PRDiffer implements API key-based authentication to control access to the MCP server. The authentication system includes:
 
 - **API Key Authentication**: Requires clients to provide a valid API key
 - **SHA-256 Hashing**: Keys are stored as SHA-256 hashes for security
@@ -161,7 +161,7 @@ For Claude Desktop, configure the MCP server in your `claude_desktop_config.json
       "command": "uv",
       "args": [
         "--directory",
-        "/path/to/PRDifferMCP",
+        "/path/to/PRDiffer",
         "run",
         "python",
         "prdiffer/server.py"
@@ -265,7 +265,7 @@ async function fetchPRDiffWithAuth() {
         command: "uv",
         args: [
             "--directory",
-            "/path/to/PRDifferMCP",
+            "/path/to/PRDiffer",
             "run",
             "python",
             "prdiffer/server.py"

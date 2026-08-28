@@ -1,11 +1,11 @@
 ---
 name: prdiffer
-description: "Use when the user asks to get a PR/MR diff, analyze or review a pull/merge request, approve a PR/MR, update a PR/MR description, or work with GitHub PRs or GitLab MRs via the PRDifferMCP server. Triggers include: get pr diff, fetch diff, pr changes, merge request, gitlab mr, approve pr, approve mr, describe pr, update description, what files changed."
+description: "Use when the user asks to get a PR/MR diff, analyze or review a pull/merge request, approve a PR/MR, update a PR/MR description, or work with GitHub PRs or GitLab MRs via the PRDiffer server. Triggers include: get pr diff, fetch diff, pr changes, merge request, gitlab mr, approve pr, approve mr, describe pr, update description, what files changed."
 ---
 
 # PRDiffer — GitHub PR & GitLab MR tools via MCP
 
-PRDifferMCP exposes MCP tools for:
+PRDiffer exposes MCP tools for:
 
 1. **Strict full-context** PR/MR diffs (all-or-nothing)
 2. **Approving** a PR/MR with a non-empty compliment
@@ -15,7 +15,7 @@ Tools are prefixed with `prdiffer__` in the MCP namespace. All three VCS tools a
 
 ## Prerequisites
 
-A running PRDifferMCP server must be configured in the agent's MCP settings:
+A running PRDiffer server must be configured in the agent's MCP settings:
 
 ```json
 {

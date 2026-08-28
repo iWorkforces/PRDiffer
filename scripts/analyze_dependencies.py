@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate dependency graph visualization for PRDifferMCP.
+"""Generate dependency graph visualization for PRDiffer.
 
 This script analyzes Python imports and creates a visual dependency graph
 showing relationships between modules and layers.
@@ -222,7 +222,7 @@ def main():
     """Main entry point."""
     import argparse
 
-    parser = argparse.ArgumentParser(description="Generate dependency graph for PRDifferMCP")
+    parser = argparse.ArgumentParser(description="Generate dependency graph for PRDiffer")
     parser.add_argument(
         "--path",
         type=str,

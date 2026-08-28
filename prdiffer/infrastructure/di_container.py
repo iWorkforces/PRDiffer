@@ -1,4 +1,4 @@
-"""Dependency injection container for PRDifferMCP."""
+"""Dependency injection container for PRDiffer."""
 
 from collections.abc import Callable
 from typing import Any, TypeVar
